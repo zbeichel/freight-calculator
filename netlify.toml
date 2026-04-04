@@ -1,0 +1,6 @@
+toml[build]
+  publish = "."
+  command = ""
+
+[build.environment]
+  NODE_VERSION = "18"
