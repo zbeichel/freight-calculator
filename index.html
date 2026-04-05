@@ -1179,7 +1179,7 @@ async function fetchEIADiesel(){
 
   try {
     // EIA API v2 — petroleum retail price, weekly, latest 2 data points
-    const url = `https://api.eia.gov/v2/petroleum/pri/gnd/data/?api_key=${7tv28cvvTAnF2s9hAFpCSeVUL92CJfB3nZWyOHtb}`
+    const url = `https://api.eia.gov/v2/petroleum/pri/gnd/data/?api_key=${'7tv28cvvTAnF2s9hAFpCSeVUL92CJfB3nZWyOHtb'}`
       + `&frequency=weekly`
       + `&data[0]=value`
       + `&facets[series][]=${seriesId}`
