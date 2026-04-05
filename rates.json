@@ -1,10 +1,10 @@
 {
-  "van": 2.47,
-  "reefer": 2.88,
-  "flatbed": 2.95,
-  "lt_van": 8.1,
-  "lt_reefer": 14.9,
-  "lt_flatbed": 25.0,
+  "van": 2.73,
+  "reefer": 3.15,
+  "flatbed": 3.38,
+  "lt_van": 9.5,
+  "lt_reefer": 17.5,
+  "lt_flatbed": 76.5,
   "updated": "Apr 7, 2026",
   "source": "DAT Trendlines"
 }
