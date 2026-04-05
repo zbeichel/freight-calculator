@@ -789,9 +789,6 @@ html.light .hos-day-header{background:var(--card2)}
           <a href="https://www.dat.com/trendlines" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none;font-weight:500">Check DAT ↗</a>
         </div>
         <div id="rates-fetch-status" style="font-size:11px;margin-bottom:14px;color:var(--text3)">Loading rates...</div>
-        <div class="adv-note" style="margin-bottom:16px">
-          <strong>Rates load automatically from <code style="font-size:10px;background:var(--card2);padding:1px 5px;border-radius:4px">rates.json</code> on your Netlify site.</strong> To update rates for everyone, edit that file and redeploy. Changes here only affect your current session.
-        </div>
 
         <!-- Diesel -->
         <div class="adv-sub" style="display:flex;align-items:center;justify-content:space-between">
@@ -809,11 +806,33 @@ html.light .hos-day-header{background:var(--card2)}
           <strong style="color:var(--accent)">Surcharge active.</strong> Best used with contract rates only — not current DAT spot rates.
         </div>
         <div id="diesel-controls" style="display:none;margin-bottom:4px">
-          <div class="mini-input-group" style="max-width:160px;margin-bottom:6px">
-            <div class="mini-label" style="color:var(--red)">E. Coast Diesel ($/gal)</div>
-            <input class="mini-input" type="number" id="diesel-price" value="3.85" step="0.01" min="1" style="color:var(--red);border-color:rgba(239,68,68,.3)" oninput="saveDiesel();calc()" />
-            <div class="mini-sub">Baseline $3.50 · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
+          <!-- Region selector -->
+          <div class="mini-input-group" style="margin-bottom:10px">
+            <div class="mini-label" style="color:var(--red)">Diesel Region</div>
+            <select id="diesel-region" onchange="saveDiesel();calc()"
+              style="background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;padding:8px 10px;width:100%;outline:none;cursor:pointer">
+              <option value="R10">East Coast</option>
+              <option value="R20">Midwest</option>
+              <option value="R30">Gulf Coast</option>
+              <option value="R40">Rocky Mountain</option>
+              <option value="R50">West Coast</option>
+              <option value="NUS">National Average</option>
+            </select>
           </div>
+          <!-- Price input + fetch button -->
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-bottom:6px">
+            <div class="mini-input-group">
+              <div class="mini-label" style="color:var(--red)">Diesel Price ($/gal)</div>
+              <input class="mini-input" type="number" id="diesel-price" value="3.85" step="0.01" min="1" style="color:var(--red);border-color:rgba(239,68,68,.3)" oninput="saveDiesel();calc()" />
+            </div>
+            <button onclick="fetchEIADiesel()" id="eia-fetch-btn"
+              style="height:38px;padding:0 12px;background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--red);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s"
+              title="Fetch latest weekly price from EIA">
+              ⚡ Live
+            </button>
+          </div>
+          <div id="eia-status" style="font-size:11px;color:var(--text3);margin-bottom:4px"></div>
+          <div class="mini-sub">Baseline $3.50/gal · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
         </div>
 
         <!-- Capacity -->
@@ -853,7 +872,7 @@ html.light .hos-day-header{background:var(--card2)}
           <span>Seasonal Adjustment</span>
           <label class="tog" style="margin-bottom:0">
             <input type="checkbox" id="seas-enabled" onchange="toggleSeason()" checked />
-            <span class="tog-track" style="background:rgba(240,165,0,.1);border-color:var(--accent)"><span class="tog-thumb" style="transform:translateX(14px);background:var(--accent)"></span></span>
+            <span class="tog-track"><span class="tog-thumb"></span></span>
             <span class="tog-label" id="seas-tog-lbl" style="color:var(--accent)">On</span>
           </label>
         </div>
@@ -1115,8 +1134,92 @@ function toggleDiesel(){
 function saveDiesel(){
   try{localStorage.setItem('frc_diesel',JSON.stringify({
     price:document.getElementById('diesel-price').value,
+    region:document.getElementById('diesel-region').value,
     enabled:document.getElementById('diesel-enabled').checked
   }));}catch(e){}
+}
+
+// ── EIA Live Diesel Fetch ─────────────────────────────────────────────────
+// Free API key from eia.gov/opendata — replace the placeholder below
+const EIA_KEY = 'YOUR_EIA_API_KEY_HERE';
+
+// Region series IDs — EIA weekly No.2 diesel retail prices by PADD region
+const EIA_SERIES = {
+  R10: 'EMD_EPD2D_PTE_R10_DPG', // East Coast
+  R20: 'EMD_EPD2D_PTE_R20_DPG', // Midwest
+  R30: 'EMD_EPD2D_PTE_R30_DPG', // Gulf Coast
+  R40: 'EMD_EPD2D_PTE_R40_DPG', // Rocky Mountain
+  R50: 'EMD_EPD2D_PTE_R50_DPG', // West Coast
+  NUS: 'EMD_EPD2D_PTE_NUS_DPG', // National Average
+};
+
+const EIA_REGION_NAMES = {
+  R10:'East Coast', R20:'Midwest', R30:'Gulf Coast',
+  R40:'Rocky Mountain', R50:'West Coast', NUS:'National Avg'
+};
+
+async function fetchEIADiesel(){
+  const btn = document.getElementById('eia-fetch-btn');
+  const status = document.getElementById('eia-status');
+
+  if(EIA_KEY === 'YOUR_EIA_API_KEY_HERE'){
+    status.textContent = '⚠ Add your EIA API key to the HTML file first — see eia.gov/opendata';
+    status.style.color = 'var(--accent)';
+    return;
+  }
+
+  const region = document.getElementById('diesel-region').value;
+  const seriesId = EIA_SERIES[region];
+  const regionName = EIA_REGION_NAMES[region];
+
+  btn.textContent = '...';
+  btn.disabled = true;
+  status.textContent = 'Fetching from EIA...';
+  status.style.color = 'var(--text3)';
+
+  try {
+    // EIA API v2 — petroleum retail price, weekly, latest 2 data points
+    const url = `https://api.eia.gov/v2/petroleum/pri/gnd/data/?api_key=${EIA_KEY}`
+      + `&frequency=weekly`
+      + `&data[0]=value`
+      + `&facets[series][]=${seriesId}`
+      + `&sort[0][column]=period`
+      + `&sort[0][direction]=desc`
+      + `&length=2`;
+
+    const resp = await fetch(url);
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const json = await resp.json();
+
+    const rows = json?.response?.data;
+    if(!rows || rows.length === 0) throw new Error('No data returned');
+
+    const latest = rows[0];
+    const price = parseFloat(latest.value);
+    const period = latest.period; // format: YYYYMMDD
+
+    if(isNaN(price)) throw new Error('Invalid price value');
+
+    // Format the date nicely
+    const d = period.length === 8
+      ? new Date(period.slice(0,4)+'-'+period.slice(4,6)+'-'+period.slice(6,8))
+      : new Date(period);
+    const dateStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+    // Fill in the price field
+    document.getElementById('diesel-price').value = price.toFixed(2);
+    status.textContent = `✓ $${price.toFixed(2)}/gal · ${regionName} · Week of ${dateStr}`;
+    status.style.color = 'var(--green)';
+    saveDiesel();
+    calc();
+
+  } catch(e) {
+    status.textContent = '⚠ Could not fetch — check your EIA key or enter manually';
+    status.style.color = 'var(--red)';
+  } finally {
+    btn.textContent = '⚡ Live';
+    btn.disabled = false;
+  }
 }
 function getDieselMult(){
   if(!document.getElementById('diesel-enabled').checked)return 1.0;
@@ -1379,6 +1482,7 @@ function loadAll(){
   try{
     const d=JSON.parse(localStorage.getItem('frc_diesel')||'{}');
     if(d.price) document.getElementById('diesel-price').value=d.price;
+    if(d.region) document.getElementById('diesel-region').value=d.region;
     if(d.enabled){document.getElementById('diesel-enabled').checked=true;toggleDiesel();}
 
     const c=JSON.parse(localStorage.getItem('frc_cap')||'{}');
@@ -1403,9 +1507,14 @@ function loadRates(){
       return r.json();
     })
     .then(data=>{
+      // Base rates per mile
       if(data.van)    document.getElementById('rate-van').value=data.van;
       if(data.reefer) document.getElementById('rate-reefer').value=data.reefer;
       if(data.flatbed)document.getElementById('rate-flatbed').value=data.flatbed;
+      // Load-to-truck ratios
+      if(data.lt_van)    document.getElementById('lt-van').value=data.lt_van;
+      if(data.lt_reefer) document.getElementById('lt-reefer').value=data.lt_reefer;
+      if(data.lt_flatbed)document.getElementById('lt-flatbed').value=data.lt_flatbed;
       const dateStr=data.updated?(data.updated+(data.source?' — '+data.source:'')):'';
       if(dateStr) document.getElementById('rate-date').value=dateStr;
       updateHeaderRates();
@@ -1430,18 +1539,17 @@ function setRatesStatus(state, dateStr){
   }
 }
 
-// ── Google Maps Distance Matrix ──────────────────────────────────────────
-// SECURITY NOTE: Restrict this key to your domain in Google Cloud Console:
+// ── Google Routes API (Compute Routes) ───────────────────────────────────
+// Replaces legacy Distance Matrix API — same key, same price, 10k free/mo
+// SECURITY: Restrict this key to your domain in Google Cloud Console:
 // console.cloud.google.com → APIs & Services → Credentials → your key
 // → Application restrictions → HTTP referrers → add your domain
 const GMAPS_KEY = 'AIzaSyDlo3adFCXOG00DqCbYQwkxnnaRYP-PJOc';
-let mapsReady = false;
 let lookupTimer = null;
 let manualMiles = false;
 
-function onMapsLoaded(){
-  mapsReady = true;
-  // Wire up debounced lookup on origin/dest change
+// Wire up debounced lookup once DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
   ['origin','dest'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => {
       manualMiles = false;
@@ -1454,7 +1562,7 @@ function onMapsLoaded(){
       tryLookupMiles();
     });
   });
-}
+});
 
 function milesManualEdit(){
   manualMiles = true;
@@ -1464,7 +1572,7 @@ function milesManualEdit(){
 function setMilesSource(type){
   const el = document.getElementById('miles-source');
   if(!el) return;
-  if(type === 'google') { el.textContent = '· via Google Maps'; el.style.color = 'var(--green)'; }
+  if(type === 'google') { el.textContent = '· via Google Routes'; el.style.color = 'var(--green)'; }
   else if(type === 'manual') { el.textContent = '· entered manually'; el.style.color = 'var(--text3)'; }
   else { el.textContent = ''; }
 }
@@ -1485,43 +1593,75 @@ function hideMilesStatus(){
   document.getElementById('miles-status-row').style.display = 'none';
 }
 
-function tryLookupMiles(){
+function fmtDuration(seconds){
+  const h = Math.floor(seconds / 3600);
+  const m = Math.round((seconds % 3600) / 60);
+  if(h === 0) return m + ' min';
+  if(m === 0) return h + ' hr';
+  return h + ' hr ' + m + ' min';
+}
+
+async function tryLookupMiles(){
   if(manualMiles) return;
   const orig = document.getElementById('origin').value.trim();
   const dest  = document.getElementById('dest').value.trim();
   if(!orig || !dest || orig.length < 3 || dest.length < 3) return;
-  if(!mapsReady){ showMilesStatus('⏳','Loading Google Maps...','var(--text3)'); return; }
 
-  showMilesStatus('⏳','Calculating driving distance...','var(--text2)');
+  showMilesStatus('⏳', 'Calculating driving distance...', 'var(--text2)');
 
-  const svc = new google.maps.DistanceMatrixService();
-  svc.getDistanceMatrix({
-    origins: [orig],
-    destinations: [dest],
-    travelMode: google.maps.TravelMode.DRIVING,
-    unitSystem: google.maps.UnitSystem.IMPERIAL,
-    avoidFerries: true,
-  }, (resp, status) => {
-    if(status !== 'OK'){
-      showMilesStatus('⚠️', 'Could not calculate route — enter miles manually', 'var(--red)');
+  try {
+    // Routes API — Compute Routes (REST endpoint, no JS SDK needed)
+    const resp = await fetch(
+      'https://routes.googleapis.com/directions/v2:computeRoutes',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GMAPS_KEY,
+          // Field mask — only request what we need (keeps it Essentials tier = free cap)
+          'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration'
+        },
+        body: JSON.stringify({
+          origin: { address: orig + ', USA' },
+          destination: { address: dest + ', USA' },
+          travelMode: 'DRIVE',
+          routingPreference: 'TRAFFIC_UNAWARE', // Essentials tier — no traffic = stays in free cap
+          units: 'IMPERIAL'
+        })
+      }
+    );
+
+    if(!resp.ok){
+      const err = await resp.json().catch(() => ({}));
+      const msg = err?.error?.message || ('HTTP ' + resp.status);
+      showMilesStatus('⚠️', 'Route error: ' + msg, 'var(--red)');
       return;
     }
-    const el = resp.rows[0].elements[0];
-    if(el.status !== 'OK'){
+
+    const data = await resp.json();
+    const route = data?.routes?.[0];
+
+    if(!route){
       showMilesStatus('⚠️', 'Route not found — check city names and try again', 'var(--red)');
       return;
     }
-    // distance.value is in meters; convert to miles
-    const miles = Math.round(el.distance.value / 1609.34);
-    const driveSecs = el.duration.value; // total drive time in seconds from Google
+
+    const miles = Math.round(route.distanceMeters / 1609.34);
+    // Routes API returns duration as a string like "12345s" — parse it
+    const driveSecs = parseInt((route.duration || '0s').replace('s', ''), 10);
+    const driveText = fmtDuration(driveSecs);
+
     document.getElementById('miles').value = miles;
     setMilesSource('google');
-    showMilesStatus('✅', `${miles.toLocaleString()} miles · ${el.duration.text} drive (Google Maps)`, 'var(--green)');
-    calcHOS(driveSecs, el.duration.text,
+    showMilesStatus('✅', `${miles.toLocaleString()} miles · ${driveText} drive (Google Routes)`, 'var(--green)');
+    calcHOS(driveSecs, driveText,
       document.getElementById('origin').value.trim(),
       document.getElementById('dest').value.trim());
     calc();
-  });
+
+  } catch(e) {
+    showMilesStatus('⚠️', 'Could not reach Google — enter miles manually', 'var(--red)');
+  }
 }
 
 // ── HOS Calculation Engine ────────────────────────────────────────────────
@@ -1701,9 +1841,5 @@ renderLog();
 calc();
 </script>
 
-<!-- Google Maps JS API — loads async, calls onMapsLoaded when ready -->
-<script async defer
-  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDlo3adFCXOG00DqCbYQwkxnnaRYP-PJOc&libraries=geometry&callback=onMapsLoaded">
-</script>
 </body>
 </html>
