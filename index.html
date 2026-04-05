@@ -1140,18 +1140,10 @@ function saveDiesel(){
 }
 
 // ── EIA Live Diesel Fetch ─────────────────────────────────────────────────
-// Free API key from eia.gov/opendata — replace the placeholder below
-const EIA_KEY = '7tv28cvvTAnF2s9hAFpCSeVUL92CJfB3nZWyOHtb';
-
-// Region series IDs — EIA weekly No.2 diesel retail prices by PADD region
-const EIA_SERIES = {
-  R10: 'EMD_EPD2D_PTE_R10_DPG', // East Coast
-  R20: 'EMD_EPD2D_PTE_R20_DPG', // Midwest
-  R30: 'EMD_EPD2D_PTE_R30_DPG', // Gulf Coast
-  R40: 'EMD_EPD2D_PTE_R40_DPG', // Rocky Mountain
-  R50: 'EMD_EPD2D_PTE_R50_DPG', // West Coast
-  NUS: 'EMD_EPD2D_PTE_NUS_DPG', // National Average
-};
+// Calls a Netlify serverless function which proxies EIA — no key in the HTML.
+// Your EIA key lives in Netlify environment variables (safe, never exposed).
+// To set it: Netlify dashboard → Site configuration → Environment variables
+//   Key: EIA_API_KEY    Value: your_eia_key_here
 
 const EIA_REGION_NAMES = {
   R10:'East Coast', R20:'Midwest', R30:'Gulf Coast',
@@ -1161,15 +1153,7 @@ const EIA_REGION_NAMES = {
 async function fetchEIADiesel(){
   const btn = document.getElementById('eia-fetch-btn');
   const status = document.getElementById('eia-status');
-
-  if(EIA_KEY === '7tv28cvvTAnF2s9hAFpCSeVUL92CJfB3nZWyOHtb'){
-    status.textContent = '⚠ Add your EIA API key to the HTML file first — see eia.gov/opendata';
-    status.style.color = 'var(--accent)';
-    return;
-  }
-
   const region = document.getElementById('diesel-region').value;
-  const seriesId = EIA_SERIES[region];
   const regionName = EIA_REGION_NAMES[region];
 
   btn.textContent = '...';
@@ -1178,35 +1162,23 @@ async function fetchEIADiesel(){
   status.style.color = 'var(--text3)';
 
   try {
-    // EIA API v2 — petroleum retail price, weekly, latest 2 data points
-    const url = `https://api.eia.gov/v2/petroleum/pri/gnd/data/?api_key=${'7tv28cvvTAnF2s9hAFpCSeVUL92CJfB3nZWyOHtb'}`
-      + `&frequency=weekly`
-      + `&data[0]=value`
-      + `&facets[series][]=${seriesId}`
-      + `&sort[0][column]=period`
-      + `&sort[0][direction]=desc`
-      + `&length=2`;
-
-    const resp = await fetch(url);
+    // Calls our Netlify function — proxies EIA server-side to avoid CORS
+    const resp = await fetch(`/.netlify/functions/diesel-price?region=${region}`);
     if(!resp.ok) throw new Error('HTTP ' + resp.status);
-    const json = await resp.json();
+    const data = await resp.json();
 
-    const rows = json?.response?.data;
-    if(!rows || rows.length === 0) throw new Error('No data returned');
+    if(data.error) throw new Error(data.error);
 
-    const latest = rows[0];
-    const price = parseFloat(latest.value);
-    const period = latest.period; // format: YYYYMMDD
+    const price = parseFloat(data.price);
+    const period = data.period; // format: YYYYMMDD or YYYY-MM-DD
 
-    if(isNaN(price)) throw new Error('Invalid price value');
+    if(isNaN(price)) throw new Error('Invalid price');
 
     // Format the date nicely
-    const d = period.length === 8
-      ? new Date(period.slice(0,4)+'-'+period.slice(4,6)+'-'+period.slice(6,8))
-      : new Date(period);
+    const clean = period.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+    const d = new Date(clean + 'T12:00:00');
     const dateStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 
-    // Fill in the price field
     document.getElementById('diesel-price').value = price.toFixed(2);
     status.textContent = `✓ $${price.toFixed(2)}/gal · ${regionName} · Week of ${dateStr}`;
     status.style.color = 'var(--green)';
@@ -1214,7 +1186,7 @@ async function fetchEIADiesel(){
     calc();
 
   } catch(e) {
-    status.textContent = '⚠ Could not fetch — check your EIA key or enter manually';
+    status.textContent = '⚠ Could not fetch — check Netlify function is deployed';
     status.style.color = 'var(--red)';
   } finally {
     btn.textContent = '⚡ Live';
