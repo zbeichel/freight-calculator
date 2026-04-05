@@ -1141,7 +1141,7 @@ function saveDiesel(){
 
 // ── EIA Live Diesel Fetch ─────────────────────────────────────────────────
 // Free API key from eia.gov/opendata — replace the placeholder below
-const EIA_KEY = 7tv28cvvTAnF2s9hAFpCSeVUL92CJfB3nZWyOHtb;
+const EIA_KEY = '7tv28cvvTAnF2s9hAFpCSeVUL92CJfB3nZWyOHtb';
 
 // Region series IDs — EIA weekly No.2 diesel retail prices by PADD region
 const EIA_SERIES = {
@@ -1162,7 +1162,7 @@ async function fetchEIADiesel(){
   const btn = document.getElementById('eia-fetch-btn');
   const status = document.getElementById('eia-status');
 
-  if(EIA_KEY === 7tv28cvvTAnF2s9hAFpCSeVUL92CJfB3nZWyOHtb){
+  if(EIA_KEY === '7tv28cvvTAnF2s9hAFpCSeVUL92CJfB3nZWyOHtb'){
     status.textContent = '⚠ Add your EIA API key to the HTML file first — see eia.gov/opendata';
     status.style.color = 'var(--accent)';
     return;
