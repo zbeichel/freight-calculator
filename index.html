@@ -652,15 +652,69 @@ html.light .hos-day-header{background:var(--card2)}
 }
 
 @media(max-width:740px){
-  header{padding:0 16px}
-  .hero{padding:36px 16px 28px}
-  .main{grid-template-columns:1fr;padding:0 14px 40px}
+  header{padding:0 14px}
+  .hero{padding:28px 16px 20px}
+  .hero h1{font-size:clamp(22px,6vw,36px)}
+  .hero-sub{font-size:13px}
+  .main{grid-template-columns:1fr;padding:0 12px 40px;gap:14px}
   .result-card{position:static}
   .log-card{margin-top:0}
-  .grid2,.grid3,.adv-grid3{grid-template-columns:1fr 1fr}
-  .pill-grid{grid-template-columns:1fr 1fr 1fr}
+
+  /* Single column on small phones, 2-col on larger phones */
+  .grid2,.grid3{grid-template-columns:1fr 1fr}
+  .adv-grid3{grid-template-columns:1fr 1fr}
+
+  /* Rate chips hidden — shown in result card instead */
   .header-right{display:none}
   .theme-btn .theme-label{display:none}
+
+  /* Cards */
+  .card-body{padding:14px}
+  .card-header{padding:12px 14px}
+
+  /* Ship toggle — full width, readable text */
+  .ship-toggle{margin-bottom:14px}
+  .ship-btn{font-size:11px;padding:7px 4px}
+
+  /* Dimension inputs — 2 per row is fine */
+  .dim-grid4{grid-template-columns:1fr 1fr}
+
+  /* Accessorial grid — 1 column on phone */
+  .acc-grid{grid-template-columns:1fr}
+
+  /* Result card hero number — bigger on mobile */
+  .result-hero-val{font-size:clamp(28px,8vw,42px)}
+
+  /* Pill grid — 2 columns */
+  .pill-grid{grid-template-columns:1fr 1fr}
+
+  /* HOS stats */
+  .hos-stats{grid-template-columns:1fr 1fr}
+
+  /* Footer */
+  footer{padding:20px 16px;text-align:center}
+  footer p{font-size:11px}
+}
+
+@media(max-width:420px){
+  /* Very small phones — stack everything single column */
+  .grid2,.grid3,.adv-grid3,.dim-grid4{grid-template-columns:1fr}
+  .ship-btn{font-size:10px;padding:6px 2px}
+  .pill-grid{grid-template-columns:1fr 1fr}
+  .result-hero-val{font-size:32px}
+
+  /* CWT row — stack vertically */
+  #ltl-fields .field[style*="max-width:140px"]{max-width:100%!important}
+  #cwt-reset-btn{width:100%;margin-top:6px}
+
+  /* Dim toggle */
+  .dim-btn{font-size:10px}
+
+  /* Acc footer */
+  .acc-footer{flex-direction:column;align-items:flex-start;gap:4px}
+
+  /* Density result — wrap gracefully */
+  .density-result{flex-wrap:wrap;gap:6px}
 }
 </style>
 </head>
@@ -670,7 +724,7 @@ html.light .hos-day-header{background:var(--card2)}
 <header>
   <div class="brand">
     <div class="brand-icon">🚛</div>
-    <div class="brand-name">Quick<span>Freight</span>Calc<span></div>
+    <div class="brand-name">Your<span>Freight</span></div>
   </div>
   <div class="header-right">
     <div class="rate-chip"><span class="dot"></span>Van <strong id="hdr-van">$2.47</strong></div>
@@ -849,7 +903,7 @@ html.light .hos-day-header{background:var(--card2)}
           </div>
 
           <!-- CWT rate override -->
-          <div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:14px">
+          <div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:14px;flex-wrap:wrap">
             <div class="field" style="max-width:140px;margin-bottom:0">
               <label style="display:flex;align-items:center;gap:6px">
                 Base Rate ($/CWT)
@@ -1194,13 +1248,13 @@ html.light .hos-day-header{background:var(--card2)}
 <!-- ── Footer ── -->
 <footer>
   <p>Rates sourced from <a href="https://www.dat.com/trendlines" target="_blank">DAT Trendlines</a> · Diesel from <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank">EIA Weekly</a> · LTL FSC calibrated to <a href="https://www.odfl.com/us/en/resources/fuel-surcharge.html" target="_blank">ODFL published rates</a> · For informational use — always verify before quoting</p>
-  <p style="margin-top:10px">
+  <p style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center">
     <a href="https://www.buymeacoffee.com/quickfreightquote" target="_blank"
-      style="display:inline-flex;align-items:center;gap:8px;background:#FFDD00;color:#000;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;padding:8px 18px;border-radius:20px;text-decoration:none;transition:opacity .15s"
+      style="display:inline-flex;align-items:center;gap:8px;background:#FFDD00;color:#000;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;padding:8px 18px;border-radius:20px;text-decoration:none;transition:opacity .15s;white-space:nowrap"
       onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
       ☕ Buy me a coffee
     </a>
-    <span style="margin-left:12px;font-size:11px;color:var(--text3)">If this tool saved you time, I appreciate the support!</span>
+    <span style="font-size:11px;color:var(--text3)">If this tool saved you time, I appreciate the support!</span>
   </p>
 </footer>
 
