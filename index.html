@@ -2173,11 +2173,20 @@ function setRatesStatus(state, dateStr){
 }
 
 // ── Google Routes API (Compute Routes) ───────────────────────────────────
-// Replaces legacy Distance Matrix API — same key, same price, 10k free/mo
-// SECURITY: Restrict this key to your domain in Google Cloud Console:
-// console.cloud.google.com → APIs & Services → Credentials → your key
-// → Application restrictions → HTTP referrers → add your domain
-const GMAPS_KEY = 'AIzaSyDlo3adFCXOG00DqCbYQwkxnnaRYP-PJOc';
+// API key is stored as a Netlify environment variable (GMAPS_API_KEY)
+// and served via /.netlify/functions/gmaps-key — never exposed in source
+let GMAPS_KEY = null;
+
+async function loadGMapsKey(){
+  try {
+    const resp = await fetch('/.netlify/functions/gmaps-key');
+    if(!resp.ok) throw new Error('Could not load key');
+    const data = await resp.json();
+    GMAPS_KEY = data.key || null;
+  } catch(e) {
+    GMAPS_KEY = null;
+  }
+}
 let lookupTimer = null;
 let manualMiles = false;
 
@@ -2239,6 +2248,16 @@ async function tryLookupMiles(){
   const orig = document.getElementById('origin').value.trim();
   const dest  = document.getElementById('dest').value.trim();
   if(!orig || !dest || orig.length < 3 || dest.length < 3) return;
+
+  // Load key if not yet fetched
+  if(!GMAPS_KEY) {
+    showMilesStatus('⏳', 'Loading...', 'var(--text2)');
+    await loadGMapsKey();
+  }
+  if(!GMAPS_KEY) {
+    showMilesStatus('⚠️', 'Maps key not configured — enter miles manually', 'var(--red)');
+    return;
+  }
 
   showMilesStatus('⏳', 'Calculating driving distance...', 'var(--text2)');
 
@@ -2467,7 +2486,8 @@ function calcHOS(totalDriveSecs, googleDriveText, origin, dest){
 // ── Init ──────────────────────────────────────────────────────────────────
 loadTheme();
 loadAll();
-loadRates(); // fetches /rates.json — everyone gets the same current rates
+loadRates();
+loadGMapsKey(); // fetch Google Maps key from Netlify env — never in source
 document.getElementById('pickup').valueAsDate=new Date();
 updateFSCLabel();
 updateAdvCount();
