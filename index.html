@@ -670,7 +670,7 @@ html.light .hos-day-header{background:var(--card2)}
 <header>
   <div class="brand">
     <div class="brand-icon">🚛</div>
-    <div class="brand-name">Quick<span>Freight</span>Calc<span></div>
+    <div class="brand-name">Your<span>Freight</span></div>
   </div>
   <div class="header-right">
     <div class="rate-chip"><span class="dot"></span>Van <strong id="hdr-van">$2.47</strong></div>
@@ -869,10 +869,20 @@ html.light .hos-day-header{background:var(--card2)}
             Accessorial Charges <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">— tap to add</span>
           </div>
           <div class="acc-grid">
-            <!-- FSC — percentage, no custom amount (auto-calculated from diesel price) -->
+            <!-- FSC — with live diesel fetch button -->
             <div class="acc-wrap" style="grid-column:span 2">
               <div class="acc-item" id="acc-fsc" onclick="toggleAcc('fsc')">
-                <div><div class="acc-item-name">Fuel Surcharge (FSC)</div><div class="acc-item-fee" id="fsc-fee-label">Loading...</div></div>
+                <div style="flex:1">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <div class="acc-item-name">Fuel Surcharge (FSC)</div>
+                    <button id="ltl-eia-btn" onclick="fetchLTLDiesel();event.stopPropagation()"
+                      style="height:22px;padding:0 9px;background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.3);border-radius:10px;color:var(--blue);font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;letter-spacing:.04em">
+                      ⚡ Live
+                    </button>
+                  </div>
+                  <div class="acc-item-fee" id="fsc-fee-label">Loading...</div>
+                  <div id="ltl-diesel-status" style="font-size:10px;color:var(--text3);margin-top:2px"></div>
+                </div>
                 <input class="acc-chk" type="checkbox" id="chk-fsc" onclick="event.stopPropagation()" onchange="calc()" />
               </div>
             </div>
@@ -1185,7 +1195,7 @@ html.light .hos-day-header{background:var(--card2)}
 <footer>
   <p>Rates sourced from <a href="https://www.dat.com/trendlines" target="_blank">DAT Trendlines</a> · Diesel from <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank">EIA Weekly</a> · LTL FSC calibrated to <a href="https://www.odfl.com/us/en/resources/fuel-surcharge.html" target="_blank">ODFL published rates</a> · For informational use — always verify before quoting</p>
   <p style="margin-top:10px">
-    <a href="https://www.buymeacoffee.com/quickfreightquote" target="_blank"
+    <a href="https://www.buymeacoffee.com/YOURUSERNAME" target="_blank"
       style="display:inline-flex;align-items:center;gap:8px;background:#FFDD00;color:#000;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;padding:8px 18px;border-radius:20px;text-decoration:none;transition:opacity .15s"
       onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
       ☕ Buy me a coffee
@@ -1439,9 +1449,15 @@ function getLTLFSCRate(dieselPrice){
 }
 
 function updateFSCLabel(){
-  // Try to read diesel price from the diesel surcharge input if available
-  const dieselInput = document.getElementById('diesel-price');
-  const price = dieselInput ? (parseFloat(dieselInput.value)||3.85) : 3.85;
+  // In LTL mode use the dedicated ltlDieselPrice (updated via Live button)
+  // In FTL mode read from the diesel surcharge input in Advanced panel
+  let price;
+  if(shipType === 'ltl'){
+    price = ltlDieselPrice;
+  } else {
+    const dieselInput = document.getElementById('diesel-price');
+    price = dieselInput ? (parseFloat(dieselInput.value)||3.85) : 3.85;
+  }
   const rate = getLTLFSCRate(price);
   const el = document.getElementById('fsc-fee-label');
   if(el) el.innerHTML = `${(rate*100).toFixed(1)}% of linehaul · <a href="https://www.odfl.com/us/en/resources/fuel-surcharge.html" target="_blank" style="color:var(--blue);text-decoration:none;font-size:10px">FSC table ↗</a>`;
@@ -1793,6 +1809,50 @@ async function fetchEIADiesel(){
 
   } catch(e) {
     status.textContent = '⚠ Could not fetch — check Netlify function is deployed';
+    status.style.color = 'var(--red)';
+  } finally {
+    btn.textContent = '⚡ Live';
+    btn.disabled = false;
+  }
+}
+
+// ── LTL FSC live diesel fetch ─────────────────────────────────────────────
+// Uses the same Netlify proxy as FTL but updates the FSC label directly
+let ltlDieselPrice = 3.85; // default, updated when user fetches live price
+
+async function fetchLTLDiesel(){
+  const btn = document.getElementById('ltl-eia-btn');
+  const status = document.getElementById('ltl-diesel-status');
+
+  btn.textContent = '...';
+  btn.disabled = true;
+  status.textContent = 'Fetching from EIA...';
+  status.style.color = 'var(--text3)';
+
+  try {
+    // Use national average for LTL — most LTL carriers reference national DOE price
+    const resp = await fetch('/.netlify/functions/diesel-price?region=NUS');
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if(data.error) throw new Error(data.error);
+
+    const price = parseFloat(data.price);
+    if(isNaN(price)) throw new Error('Invalid price');
+
+    ltlDieselPrice = price;
+
+    // Format date
+    const clean = (data.period||'').replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+    const d = new Date(clean + 'T12:00:00');
+    const dateStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+    status.textContent = `✓ National avg $${price.toFixed(2)}/gal · Week of ${dateStr}`;
+    status.style.color = 'var(--green)';
+    updateFSCLabel();
+    calc();
+
+  } catch(e) {
+    status.textContent = '⚠ Could not fetch — enter diesel price manually';
     status.style.color = 'var(--red)';
   } finally {
     btn.textContent = '⚡ Live';
