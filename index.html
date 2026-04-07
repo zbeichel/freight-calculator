@@ -95,7 +95,6 @@ html.light tbody tr:hover { background: rgba(0,0,0,0.02); }
   transition: background-color .25s ease, border-color .25s ease, color .15s ease, box-shadow .25s ease;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{overflow-x:hidden;width:100%}
 html{scroll-behavior:smooth}
 body{
   background:var(--bg);
@@ -652,8 +651,11 @@ html.light .hos-day-header{background:var(--card2)}
   flex-shrink: 0;
 }
 
+/* Short labels hidden by default, shown on mobile */
+.ship-label-short{display:none}
+.ship-label-long{display:inline}
+
 @media(max-width:740px){
-  /* Layout */
   header{padding:0 14px}
   .hero{padding:28px 14px 20px}
   .hero h1{font-size:clamp(20px,6vw,32px);line-height:1.2}
@@ -663,66 +665,69 @@ html.light .hos-day-header{background:var(--card2)}
   .log-card{margin-top:0}
   .header-right{display:none}
   .theme-btn .theme-label{display:none}
-  /* Cards */
   .card-body{padding:12px}
   .card-header{padding:10px 12px}
-  /* Grids */
   .grid2,.grid3{grid-template-columns:1fr 1fr}
   .adv-grid3{grid-template-columns:1fr 1fr}
   .dim-grid4{grid-template-columns:1fr 1fr}
   .pill-grid{grid-template-columns:1fr 1fr 1fr}
   .acc-grid{grid-template-columns:1fr}
-  /* Toggles */
-  .ship-btn{font-size:11px;padding:7px 4px}
-  .seg-btn{font-size:11px;padding:6px 8px}
-  /* HOS */
   .hos-stats{grid-template-columns:1fr 1fr}
-  /* Footer */
   footer{padding:20px 14px;text-align:center}
   footer p{font-size:11px}
 }
 
 @media(max-width:480px){
-  /* Single column everything */
-  .grid2,.grid3,.adv-grid3,.dim-grid4,.dim-grid{grid-template-columns:1fr!important}
+  /* Switch to short label on ship toggle */
+  .ship-label-long{display:none}
+  .ship-label-short{display:inline}
+  .ship-btn{font-size:12px;padding:8px 6px}
+
+  /* Single column grids */
+  .grid2,.grid3,.adv-grid3,.dim-grid4,.dim-grid{grid-template-columns:1fr}
   .pill-grid{grid-template-columns:1fr 1fr}
-  .ship-btn{font-size:10px;padding:6px 3px}
-  .seg-btn{font-size:11px;padding:5px 6px}
-  .seg-ctrl{width:100%!important}
+
+  /* Shrink padding so content fits */
+  .main{padding:0 10px 40px}
+  .card-body{padding:10px}
+  .card-header{padding:9px 10px}
+
   /* Result */
   .result-hero-val{font-size:clamp(28px,10vw,42px)}
   .result-hero-rpm{font-size:12px}
-  /* Quote log — horizontal scroll */
+
+  /* Quote log — horizontal scroll only on that section */
   .log-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
   .log-wrap table{min-width:500px}
+
   /* Accessorials */
   .acc-custom-row{flex-wrap:wrap}
-  .acc-custom-row>div{min-width:0;flex:1 1 auto}
   .acc-footer{flex-direction:column;align-items:flex-start;gap:4px}
-  /* CWT override row */
-  .cwt-row{flex-wrap:wrap!important}
-  #cwt-override{width:100%!important;max-width:100%!important}
-  #cwt-reset-btn{width:100%!important;margin-top:4px}
-  /* Advanced panel mini inputs */
-  .mini-input-group{min-width:0}
+
+  /* CWT row */
+  .cwt-row{flex-direction:column!important;align-items:stretch!important}
+  #cwt-override{width:100%}
+  #cwt-reset-btn{width:100%;margin-top:4px}
+
+  /* Advanced panel */
+  .adv-grid3{grid-template-columns:1fr}
   .mini-input{width:100%}
+
   /* Rate date input */
   #rate-date{width:100%!important;max-width:100%!important}
-  /* Seasonal calendar */
-  .seas-strip{gap:1px}
+
+  /* Seasonal */
   .seas-labels{font-size:8px}
+
   /* Density result */
   .density-result{flex-wrap:wrap;gap:5px}
-  /* HOS events */
-  .hos-event{flex-wrap:wrap}
-  /* Footer coffee row */
-  footer p[style]{flex-direction:column!important;align-items:center!important}
-  /* Kill any stray fixed widths on inline-styled elements */
+
+  /* Footer */
+  footer p[style*="display:flex"]{flex-direction:column!important;align-items:center!important}
+
+  /* Ensure no field has a fixed max-width that could overflow */
   .field{max-width:100%!important}
-  /* Advanced grid — single col */
-  .adv-grid3{grid-template-columns:1fr!important}
 }
-</style>
 </head>
 <body>
 
@@ -764,8 +769,14 @@ html.light .hos-day-header{background:var(--card2)}
 
         <!-- FTL / LTL toggle -->
         <div class="ship-toggle">
-          <button class="ship-btn active" id="btn-ftl" onclick="setShipType('ftl')">🚛 FTL — Full Truckload</button>
-          <button class="ship-btn" id="btn-ltl" onclick="setShipType('ltl')">📦 LTL — Less Than Truckload</button>
+          <button class="ship-btn active" id="btn-ftl" onclick="setShipType('ftl')">
+            <span class="ship-label-long">🚛 FTL — Full Truckload</span>
+            <span class="ship-label-short">🚛 FTL</span>
+          </button>
+          <button class="ship-btn" id="btn-ltl" onclick="setShipType('ltl')">
+            <span class="ship-label-long">📦 LTL — Less Than Truckload</span>
+            <span class="ship-label-short">📦 LTL</span>
+          </button>
         </div>
 
         <div class="grid2">
