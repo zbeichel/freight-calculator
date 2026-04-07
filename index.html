@@ -95,6 +95,7 @@ html.light tbody tr:hover { background: rgba(0,0,0,0.02); }
   transition: background-color .25s ease, border-color .25s ease, color .15s ease, box-shadow .25s ease;
 }
 *{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden;width:100%}
 html{scroll-behavior:smooth}
 body{
   background:var(--bg);
@@ -652,69 +653,74 @@ html.light .hos-day-header{background:var(--card2)}
 }
 
 @media(max-width:740px){
+  /* Layout */
   header{padding:0 14px}
-  .hero{padding:28px 16px 20px}
-  .hero h1{font-size:clamp(22px,6vw,36px)}
+  .hero{padding:28px 14px 20px}
+  .hero h1{font-size:clamp(20px,6vw,32px);line-height:1.2}
   .hero-sub{font-size:13px}
   .main{grid-template-columns:1fr;padding:0 12px 40px;gap:14px}
   .result-card{position:static}
   .log-card{margin-top:0}
-
-  /* Single column on small phones, 2-col on larger phones */
-  .grid2,.grid3{grid-template-columns:1fr 1fr}
-  .adv-grid3{grid-template-columns:1fr 1fr}
-
-  /* Rate chips hidden — shown in result card instead */
   .header-right{display:none}
   .theme-btn .theme-label{display:none}
-
   /* Cards */
-  .card-body{padding:14px}
-  .card-header{padding:12px 14px}
-
-  /* Ship toggle — full width, readable text */
-  .ship-toggle{margin-bottom:14px}
-  .ship-btn{font-size:11px;padding:7px 4px}
-
-  /* Dimension inputs — 2 per row is fine */
+  .card-body{padding:12px}
+  .card-header{padding:10px 12px}
+  /* Grids */
+  .grid2,.grid3{grid-template-columns:1fr 1fr}
+  .adv-grid3{grid-template-columns:1fr 1fr}
   .dim-grid4{grid-template-columns:1fr 1fr}
-
-  /* Accessorial grid — 1 column on phone */
+  .pill-grid{grid-template-columns:1fr 1fr 1fr}
   .acc-grid{grid-template-columns:1fr}
-
-  /* Result card hero number — bigger on mobile */
-  .result-hero-val{font-size:clamp(28px,8vw,42px)}
-
-  /* Pill grid — 2 columns */
-  .pill-grid{grid-template-columns:1fr 1fr}
-
-  /* HOS stats */
+  /* Toggles */
+  .ship-btn{font-size:11px;padding:7px 4px}
+  .seg-btn{font-size:11px;padding:6px 8px}
+  /* HOS */
   .hos-stats{grid-template-columns:1fr 1fr}
-
   /* Footer */
-  footer{padding:20px 16px;text-align:center}
+  footer{padding:20px 14px;text-align:center}
   footer p{font-size:11px}
 }
 
-@media(max-width:420px){
-  /* Very small phones — stack everything single column */
-  .grid2,.grid3,.adv-grid3,.dim-grid4{grid-template-columns:1fr}
-  .ship-btn{font-size:10px;padding:6px 2px}
+@media(max-width:480px){
+  /* Single column everything */
+  .grid2,.grid3,.adv-grid3,.dim-grid4,.dim-grid{grid-template-columns:1fr!important}
   .pill-grid{grid-template-columns:1fr 1fr}
-  .result-hero-val{font-size:32px}
-
-  /* CWT row — stack vertically */
-  #ltl-fields .field[style*="max-width:140px"]{max-width:100%!important}
-  #cwt-reset-btn{width:100%;margin-top:6px}
-
-  /* Dim toggle */
-  .dim-btn{font-size:10px}
-
-  /* Acc footer */
+  .ship-btn{font-size:10px;padding:6px 3px}
+  .seg-btn{font-size:11px;padding:5px 6px}
+  .seg-ctrl{width:100%!important}
+  /* Result */
+  .result-hero-val{font-size:clamp(28px,10vw,42px)}
+  .result-hero-rpm{font-size:12px}
+  /* Quote log — horizontal scroll */
+  .log-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .log-wrap table{min-width:500px}
+  /* Accessorials */
+  .acc-custom-row{flex-wrap:wrap}
+  .acc-custom-row>div{min-width:0;flex:1 1 auto}
   .acc-footer{flex-direction:column;align-items:flex-start;gap:4px}
-
-  /* Density result — wrap gracefully */
-  .density-result{flex-wrap:wrap;gap:6px}
+  /* CWT override row */
+  .cwt-row{flex-wrap:wrap!important}
+  #cwt-override{width:100%!important;max-width:100%!important}
+  #cwt-reset-btn{width:100%!important;margin-top:4px}
+  /* Advanced panel mini inputs */
+  .mini-input-group{min-width:0}
+  .mini-input{width:100%}
+  /* Rate date input */
+  #rate-date{width:100%!important;max-width:100%!important}
+  /* Seasonal calendar */
+  .seas-strip{gap:1px}
+  .seas-labels{font-size:8px}
+  /* Density result */
+  .density-result{flex-wrap:wrap;gap:5px}
+  /* HOS events */
+  .hos-event{flex-wrap:wrap}
+  /* Footer coffee row */
+  footer p[style]{flex-direction:column!important;align-items:center!important}
+  /* Kill any stray fixed widths on inline-styled elements */
+  .field{max-width:100%!important}
+  /* Advanced grid — single col */
+  .adv-grid3{grid-template-columns:1fr!important}
 }
 </style>
 </head>
@@ -903,7 +909,7 @@ html.light .hos-day-header{background:var(--card2)}
           </div>
 
           <!-- CWT rate override -->
-          <div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <div class="cwt-row" style="display:flex;align-items:flex-end;gap:10px;margin-bottom:14px;flex-wrap:wrap">
             <div class="field" style="max-width:140px;margin-bottom:0">
               <label style="display:flex;align-items:center;gap:6px">
                 Base Rate ($/CWT)
@@ -1039,7 +1045,7 @@ html.light .hos-day-header{background:var(--card2)}
         </div>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
           <span style="font-size:11px;color:var(--text3)">Last updated:</span>
-          <input type="text" id="rate-date" placeholder="Loaded from rates.json" style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:11px;padding:4px 10px;outline:none;width:200px" readonly />
+          <input type="text" id="rate-date" placeholder="Loaded from rates.json" style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:11px;padding:4px 10px;outline:none;width:min(200px,100%)" readonly />
           <a href="https://www.dat.com/trendlines" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none;font-weight:500">Check DAT ↗</a>
         </div>
         <div id="rates-fetch-status" style="font-size:11px;margin-bottom:14px;color:var(--text3)">Loading rates...</div>
