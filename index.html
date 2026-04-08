@@ -1024,8 +1024,8 @@ html.light .hos-day-header{background:var(--card2)}
         </div>
 
         <div class="grid2" id="route-grid">
-          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" oninput="clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
-          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" oninput="clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
         </div>
 
         <!-- Miles status row -->
@@ -3273,6 +3273,8 @@ async function loadGMapsKey(){
 }
 let lookupTimer = null;
 let manualMiles = false;
+let lastLookedUpOrig = '';
+let lastLookedUpDest = '';
 
 // Wire up debounced lookup once DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -3333,6 +3335,11 @@ async function tryLookupMiles(){
   const dest  = document.getElementById('dest').value.trim();
   if(!orig || !dest || orig.length < 3 || dest.length < 3) return;
 
+  // Skip if this exact pair was already looked up — cursor movement won't re-fire
+  const origKey = orig.toLowerCase();
+  const destKey  = dest.toLowerCase();
+  if(origKey === lastLookedUpOrig && destKey === lastLookedUpDest) return;
+
   // Load key if not yet fetched
   if(!GMAPS_KEY) {
     showMilesStatus('⏳', 'Loading...', 'var(--text2)');
@@ -3390,6 +3397,9 @@ async function tryLookupMiles(){
     document.getElementById('miles').value = miles;
     setMilesSource('google');
     showMilesStatus('✅', `${miles.toLocaleString()} miles · ${driveText} drive (Google Routes)`, 'var(--green)');
+    // Cache so repeat cursor movements don't re-fire the API call
+    lastLookedUpOrig = orig.toLowerCase();
+    lastLookedUpDest = dest.toLowerCase();
     calcHOS(driveSecs, driveText,
       document.getElementById('origin').value.trim(),
       document.getElementById('dest').value.trim());
