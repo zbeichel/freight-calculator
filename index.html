@@ -1024,8 +1024,8 @@ html.light .hos-day-header{background:var(--card2)}
         </div>
 
         <div class="grid2" id="route-grid">
-          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
-          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
         </div>
 
         <!-- Miles status row -->
@@ -2179,19 +2179,27 @@ async function fetchWeather(){
     pickup === destDate ? fmt(pickup) : fmt(pickup) + ' → ' + fmt(destDate);
 
   try {
-    // Geocode both locations — tries Open-Meteo first, falls back to Google
-    const [origLoc, destLoc] = await Promise.all([
-      geocode(orig),
-      geocode(dest)
-    ]);
+    // Use coordinates already cached from the Routes API mileage lookup
+    // This means zero extra Google API calls for weather
+    let oLoc = origCoords;
+    let dLoc = destCoords;
+
+    // Fall back to geocoding only if coords aren't cached yet
+    if(!oLoc || !dLoc){
+      [oLoc, dLoc] = await Promise.all([geocode(orig), geocode(dest)]);
+    }
 
     // Fetch weather from Open-Meteo (free, no key needed)
     const [origWx, destWx] = await Promise.all([
-      getWeather(origLoc.lat, origLoc.lon, pickup),
-      getWeather(destLoc.lat, destLoc.lon, destDate)
+      getWeather(oLoc.lat, oLoc.lon, pickup),
+      getWeather(dLoc.lat, dLoc.lon, destDate)
     ]);
 
-    weatherDataCache = { origLoc, destLoc, origWx, destWx };
+    weatherDataCache = {
+      origLoc: { ...oLoc, name: orig },
+      destLoc: { ...dLoc, name: dest },
+      origWx, destWx
+    };
     renderWeather(weatherDataCache);
     loading.style.display = 'none';
     locs.style.display = 'grid';
@@ -3361,8 +3369,8 @@ async function tryLookupMiles(){
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': GMAPS_KEY,
-          // Field mask — only request what we need (keeps it Essentials tier = free cap)
-          'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration'
+          // Field mask — legs locations added so weather can reuse coords (no extra API calls)
+          'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.legs.startLocation,routes.legs.endLocation'
         },
         body: JSON.stringify({
           origin: { address: orig + ', USA' },
@@ -3394,6 +3402,13 @@ async function tryLookupMiles(){
     const driveSecs = parseInt((route.duration || '0s').replace('s', ''), 10);
     const driveText = fmtDuration(driveSecs);
 
+    // Cache lat/lon from route legs so weather fetch needs zero extra geocoding calls
+    const leg = route.legs?.[0];
+    if(leg?.startLocation?.latLng && leg?.endLocation?.latLng){
+      origCoords = { lat: leg.startLocation.latLng.latitude, lon: leg.startLocation.latLng.longitude, name: orig };
+      destCoords = { lat: leg.endLocation.latLng.latitude,   lon: leg.endLocation.latLng.longitude,   name: dest };
+    }
+
     document.getElementById('miles').value = miles;
     setMilesSource('google');
     showMilesStatus('✅', `${miles.toLocaleString()} miles · ${driveText} drive (Google Routes)`, 'var(--green)');
@@ -3404,6 +3419,8 @@ async function tryLookupMiles(){
       document.getElementById('origin').value.trim(),
       document.getElementById('dest').value.trim());
     calc();
+    // Trigger weather update using cached coords — no extra API calls
+    triggerWeatherUpdate();
 
   } catch(e) {
     showMilesStatus('⚠️', 'Could not reach Google — enter miles manually', 'var(--red)');
