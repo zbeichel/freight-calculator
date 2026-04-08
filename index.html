@@ -766,6 +766,39 @@ html.light .hos-day-header{background:var(--card2)}
   /* Kill stray fixed max-widths */
   .field{max-width:100%!important}
 }
+/* ── Weather Card ── */
+.weather-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius-lg);overflow:hidden;
+  margin-top:20px;display:none;
+}
+.weather-card.visible{display:block}
+.weather-header{
+  padding:12px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+}
+.weather-unit-toggle{
+  display:flex;background:var(--card2);border:1px solid var(--border);
+  border-radius:20px;padding:2px;gap:2px;
+}
+.weather-unit-btn{
+  padding:3px 10px;border:none;border-radius:18px;background:transparent;
+  color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:11px;
+  font-weight:600;cursor:pointer;transition:all .15s;
+}
+.weather-unit-btn.active{background:var(--accent);color:#000}
+.weather-locations{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)}
+.weather-loc{background:var(--card);padding:16px 20px}
+.weather-loc-label{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+.weather-loc-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.weather-icon{font-size:32px;margin-bottom:6px;line-height:1}
+.weather-temp{font-size:26px;font-weight:700;color:var(--text);line-height:1;margin-bottom:4px}
+.weather-desc{font-size:12px;color:var(--text2);margin-bottom:8px;text-transform:capitalize}
+.weather-details{display:flex;flex-direction:column;gap:3px}
+.weather-detail{font-size:11px;color:var(--text3)}
+.weather-alert{display:flex;align-items:flex-start;gap:8px;padding:8px 20px;background:rgba(239,68,68,.07);border-top:1px solid rgba(239,68,68,.15);font-size:11px;color:var(--red)}
+.weather-loading{padding:20px;text-align:center;font-size:12px;color:var(--text3)}
+@media(max-width:480px){.weather-locations{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -991,8 +1024,8 @@ html.light .hos-day-header{background:var(--card2)}
         </div>
 
         <div class="grid2" id="route-grid">
-          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" /></div>
-          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" /></div>
+          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" oninput="clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" oninput="clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
         </div>
 
         <!-- Miles status row -->
@@ -1017,11 +1050,11 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="grid2" id="dates-grid">
           <div class="field">
             <label>Pickup Date</label>
-            <input type="date" id="pickup" onchange="calc();calcTransit()" />
+            <input type="date" id="pickup" onchange="calc();calcTransit();triggerWeatherUpdate()" />
           </div>
           <div class="field">
             <label>Delivery Date</label>
-            <input type="date" id="delivery" onchange="calcTransit()" />
+            <input type="date" id="delivery" onchange="calcTransit();triggerWeatherUpdate()" />
           </div>
         </div>
 
@@ -1480,6 +1513,59 @@ html.light .hos-day-header{background:var(--card2)}
       </div>
     </div>
 
+    <!-- Weather Card -->
+    <div class="weather-card" id="weather-card">
+      <div class="weather-header">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="card-title">Trip Weather Outlook</span>
+          <span style="font-size:10px;color:var(--text3)" id="weather-date-range"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="weather-unit-toggle">
+            <button class="weather-unit-btn active" id="btn-f" onclick="setWeatherUnit('F')">°F</button>
+            <button class="weather-unit-btn" id="btn-c" onclick="setWeatherUnit('C')">°C</button>
+          </div>
+        </div>
+      </div>
+      <div id="weather-body">
+        <div class="weather-loading" id="weather-loading">Fetching weather data...</div>
+        <div class="weather-locations" id="weather-locations" style="display:none">
+          <!-- Origin -->
+          <div class="weather-loc" id="weather-orig">
+            <div class="weather-loc-label">Origin · Pickup</div>
+            <div class="weather-loc-name" id="wo-name">—</div>
+            <div class="weather-icon" id="wo-icon">—</div>
+            <div class="weather-temp" id="wo-temp">—</div>
+            <div class="weather-desc" id="wo-desc">—</div>
+            <div class="weather-details">
+              <div class="weather-detail" id="wo-wind">—</div>
+              <div class="weather-detail" id="wo-precip">—</div>
+              <div class="weather-detail" id="wo-humidity">—</div>
+            </div>
+          </div>
+          <!-- Destination -->
+          <div class="weather-loc" id="weather-dest">
+            <div class="weather-loc-label">Destination · Est. Delivery</div>
+            <div class="weather-loc-name" id="wd-name">—</div>
+            <div class="weather-icon" id="wd-icon">—</div>
+            <div class="weather-temp" id="wd-temp">—</div>
+            <div class="weather-desc" id="wd-desc">—</div>
+            <div class="weather-details">
+              <div class="weather-detail" id="wd-wind">—</div>
+              <div class="weather-detail" id="wd-precip">—</div>
+              <div class="weather-detail" id="wd-humidity">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="weather-alert" id="weather-alert" style="display:none">
+          <span>⚠</span><span id="weather-alert-text"></span>
+        </div>
+      </div>
+      <div style="padding:8px 20px;border-top:1px solid var(--border);font-size:10px;color:var(--text3)">
+        Forecast via Open-Meteo · For planning purposes only — always check conditions before departure
+      </div>
+    </div>
+
   </div>
 
   <!-- RIGHT: Results -->
@@ -1899,6 +1985,9 @@ function setShipType(t){
   // HOS — FTL only
   const hos=document.getElementById('hos-card');
   if(hos) hos.style.display=(t==='ltl'||t==='prof')?'none':'';
+  // Weather — FTL only
+  const wx=document.getElementById('weather-card');
+  if(wx) wx.style.display=(t==='ltl'||t==='prof')?'none':'';
   // Advanced adjustments — FTL only
   const advToggle=document.getElementById('adv-toggle');
   const advBody=document.getElementById('adv-body');
@@ -1940,6 +2029,153 @@ let fixedManual = false;
 let fuelManual = false;
 
 let profDieselPrice = 0; // updated when user clicks Live diesel in prof tab
+
+// ── Weather ────────────────────────────────────────────────────────────────
+let weatherUnit = 'F';
+let weatherDataCache = null;
+let weatherTimer = null;
+
+const WX_CODES = {
+  0:  {icon:'☀️',  desc:'Clear sky'},
+  1:  {icon:'🌤️',  desc:'Mainly clear'},
+  2:  {icon:'⛅',  desc:'Partly cloudy'},
+  3:  {icon:'☁️',  desc:'Overcast'},
+  45: {icon:'🌫️',  desc:'Foggy'},
+  48: {icon:'🌫️',  desc:'Icy fog'},
+  51: {icon:'🌦️',  desc:'Light drizzle'},
+  53: {icon:'🌦️',  desc:'Drizzle'},
+  55: {icon:'🌧️',  desc:'Heavy drizzle'},
+  61: {icon:'🌧️',  desc:'Light rain'},
+  63: {icon:'🌧️',  desc:'Rain'},
+  65: {icon:'🌧️',  desc:'Heavy rain'},
+  71: {icon:'🌨️',  desc:'Light snow'},
+  73: {icon:'❄️',  desc:'Snow'},
+  75: {icon:'❄️',  desc:'Heavy snow'},
+  77: {icon:'🌨️',  desc:'Snow grains'},
+  80: {icon:'🌦️',  desc:'Rain showers'},
+  81: {icon:'🌧️',  desc:'Rain showers'},
+  82: {icon:'⛈️',  desc:'Violent showers'},
+  85: {icon:'🌨️',  desc:'Snow showers'},
+  86: {icon:'❄️',  desc:'Heavy snow showers'},
+  95: {icon:'⛈️',  desc:'Thunderstorm'},
+  96: {icon:'⛈️',  desc:'Thunderstorm w/ hail'},
+  99: {icon:'⛈️',  desc:'Thunderstorm w/ heavy hail'},
+};
+
+function setWeatherUnit(u){
+  weatherUnit = u;
+  document.getElementById('btn-f').classList.toggle('active', u==='F');
+  document.getElementById('btn-c').classList.toggle('active', u==='C');
+  if(weatherDataCache) renderWeather(weatherDataCache);
+}
+
+function toF(c){ return Math.round(c * 9/5 + 32); }
+function tempStr(c){ return weatherUnit==='F' ? toF(c)+'°F' : Math.round(c)+'°C'; }
+
+async function geocode(location){
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`;
+  const r = await fetch(url);
+  const d = await r.json();
+  if(!d.results?.[0]) throw new Error('Location not found: '+location);
+  return { lat: d.results[0].latitude, lon: d.results[0].longitude, name: d.results[0].name+', '+(d.results[0].admin1||d.results[0].country||'') };
+}
+
+async function getWeather(lat, lon, date){
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,precipitation_probability_max,relative_humidity_2m_max&timezone=auto&start_date=${date}&end_date=${date}`;
+  const r = await fetch(url);
+  const d = await r.json();
+  if(!d.daily) throw new Error('No forecast data');
+  return {
+    code:     d.daily.weathercode[0],
+    tempMax:  d.daily.temperature_2m_max[0],
+    tempMin:  d.daily.temperature_2m_min[0],
+    precip:   d.daily.precipitation_sum[0],
+    precipPct:d.daily.precipitation_probability_max[0],
+    wind:     d.daily.windspeed_10m_max[0],
+    humidity: d.daily.relative_humidity_2m_max[0],
+  };
+}
+
+function wxAlert(origWx, destWx){
+  const alerts = [];
+  const badCodes = [65,71,73,75,77,82,85,86,95,96,99];
+  const snowCodes = [71,73,75,77,85,86];
+  if(badCodes.includes(origWx.code)) alerts.push('Severe weather at origin on pickup day');
+  if(badCodes.includes(destWx.code)) alerts.push('Severe weather at destination on delivery day');
+  if(snowCodes.includes(origWx.code)||snowCodes.includes(destWx.code)) alerts.push('Snow possible — check chain laws and road conditions');
+  if(origWx.wind > 40 || destWx.wind > 40) alerts.push('High winds expected — use caution with high-profile loads');
+  if(origWx.precip > 25 || destWx.precip > 25) alerts.push('Heavy precipitation — allow extra transit time');
+  return alerts;
+}
+
+function renderWeatherLoc(prefix, loc, wx){
+  const wc = WX_CODES[wx.code] || {icon:'🌡️', desc:'Unknown'};
+  document.getElementById(prefix+'-name').textContent  = loc.name;
+  document.getElementById(prefix+'-icon').textContent  = wc.icon;
+  document.getElementById(prefix+'-temp').textContent  = tempStr(wx.tempMax) + ' / ' + tempStr(wx.tempMin);
+  document.getElementById(prefix+'-desc').textContent  = wc.desc;
+  document.getElementById(prefix+'-wind').textContent  = '💨 Wind up to ' + Math.round(wx.wind) + ' mph';
+  document.getElementById(prefix+'-precip').textContent = '🌧 Precip: ' + (wx.precip||0).toFixed(1) + ' mm' + (wx.precipPct!=null ? ' (' + wx.precipPct + '% chance)' : '');
+  document.getElementById(prefix+'-humidity').textContent = '💧 Humidity up to ' + wx.humidity + '%';
+}
+
+function renderWeather(data){
+  renderWeatherLoc('wo', data.origLoc, data.origWx);
+  renderWeatherLoc('wd', data.destLoc, data.destWx);
+  const alerts = wxAlert(data.origWx, data.destWx);
+  const alertEl = document.getElementById('weather-alert');
+  if(alerts.length){
+    alertEl.style.display = 'flex';
+    document.getElementById('weather-alert-text').textContent = alerts.join(' · ');
+  } else {
+    alertEl.style.display = 'none';
+  }
+}
+
+async function fetchWeather(){
+  const orig     = document.getElementById('origin').value.trim();
+  const dest     = document.getElementById('dest').value.trim();
+  const pickup   = document.getElementById('pickup').value;
+  const delivery = document.getElementById('delivery').value;
+  if(!orig || !dest || !pickup) return;
+
+  // Use delivery date for destination; fall back to pickup date if no delivery entered
+  const destDate = delivery || pickup;
+
+  const card    = document.getElementById('weather-card');
+  const loading = document.getElementById('weather-loading');
+  const locs    = document.getElementById('weather-locations');
+
+  card.classList.add('visible');
+  loading.style.display = 'block';
+  locs.style.display = 'none';
+  document.getElementById('weather-alert').style.display = 'none';
+
+  // Date label
+  const fmt = d => new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  document.getElementById('weather-date-range').textContent =
+    pickup === destDate ? fmt(pickup) : fmt(pickup) + ' → ' + fmt(destDate);
+
+  try {
+    const [origLoc, destLoc] = await Promise.all([geocode(orig), geocode(dest)]);
+    const [origWx, destWx]   = await Promise.all([getWeather(origLoc.lat, origLoc.lon, pickup), getWeather(destLoc.lat, destLoc.lon, destDate)]);
+
+    weatherDataCache = { origLoc, destLoc, origWx, destWx };
+    renderWeather(weatherDataCache);
+
+    loading.style.display = 'none';
+    locs.style.display = 'grid';
+
+  } catch(e) {
+    loading.textContent = '⚠ Could not load weather — check origin and destination fields';
+    loading.style.color = 'var(--red)';
+  }
+}
+
+function triggerWeatherUpdate(){
+  clearTimeout(weatherTimer);
+  weatherTimer = setTimeout(fetchWeather, 1000);
+}
 
 // ── Transit Days Calculator ────────────────────────────────────────────────
 let transitChargeAdded = false;
