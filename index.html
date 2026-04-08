@@ -2638,26 +2638,34 @@ function saveQuote(){
   renderLog();
 
   // ── Post to Netlify Forms ──
-  const formData=new FormData();
-  formData.append('form-name','freight-quotes');
-  formData.append('bot-field','');
-  formData.append('date', dateStr);
-  formData.append('origin', orig||'—');
-  formData.append('destination', dest||'—');
-  formData.append('miles', miles);
-  formData.append('trailer', TLABEL[trailer]);
-  formData.append('commodity', CLABEL[commodity]);
-  formData.append('weight', weight||'—');
-  formData.append('margin', (marginPct*100).toFixed(0)+'%');
-  formData.append('base-rpm', '$'+base.toFixed(2));
-  formData.append('quote-total', '$'+Math.round(quote).toLocaleString());
-  formData.append('quote-rpm', '$'+qRpm.toFixed(2));
-  formData.append('pickup-date', pickup||'—');
-  formData.append('adj-rpm', '$'+adjRpm.toFixed(2));
+  // TO RE-ENABLE: set NETLIFY_FORMS_ENABLED = true
+  // Free tier limit is 100 submissions/month — enable when on a paid plan
+  const NETLIFY_FORMS_ENABLED = false;
 
-  fetch('/', {method:'POST', body:formData})
-    .then(()=>showToast('✅ Quote saved'))
-    .catch(()=>showToast('💾 Saved locally'));
+  if(NETLIFY_FORMS_ENABLED){
+    const formData=new FormData();
+    formData.append('form-name','freight-quotes');
+    formData.append('bot-field','');
+    formData.append('date', dateStr);
+    formData.append('origin', orig||'—');
+    formData.append('destination', dest||'—');
+    formData.append('miles', miles);
+    formData.append('trailer', TLABEL[trailer]);
+    formData.append('commodity', CLABEL[commodity]);
+    formData.append('weight', weight||'—');
+    formData.append('margin', (marginPct*100).toFixed(0)+'%');
+    formData.append('base-rpm', '$'+base.toFixed(2));
+    formData.append('quote-total', '$'+Math.round(quote).toLocaleString());
+    formData.append('quote-rpm', '$'+qRpm.toFixed(2));
+    formData.append('pickup-date', pickup||'—');
+    formData.append('adj-rpm', '$'+adjRpm.toFixed(2));
+
+    fetch('/', {method:'POST', body:formData})
+      .then(()=>showToast('✅ Quote saved'))
+      .catch(()=>showToast('💾 Saved locally'));
+  } else {
+    showToast('💾 Quote saved');
+  }
 }
 
 function showToast(msg){
