@@ -1437,18 +1437,29 @@ html.light .hos-day-header{background:var(--card2)}
           </label>
         </div>
         <div class="adv-note" style="margin-bottom:10px">
-          Auto-applies from your pickup date. Tuned for <strong>Florida produce season</strong> (peak May–Jun) with regional profiles for other SE lanes. Recommended to keep on — DAT rates lag seasonal transitions by several days.
+          Auto-applies from your pickup date. Select the origin region that best matches your lane — each profile reflects seasonal capacity and demand patterns for that growing region. Recommended to keep on — DAT rates lag seasonal transitions by several days.
         </div>
         <div id="seas-controls">
           <div class="field" style="margin-bottom:10px">
             <label>Origin Region</label>
             <select id="seas-region" onchange="saveSeason();calc()">
-              <option value="fl">Florida (produce — potatoes, citrus, tomatoes)</option>
-              <option value="se">Southeast general (GA, SC, NC, AL, MS)</option>
-              <option value="mw">Midwest (grain, manufacturing)</option>
-              <option value="ne">Northeast</option>
-              <option value="sw">Southwest / Texas</option>
-              <option value="national">National / no specific region</option>
+              <optgroup label="── Produce / Reefer Lanes ──">
+                <option value="fl">Florida · potatoes, citrus, tomatoes (May–Jun peak)</option>
+                <option value="se">Southeast · GA, SC, NC peaches, watermelon (Apr–Jun peak)</option>
+                <option value="ca">California / San Joaquin · grapes, stone fruit (Jun–Sep peak)</option>
+                <option value="pnw">Pacific Northwest · WA/OR/ID apples, potatoes (Aug–Oct peak)</option>
+                <option value="tx">Texas / Rio Grande Valley · winter citrus, onions (Jan–Feb peak)</option>
+                <option value="az">Arizona / Yuma · winter lettuce, vegetables (Nov–Mar peak)</option>
+                <option value="gl">Great Lakes / Michigan · cherries, blueberries, apples (Jul–Sep peak)</option>
+                <option value="ne_produce">Northeast fall harvest · NY, NJ, PA apples, potatoes (Sep–Nov peak)</option>
+                <option value="storage">Storage season / Northern · ME, WI, MI, NY potatoes (Oct–Apr peak)</option>
+              </optgroup>
+              <optgroup label="── General Freight Lanes ──">
+                <option value="mw">Midwest · grain, manufacturing</option>
+                <option value="ne">Northeast · general freight, retail</option>
+                <option value="sw">Southwest / Texas · general, oil field</option>
+                <option value="national">National average · no specific region</option>
+              </optgroup>
             </select>
           </div>
           <div style="font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Monthly multipliers — <span id="seas-cal-label">FL Reefer</span></div>
@@ -1718,19 +1729,47 @@ const SEASON_PROFILES={
     reefer:[0.94,0.95,1.00,1.06,1.12,1.10,0.97,0.95,0.97,1.04,1.06,0.97],
     van:[0.95,0.96,0.99,1.03,1.06,1.05,0.98,0.97,0.99,1.02,1.03,0.97],
     flatbed:[0.97,0.97,1.00,1.02,1.03,1.02,0.99,0.98,1.00,1.01,1.01,0.98]},
-  se:{label:'Southeast general',sub:'GA, SC, NC, AL, MS',
-    reefer:[0.95,0.96,1.00,1.04,1.08,1.07,0.98,0.96,0.98,1.02,1.04,0.96],
-    van:[0.96,0.97,1.00,1.02,1.05,1.04,0.98,0.97,0.99,1.01,1.02,0.97],
+  se:{label:'Southeast spring/summer',sub:'GA, SC, NC · peaches, watermelon, sweet potatoes',
+    reefer:[0.95,0.96,1.02,1.07,1.10,1.08,0.98,0.96,0.98,1.02,1.03,0.96],
+    van:[0.96,0.97,1.01,1.04,1.06,1.05,0.98,0.97,0.99,1.01,1.02,0.97],
     flatbed:[0.97,0.98,1.01,1.03,1.05,1.04,1.00,0.99,1.01,1.02,1.01,0.97]},
-  mw:{label:'Midwest',sub:'Grain, manufacturing',
+  ca:{label:'California / San Joaquin Valley',sub:'Reefer · grapes, stone fruit, tomatoes, onions',
+    reefer:[0.95,0.96,0.98,1.02,1.06,1.10,1.12,1.10,1.07,1.03,0.98,0.95],
+    van:[0.96,0.96,0.99,1.01,1.04,1.07,1.08,1.07,1.05,1.02,0.99,0.96],
+    flatbed:[0.96,0.97,1.00,1.02,1.04,1.06,1.07,1.06,1.04,1.02,0.99,0.96]},
+  pnw:{label:'Pacific Northwest harvest',sub:'WA, OR, ID · apples, pears, potatoes',
+    reefer:[0.95,0.95,0.97,0.99,1.01,1.03,1.06,1.10,1.13,1.10,1.02,0.96],
+    van:[0.95,0.96,0.98,1.00,1.02,1.03,1.05,1.08,1.10,1.08,1.01,0.96],
+    flatbed:[0.95,0.96,0.99,1.02,1.05,1.06,1.07,1.08,1.08,1.05,1.00,0.95]},
+  tx:{label:'Texas / Rio Grande Valley',sub:'Reefer · winter citrus, onions, cabbage',
+    reefer:[1.07,1.09,1.06,1.02,0.99,0.97,0.96,0.97,1.00,1.02,1.04,1.06],
+    van:[1.04,1.05,1.03,1.01,0.99,0.98,0.97,0.98,1.00,1.01,1.02,1.03],
+    flatbed:[1.02,1.03,1.04,1.05,1.06,1.04,1.01,1.00,1.02,1.03,1.02,1.00]},
+  az:{label:'Arizona / Yuma winter',sub:'Reefer · lettuce, winter vegetables',
+    reefer:[1.08,1.10,1.07,1.02,0.97,0.95,0.94,0.95,0.98,1.02,1.05,1.07],
+    van:[1.04,1.05,1.03,1.01,0.98,0.97,0.96,0.97,0.99,1.01,1.02,1.03],
+    flatbed:[1.01,1.02,1.02,1.02,1.01,0.99,0.98,0.99,1.01,1.02,1.01,1.00]},
+  gl:{label:'Great Lakes / Michigan',sub:'Reefer · blueberries, cherries, apples, asparagus',
+    reefer:[0.95,0.96,0.98,1.01,1.04,1.06,1.09,1.11,1.08,1.04,0.99,0.96],
+    van:[0.95,0.96,0.98,1.01,1.03,1.04,1.07,1.08,1.06,1.03,0.99,0.96],
+    flatbed:[0.95,0.96,1.00,1.03,1.06,1.07,1.07,1.06,1.05,1.03,0.99,0.95]},
+  ne_produce:{label:'Northeast fall harvest',sub:'NY, NJ, PA, NE · apples, cranberries, potatoes',
+    reefer:[0.97,0.97,0.98,0.99,1.01,1.02,1.04,1.06,1.10,1.12,1.07,1.01],
+    van:[0.97,0.97,0.98,1.00,1.01,1.02,1.03,1.05,1.08,1.10,1.06,1.01],
+    flatbed:[0.96,0.96,0.99,1.02,1.04,1.05,1.05,1.05,1.06,1.06,1.02,0.97]},
+  storage:{label:'Storage season / Northern origin',sub:'ME, WI, MI, NY · potatoes, root vegetables',
+    reefer:[1.06,1.05,1.03,1.00,0.97,0.96,0.96,0.97,0.99,1.03,1.07,1.08],
+    van:[1.04,1.03,1.02,1.00,0.98,0.97,0.97,0.98,1.00,1.02,1.04,1.05],
+    flatbed:[1.02,1.01,1.01,1.01,1.01,1.00,1.00,1.00,1.01,1.02,1.02,1.02]},
+  mw:{label:'Midwest general',sub:'Grain, manufacturing',
     reefer:[0.96,0.96,0.99,1.02,1.04,1.03,1.01,1.02,1.04,1.05,1.03,0.97],
     van:[0.95,0.96,1.00,1.02,1.03,1.02,1.01,1.02,1.04,1.06,1.04,0.97],
     flatbed:[0.94,0.95,1.01,1.05,1.08,1.07,1.04,1.03,1.05,1.04,1.00,0.95]},
-  ne:{label:'Northeast',sub:'General freight, retail',
+  ne:{label:'Northeast general',sub:'General freight, retail',
     reefer:[0.96,0.97,1.00,1.02,1.04,1.03,1.00,0.99,1.01,1.05,1.06,1.01],
     van:[0.96,0.97,1.00,1.01,1.03,1.02,1.00,0.99,1.01,1.05,1.07,1.02],
     flatbed:[0.95,0.96,1.02,1.05,1.07,1.06,1.02,1.01,1.03,1.03,1.00,0.95]},
-  sw:{label:'Southwest / Texas',sub:'General, oil field, construction',
+  sw:{label:'Southwest / Texas general',sub:'General, oil field, construction',
     reefer:[0.97,0.97,1.00,1.02,1.03,1.02,0.99,0.99,1.01,1.02,1.02,0.98],
     van:[0.97,0.97,1.00,1.02,1.03,1.02,0.99,0.99,1.01,1.02,1.02,0.98],
     flatbed:[0.97,0.98,1.01,1.04,1.06,1.05,1.01,1.00,1.02,1.02,1.00,0.96]},
