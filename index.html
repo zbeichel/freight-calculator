@@ -1266,7 +1266,13 @@ html.light .hos-day-header{background:var(--card2)}
                 style="padding:5px 14px;background:transparent;border:1px solid var(--accent);border-radius:var(--radius);color:var(--accent);font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s">
                 + Add to quote
               </button>
-              <span id="transit-added-badge" style="display:none;font-size:11px;font-weight:700;color:var(--green);margin-left:8px">✓ Added to quote</span>
+              <span id="transit-added-badge" style="display:none;align-items:center;gap:8px">
+                <span style="font-size:11px;font-weight:700;color:var(--green)">✓ Added to quote</span>
+                <button onclick="removeTransitCharge()" 
+                  style="padding:3px 10px;background:transparent;border:1px solid rgba(239,68,68,.4);border-radius:var(--radius);color:var(--red);font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:700;cursor:pointer;transition:all .15s">
+                  ✕ Remove
+                </button>
+              </span>
             </div>
           </div>
         </div>
@@ -1998,7 +2004,15 @@ function addTransitCharge(){
   transitChargeAmount = extraDays * extraRate;
   transitChargeAdded  = true;
   document.getElementById('transit-add-btn').style.display = 'none';
-  document.getElementById('transit-added-badge').style.display = 'inline';
+  document.getElementById('transit-added-badge').style.display = 'flex';
+  calc();
+}
+
+function removeTransitCharge(){
+  transitChargeAdded  = false;
+  transitChargeAmount = 0;
+  document.getElementById('transit-add-btn').style.display = '';
+  document.getElementById('transit-added-badge').style.display = 'none';
   calc();
 }
 
