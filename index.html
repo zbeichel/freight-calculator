@@ -856,7 +856,7 @@ html.light .hos-day-header{background:var(--card2)}
           <div class="grid2" style="margin-bottom:14px">
             <div class="field">
               <label>Loaded miles <span style="font-size:9px;color:var(--text3);margin-left:4px" id="p-miles-src"></span></label>
-              <input type="number" id="p-miles" min="1" step="10" placeholder="Auto or enter manually" oninput="calcProfit()" />
+              <input type="number" id="p-miles" min="1" step="10" placeholder="Auto or enter manually" oninput="calcProfit();calcProfTransit()" />
             </div>
             <div class="field">
               <label>Dead head miles</label>
@@ -873,6 +873,38 @@ html.light .hos-day-header{background:var(--card2)}
             <div class="field">
               <label>Drive hours</label>
               <input type="number" id="p-hours" min="0.5" step="0.5" placeholder="e.g. 11" oninput="calcProfit()" />
+            </div>
+            <div class="field">
+              <label>Pickup Date</label>
+              <input type="date" id="p-pickup" onchange="calcProfTransit();calcProfit()" />
+            </div>
+            <div class="field">
+              <label>Delivery Date</label>
+              <input type="date" id="p-delivery" onchange="calcProfTransit()" />
+            </div>
+          </div>
+          <!-- Prof transit callout -->
+          <div id="p-transit-callout" style="display:none;margin-bottom:14px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)">Days on truck</div>
+              <div id="p-transit-badge" style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:var(--accentbg);color:var(--accent)"></div>
+            </div>
+            <div id="p-transit-standard-line" style="font-size:11px;color:var(--text3);margin-bottom:6px"></div>
+            <div id="p-transit-extra-wrap" style="display:none">
+              <div style="height:1px;background:var(--border);margin-bottom:8px"></div>
+              <div style="font-size:11px;color:var(--text2);margin-bottom:6px" id="p-transit-extra-line"></div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <div style="font-size:11px;color:var(--text3)">Extra day cost:</div>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <span style="font-size:11px;color:var(--text3)">$</span>
+                  <input type="number" id="p-extra-day-rate" value="200" min="0" step="25"
+                    style="width:70px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:4px 8px;outline:none;text-align:center"
+                    oninput="calcProfTransit()" />
+                  <span style="font-size:11px;color:var(--text3)">/day</span>
+                </div>
+                <div id="p-transit-extra-total" style="font-size:12px;font-weight:700;color:var(--red)"></div>
+              </div>
+              <div style="font-size:10px;color:var(--text3);margin-top:6px">Extra days reduce your net profit — factor this into whether to accept the load</div>
             </div>
           </div>
 
@@ -971,7 +1003,7 @@ html.light .hos-day-header{background:var(--card2)}
           </div>
         </div>
 
-        <div class="grid3" id="load-grid">
+        <div class="grid2" id="load-grid">
           <div class="field">
             <label>Miles <span id="miles-source" style="font-size:9px;font-weight:500;color:var(--text3);margin-left:4px"></span></label>
             <input type="number" id="miles" min="1" placeholder="Auto-filled by Google" oninput="milesManualEdit();calc()" />
@@ -980,9 +1012,16 @@ html.light .hos-day-header{background:var(--card2)}
             <label>Weight (lbs)</label>
             <input type="number" id="weight" min="1" placeholder="e.g. 42000" oninput="if(shipType==='ltl')calcDensity();else calc();" />
           </div>
+        </div>
+
+        <div class="grid2" id="dates-grid">
           <div class="field">
             <label>Pickup Date</label>
-            <input type="date" id="pickup" onchange="calc()" />
+            <input type="date" id="pickup" onchange="calc();calcTransit()" />
+          </div>
+          <div class="field">
+            <label>Delivery Date</label>
+            <input type="date" id="delivery" onchange="calcTransit()" />
           </div>
         </div>
 
@@ -1198,6 +1237,38 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="field ftl-only" id="margin-field" style="max-width:160px;margin-top:12px">
           <label>Your Margin %</label>
           <input type="number" id="margin" value="15" min="0" max="100" oninput="calc()" />
+        </div>
+
+        <!-- Transit days callout — shown when pickup + delivery dates are entered -->
+        <div id="transit-callout" style="display:none;margin-top:12px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)">Transit Days</div>
+            <div id="transit-days-badge" style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:var(--accentbg);color:var(--accent)"></div>
+          </div>
+          <div id="transit-standard-line" style="font-size:11px;color:var(--text3);margin-bottom:8px"></div>
+          <!-- Extra days section — only shown when there are extra days -->
+          <div id="transit-extra-wrap" style="display:none">
+            <div style="height:1px;background:var(--border);margin-bottom:8px"></div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:6px" id="transit-extra-line"></div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <div style="font-size:11px;color:var(--text3)">Extra day rate:</div>
+              <div style="display:flex;align-items:center;gap:4px">
+                <span style="font-size:11px;color:var(--text3)">$</span>
+                <input type="number" id="extra-day-rate" value="200" min="0" step="25"
+                  style="width:70px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:4px 8px;outline:none;text-align:center"
+                  oninput="calcTransit()" />
+                <span style="font-size:11px;color:var(--text3)">/day</span>
+              </div>
+              <div id="transit-extra-total" style="font-size:12px;font-weight:700;color:var(--accent)"></div>
+            </div>
+            <div id="transit-add-btn-wrap" style="margin-top:8px">
+              <button onclick="addTransitCharge()" id="transit-add-btn"
+                style="padding:5px 14px;background:transparent;border:1px solid var(--accent);border-radius:var(--radius);color:var(--accent);font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s">
+                + Add to quote
+              </button>
+              <span id="transit-added-badge" style="display:none;font-size:11px;font-weight:700;color:var(--green);margin-left:8px">✓ Added to quote</span>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -1802,8 +1873,10 @@ function setShipType(t){
   // Hide FTL/LTL route inputs in prof mode
   const routeGrid=document.getElementById('route-grid');
   const mainGrid=document.getElementById('load-grid');
+  const datesGrid=document.getElementById('dates-grid');
   if(routeGrid) routeGrid.style.display=t==='prof'?'none':'';
   if(mainGrid)  mainGrid.style.display=t==='prof'?'none':'';
+  if(datesGrid) datesGrid.style.display=t==='prof'?'none':'';
   document.getElementById('miles-status-row').style.display='none';
   // Result panels
   const resultCard=document.querySelector('.result-card:not(#prof-result-card)');
@@ -1846,6 +1919,7 @@ function setShipType(t){
       if(match) pHours.value=((parseInt(match[1])||0)+(parseInt(match[2]||0)/60)).toFixed(1);
     }
     calcProfit();
+    calcProfTransit();
   } else {
     calc();
   }
@@ -1859,6 +1933,115 @@ let fixedManual = false;
 let fuelManual = false;
 
 let profDieselPrice = 0; // updated when user clicks Live diesel in prof tab
+
+// ── Transit Days Calculator ────────────────────────────────────────────────
+let transitChargeAdded = false;
+let transitChargeAmount = 0;
+
+function calcTransit(){
+  const pickup   = document.getElementById('pickup').value;
+  const delivery = document.getElementById('delivery').value;
+  const miles    = parseFloat(document.getElementById('miles').value)||0;
+  const callout  = document.getElementById('transit-callout');
+
+  if(!pickup || !delivery){ callout.style.display='none'; return; }
+
+  const pDate = new Date(pickup   + 'T12:00:00');
+  const dDate = new Date(delivery + 'T12:00:00');
+  const actualDays = Math.round((dDate - pDate) / 86400000);
+
+  if(actualDays <= 0){ callout.style.display='none'; return; }
+
+  const standardDays = miles > 0 ? Math.ceil(miles / 500) : 1;
+  const extraDays    = Math.max(0, actualDays - standardDays);
+  const extraRate    = parseFloat(document.getElementById('extra-day-rate').value)||200;
+  const extraCharge  = extraDays * extraRate;
+
+  callout.style.display = 'block';
+  document.getElementById('transit-days-badge').textContent = actualDays + (actualDays===1?' day':' days');
+  document.getElementById('transit-standard-line').textContent =
+    miles > 0
+      ? `Standard transit for ${miles.toLocaleString()} mi: ${standardDays} day${standardDays===1?'':'s'} (~500 mi/day)`
+      : `${actualDays} day${actualDays===1?'':'s'} pickup to delivery`;
+
+  const extraWrap = document.getElementById('transit-extra-wrap');
+  if(extraDays > 0){
+    extraWrap.style.display = 'block';
+    document.getElementById('transit-extra-line').textContent =
+      `${extraDays} extra day${extraDays===1?'':'s'} beyond standard transit`;
+    document.getElementById('transit-extra-total').textContent =
+      `= $${(extraCharge).toLocaleString()} suggested add`;
+    // Reset add button if rate changed
+    if(!transitChargeAdded){
+      document.getElementById('transit-add-btn').style.display = '';
+      document.getElementById('transit-added-badge').style.display = 'none';
+    }
+  } else {
+    extraWrap.style.display = 'none';
+    transitChargeAdded = false;
+    transitChargeAmount = 0;
+  }
+}
+
+function addTransitCharge(){
+  const extraDays = (() => {
+    const pickup   = document.getElementById('pickup').value;
+    const delivery = document.getElementById('delivery').value;
+    const miles    = parseFloat(document.getElementById('miles').value)||0;
+    if(!pickup||!delivery) return 0;
+    const actualDays  = Math.round((new Date(delivery+'T12:00:00') - new Date(pickup+'T12:00:00')) / 86400000);
+    const standardDays = miles > 0 ? Math.ceil(miles/500) : 1;
+    return Math.max(0, actualDays - standardDays);
+  })();
+  const extraRate   = parseFloat(document.getElementById('extra-day-rate').value)||200;
+  transitChargeAmount = extraDays * extraRate;
+  transitChargeAdded  = true;
+  document.getElementById('transit-add-btn').style.display = 'none';
+  document.getElementById('transit-added-badge').style.display = 'inline';
+  calc();
+}
+
+function calcProfTransit(){
+  const pickup   = document.getElementById('p-pickup').value;
+  const delivery = document.getElementById('p-delivery').value;
+  const miles    = parseFloat(document.getElementById('p-miles').value)||0;
+  const callout  = document.getElementById('p-transit-callout');
+
+  if(!pickup || !delivery){ callout.style.display='none'; return; }
+
+  const pDate = new Date(pickup   + 'T12:00:00');
+  const dDate = new Date(delivery + 'T12:00:00');
+  const actualDays = Math.round((dDate - pDate) / 86400000);
+
+  if(actualDays <= 0){ callout.style.display='none'; return; }
+
+  const standardDays = miles > 0 ? Math.ceil(miles / 500) : 1;
+  const extraDays    = Math.max(0, actualDays - standardDays);
+  const extraRate    = parseFloat(document.getElementById('p-extra-day-rate').value)||200;
+  const extraCharge  = extraDays * extraRate;
+
+  callout.style.display = 'block';
+  document.getElementById('p-transit-badge').textContent = actualDays + (actualDays===1?' day':' days');
+  document.getElementById('p-transit-standard-line').textContent =
+    miles > 0
+      ? `Standard transit for ${miles.toLocaleString()} mi: ${standardDays} day${standardDays===1?'':'s'} (~500 mi/day)`
+      : `${actualDays} day${actualDays===1?'':'s'} pickup to delivery`;
+
+  const extraWrap = document.getElementById('p-transit-extra-wrap');
+  if(extraDays > 0){
+    extraWrap.style.display = 'block';
+    document.getElementById('p-transit-extra-line').textContent =
+      `${extraDays} extra day${extraDays===1?'':'s'} beyond standard transit`;
+    document.getElementById('p-transit-extra-total').textContent =
+      `= -$${extraCharge.toLocaleString()} opportunity cost`;
+    // Auto-update profit calc with extra day cost factored into "other fees"
+    const otherEl = document.getElementById('p-other');
+    otherEl.value = extraCharge;
+    calcProfit();
+  } else {
+    extraWrap.style.display = 'none';
+  }
+}
 
 async function fetchProfDiesel(){
   const btn = document.getElementById('p-eia-btn');
@@ -2032,6 +2215,7 @@ async function tryProfLookup(){
     statusText.style.color = 'var(--green)';
     statusPill.style.borderColor = 'var(--green)';
     calcProfit();
+    calcProfTransit();
 
   } catch(e){
     statusIcon.textContent = '⚠️';
@@ -2572,7 +2756,8 @@ function calc(){
   const adjRpm=base*wt.m*dm.m*dayM*cm*dieselM*capM*seasM;
   const cost=miles?adjRpm*miles:0;
   const marginAmt=cost*marginPct;
-  const quote=cost*(1+marginPct);
+  const transitAdj = transitChargeAdded ? transitChargeAmount : 0;
+  const quote=(cost+transitAdj)*(1+marginPct);
   const qRpm=miles>0?quote/miles:0;
 
   // Hero
