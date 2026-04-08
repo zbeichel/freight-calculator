@@ -2072,14 +2072,6 @@ function setWeatherUnit(u){
 function toF(c){ return Math.round(c * 9/5 + 32); }
 function tempStr(c){ return weatherUnit==='F' ? toF(c)+'°F' : Math.round(c)+'°C'; }
 
-async function geocode(location){
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`;
-  const r = await fetch(url);
-  const d = await r.json();
-  if(!d.results?.[0]) throw new Error('Location not found: '+location);
-  return { lat: d.results[0].latitude, lon: d.results[0].longitude, name: d.results[0].name+', '+(d.results[0].admin1||d.results[0].country||'') };
-}
-
 async function getWeather(lat, lon, date){
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,precipitation_probability_max,relative_humidity_2m_max&timezone=auto&start_date=${date}&end_date=${date}`;
   const r = await fetch(url);
@@ -2132,6 +2124,21 @@ function renderWeather(data){
   }
 }
 
+// Cached coordinates from Google geocoding — used by weather fetch
+let origCoords = null;
+let destCoords = null;
+
+async function geocodeWithGoogle(address){
+  if(!GMAPS_KEY) await loadGMapsKey();
+  if(!GMAPS_KEY) throw new Error('No key');
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address+', USA')}&key=${GMAPS_KEY}`;
+  const r = await fetch(url);
+  const d = await r.json();
+  if(!d.results?.[0]) throw new Error('Not found');
+  const loc = d.results[0].geometry.location;
+  return { lat: loc.lat, lon: loc.lng, name: d.results[0].formatted_address };
+}
+
 async function fetchWeather(){
   const orig     = document.getElementById('origin').value.trim();
   const dest     = document.getElementById('dest').value.trim();
@@ -2139,7 +2146,6 @@ async function fetchWeather(){
   const delivery = document.getElementById('delivery').value;
   if(!orig || !dest || !pickup) return;
 
-  // Use delivery date for destination; fall back to pickup date if no delivery entered
   const destDate = delivery || pickup;
 
   const card    = document.getElementById('weather-card');
@@ -2148,26 +2154,35 @@ async function fetchWeather(){
 
   card.classList.add('visible');
   loading.style.display = 'block';
+  loading.style.color = 'var(--text3)';
+  loading.textContent = 'Fetching weather data...';
   locs.style.display = 'none';
   document.getElementById('weather-alert').style.display = 'none';
 
-  // Date label
   const fmt = d => new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
   document.getElementById('weather-date-range').textContent =
     pickup === destDate ? fmt(pickup) : fmt(pickup) + ' → ' + fmt(destDate);
 
   try {
-    const [origLoc, destLoc] = await Promise.all([geocode(orig), geocode(dest)]);
-    const [origWx, destWx]   = await Promise.all([getWeather(origLoc.lat, origLoc.lon, pickup), getWeather(destLoc.lat, destLoc.lon, destDate)]);
+    // Geocode using Google (same key already loaded for mileage)
+    const [origLoc, destLoc] = await Promise.all([
+      geocodeWithGoogle(orig),
+      geocodeWithGoogle(dest)
+    ]);
+
+    // Fetch weather from Open-Meteo (free, no key needed)
+    const [origWx, destWx] = await Promise.all([
+      getWeather(origLoc.lat, origLoc.lon, pickup),
+      getWeather(destLoc.lat, destLoc.lon, destDate)
+    ]);
 
     weatherDataCache = { origLoc, destLoc, origWx, destWx };
     renderWeather(weatherDataCache);
-
     loading.style.display = 'none';
     locs.style.display = 'grid';
 
   } catch(e) {
-    loading.textContent = '⚠ Could not load weather — check origin and destination fields';
+    loading.textContent = '⚠ Weather unavailable — enter a full city, state (e.g. Hastings, FL)';
     loading.style.color = 'var(--red)';
   }
 }
