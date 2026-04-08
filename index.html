@@ -1489,6 +1489,7 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="rrow"><span class="rrow-label">Route</span><span class="rrow-val" id="r-route" style="font-size:12px;text-align:right;max-width:160px;word-break:break-word">—</span></div>
         <div class="rrow"><span class="rrow-label">Miles</span><span class="rrow-val" id="r-miles">—</span></div>
         <div class="rrow"><span class="rrow-label">Pickup</span><span class="rrow-val" id="r-pickup">—</span></div>
+        <div class="rrow"><span class="rrow-label">Delivery</span><span class="rrow-val" id="r-delivery">—</span></div>
         <div class="rrow"><span class="rrow-label">Linehaul cost</span><span class="rrow-val" id="r-cost">—</span></div>
         <div class="rrow" id="r-acc-row" style="display:none"><span class="rrow-label">Accessorials</span><span class="rrow-val" style="color:var(--accent)" id="r-acc">—</span></div>
         <div class="rrow"><span class="rrow-label">Margin</span><span class="rrow-val" id="r-margin">—</span></div>
@@ -2471,6 +2472,8 @@ function calcLTL(){
   document.getElementById('r-route').textContent=(orig&&dest)?`${orig} → ${dest}`:(orig||dest||'—');
   document.getElementById('r-miles').textContent=miles?miles.toLocaleString()+' mi':'—';
   document.getElementById('r-pickup').textContent=pickup?new Date(pickup+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'—';
+  const delivery1=document.getElementById('delivery').value;
+  document.getElementById('r-delivery').textContent=delivery1?new Date(delivery1+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'—';
   document.getElementById('r-cost').textContent=miles&&w?fmtInt(linehaul):'—';
   document.getElementById('r-margin').textContent=miles&&w?(marginPct*100).toFixed(0)+'%  ('+fmtInt(marginAmt)+')':'—';
   document.getElementById('r-baserate').textContent=`$${cwt}/CWT`;
@@ -2769,6 +2772,8 @@ function calc(){
   document.getElementById('r-route').textContent=(orig&&dest)?`${orig} → ${dest}`:(orig||dest||'—');
   document.getElementById('r-miles').textContent=miles?miles.toLocaleString()+' mi':'—';
   document.getElementById('r-pickup').textContent=pickup?new Date(pickup+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'—';
+  const delivery2=document.getElementById('delivery').value;
+  document.getElementById('r-delivery').textContent=delivery2?new Date(delivery2+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'—';
   document.getElementById('r-cost').textContent=miles?fmtInt(cost):'—';
   document.getElementById('r-margin').textContent=miles?(marginPct*100).toFixed(0)+'%  ('+fmtInt(marginAmt)+')':'—';
   document.getElementById('r-baserate').textContent=fmt(base);
