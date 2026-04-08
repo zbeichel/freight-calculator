@@ -2130,13 +2130,34 @@ let destCoords = null;
 
 async function geocodeWithGoogle(address){
   if(!GMAPS_KEY) await loadGMapsKey();
-  if(!GMAPS_KEY) throw new Error('No key');
+  if(!GMAPS_KEY) throw new Error('Google Maps key not loaded');
   const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address+', USA')}&key=${GMAPS_KEY}`;
   const r = await fetch(url);
   const d = await r.json();
-  if(!d.results?.[0]) throw new Error('Not found');
+  console.log('Geocode response for', address, ':', d.status, d.error_message||'');
+  if(d.status === 'REQUEST_DENIED') throw new Error('Geocoding API not enabled — enable it in Google Cloud Console');
+  if(d.status === 'OVER_QUERY_LIMIT') throw new Error('Google API quota exceeded');
+  if(!d.results?.[0]) throw new Error('Location not found: ' + address);
   const loc = d.results[0].geometry.location;
   return { lat: loc.lat, lon: loc.lng, name: d.results[0].formatted_address };
+}
+
+async function geocodeOpenMeteo(address){
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(address)}&count=1&language=en&format=json`;
+  const r = await fetch(url);
+  const d = await r.json();
+  if(!d.results?.[0]) throw new Error('Location not found: ' + address);
+  const res = d.results[0];
+  return { lat: res.latitude, lon: res.longitude, name: res.name + ', ' + (res.admin1 || res.country_code || '') };
+}
+
+async function geocode(address){
+  // Try Open-Meteo first (free, no key) — fall back to Google if it fails
+  try {
+    return await geocodeOpenMeteo(address);
+  } catch(e){
+    return await geocodeWithGoogle(address);
+  }
 }
 
 async function fetchWeather(){
@@ -2164,10 +2185,10 @@ async function fetchWeather(){
     pickup === destDate ? fmt(pickup) : fmt(pickup) + ' → ' + fmt(destDate);
 
   try {
-    // Geocode using Google (same key already loaded for mileage)
+    // Geocode both locations — tries Open-Meteo first, falls back to Google
     const [origLoc, destLoc] = await Promise.all([
-      geocodeWithGoogle(orig),
-      geocodeWithGoogle(dest)
+      geocode(orig),
+      geocode(dest)
     ]);
 
     // Fetch weather from Open-Meteo (free, no key needed)
@@ -2182,7 +2203,8 @@ async function fetchWeather(){
     locs.style.display = 'grid';
 
   } catch(e) {
-    loading.textContent = '⚠ Weather unavailable — enter a full city, state (e.g. Hastings, FL)';
+    console.error('Weather error:', e);
+    loading.textContent = '⚠ ' + (e.message || 'Weather unavailable');
     loading.style.color = 'var(--red)';
   }
 }
