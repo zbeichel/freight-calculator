@@ -2129,17 +2129,11 @@ let origCoords = null;
 let destCoords = null;
 
 async function geocodeWithGoogle(address){
-  if(!GMAPS_KEY) await loadGMapsKey();
-  if(!GMAPS_KEY) throw new Error('Google Maps key not loaded');
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address+', USA')}&key=${GMAPS_KEY}`;
-  const r = await fetch(url);
-  const d = await r.json();
-  console.log('Geocode response for', address, ':', d.status, d.error_message||'');
-  if(d.status === 'REQUEST_DENIED') throw new Error('Geocoding API not enabled — enable it in Google Cloud Console');
-  if(d.status === 'OVER_QUERY_LIMIT') throw new Error('Google API quota exceeded');
-  if(!d.results?.[0]) throw new Error('Location not found: ' + address);
-  const loc = d.results[0].geometry.location;
-  return { lat: loc.lat, lon: loc.lng, name: d.results[0].formatted_address };
+  // Use our Netlify proxy — avoids key exposure and referrer restriction issues
+  const resp = await fetch(`/.netlify/functions/geocode?address=${encodeURIComponent(address + ', USA')}`);
+  const d = await resp.json();
+  if(d.error) throw new Error('Geocode failed: ' + d.error);
+  return { lat: d.lat, lon: d.lon, name: d.name };
 }
 
 async function geocodeOpenMeteo(address){
