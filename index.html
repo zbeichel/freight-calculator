@@ -625,6 +625,21 @@ html.light .hos-day-header{background:var(--card2)}
 .ship-toggle{display:flex;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:3px;margin-bottom:18px;width:100%;overflow:hidden}
 .ship-btn{flex:1;min-width:0;padding:8px 6px;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;letter-spacing:.04em;border:none;border-radius:9px;background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px;overflow:hidden;white-space:nowrap}
 .ship-btn.active{background:var(--accent);color:#000}
+/* ── Profitability ── */
+.prof-metric{background:var(--card2);border-radius:var(--radius);padding:14px 16px;min-width:0}
+.prof-metric-label{font-size:11px;color:var(--text2);font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
+.prof-metric-val{font-size:24px;font-weight:700;color:var(--text)}
+.prof-metric-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.prof-metric.good .prof-metric-val{color:var(--green)}
+.prof-metric.bad .prof-metric-val{color:var(--red)}
+.prof-metric.warn .prof-metric-val{color:var(--accent)}
+.prof-verdict{border-radius:var(--radius);padding:12px 16px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.prof-verdict.accept{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:var(--green)}
+.prof-verdict.decline{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:var(--red)}
+.prof-verdict.marginal{background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.25);color:var(--accent)}
+.prof-bar{height:10px;background:var(--card2);border-radius:5px;overflow:hidden;margin:6px 0 4px}
+.prof-bar-fill{height:100%;border-radius:5px;transition:width .4s ease}
+.prof-section-label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text2);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
 .ltl-only{display:none}.ltl-only.show{display:block}
 .ftl-only{display:block}.ftl-only.hide{display:none}
 .acc-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
@@ -803,7 +818,147 @@ html.light .hos-day-header{background:var(--card2)}
           </button>
         </div>
 
-        <div class="grid2">
+        <!-- Profitability calculator toggle button -->
+        <button id="btn-prof" onclick="setShipType(shipType==='prof'?'ftl':'prof')"
+          style="width:100%;margin-bottom:18px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em">
+          <span id="prof-btn-icon">💰</span>
+          <span id="prof-btn-label">Profitability Calculator</span>
+        </button>
+
+        <!-- Profitability calculator form -->
+        <div class="ltl-only" id="prof-fields">
+          <div class="ltl-note" style="background:rgba(34,197,94,.06);border-color:rgba(34,197,94,.2)">
+            <strong style="color:var(--green)">Is this load worth it?</strong> Enter the offered rate and your costs to see net profit, cost per mile, and profit per hour.
+          </div>
+
+          <div class="prof-section-label" style="margin-top:4px">Route &amp; mileage</div>
+          <!-- Origin / Destination first -->
+          <div class="grid2" style="margin-bottom:8px">
+            <div class="field">
+              <label>Origin</label>
+              <input type="text" id="p-origin" placeholder="e.g. Hastings, FL" autocomplete="off"
+                oninput="clearTimeout(pLookupTimer);pLookupTimer=setTimeout(tryProfLookup,900)" />
+            </div>
+            <div class="field">
+              <label>Destination</label>
+              <input type="text" id="p-dest" placeholder="e.g. Charlotte, NC" autocomplete="off"
+                oninput="clearTimeout(pLookupTimer);pLookupTimer=setTimeout(tryProfLookup,900)" />
+            </div>
+          </div>
+          <!-- Miles status pill -->
+          <div id="p-miles-status-row" style="display:none;margin-bottom:8px;align-items:center;gap:8px">
+            <div id="p-miles-status-pill" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;background:var(--card2);border:1px solid var(--border2)">
+              <span id="p-miles-status-icon" style="font-size:13px">⏳</span>
+              <span id="p-miles-status-text">Looking up route...</span>
+            </div>
+          </div>
+          <!-- Loaded miles / Dead head below origin/dest -->
+          <div class="grid2" style="margin-bottom:14px">
+            <div class="field">
+              <label>Loaded miles <span style="font-size:9px;color:var(--text3);margin-left:4px" id="p-miles-src"></span></label>
+              <input type="number" id="p-miles" min="1" step="10" placeholder="Auto or enter manually" oninput="calcProfit()" />
+            </div>
+            <div class="field">
+              <label>Dead head miles</label>
+              <input type="number" id="p-empty" min="0" step="10" value="0" oninput="calcProfit()" />
+            </div>
+          </div>
+
+          <div class="prof-section-label">Load details</div>
+          <div class="grid2" style="margin-bottom:14px">
+            <div class="field">
+              <label>Offered rate ($)</label>
+              <input type="number" id="p-rate" min="0" step="50" placeholder="e.g. 2400" oninput="calcProfit()" />
+            </div>
+            <div class="field">
+              <label>Drive hours</label>
+              <input type="number" id="p-hours" min="0.5" step="0.5" placeholder="e.g. 11" oninput="calcProfit()" />
+            </div>
+          </div>
+
+          <div class="prof-section-label">Your cost per mile</div>
+          <div class="grid2" style="margin-bottom:10px">
+            <div class="field">
+              <label style="display:flex;align-items:center;justify-content:space-between">
+                Fuel ($/mi)
+                <span id="fuel-calc-badge" style="font-size:9px;font-weight:700;background:rgba(74,158,255,.15);color:var(--blue);padding:2px 7px;border-radius:10px;display:none">auto</span>
+              </label>
+              <input type="number" id="p-fuel" min="0" step="0.01" placeholder="e.g. 0.83" oninput="fuelManualEdit();calcProfit()" />
+            </div>
+            <div class="field">
+              <label>MPG <span style="font-size:10px;color:var(--text3);font-weight:400">→ auto-fills fuel/mi</span></label>
+              <input type="number" id="p-mpg" min="1" step="0.5" placeholder="e.g. 6.5" oninput="calcFuelCPM()" />
+              <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                <button onclick="fetchProfDiesel()" id="p-eia-btn"
+                  style="padding:4px 10px;background:var(--accentbg);border:1px solid rgba(240,165,0,.3);border-radius:20px;color:var(--accent);font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">
+                  ⚡ Live diesel
+                </button>
+                <span style="font-size:10px;color:var(--text3)" id="p-fuel-src"></span>
+              </div>
+            </div>
+            <div class="field">
+              <label>Driver pay ($/mi)</label>
+              <input type="number" id="p-driver" min="0" step="0.01" placeholder="e.g. 0.55" oninput="calcProfit()" />
+            </div>
+            <div class="field">
+              <label style="display:flex;align-items:center;justify-content:space-between">
+                Fixed costs ($/mi)
+                <span id="fixed-calc-badge" style="font-size:9px;font-weight:700;background:rgba(74,158,255,.15);color:var(--blue);padding:2px 7px;border-radius:10px;display:none">auto</span>
+              </label>
+              <input type="number" id="p-fixed" min="0" step="0.01" placeholder="e.g. 0.30" oninput="fixedManualEdit();calcProfit()" />
+            </div>
+            <div class="field">
+              <label>Other flat fees ($)</label>
+              <input type="number" id="p-other" min="0" step="25" value="0" oninput="calcProfit()" />
+            </div>
+          </div>
+
+          <!-- Fixed cost calculator -->
+          <div style="margin-bottom:14px">
+            <button onclick="toggleFixedCalc()" id="fixed-calc-btn"
+              style="width:100%;padding:8px 14px;background:transparent;border:1px dashed var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;cursor:pointer;text-align:left;transition:all .15s">
+              💡 Don't know your fixed cost per mile? Calculate it here
+            </button>
+            <div id="fixed-calc-panel" style="display:none;margin-top:8px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+              <div style="font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.5">Enter your monthly fixed costs and average monthly miles to calculate your cost per mile.</div>
+              <div class="grid2" style="margin-bottom:10px">
+                <div class="field" style="margin-bottom:10px">
+                  <label style="font-size:11px">Truck payment ($/mo)</label>
+                  <input type="number" id="fc-payment" min="0" step="50" placeholder="e.g. 2200" oninput="calcFixedCPM()" />
+                </div>
+                <div class="field" style="margin-bottom:10px">
+                  <label style="font-size:11px">Insurance ($/mo)</label>
+                  <input type="number" id="fc-insurance" min="0" step="50" placeholder="e.g. 800" oninput="calcFixedCPM()" />
+                </div>
+                <div class="field" style="margin-bottom:10px">
+                  <label style="font-size:11px">Maintenance ($/mo)</label>
+                  <input type="number" id="fc-maintenance" min="0" step="50" placeholder="e.g. 400" oninput="calcFixedCPM()" />
+                </div>
+                <div class="field" style="margin-bottom:10px">
+                  <label style="font-size:11px">Other fixed ($/mo)</label>
+                  <input type="number" id="fc-other" min="0" step="25" placeholder="e.g. permits, ELD" oninput="calcFixedCPM()" />
+                </div>
+                <div class="field" style="margin-bottom:0;grid-column:span 2">
+                  <label style="font-size:11px">Avg miles driven per month</label>
+                  <input type="number" id="fc-miles" min="1" step="500" placeholder="e.g. 10000" oninput="calcFixedCPM()" />
+                </div>
+              </div>
+              <div id="fc-result" style="display:none;padding:10px 12px;background:var(--card);border:1px solid rgba(74,158,255,.25);border-radius:var(--radius);display:none">
+                <div style="font-size:11px;color:var(--text2)">Calculated fixed cost per mile</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+                  <span id="fc-cpm-val" style="font-size:20px;font-weight:700;color:var(--blue)">—</span>
+                  <button onclick="applyFixedCPM()" style="padding:5px 12px;background:var(--blue);border:none;border-radius:var(--radius);color:#fff;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;cursor:pointer">
+                    Apply to calculator ↑
+                  </button>
+                </div>
+                <div id="fc-breakdown" style="font-size:10px;color:var(--text3);margin-top:4px"></div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Fuel and driver pay vary — enter your actual numbers for accurate results</div>
+        </div>
+
+        <div class="grid2" id="route-grid">
           <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" /></div>
           <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" /></div>
         </div>
@@ -816,7 +971,7 @@ html.light .hos-day-header{background:var(--card2)}
           </div>
         </div>
 
-        <div class="grid3">
+        <div class="grid3" id="load-grid">
           <div class="field">
             <label>Miles <span id="miles-source" style="font-size:9px;font-weight:500;color:var(--text3);margin-left:4px"></span></label>
             <input type="number" id="miles" min="1" placeholder="Auto-filled by Google" oninput="milesManualEdit();calc()" />
@@ -1040,7 +1195,7 @@ html.light .hos-day-header{background:var(--card2)}
           </div>
         </div>
 
-        <div class="field" style="max-width:160px;margin-top:12px">
+        <div class="field ftl-only" id="margin-field" style="max-width:160px;margin-top:12px">
           <label>Your Margin %</label>
           <input type="number" id="margin" value="15" min="0" max="100" oninput="calc()" />
         </div>
@@ -1280,6 +1435,57 @@ html.light .hos-day-header{background:var(--card2)}
       </div>
       <div style="padding:14px 20px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);line-height:1.6;text-align:center">
         Rates: DAT Trendlines · Update base rates in Advanced settings · Always verify before quoting
+      </div>
+    </div>
+
+    <!-- Profitability result panel — shown when in prof mode -->
+    <div class="result-card" id="prof-result-card" style="display:none">
+      <div class="result-hero" id="prof-hero">
+        <div class="result-hero-label">Is this load worth it?</div>
+        <div class="result-hero-val" id="p-profit-val">—</div>
+        <div class="result-hero-rpm" id="p-margin-val">— profit per mile</div>
+      </div>
+      <div style="padding:16px 20px">
+        <!-- Verdict -->
+        <div class="prof-verdict" id="p-verdict" style="display:none"></div>
+        <!-- 4 metrics -->
+        <div class="grid2" style="gap:10px;margin-bottom:14px">
+          <div class="prof-metric" id="pm-rpm">
+            <div class="prof-metric-label">Revenue/mi</div>
+            <div class="prof-metric-val" id="pv-rpm">—</div>
+            <div class="prof-metric-sub">loaded miles</div>
+          </div>
+          <div class="prof-metric" id="pm-cpm">
+            <div class="prof-metric-label">Cost/mi</div>
+            <div class="prof-metric-val" id="pv-cpm">—</div>
+            <div class="prof-metric-sub">all miles</div>
+          </div>
+          <div class="prof-metric" id="pm-pph">
+            <div class="prof-metric-label">Profit/hour</div>
+            <div class="prof-metric-val" id="pv-pph">—</div>
+            <div class="prof-metric-sub">drive time</div>
+          </div>
+          <div class="prof-metric" id="pm-cost">
+            <div class="prof-metric-label">Total cost</div>
+            <div class="prof-metric-val" id="pv-cost">—</div>
+            <div class="prof-metric-sub">all-in</div>
+          </div>
+        </div>
+        <!-- Cost vs profit bar -->
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;display:flex;justify-content:space-between">
+          <span>Cost vs profit breakdown</span>
+          <span id="p-bar-pct" style="color:var(--text3)"></span>
+        </div>
+        <div class="prof-bar">
+          <div class="prof-bar-fill" id="p-bar-fill" style="width:0%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:3px">
+          <span id="p-bar-cost-lbl">Costs: —</span>
+          <span id="p-bar-profit-lbl">Profit: —</span>
+        </div>
+      </div>
+      <div style="padding:14px 20px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);line-height:1.6;text-align:center">
+        Defaults: $0.58 fuel · $0.55 driver · $0.30 fixed · Adjust to your actual costs
       </div>
     </div>
   </div>
@@ -1575,21 +1781,325 @@ function setShipType(t){
   shipType=t;
   document.getElementById('btn-ftl').classList.toggle('active',t==='ftl');
   document.getElementById('btn-ltl').classList.toggle('active',t==='ltl');
-  document.getElementById('ftl-fields').classList.toggle('hide',t==='ltl');
+  // Profitability button — highlights when active, normal border when not
+  const profBtn=document.getElementById('btn-prof');
+  const profLabel=document.getElementById('prof-btn-label');
+  if(t==='prof'){
+    profBtn.style.background='var(--accentbg)';
+    profBtn.style.borderColor='var(--accent)';
+    profBtn.style.color='var(--accent)';
+    profLabel.textContent='✕ Close Profitability';
+  } else {
+    profBtn.style.background='transparent';
+    profBtn.style.borderColor='var(--border)';
+    profBtn.style.color='var(--text2)';
+    profLabel.textContent='Profitability Calculator';
+  }
+  // Form sections
+  document.getElementById('ftl-fields').classList.toggle('hide',t!=='ftl');
   document.getElementById('ltl-fields').classList.toggle('show',t==='ltl');
-  // Sidebar label tweaks
-  document.getElementById('r-type-label').textContent=t==='ltl'?'Freight Class':'Trailer';
-  document.getElementById('r-base-label').textContent=t==='ltl'?'Base CWT rate':'Base rate/mi';
-  document.getElementById('r-adj-row').style.display=t==='ltl'?'none':'';
-  // HOS not relevant for LTL
+  document.getElementById('prof-fields').classList.toggle('show',t==='prof');
+  // Hide FTL/LTL route inputs in prof mode
+  const routeGrid=document.getElementById('route-grid');
+  const mainGrid=document.getElementById('load-grid');
+  if(routeGrid) routeGrid.style.display=t==='prof'?'none':'';
+  if(mainGrid)  mainGrid.style.display=t==='prof'?'none':'';
+  document.getElementById('miles-status-row').style.display='none';
+  // Result panels
+  const resultCard=document.querySelector('.result-card:not(#prof-result-card)');
+  const profCard=document.getElementById('prof-result-card');
+  if(resultCard) resultCard.style.display=t==='prof'?'none':'';
+  if(profCard)   profCard.style.display=t==='prof'?'':'none';
+  // Sidebar tweaks for FTL/LTL
+  if(t!=='prof'){
+    document.getElementById('r-type-label').textContent=t==='ltl'?'Freight Class':'Trailer';
+    document.getElementById('r-base-label').textContent=t==='ltl'?'Base CWT rate':'Base rate/mi';
+    document.getElementById('r-adj-row').style.display=t==='ltl'?'none':'';
+  }
+  // HOS — FTL only
   const hos=document.getElementById('hos-card');
-  if(hos) hos.style.display=t==='ltl'?'none':'';
-  // Advanced adjustments are FTL-only
+  if(hos) hos.style.display=(t==='ltl'||t==='prof')?'none':'';
+  // Advanced adjustments — FTL only
   const advToggle=document.getElementById('adv-toggle');
   const advBody=document.getElementById('adv-body');
-  if(advToggle) advToggle.style.display=t==='ltl'?'none':'';
-  if(advBody && t==='ltl'){advBody.classList.remove('open');}
-  calc();
+  if(advToggle) advToggle.style.display=(t==='ltl'||t==='prof')?'none':'';
+  if(advBody&&t!=='ftl') advBody.classList.remove('open');
+  // Hide margin field in prof mode — not relevant for carrier profitability
+  const marginField = document.getElementById('margin-field');
+  if(marginField) marginField.style.display = t==='prof' ? 'none' : '';
+  if(t==='prof'){
+    const qMiles=parseFloat(document.getElementById('miles').value)||0;
+    const pMilesEl=document.getElementById('p-miles');
+    if(qMiles>0&&!pMilesEl.value) pMilesEl.value=qMiles;
+    // Copy origin/dest if not already set
+    const qOrig=document.getElementById('origin').value.trim();
+    const qDest=document.getElementById('dest').value.trim();
+    const pOrig=document.getElementById('p-origin');
+    const pDest=document.getElementById('p-dest');
+    if(qOrig&&!pOrig.value) pOrig.value=qOrig;
+    if(qDest&&!pDest.value) pDest.value=qDest;
+    // Copy drive hours from HOS if available
+    const hosTime=document.getElementById('hos-total-time')?.textContent;
+    const pHours=document.getElementById('p-hours');
+    if(hosTime&&hosTime!=='—'&&!pHours.value){
+      const match=hosTime.match(/(\d+)h\s*(\d+)?m?/);
+      if(match) pHours.value=((parseInt(match[1])||0)+(parseInt(match[2]||0)/60)).toFixed(1);
+    }
+    calcProfit();
+  } else {
+    calc();
+  }
+}
+
+// ── Profitability Calculator ───────────────────────────────────────────────
+let pLookupTimer = null;
+
+let fixedManual = false;
+
+let fuelManual = false;
+
+let profDieselPrice = 0; // updated when user clicks Live diesel in prof tab
+
+async function fetchProfDiesel(){
+  const btn = document.getElementById('p-eia-btn');
+  const src = document.getElementById('p-fuel-src');
+  btn.textContent = '...';
+  btn.disabled = true;
+  src.textContent = 'Fetching...';
+  src.style.color = 'var(--text3)';
+  try {
+    const resp = await fetch('/.netlify/functions/diesel-price?region=NUS');
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if(data.error) throw new Error(data.error);
+    const price = parseFloat(data.price);
+    if(isNaN(price)) throw new Error('Invalid price');
+    profDieselPrice = price;
+    src.textContent = `⚡ $${price.toFixed(2)}/gal national avg`;
+    src.style.color = 'var(--green)';
+    calcFuelCPM();
+  } catch(e) {
+    src.textContent = '⚠ Could not fetch — enter manually';
+    src.style.color = 'var(--red)';
+  } finally {
+    btn.textContent = '⚡ Live diesel';
+    btn.disabled = false;
+  }
+}
+
+function fuelManualEdit(){
+  fuelManual = true;
+  document.getElementById('fuel-calc-badge').style.display = 'none';
+  document.getElementById('p-fuel-src').textContent = '';
+}
+
+function calcFuelCPM(){
+  const mpg = parseFloat(document.getElementById('p-mpg').value)||0;
+  if(!mpg) return;
+
+  // Priority: 1) live price fetched on prof tab, 2) FTL live price, 3) FTL manual input, 4) fallback
+  let dieselPrice = profDieselPrice ||
+                    ltlDieselPrice ||
+                    parseFloat(document.getElementById('diesel-price')?.value) ||
+                    3.85;
+
+  const fuelCPM = dieselPrice / mpg;
+  document.getElementById('p-fuel').value = fuelCPM.toFixed(2);
+  fuelManual = false;
+  document.getElementById('fuel-calc-badge').style.display = 'inline';
+
+  // Only update the src label if we haven't already set it via the live button
+  const src = document.getElementById('p-fuel-src');
+  if(!profDieselPrice){
+    src.textContent = `$${dieselPrice.toFixed(2)}/gal ÷ ${mpg} MPG`;
+    src.style.color = 'var(--text3)';
+  }
+  calcProfit();
+}
+
+function toggleFixedCalc(){
+  const panel = document.getElementById('fixed-calc-panel');
+  const btn   = document.getElementById('fixed-calc-btn');
+  const open  = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  btn.style.borderStyle = open ? 'solid' : 'dashed';
+  btn.style.borderColor = open ? 'var(--accent)' : 'var(--border)';
+  btn.style.color = open ? 'var(--accent)' : 'var(--text2)';
+  btn.textContent = open
+    ? '💡 Hide fixed cost calculator'
+    : '💡 Don\'t know your fixed cost per mile? Calculate it here';
+}
+
+function fixedManualEdit(){
+  fixedManual = true;
+  document.getElementById('fixed-calc-badge').style.display = 'none';
+}
+
+function calcFixedCPM(){
+  const payment     = parseFloat(document.getElementById('fc-payment').value)||0;
+  const insurance   = parseFloat(document.getElementById('fc-insurance').value)||0;
+  const maintenance = parseFloat(document.getElementById('fc-maintenance').value)||0;
+  const other       = parseFloat(document.getElementById('fc-other').value)||0;
+  const miles       = parseFloat(document.getElementById('fc-miles').value)||0;
+
+  const result = document.getElementById('fc-result');
+  if(!miles || !(payment+insurance+maintenance+other)){
+    result.style.display = 'none';
+    return;
+  }
+
+  const total = payment + insurance + maintenance + other;
+  const cpm   = total / miles;
+
+  result.style.display = 'block';
+  document.getElementById('fc-cpm-val').textContent = '$' + cpm.toFixed(2) + '/mi';
+  document.getElementById('fc-breakdown').textContent =
+    `$${total.toLocaleString()}/mo ÷ ${miles.toLocaleString()} mi = $${cpm.toFixed(2)}/mi`;
+}
+
+function applyFixedCPM(){
+  const payment     = parseFloat(document.getElementById('fc-payment').value)||0;
+  const insurance   = parseFloat(document.getElementById('fc-insurance').value)||0;
+  const maintenance = parseFloat(document.getElementById('fc-maintenance').value)||0;
+  const other       = parseFloat(document.getElementById('fc-other').value)||0;
+  const miles       = parseFloat(document.getElementById('fc-miles').value)||0;
+  if(!miles) return;
+
+  const cpm = (payment + insurance + maintenance + other) / miles;
+  document.getElementById('p-fixed').value = cpm.toFixed(2);
+  fixedManual = false;
+  document.getElementById('fixed-calc-badge').style.display = 'inline';
+  calcProfit();
+  // Scroll the fixed cost field into view briefly
+  document.getElementById('p-fixed').focus();
+}
+
+async function tryProfLookup(){
+  const orig = document.getElementById('p-origin').value.trim();
+  const dest  = document.getElementById('p-dest').value.trim();
+  if(!orig || !dest || orig.length < 3 || dest.length < 3) return;
+
+  const statusRow  = document.getElementById('p-miles-status-row');
+  const statusIcon = document.getElementById('p-miles-status-icon');
+  const statusText = document.getElementById('p-miles-status-text');
+  const statusPill = document.getElementById('p-miles-status-pill');
+  const srcLabel   = document.getElementById('p-miles-src');
+
+  statusRow.style.display = 'flex';
+  statusIcon.textContent = '⏳';
+  statusText.textContent = 'Calculating driving distance...';
+  statusText.style.color = 'var(--text2)';
+  statusPill.style.borderColor = 'var(--border2)';
+
+  if(!GMAPS_KEY) await loadGMapsKey();
+  if(!GMAPS_KEY){
+    statusText.textContent = 'Maps not configured — enter miles manually';
+    statusText.style.color = 'var(--red)';
+    return;
+  }
+
+  try {
+    const resp = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Goog-Api-Key': GMAPS_KEY,
+        'X-Goog-FieldMask':'routes.distanceMeters,routes.duration'
+      },
+      body: JSON.stringify({
+        origin:{address: orig+', USA'},
+        destination:{address: dest+', USA'},
+        travelMode:'DRIVE',
+        routingPreference:'TRAFFIC_UNAWARE',
+        units:'IMPERIAL'
+      })
+    });
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const data = await resp.json();
+    const route = data?.routes?.[0];
+    if(!route) throw new Error('No route found');
+
+    const miles = Math.round(route.distanceMeters / 1609.34);
+    const secs  = parseInt((route.duration||'0s').replace('s',''),10);
+    const driveText = fmtDuration(secs);
+
+    document.getElementById('p-miles').value = miles;
+    document.getElementById('p-hours').value = (secs/3600).toFixed(1);
+    srcLabel.textContent = '· via Google';
+    srcLabel.style.color = 'var(--green)';
+    statusIcon.textContent = '✅';
+    statusText.textContent = `${miles.toLocaleString()} mi · ${driveText} drive`;
+    statusText.style.color = 'var(--green)';
+    statusPill.style.borderColor = 'var(--green)';
+    calcProfit();
+
+  } catch(e){
+    statusIcon.textContent = '⚠️';
+    statusText.textContent = 'Route not found — enter miles manually';
+    statusText.style.color = 'var(--red)';
+  }
+}
+
+function calcProfit(){
+  const rate   = parseFloat(document.getElementById('p-rate').value)||0;
+  const miles  = parseFloat(document.getElementById('p-miles').value)||0;
+  const empty  = parseFloat(document.getElementById('p-empty').value)||0;
+  const hours  = parseFloat(document.getElementById('p-hours').value)||0;
+  const fuel   = parseFloat(document.getElementById('p-fuel').value)||0;
+  const driver = parseFloat(document.getElementById('p-driver').value)||0;
+  const fixed  = parseFloat(document.getElementById('p-fixed').value)||0;
+  const other  = parseFloat(document.getElementById('p-other').value)||0;
+
+  if(!rate || !miles){ return; }
+
+  const totalMiles = miles + empty;
+  const cpm = fuel + driver + fixed;
+  const totalCost = (cpm * totalMiles) + other;
+  const profit = rate - totalCost;
+  const ppm = miles > 0 ? profit / miles : 0; // profit per loaded mile
+  const rpm = rate / miles;
+  const pph = hours > 0 ? profit / hours : 0;
+  const costPct = Math.min(100, (totalCost / rate) * 100);
+  const profitPct = Math.max(0, 100 - costPct);
+
+  const fmtD = n => '$' + Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+  const fmtC = n => '$' + n.toFixed(2);
+
+  // Hero
+  const profVal = document.getElementById('p-profit-val');
+  const ppmVal  = document.getElementById('p-margin-val');
+  profVal.textContent = (profit>=0?'':'-') + fmtD(profit);
+  profVal.style.color = profit>200?'var(--green)':profit<0?'var(--red)':'var(--accent)';
+  ppmVal.textContent = (ppm>=0?'':'-') + fmtC(Math.abs(ppm)) + ' profit per mile';
+
+  // Verdict
+  const v = document.getElementById('p-verdict');
+  v.style.display = 'flex';
+  if(profit > 200 && (hours===0 || pph > 40)){
+    v.className = 'prof-verdict accept';
+    v.innerHTML = '✓ Accept — ' + fmtD(profit) + ' net profit' + (hours>0?' · '+fmtD(pph)+'/hr':'');
+  } else if(profit < 0){
+    v.className = 'prof-verdict decline';
+    v.innerHTML = '✗ Decline — loses ' + fmtD(profit) + ' after all costs';
+  } else {
+    v.className = 'prof-verdict marginal';
+    v.innerHTML = '⚠ Marginal — only ' + fmtD(profit) + ' profit · consider negotiating';
+  }
+
+  // Metrics
+  const profitClass = profit>200?'good':profit<0?'bad':'warn';
+  document.getElementById('pm-pph').className = 'prof-metric ' + profitClass;
+  document.getElementById('pv-rpm').textContent = fmtC(rpm);
+  document.getElementById('pv-cpm').textContent = fmtC(cpm);
+  document.getElementById('pv-pph').textContent = hours>0 ? (pph>=0?'':'-')+fmtD(pph) : '—';
+  document.getElementById('pv-cost').textContent = fmtD(totalCost);
+
+  // Bar
+  document.getElementById('p-bar-fill').style.width = profitPct.toFixed(1) + '%';
+  document.getElementById('p-bar-fill').style.background = profit>0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('p-bar-pct').textContent = profitPct.toFixed(1) + '% profit';
+  document.getElementById('p-bar-cost-lbl').textContent = 'Costs: ' + fmtD(totalCost);
+  document.getElementById('p-bar-profit-lbl').textContent = 'Profit: ' + (profit>=0?'':'-') + fmtD(profit);
 }
 
 function toggleAcc(key){
