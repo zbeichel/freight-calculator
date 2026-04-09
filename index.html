@@ -2177,15 +2177,16 @@ async function getWeather(lat, lon, date){
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,precipitation_probability_max,relative_humidity_2m_max&timezone=auto&start_date=${date}&end_date=${date}`;
   const r = await fetch(url);
   const d = await r.json();
-  if(!d.daily) throw new Error('No forecast data');
+  if(d.error) throw new Error('Open-Meteo: ' + (d.reason || d.error));
+  if(!d.daily?.weathercode?.length) throw new Error('No forecast available for ' + date);
   return {
     code:     d.daily.weathercode[0],
     tempMax:  d.daily.temperature_2m_max[0],
     tempMin:  d.daily.temperature_2m_min[0],
-    precip:   d.daily.precipitation_sum[0],
-    precipPct:d.daily.precipitation_probability_max[0],
-    wind:     d.daily.windspeed_10m_max[0],
-    humidity: d.daily.relative_humidity_2m_max[0],
+    precip:   d.daily.precipitation_sum[0] || 0,
+    precipPct:d.daily.precipitation_probability_max[0] || 0,
+    wind:     d.daily.windspeed_10m_max[0] || 0,
+    humidity: d.daily.relative_humidity_2m_max[0] || 0,
   };
 }
 
@@ -2260,9 +2261,27 @@ async function fetchWeather(){
   const dest     = document.getElementById('dest').value.trim();
   const pickup   = document.getElementById('pickup').value;
   const delivery = document.getElementById('delivery').value;
-  if(!orig || !dest || !pickup) return;
+  if(!orig || !dest) return;
 
-  const destDate = delivery || pickup;
+  // Open-Meteo forecast range: today through 16 days out
+  const today     = new Date();
+  today.setHours(0,0,0,0);
+  const maxDate   = new Date(today);
+  maxDate.setDate(maxDate.getDate() + 15);
+  const todayStr  = today.toISOString().slice(0,10);
+  const maxStr    = maxDate.toISOString().slice(0,10);
+
+  // Clamp pickup date to valid forecast range — use today if no date entered or date is past
+  let pickupDate = pickup || todayStr;
+  const pDate = new Date(pickupDate + 'T12:00:00');
+  if(pDate < today) pickupDate = todayStr;
+  if(pickupDate > maxStr) pickupDate = maxStr;
+
+  // Clamp delivery date the same way
+  let destDate = delivery || pickupDate;
+  const dDate = new Date(destDate + 'T12:00:00');
+  if(dDate < today) destDate = pickupDate;
+  if(destDate > maxStr) destDate = maxStr;
 
   const card    = document.getElementById('weather-card');
   const loading = document.getElementById('weather-loading');
@@ -2275,9 +2294,12 @@ async function fetchWeather(){
   locs.style.display = 'none';
   document.getElementById('weather-alert').style.display = 'none';
 
+  // Date label — note if we had to use today instead of entered date
   const fmt = d => new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-  document.getElementById('weather-date-range').textContent =
-    pickup === destDate ? fmt(pickup) : fmt(pickup) + ' → ' + fmt(destDate);
+  let dateLabel = pickupDate === destDate ? fmt(pickupDate) : fmt(pickupDate) + ' → ' + fmt(destDate);
+  if(!pickup) dateLabel += ' (today — enter pickup date for specific forecast)';
+  else if(pickup !== pickupDate) dateLabel += ' (date out of range — weather only available for 15 days from today\'s date)';
+  document.getElementById('weather-date-range').textContent = dateLabel;
 
   try {
     // Use coordinates already cached from the Routes API mileage lookup
@@ -2290,9 +2312,9 @@ async function fetchWeather(){
       [oLoc, dLoc] = await Promise.all([geocode(orig), geocode(dest)]);
     }
 
-    // Fetch weather from Open-Meteo (free, no key needed)
+    // Fetch weather from Open-Meteo using clamped dates (max 16 days out)
     const [origWx, destWx] = await Promise.all([
-      getWeather(oLoc.lat, oLoc.lon, pickup),
+      getWeather(oLoc.lat, oLoc.lon, pickupDate),
       getWeather(dLoc.lat, dLoc.lon, destDate)
     ]);
 
