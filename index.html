@@ -1359,7 +1359,6 @@ html.light .hos-day-header{background:var(--card2)}
               <div class="mini-sub">per mile</div>
             </div>
           </div>
-          <div id="rates-fetch-status" style="font-size:10px;margin-top:8px;color:var(--text3)">Loading rates...</div>
           <div style="font-size:10px;color:var(--text3);line-height:1.5;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
             These rates are automatically populated from DAT Trendlines data and based on the <strong style="color:var(--text2)">US AVERAGE</strong>. If you know the rate per mile for your specific lane, or the rate per mile you would need, enter it here.
           </div>
@@ -2958,7 +2957,6 @@ function saveRates(){
   // Changes here only affect your current session — edit rates.json to update everyone.
   ratesManualOverride = true;
   updateHeaderRates();
-  setRatesStatus('live', 'manual override — local session only');
   updateRateDisclaimer();
 }
 function updateHeaderRates(){
@@ -3376,7 +3374,7 @@ function loadAll(){
 
 // ── Fetch rates from rates.json (centrally managed on Netlify) ────────────
 function loadRates(){
-  fetch('/rates.json', {cache: 'no-cache'})
+  fetch('/rates.json')
     .then(r=>{
       if(!r.ok) throw new Error('HTTP '+r.status);
       return r.json();
@@ -3393,27 +3391,11 @@ function loadRates(){
       const dateStr=data.updated?(data.updated+(data.source?' — '+data.source:'')):'';
       if(dateStr) document.getElementById('rate-date').value=dateStr;
       updateHeaderRates();
-      setRatesStatus('live', dateStr);
       updateRateDisclaimer();
       // Call calc separately so any error there doesn't trigger the fallback status
       try{ calc(); } catch(e){ console.error('calc error after loadRates:', e); }
     })
-    .catch((e)=>{
-      console.error('loadRates fetch/parse failed:', e);
-      setRatesStatus('fallback','');
-    });
-}
-
-function setRatesStatus(state, dateStr){
-  const el=document.getElementById('rates-fetch-status');
-  if(!el) return;
-  if(state==='live'){
-    el.textContent='✓ Rates loaded · '+dateStr;
-    el.style.color='var(--green)';
-  } else {
-    el.textContent='Using default rates — deploy to Netlify to load from rates.json';
-    el.style.color='var(--text3)';
-  }
+    .catch(()=>{});
 }
 
 // ── Google Routes API (Compute Routes) ───────────────────────────────────
