@@ -2974,7 +2974,8 @@ function getBase(){return{
   reefer:parseFloat(document.getElementById('rate-reefer').value)||2.88,
   flatbed:parseFloat(document.getElementById('rate-flatbed').value)||2.95
 };}
-document.getElementById('rate-date').addEventListener('input',saveRates);
+const rateDateEl = document.getElementById('rate-date');
+if(rateDateEl) rateDateEl.addEventListener('input',saveRates);
 
 // ── Diesel ────────────────────────────────────────────────────────────────
 function toggleDiesel(){
@@ -3377,7 +3378,7 @@ function loadAll(){
 function loadRates(){
   fetch('/rates.json?v='+Date.now())
     .then(r=>{
-      if(!r.ok) throw new Error('rates.json not found');
+      if(!r.ok) throw new Error('HTTP '+r.status);
       return r.json();
     })
     .then(data=>{
@@ -3396,8 +3397,8 @@ function loadRates(){
       updateRateDisclaimer();
       calc();
     })
-    .catch(()=>{
-      // Falls back to hardcoded defaults already in the inputs — just flag it
+    .catch((e)=>{
+      console.error('loadRates failed:', e);
       setRatesStatus('fallback','');
     });
 }
@@ -3406,11 +3407,11 @@ function setRatesStatus(state, dateStr){
   const el=document.getElementById('rates-fetch-status');
   if(!el) return;
   if(state==='live'){
-    el.textContent='✓ Rates loaded from server'+(dateStr?' · '+dateStr:'');
+    el.textContent='✓ Rates loaded · '+dateStr;
     el.style.color='var(--green)';
   } else {
-    el.textContent='⚠ Could not reach rates.json — showing defaults';
-    el.style.color='var(--accent)';
+    el.textContent='Using default rates — deploy to Netlify to load from rates.json';
+    el.style.color='var(--text3)';
   }
 }
 
