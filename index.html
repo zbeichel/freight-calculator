@@ -1647,6 +1647,9 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="result-hero-label">Quote to Customer</div>
         <div class="result-hero-val" id="r-quote">—</div>
         <div class="result-hero-rpm" id="r-rpm">— per mile</div>
+        <div style="font-size:10px;color:var(--text3);line-height:1.5;margin-top:8px;padding:0 4px">
+          This quote is based on current <strong style="color:var(--text2)">US AVERAGE</strong> DAT trend rates and can be inflated. If you know the current rate per mile for your region/lane, please adjust it in <span style="color:var(--accent);font-weight:600">Advanced Adjustments</span>.
+        </div>
       </div>
       <div class="result-rows">
         <div class="rrow" id="r-trailer-row"><span class="rrow-label" id="r-type-label">Trailer</span><span class="rrow-val" id="r-trailer">—</span></div>
@@ -1664,7 +1667,7 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="pill"><div class="pill-label">Distance</div><div class="pill-val" id="m-dist">—</div></div>
         <div class="pill"><div class="pill-label">Commodity</div><div class="pill-val" id="m-comm">—</div></div>
         <div class="pill"><div class="pill-label">Weight</div><div class="pill-val" id="m-wt">—</div></div>
-        <div class="pill"><div class="pill-label">Day</div><div class="pill-val" id="m-day">—</div></div>
+        <div class="pill"><div class="pill-label">Pickup Day</div><div class="pill-val" id="m-day">—</div></div>
         <div class="pill"><div class="pill-label">Diesel</div><div class="pill-val" id="m-diesel" style="color:var(--text3)">off</div></div>
         <div class="pill"><div class="pill-label">Capacity</div><div class="pill-val" id="m-cap" style="color:var(--text3)">off</div></div>
         <div class="pill" style="grid-column:1/-1"><div class="pill-label">Seasonal</div><div class="pill-val" id="m-seas">—</div></div>
@@ -1789,10 +1792,9 @@ const TLABEL={van:'Dry Van',reefer:'Reefer',flatbed:'Flatbed'};
 const TTAG={van:'tag-van',reefer:'tag-reefer',flatbed:'tag-flat'};
 const CMULT={standard:1.0,food:1.08,hazmat:1.20,highval:1.12,oversized:1.25};
 const CLABEL={standard:'Standard',food:'Food/Perishable',hazmat:'Hazmat',highval:'High Value',oversized:'Oversized'};
-const WTIERS=[{max:9999,m:0.95,l:'0.95×'},{max:29999,m:1.00,l:'1.00×'},{max:44000,m:1.05,l:'1.05×'},{max:999999,m:1.12,l:'1.12×'}];
-const DMULTS=[{max:249,m:1.20,l:'1.20×'},{max:499,m:1.08,l:'1.08×'},{max:999,m:1.00,l:'1.00×'},{max:1499,m:0.97,l:'0.97×'},{max:99999,m:0.94,l:'0.94×'}];
+const WTIERS=[{max:9999,m:0.95,l:'0.95×'},{max:29999,m:0.97,l:'0.97×'},{max:44000,m:1.00,l:'1.00×'},{max:999999,m:1.08,l:'1.08×'}];
+const DMULTS=[{max:249,m:1.10,l:'1.10×'},{max:499,m:1.02,l:'1.02×'},{max:999,m:1.00,l:'1.00×'},{max:1499,m:0.90,l:'0.90×'},{max:1999,m:0.85,l:'0.85×'},{max:99999,m:0.80,l:'0.80×'}];
 const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const DAYMULT=[0.93,1.05,1.00,1.00,1.00,1.08,0.93];
 const LT_BASELINE={van:6.0,reefer:10.0,flatbed:25.0};
 const MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const SEASON_PROFILES={
@@ -3164,8 +3166,8 @@ function calc(){
 
   const wt=weight?wTier(weight):{m:1.0,l:'—'};
   const dm=miles?dMult(miles):{m:1.0,l:'—'};
-  let dayM=1.0,dayL='—';
-  if(pickup){const d=new Date(pickup+'T12:00:00').getDay();dayM=DAYMULT[d];dayL=dayM.toFixed(2)+'×';}
+  let dayL='—';
+  if(pickup){const d=new Date(pickup+'T12:00:00').getDay();dayL=DAYS[d];}
   const cm=CMULT[commodity];
   const dieselM=getDieselMult();
   const capM=getCapacityMult(trailer);
@@ -3177,7 +3179,7 @@ function calc(){
   updateCapMults();
   updateSeasonCalendar(trailer,pickup);
 
-  const adjRpm=base*wt.m*dm.m*dayM*cm*dieselM*capM*seasM;
+  const adjRpm=base*wt.m*dm.m*cm*dieselM*capM*seasM;
   const cost=miles?adjRpm*miles:0;
   const marginAmt=cost*marginPct;
   const transitAdj = transitChargeAdded ? transitChargeAmount : 0;
@@ -3229,9 +3231,7 @@ function saveQuote(){
   const base=BASE[trailer];
   const wt=weight?wTier(weight):{m:1.0};
   const dm=dMult(miles);
-  let dayM=1.0;
-  if(pickup){const d=new Date(pickup+'T12:00:00').getDay();dayM=DAYMULT[d];}
-  const adjRpm=base*wt.m*dm.m*dayM*CMULT[commodity]*getDieselMult()*getCapacityMult(trailer)*getSeasonMult(trailer,pickup);
+  const adjRpm=base*wt.m*dm.m*CMULT[commodity]*getDieselMult()*getCapacityMult(trailer)*getSeasonMult(trailer,pickup);
   const cost=adjRpm*miles;
   const quote=cost*(1+marginPct);
   const qRpm=quote/miles;
