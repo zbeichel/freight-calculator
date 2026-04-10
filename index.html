@@ -1333,6 +1333,38 @@ html.light .hos-day-header{background:var(--card2)}
           <input type="number" id="margin" value="15" min="0" max="100" oninput="calc()" />
         </div>
 
+        <!-- Base Rates — moved here from Advanced for easy access -->
+        <div class="ftl-only" id="base-rates-main" style="margin-top:14px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)">Base Rates ($/mi)</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" id="rate-date" placeholder="Loaded from rates.json" style="background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-family:'Space Grotesk',sans-serif;font-size:10px;padding:3px 8px;outline:none;width:min(160px,100%)" readonly />
+              <a href="https://www.dat.com/trendlines" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none;font-weight:500;white-space:nowrap">DAT ↗</a>
+            </div>
+          </div>
+          <div class="adv-grid3">
+            <div class="mini-input-group">
+              <div class="mini-label" style="color:#60a5fa">Dry Van</div>
+              <input class="mini-input" type="number" id="rate-van" value="2.47" step="0.01" min="0.01" style="color:#60a5fa;border-color:rgba(59,130,246,.3)" oninput="saveRates();calc()" />
+              <div class="mini-sub">per mile</div>
+            </div>
+            <div class="mini-input-group">
+              <div class="mini-label" style="color:#4ade80">Reefer</div>
+              <input class="mini-input" type="number" id="rate-reefer" value="2.88" step="0.01" min="0.01" style="color:#4ade80;border-color:rgba(34,197,94,.3)" oninput="saveRates();calc()" />
+              <div class="mini-sub">per mile</div>
+            </div>
+            <div class="mini-input-group">
+              <div class="mini-label" style="color:var(--accent)">Flatbed</div>
+              <input class="mini-input" type="number" id="rate-flatbed" value="2.95" step="0.01" min="0.01" style="color:var(--accent);border-color:rgba(240,165,0,.3)" oninput="saveRates();calc()" />
+              <div class="mini-sub">per mile</div>
+            </div>
+          </div>
+          <div id="rates-fetch-status" style="font-size:10px;margin-top:8px;color:var(--text3)">Loading rates...</div>
+          <div style="font-size:10px;color:var(--text3);line-height:1.5;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+            These rates are automatically populated from DAT Trendlines data and based on the <strong style="color:var(--text2)">US AVERAGE</strong>. If you know the rate per mile for your specific lane, or the rate per mile you would need, enter it here.
+          </div>
+        </div>
+
         <!-- Transit days callout — shown when pickup + delivery dates are entered -->
         <div id="transit-callout" style="display:none;margin-top:12px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -1384,32 +1416,6 @@ html.light .hos-day-header{background:var(--card2)}
       </div>
 
       <div class="adv-body" id="adv-body">
-
-        <!-- DAT Base Rates -->
-        <div class="adv-sub">Base Rates ($/mi) — Update from DAT Trendlines</div>
-        <div class="adv-grid3" style="margin-bottom:16px">
-          <div class="mini-input-group">
-            <div class="mini-label" style="color:#60a5fa">Dry Van</div>
-            <input class="mini-input" type="number" id="rate-van" value="2.47" step="0.01" min="0.01" style="color:#60a5fa;border-color:rgba(59,130,246,.3)" oninput="saveRates();calc()" />
-            <div class="mini-sub">per mile</div>
-          </div>
-          <div class="mini-input-group">
-            <div class="mini-label" style="color:#4ade80">Reefer</div>
-            <input class="mini-input" type="number" id="rate-reefer" value="2.88" step="0.01" min="0.01" style="color:#4ade80;border-color:rgba(34,197,94,.3)" oninput="saveRates();calc()" />
-            <div class="mini-sub">per mile</div>
-          </div>
-          <div class="mini-input-group">
-            <div class="mini-label" style="color:var(--accent)">Flatbed</div>
-            <input class="mini-input" type="number" id="rate-flatbed" value="2.95" step="0.01" min="0.01" style="color:var(--accent);border-color:rgba(240,165,0,.3)" oninput="saveRates();calc()" />
-            <div class="mini-sub">per mile</div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-          <span style="font-size:11px;color:var(--text3)">Last updated:</span>
-          <input type="text" id="rate-date" placeholder="Loaded from rates.json" style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:11px;padding:4px 10px;outline:none;width:min(200px,100%)" readonly />
-          <a href="https://www.dat.com/trendlines" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none;font-weight:500">Check DAT ↗</a>
-        </div>
-        <div id="rates-fetch-status" style="font-size:11px;margin-bottom:14px;color:var(--text3)">Loading rates...</div>
 
         <!-- Diesel -->
         <div class="adv-sub" style="display:flex;align-items:center;justify-content:space-between">
@@ -1647,8 +1653,8 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="result-hero-label">Quote to Customer</div>
         <div class="result-hero-val" id="r-quote">—</div>
         <div class="result-hero-rpm" id="r-rpm">— per mile</div>
-        <div style="font-size:10px;color:var(--text3);line-height:1.5;margin-top:8px;padding:0 4px">
-          This quote is based on current <strong style="color:var(--text2)">US AVERAGE</strong> DAT trend rates and can be inflated. If you know the current rate per mile for your region/lane, please adjust it in <span style="color:var(--accent);font-weight:600">Advanced Adjustments</span>.
+        <div id="rate-disclaimer" style="font-size:10px;color:var(--text3);line-height:1.5;margin-top:8px;padding:0 4px">
+          This quote is based on current <strong style="color:var(--text2)">US AVERAGE</strong> DAT trend rates and can be inflated. If you know the current rate per mile for your region/lane, please adjust it in the <strong style="color:var(--text2)">Base Rates ($/mi)</strong> box accordingly.
         </div>
       </div>
       <div class="result-rows">
@@ -1671,9 +1677,6 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="pill"><div class="pill-label">Diesel</div><div class="pill-val" id="m-diesel" style="color:var(--text3)">off</div></div>
         <div class="pill"><div class="pill-label">Capacity</div><div class="pill-val" id="m-cap" style="color:var(--text3)">off</div></div>
         <div class="pill" style="grid-column:1/-1"><div class="pill-label">Seasonal</div><div class="pill-val" id="m-seas">—</div></div>
-      </div>
-      <div style="padding:14px 20px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);line-height:1.6;text-align:center">
-        Rates: DAT Trendlines · Update base rates in Advanced settings · Always verify before quoting
       </div>
     </div>
 
@@ -2105,9 +2108,11 @@ function setShipType(t){
   const advBody=document.getElementById('adv-body');
   if(advToggle) advToggle.style.display=(t==='ltl'||t==='prof')?'none':'';
   if(advBody&&t!=='ftl') advBody.classList.remove('open');
-  // Hide margin field in prof mode — not relevant for carrier profitability
+  // Hide margin field and base rates in prof mode
   const marginField = document.getElementById('margin-field');
+  const baseRatesMain = document.getElementById('base-rates-main');
   if(marginField) marginField.style.display = t==='prof' ? 'none' : '';
+  if(baseRatesMain) baseRatesMain.style.display = t==='prof' ? 'none' : '';
   if(t==='prof'){
     const qMiles=parseFloat(document.getElementById('miles').value)||0;
     const pMilesEl=document.getElementById('p-miles');
@@ -2938,11 +2943,23 @@ function updateAdvCount(){
 }
 
 // ── Persistence ───────────────────────────────────────────────────────────
+function updateRateDisclaimer(){
+  const el = document.getElementById('rate-disclaimer');
+  if(!el) return;
+  if(ratesManualOverride){
+    el.innerHTML = 'This quote is based on a base rate, per mile, that was entered manually.';
+  } else {
+    el.innerHTML = 'This quote is based on current <strong style="color:var(--text2)">US AVERAGE</strong> DAT trend rates and can be inflated. If you know the current rate per mile for your region/lane, please adjust it in the <strong style="color:var(--text2)">Base Rates ($/mi)</strong> box accordingly.';
+  }
+}
+
 function saveRates(){
   // Note: rates.json on Netlify is the source of truth for all visitors.
   // Changes here only affect your current session — edit rates.json to update everyone.
+  ratesManualOverride = true;
   updateHeaderRates();
   setRatesStatus('live', 'manual override — local session only');
+  updateRateDisclaimer();
 }
 function updateHeaderRates(){
   const v=parseFloat(document.getElementById('rate-van').value)||2.47;
@@ -3376,6 +3393,7 @@ function loadRates(){
       if(dateStr) document.getElementById('rate-date').value=dateStr;
       updateHeaderRates();
       setRatesStatus('live', dateStr);
+      updateRateDisclaimer();
       calc();
     })
     .catch(()=>{
