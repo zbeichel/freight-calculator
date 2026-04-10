@@ -3376,7 +3376,7 @@ function loadAll(){
 
 // ── Fetch rates from rates.json (centrally managed on Netlify) ────────────
 function loadRates(){
-  fetch('/rates.json?v='+Date.now())
+  fetch('/rates.json', {cache: 'no-cache'})
     .then(r=>{
       if(!r.ok) throw new Error('HTTP '+r.status);
       return r.json();
@@ -3395,10 +3395,11 @@ function loadRates(){
       updateHeaderRates();
       setRatesStatus('live', dateStr);
       updateRateDisclaimer();
-      calc();
+      // Call calc separately so any error there doesn't trigger the fallback status
+      try{ calc(); } catch(e){ console.error('calc error after loadRates:', e); }
     })
     .catch((e)=>{
-      console.error('loadRates failed:', e);
+      console.error('loadRates fetch/parse failed:', e);
       setRatesStatus('fallback','');
     });
 }

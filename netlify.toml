@@ -4,3 +4,10 @@
 
 [build.environment]
   NODE_VERSION = "18"
+
+# Ensure rates.json is served with correct content type and no caching
+[[headers]]
+  for = "/rates.json"
+  [headers.values]
+    Content-Type = "application/json"
+    Cache-Control = "no-cache, no-store, must-revalidate"
