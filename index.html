@@ -1085,8 +1085,8 @@ html.light .hos-day-header{background:var(--card2)}
         </div>
 
         <div class="grid2" id="route-grid">
-          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
-          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
         </div>
 
         <!-- Miles status row -->
@@ -2457,24 +2457,32 @@ const STATE_ABBR = {
 };
 function getStateCode(name){ return STATE_ABBR[name] || name.substring(0,2).toUpperCase(); }
 
-// Debounce capture — only fires 3s after last calc() call with a complete quote
+// Debounce capture — only fires 8s after last calc() call with a complete quote
 let captureTimer = null;
+let lastCapturedKey = ''; // prevent duplicate captures for same lane
+
 function scheduleLaneCapture(){
   clearTimeout(captureTimer);
-  captureTimer = setTimeout(captureLaneRate, 3000);
+  captureTimer = setTimeout(captureLaneRate, 8000);
 }
 
 async function captureLaneRate(){
   try {
-    const miles = parseFloat(document.getElementById('miles').value)||0;
-    const orig  = document.getElementById('origin').value.trim();
-    const dest  = document.getElementById('dest').value.trim();
+    const miles  = parseFloat(document.getElementById('miles').value)||0;
+    const weight = parseFloat(document.getElementById('weight').value)||0;
+    const orig   = document.getElementById('origin').value.trim();
+    const dest   = document.getElementById('dest').value.trim();
     const trailer = document.getElementById('trailer').value;
 
-    // Only capture FTL quotes with origin, dest, and miles
-    if(shipType !== 'ftl' || !miles || !orig || !dest) return;
-    // Only capture if Google gave us coordinates
+    // Only capture FTL quotes with all meaningful fields filled
+    if(shipType !== 'ftl') return;
+    if(!miles || !weight || !orig || !dest) return;
+    // Only capture if Google gave us coordinates (not manually entered miles)
     if(!origCoords || !destCoords) return;
+    // Prevent duplicate captures for the same lane in the same session
+    const captureKey = `${orig}|${dest}|${trailer}|${miles}`;
+    if(captureKey === lastCapturedKey) return;
+    lastCapturedKey = captureKey;
 
     const BASE = getBase();
     const dat_rpm  = parseFloat(document.getElementById(
@@ -2489,7 +2497,11 @@ async function captureLaneRate(){
       getStateFromCoords(destCoords.lat, destCoords.lon, dest)
     ]);
 
-    console.log('Lane capture:', {orig, dest, oInfo, dInfo, trailer, entered_rpm, dat_rpm, miles, is_manual});
+    // Grab the final quote from the result card
+    const quoteText = document.getElementById('r-quote').textContent.replace(/[$,]/g,'');
+    const final_quote = parseFloat(quoteText)||0;
+
+    console.log('Lane capture:', {orig, dest, oInfo, dInfo, trailer, entered_rpm, dat_rpm, miles, final_quote, is_manual});
 
     const payload = {
       origin_city:    oInfo.city,
@@ -2503,6 +2515,7 @@ async function captureLaneRate(){
       dat_rpm:        parseFloat(dat_rpm.toFixed(4)),
       difference:     parseFloat((entered_rpm - dat_rpm).toFixed(4)),
       miles:          Math.round(miles),
+      final_quote:    final_quote||null,
       is_manual,
     };
 
