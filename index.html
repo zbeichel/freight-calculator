@@ -2245,6 +2245,8 @@ function renderWeather(data){
 let origCoords = null;
 let destCoords = null;
 
+let ratesManualOverride = false;
+
 async function geocodeWithGoogle(address){
   // Use our Netlify proxy — avoids key exposure and referrer restriction issues
   const resp = await fetch(`/.netlify/functions/geocode?address=${encodeURIComponent(address + ', USA')}`);
@@ -2263,12 +2265,8 @@ async function geocodeOpenMeteo(address){
 }
 
 async function geocode(address){
-  // Try Open-Meteo first (free, no key) — fall back to Google if it fails
-  try {
-    return await geocodeOpenMeteo(address);
-  } catch(e){
-    return await geocodeWithGoogle(address);
-  }
+  // Open-Meteo geocoding (free, no key needed)
+  return await geocodeOpenMeteo(address);
 }
 
 async function fetchWeather(){
