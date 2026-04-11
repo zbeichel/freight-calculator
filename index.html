@@ -2354,7 +2354,163 @@ function triggerWeatherUpdate(){
   weatherTimer = setTimeout(fetchWeather, 1000);
 }
 
-// ── Transit Days Calculator ────────────────────────────────────────────────
+// ── Supabase Lane Rate Data Capture ──────────────────────────────────────
+const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
+
+// State → freight region mapping
+const STATE_REGION = {
+  // Southeast / Florida
+  'FL':'Southeast FL','GA':'Southeast GA/SC','SC':'Southeast GA/SC',
+  'AL':'Southeast AL/MS','MS':'Southeast AL/MS',
+  // Mid-Atlantic / Northeast
+  'PA':'Mid-Atlantic','NJ':'Mid-Atlantic','DE':'Mid-Atlantic',
+  'MD':'Mid-Atlantic','VA':'Mid-Atlantic','WV':'Mid-Atlantic',
+  'NY':'Northeast NY','CT':'Northeast NE','MA':'Northeast NE',
+  'RI':'Northeast NE','NH':'Northeast NE','VT':'Northeast NE',
+  'ME':'Northern New England',
+  // Southeast interior
+  'NC':'Carolinas','TN':'Tennessee/Kentucky','KY':'Tennessee/Kentucky',
+  // Midwest
+  'OH':'Ohio Valley','IN':'Ohio Valley',
+  'MI':'Great Lakes','WI':'Upper Midwest','MN':'Upper Midwest',
+  'IL':'Midwest IL','MO':'Midwest MO/KS','IA':'Midwest IA',
+  'KS':'Midwest MO/KS','NE':'Northern Plains','SD':'Northern Plains',
+  'ND':'Northern Plains',
+  // South Central
+  'AR':'South Central','LA':'Gulf Coast','OK':'South Central',
+  // Texas — split by lat/lon bounding box below
+  'TX':'Texas',
+  // Mountain / West
+  'CO':'Mountain West','UT':'Mountain West','NV':'Mountain West',
+  'ID':'Pacific NW/ID','MT':'Northern Mountain','WY':'Northern Mountain',
+  'AZ':'Desert Southwest','NM':'Desert Southwest',
+  // Pacific
+  'WA':'Pacific NW/ID','OR':'Pacific NW/ID',
+  'CA':'California',
+  // Other
+  'AK':'Alaska','HI':'Hawaii',
+  // Canada
+  'ON':'Ontario Canada','QC':'Quebec Canada','AB':'Alberta Canada',
+  'BC':'BC Canada','MB':'Manitoba Canada','SK':'Saskatchewan Canada',
+  'NS':'Maritime Canada','NB':'Maritime Canada','PE':'Maritime Canada',
+  'NL':'Maritime Canada',
+};
+
+// Multi-region states — split by lat/lon bounding box
+function refineRegion(state, lat, lon){
+  if(state === 'TX'){
+    if(lat > 31.5) return lon < -99 ? 'West Texas' : 'North Texas';
+    return lon < -97 ? 'South Texas' : 'East Texas';
+  }
+  if(state === 'CA'){
+    if(lat > 38) return 'Northern California';
+    if(lat > 35.5) return 'Central Valley CA';
+    return 'Southern California';
+  }
+  return STATE_REGION[state] || state || 'Unknown';
+}
+
+// Extract state from Google geocode reverse lookup using lat/lon
+async function getStateFromCoords(lat, lon){
+  try {
+    const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&count=1&language=en&format=json`;
+    const r = await fetch(url);
+    const d = await r.json();
+    // Open-Meteo reverse returns admin1_code for US states
+    const result = d.results?.[0];
+    if(!result) return { city: '', state: '', region: 'Unknown' };
+    const city = result.name || '';
+    // For US: admin1 is state name, country_code is US
+    const stateCode = result.country_code === 'US' ? getStateCode(result.admin1 || '') : (result.admin1 || '');
+    const region = refineRegion(stateCode, lat, lon);
+    return { city, state: stateCode, region };
+  } catch(e){
+    return { city: '', state: '', region: 'Unknown' };
+  }
+}
+
+// State name → abbreviation
+const STATE_ABBR = {
+  'Alabama':'AL','Alaska':'AK','Arizona':'AZ','Arkansas':'AR','California':'CA',
+  'Colorado':'CO','Connecticut':'CT','Delaware':'DE','Florida':'FL','Georgia':'GA',
+  'Hawaii':'HI','Idaho':'ID','Illinois':'IL','Indiana':'IN','Iowa':'IA',
+  'Kansas':'KS','Kentucky':'KY','Louisiana':'LA','Maine':'ME','Maryland':'MD',
+  'Massachusetts':'MA','Michigan':'MI','Minnesota':'MN','Mississippi':'MS',
+  'Missouri':'MO','Montana':'MT','Nebraska':'NE','Nevada':'NV','New Hampshire':'NH',
+  'New Jersey':'NJ','New Mexico':'NM','New York':'NY','North Carolina':'NC',
+  'North Dakota':'ND','Ohio':'OH','Oklahoma':'OK','Oregon':'OR','Pennsylvania':'PA',
+  'Rhode Island':'RI','South Carolina':'SC','South Dakota':'SD','Tennessee':'TN',
+  'Texas':'TX','Utah':'UT','Vermont':'VT','Virginia':'VA','Washington':'WA',
+  'West Virginia':'WV','Wisconsin':'WI','Wyoming':'WY',
+  'Ontario':'ON','Quebec':'QC','Alberta':'AB','British Columbia':'BC',
+  'Manitoba':'MB','Saskatchewan':'SK','Nova Scotia':'NS','New Brunswick':'NB',
+  'Prince Edward Island':'PE','Newfoundland and Labrador':'NL',
+};
+function getStateCode(name){ return STATE_ABBR[name] || name.substring(0,2).toUpperCase(); }
+
+// Debounce capture — only fires 3s after last calc() call with a complete quote
+let captureTimer = null;
+function scheduleLaneCapture(){
+  clearTimeout(captureTimer);
+  captureTimer = setTimeout(captureLaneRate, 3000);
+}
+
+async function captureLaneRate(){
+  try {
+    const miles = parseFloat(document.getElementById('miles').value)||0;
+    const orig  = document.getElementById('origin').value.trim();
+    const dest  = document.getElementById('dest').value.trim();
+    const trailer = document.getElementById('trailer').value;
+
+    // Only capture FTL quotes with origin, dest, and miles
+    if(shipType !== 'ftl' || !miles || !orig || !dest) return;
+    // Only capture if Google gave us coordinates
+    if(!origCoords || !destCoords) return;
+
+    const BASE = getBase();
+    const dat_rpm = BASE[trailer];
+    const entered_rpm = dat_rpm; // same unless manual override
+    const is_manual = ratesManualOverride;
+
+    // Get state/region from cached coords — no extra Google API calls
+    const [oInfo, dInfo] = await Promise.all([
+      getStateFromCoords(origCoords.lat, origCoords.lon),
+      getStateFromCoords(destCoords.lat, destCoords.lon)
+    ]);
+
+    const payload = {
+      origin_city:    oInfo.city,
+      origin_state:   oInfo.state,
+      origin_region:  oInfo.region,
+      dest_city:      dInfo.city,
+      dest_state:     dInfo.state,
+      dest_region:    dInfo.region,
+      trailer,
+      entered_rpm:    parseFloat(entered_rpm.toFixed(4)),
+      dat_rpm:        parseFloat(dat_rpm.toFixed(4)),
+      difference:     parseFloat((entered_rpm - dat_rpm).toFixed(4)),
+      miles:          Math.round(miles),
+      is_manual,
+    };
+
+    await fetch(`${SUPABASE_URL}/rest/v1/lane_rates`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch(e){
+    // Silent fail — never interrupt the user experience
+  }
+}
+
+// ── End Supabase ───────────────────────────────────────────────────────────
+
 let transitChargeAdded = false;
 let transitChargeAmount = 0;
 
@@ -3230,6 +3386,9 @@ function calc(){
   document.getElementById('m-cap').style.color=capOn?(capM>1?'#f87171':capM<1?'#4ade80':'var(--text2)'):'var(--text3)';
   document.getElementById('m-seas').textContent=seasOn?seasM.toFixed(3)+'×':'off';
   document.getElementById('m-seas').style.color=seasOn?seasColor:'var(--text3)';
+
+  // Schedule anonymous lane data capture if quote is complete
+  if(miles && orig && dest) scheduleLaneCapture();
 }
 
 // ── Save/load quote log ───────────────────────────────────────────────────
