@@ -2256,10 +2256,12 @@ async function geocodeWithGoogle(address){
 }
 
 async function geocodeOpenMeteo(address){
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(address)}&count=1&language=en&format=json`;
+  // Clean up shorthand like "bunnell fl" → "Bunnell, FL"
+  const clean = address.trim().replace(/\s+([A-Za-z]{2})$/i, (m,s)=>', '+s.toUpperCase());
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(clean)}&count=1&language=en&format=json`;
   const r = await fetch(url);
   const d = await r.json();
-  if(!d.results?.[0]) throw new Error('Location not found: ' + address);
+  if(!d.results?.[0]) throw new Error('Location not found: ' + clean);
   const res = d.results[0];
   return { lat: res.latitude, lon: res.longitude, name: res.name + ', ' + (res.admin1 || res.country_code || '') };
 }
@@ -2409,23 +2411,31 @@ function refineRegion(state, lat, lon){
   return STATE_REGION[state] || state || 'Unknown';
 }
 
-// Extract state from Google geocode reverse lookup using lat/lon
-async function getStateFromCoords(lat, lon){
-  try {
-    const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&count=1&language=en&format=json`;
-    const r = await fetch(url);
-    const d = await r.json();
-    // Open-Meteo reverse returns admin1_code for US states
-    const result = d.results?.[0];
-    if(!result) return { city: '', state: '', region: 'Unknown' };
-    const city = result.name || '';
-    // For US: admin1 is state name, country_code is US
-    const stateCode = result.country_code === 'US' ? getStateCode(result.admin1 || '') : (result.admin1 || '');
-    const region = refineRegion(stateCode, lat, lon);
-    return { city, state: stateCode, region };
-  } catch(e){
-    return { city: '', state: '', region: 'Unknown' };
+// Parse city and state directly from user-typed origin/dest text
+// e.g. "Bunnell, FL" → {city:"Bunnell", state:"FL", region:"Southeast FL"}
+// e.g. "Hastings FL" or "hastings fl" also works
+function parseLocationText(text){
+  if(!text) return { city:'', state:'', region:'Unknown' };
+  // Normalize: trim, remove extra spaces
+  const clean = text.trim().replace(/\s+/g,' ');
+  // Match "City, ST" or "City ST" patterns
+  const match = clean.match(/^(.+?)[\s,]+([A-Za-z]{2})\s*(?:,\s*USA?)?$/i);
+  if(match){
+    const city  = match[1].trim();
+    const state = match[2].toUpperCase();
+    // Try to get lat/lon from cached coords for multi-region states
+    const lat = arguments[1]||0;
+    const lon = arguments[2]||0;
+    const region = refineRegion(state, lat, lon);
+    return { city, state, region };
   }
+  // Fallback — just use the full text as city, unknown state
+  return { city: clean, state:'', region:'Unknown' };
+}
+
+// Keep getStateFromCoords but use text parsing as primary, coords for refinement only
+async function getStateFromCoords(lat, lon, addressText){
+  return parseLocationText(addressText, lat, lon);
 }
 
 // State name → abbreviation
@@ -2473,10 +2483,10 @@ async function captureLaneRate(){
     const entered_rpm = dat_rpm;
     const is_manual = ratesManualOverride;
 
-    // Get state/region from cached coords — no extra Google API calls
+    // Parse city/state directly from user input — no API calls needed
     const [oInfo, dInfo] = await Promise.all([
-      getStateFromCoords(origCoords.lat, origCoords.lon),
-      getStateFromCoords(destCoords.lat, destCoords.lon)
+      getStateFromCoords(origCoords.lat, origCoords.lon, orig),
+      getStateFromCoords(destCoords.lat, destCoords.lon, dest)
     ]);
 
     console.log('Lane capture:', {orig, dest, oInfo, dInfo, trailer, entered_rpm, dat_rpm, miles, is_manual});
