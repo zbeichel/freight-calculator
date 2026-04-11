@@ -2469,8 +2469,10 @@ async function captureLaneRate(){
     if(!origCoords || !destCoords) return;
 
     const BASE = getBase();
-    const dat_rpm = BASE[trailer];
-    const entered_rpm = dat_rpm; // same unless manual override
+    const dat_rpm  = parseFloat(document.getElementById(
+      trailer==='van'?'rate-van':trailer==='reefer'?'rate-reefer':'rate-flatbed'
+    ).value) || BASE[trailer];
+    const entered_rpm = dat_rpm;
     const is_manual = ratesManualOverride;
 
     // Get state/region from cached coords — no extra Google API calls
@@ -2478,6 +2480,8 @@ async function captureLaneRate(){
       getStateFromCoords(origCoords.lat, origCoords.lon),
       getStateFromCoords(destCoords.lat, destCoords.lon)
     ]);
+
+    console.log('Lane capture:', {orig, dest, oInfo, dInfo, trailer, entered_rpm, dat_rpm, miles, is_manual});
 
     const payload = {
       origin_city:    oInfo.city,
@@ -2494,7 +2498,7 @@ async function captureLaneRate(){
       is_manual,
     };
 
-    await fetch(`${SUPABASE_URL}/rest/v1/lane_rates`, {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/lane_rates`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2504,8 +2508,9 @@ async function captureLaneRate(){
       },
       body: JSON.stringify(payload)
     });
+    console.log('Supabase response:', resp.status, resp.statusText);
   } catch(e){
-    // Silent fail — never interrupt the user experience
+    console.error('captureLaneRate error:', e);
   }
 }
 
