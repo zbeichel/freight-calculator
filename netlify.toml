@@ -5,6 +5,19 @@
 [build.environment]
   NODE_VERSION = "18"
 
+# Redirect www to non-www (301 permanent — Google will update its index)
+[[redirects]]
+  from = "https://www.quickfreightcalc.com/*"
+  to = "https://quickfreightcalc.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "http://www.quickfreightcalc.com/*"
+  to = "https://quickfreightcalc.com/:splat"
+  status = 301
+  force = true
+
 # Ensure rates.json is served with correct content type and no caching
 [[headers]]
   for = "/rates.json"
