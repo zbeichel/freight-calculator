@@ -1,10 +1,42 @@
 {
-  "van": 2.73,
-  "reefer": 3.15,
-  "flatbed": 3.38,
-  "lt_van": 9.5,
-  "lt_reefer": 17.5,
-  "lt_flatbed": 76.5,
-  "updated": "Apr 7, 2026",
+  "regions": {
+    "northeast": {
+      "states": ["ME","VT","NH","MA","RI","CT","NY","NJ","PA","DE","MD"],
+      "van": 2.73,
+      "reefer": 3.15,
+      "flatbed": 3.38
+    },
+    "southeast": {
+      "states": ["VA","WV","KY","TN","NC","SC","FL","GA","AL","MS"],
+      "van": 2.73,
+      "reefer": 3.15,
+      "flatbed": 3.38
+    },
+    "midwest": {
+      "states": ["OH","IN","MI","WI","MN","IA","IL","MO","ND","SD","NE","KS"],
+      "van": 2.73,
+      "reefer": 3.15,
+      "flatbed": 3.38
+    },
+    "southwest": {
+      "states": ["NM","TX","OK","AR","LA"],
+      "van": 2.73,
+      "reefer": 3.15,
+      "flatbed": 3.38
+    },
+    "west": {
+      "states": ["MT","WY","CO","AZ","ID","NV","UT","WA","OR","CA","AK","HI"],
+      "van": 2.73,
+      "reefer": 3.15,
+      "flatbed": 3.38
+    },
+    "national": {
+      "states": [],
+      "van": 2.73,
+      "reefer": 3.15,
+      "flatbed": 3.38
+    }
+  },
+  "updated": "Apr 15, 2026",
   "source": "DAT Trendlines"
 }

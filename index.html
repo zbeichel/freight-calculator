@@ -1085,7 +1085,7 @@ html.light .hos-day-header{background:var(--card2)}
         </div>
 
         <div class="grid2" id="route-grid">
-          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';if(!ratesManualOverride)applyRegionalRates();clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
           <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
         </div>
 
@@ -1359,8 +1359,9 @@ html.light .hos-day-header{background:var(--card2)}
               <div class="mini-sub">per mile</div>
             </div>
           </div>
-          <div style="font-size:10px;color:var(--text3);line-height:1.5;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
-            These rates are automatically populated from DAT Trendlines data and based on the <strong style="color:var(--text2)">US AVERAGE</strong>. If you know the rate per mile for your specific lane, or the rate per mile you would need, enter it here.
+          <div style="font-size:10px;line-height:1.5;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+            <div id="rate-region-label" style="color:var(--text3);margin-bottom:4px">National average — enter origin to apply regional rates</div>
+            <div style="color:var(--text3)">Rates auto-update by DAT region when you enter an origin. You can override manually at any time.</div>
           </div>
         </div>
 
@@ -3135,25 +3136,84 @@ function updateRateDisclaimer(){
 }
 
 function saveRates(){
-  // Note: rates.json on Netlify is the source of truth for all visitors.
-  // Changes here only affect your current session — edit rates.json to update everyone.
   ratesManualOverride = true;
+  const regionEl = document.getElementById('rate-region-label');
+  if(regionEl){ regionEl.textContent='Rates entered manually'; regionEl.style.color='var(--accent)'; }
   updateHeaderRates();
   updateRateDisclaimer();
 }
+// ── Regional rates storage ────────────────────────────────────────────────
+let regionalRates = null; // populated from rates.json
+
+// State → DAT region mapping
+const STATE_TO_REGION = {};
+const REGION_LABELS = {
+  northeast:'Northeast', southeast:'Southeast', midwest:'Midwest',
+  southwest:'Southwest', west:'West', national:'National'
+};
+
+function buildRegionMap(regions){
+  Object.entries(regions).forEach(([region, data])=>{
+    (data.states||[]).forEach(s => STATE_TO_REGION[s] = region);
+  });
+}
+
+function getRegionForState(stateCode){
+  return STATE_TO_REGION[stateCode?.toUpperCase()] || 'national';
+}
+
+function getRatesForRegion(region){
+  if(!regionalRates) return null;
+  return regionalRates[region] || regionalRates['national'] || null;
+}
+
+// Detect origin state from typed text — e.g. "Hastings, FL" → "FL"
+function detectOriginState(){
+  const orig = document.getElementById('origin').value.trim();
+  if(!orig) return null;
+  const match = orig.match(/[\s,]+([A-Za-z]{2})\s*(?:,\s*USA?)?$/i);
+  return match ? match[1].toUpperCase() : null;
+}
+
+// Apply regional rates to inputs — called when origin changes or rates load
+function applyRegionalRates(){
+  if(!regionalRates || ratesManualOverride) return;
+  const state  = detectOriginState();
+  const region = getRegionForState(state);
+  const rates  = getRatesForRegion(region);
+  if(!rates) return;
+
+  document.getElementById('rate-van').value     = rates.van;
+  document.getElementById('rate-reefer').value  = rates.reefer;
+  document.getElementById('rate-flatbed').value = rates.flatbed;
+
+  // Show which region is active
+  const label = REGION_LABELS[region] || 'National';
+  const regionEl = document.getElementById('rate-region-label');
+  if(regionEl){
+    regionEl.textContent = state
+      ? `Auto-applied: ${label} region (${state})`
+      : 'National average — enter origin to apply regional rates';
+    regionEl.style.color = state ? 'var(--green)' : 'var(--text3)';
+  }
+  updateHeaderRates();
+}
+
 function updateHeaderRates(){
-  const v=parseFloat(document.getElementById('rate-van').value)||2.47;
-  const r=parseFloat(document.getElementById('rate-reefer').value)||2.88;
-  const f=parseFloat(document.getElementById('rate-flatbed').value)||2.95;
+  const v=parseFloat(document.getElementById('rate-van').value)||2.73;
+  const r=parseFloat(document.getElementById('rate-reefer').value)||3.15;
+  const f=parseFloat(document.getElementById('rate-flatbed').value)||3.38;
   document.getElementById('hdr-van').textContent=fmt(v);
   document.getElementById('hdr-reefer').textContent=fmt(r);
   document.getElementById('hdr-flatbed').textContent=fmt(f);
 }
+
 function getBase(){return{
-  van:parseFloat(document.getElementById('rate-van').value)||2.47,
-  reefer:parseFloat(document.getElementById('rate-reefer').value)||2.88,
-  flatbed:parseFloat(document.getElementById('rate-flatbed').value)||2.95
+  van:parseFloat(document.getElementById('rate-van').value)||2.73,
+  reefer:parseFloat(document.getElementById('rate-reefer').value)||3.15,
+  flatbed:parseFloat(document.getElementById('rate-flatbed').value)||3.38
 };}
+
 const rateDateEl = document.getElementById('rate-date');
 if(rateDateEl) rateDateEl.addEventListener('input',saveRates);
 
@@ -3565,19 +3625,32 @@ function loadRates(){
       return r.json();
     })
     .then(data=>{
-      // Base rates per mile
-      if(data.van)    document.getElementById('rate-van').value=data.van;
-      if(data.reefer) document.getElementById('rate-reefer').value=data.reefer;
-      if(data.flatbed)document.getElementById('rate-flatbed').value=data.flatbed;
-      // Load-to-truck ratios
-      if(data.lt_van)    document.getElementById('lt-van').value=data.lt_van;
-      if(data.lt_reefer) document.getElementById('lt-reefer').value=data.lt_reefer;
-      if(data.lt_flatbed)document.getElementById('lt-flatbed').value=data.lt_flatbed;
+      // Handle regional rates format
+      if(data.regions){
+        regionalRates = {};
+        Object.entries(data.regions).forEach(([region, rdata])=>{
+          regionalRates[region] = { van: rdata.van, reefer: rdata.reefer, flatbed: rdata.flatbed };
+        });
+        buildRegionMap(data.regions);
+        // Also load L:T ratios if present in national region
+        const nat = data.regions.national || {};
+        if(nat.lt_van)    document.getElementById('lt-van').value=nat.lt_van;
+        if(nat.lt_reefer) document.getElementById('lt-reefer').value=nat.lt_reefer;
+        if(nat.lt_flatbed)document.getElementById('lt-flatbed').value=nat.lt_flatbed;
+        applyRegionalRates();
+      } else {
+        // Legacy flat format fallback
+        if(data.van)    document.getElementById('rate-van').value=data.van;
+        if(data.reefer) document.getElementById('rate-reefer').value=data.reefer;
+        if(data.flatbed)document.getElementById('rate-flatbed').value=data.flatbed;
+        if(data.lt_van)    document.getElementById('lt-van').value=data.lt_van;
+        if(data.lt_reefer) document.getElementById('lt-reefer').value=data.lt_reefer;
+        if(data.lt_flatbed)document.getElementById('lt-flatbed').value=data.lt_flatbed;
+      }
       const dateStr=data.updated?(data.updated+(data.source?' — '+data.source:'')):'';
       if(dateStr) document.getElementById('rate-date').value=dateStr;
       updateHeaderRates();
       updateRateDisclaimer();
-      // Call calc separately so any error there doesn't trigger the fallback status
       try{ calc(); } catch(e){ console.error('calc error after loadRates:', e); }
     })
     .catch(()=>{});
