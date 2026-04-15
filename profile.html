@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Account — QuickFreightCalc Pro</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #0a0c10;
+  --panel:   #0f1318;
+  --card:    #151a22;
+  --card2:   #1a2030;
+  --border:  #1e2a38;
+  --border2: #243040;
+  --text:    #f0f4f8;
+  --text2:   #8fa3b8;
+  --text3:   #4a6070;
+  --accent:  #f0a500;
+  --accentbg:rgba(240,165,0,.1);
+  --green:   #4ade80;
+  --red:     #f87171;
+  --blue:    #60a5fa;
+  --radius:  12px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif}
+
+/* ── Header ── */
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 28px;border-bottom:1px solid var(--border);
+  background:var(--panel);position:sticky;top:0;z-index:100;
+}
+.brand-name{font-size:18px;font-weight:700;color:var(--text2);letter-spacing:-.02em}
+.brand-name span{color:var(--accent)}
+.pro-badge{font-size:10px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);padding:2px 8px;border-radius:10px;letter-spacing:.06em;text-transform:uppercase;margin-left:8px}
+.back-link{font-size:12px;color:var(--text3);text-decoration:none;display:flex;align-items:center;gap:6px;transition:color .15s}
+.back-link:hover{color:var(--accent)}
+.header-right{display:flex;align-items:center;gap:16px}
+.save-btn-header{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;padding:7px 18px;border-radius:8px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:pointer;transition:all .15s}
+.save-btn-header:hover{background:var(--accent);color:#000}
+
+/* ── Layout ── */
+.page{max-width:900px;margin:0 auto;padding:36px 24px 80px}
+.page-title{font-size:22px;font-weight:700;margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--text3);margin-bottom:36px}
+
+.sections{display:flex;flex-direction:column;gap:28px}
+
+/* ── Section card ── */
+.section-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.section-header{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.section-icon{font-size:16px}
+.section-title{font-size:13px;font-weight:700;color:var(--text)}
+.section-sub{font-size:11px;color:var(--text3);margin-left:auto}
+.section-body{padding:24px}
+
+/* ── Form fields ── */
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.field-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.field input,.field textarea{
+  background:var(--card2);border:1px solid var(--border2);border-radius:8px;
+  color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;
+  padding:9px 12px;outline:none;transition:border-color .15s;width:100%
+}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.field textarea{resize:vertical;min-height:70px;line-height:1.5}
+.field-note{font-size:10px;color:var(--text3);margin-top:2px}
+
+/* ── Logo upload ── */
+.logo-upload-wrap{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap}
+.logo-preview-box{
+  width:180px;height:90px;border-radius:8px;border:1px dashed var(--border2);
+  background:var(--card2);display:flex;align-items:center;justify-content:center;
+  overflow:hidden;flex-shrink:0;position:relative;cursor:pointer;transition:border-color .15s;
+}
+.logo-preview-box:hover{border-color:var(--accent)}
+.logo-preview-box img{max-width:100%;max-height:100%;object-fit:contain}
+.logo-placeholder{text-align:center;color:var(--text3)}
+.logo-placeholder-icon{font-size:24px;margin-bottom:4px}
+.logo-placeholder-text{font-size:10px;line-height:1.4}
+.logo-upload-controls{flex:1;min-width:200px}
+.logo-upload-btn{
+  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
+  padding:8px 16px;border-radius:8px;border:1px solid var(--border2);
+  background:var(--card2);color:var(--text2);cursor:pointer;transition:all .15s;
+  display:inline-block;margin-bottom:8px;
+}
+.logo-upload-btn:hover{border-color:var(--accent);color:var(--accent)}
+.logo-remove-btn{
+  font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;
+  padding:6px 12px;border-radius:8px;border:1px solid rgba(248,113,113,.3);
+  background:transparent;color:var(--red);cursor:pointer;transition:all .15s;
+  display:none;margin-left:8px;
+}
+.logo-remove-btn:hover{background:rgba(248,113,113,.1)}
+#logo-file-input{display:none}
+.logo-note{font-size:10px;color:var(--text3);line-height:1.6;margin-top:8px}
+
+/* ── Color schemes ── */
+.scheme-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.scheme-card{
+  border-radius:10px;border:2px solid var(--border2);overflow:hidden;
+  cursor:pointer;transition:all .2s;
+}
+.scheme-card:hover{border-color:var(--text2);transform:translateY(-2px)}
+.scheme-card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.scheme-preview-header{height:44px;display:flex;align-items:center;padding:0 12px;gap:8px}
+.scheme-preview-emoji{font-size:14px}
+.scheme-preview-text{font-size:10px;font-weight:700;color:rgba(255,255,255,.7)}
+.scheme-preview-bar{height:4px;width:100%}
+.scheme-preview-body{background:#ffffff;padding:8px 12px}
+.scheme-preview-line{height:5px;border-radius:2px;margin-bottom:4px}
+.scheme-preview-line-short{height:5px;border-radius:2px;width:60%}
+.scheme-name{font-size:10px;font-weight:700;color:var(--text3);text-align:center;padding:6px;background:var(--card2)}
+.active .scheme-name{color:var(--accent)}
+
+/* ── Quote number preview ── */
+.quote-num-preview{
+  background:var(--card2);border:1px solid var(--border2);border-radius:8px;
+  padding:10px 14px;font-family:'Space Grotesk',monospace;font-size:13px;
+  color:var(--text2);margin-top:8px;
+}
+.quote-num-preview span{color:var(--accent);font-weight:700}
+
+/* ── PDF Preview ── */
+.pdf-preview-wrap{margin-top:20px}
+.pdf-preview-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.pdf-mini-preview{
+  border-radius:8px;overflow:hidden;border:1px solid var(--border2);
+  transform:scale(1);transform-origin:top left;
+}
+.pdf-mini-header{
+  padding:16px 20px;display:flex;align-items:center;justify-content:space-between;
+  transition:background .3s;
+}
+.pdf-mini-brand{display:flex;align-items:center;gap:8px}
+.pdf-mini-brand-emoji{font-size:18px}
+.pdf-mini-brand-name{font-size:11px;font-weight:700;color:#8fa3b8}
+.pdf-mini-brand-name span{transition:color .3s}
+.pdf-mini-title{font-size:13px;font-weight:700;color:#fff}
+.pdf-mini-bar{height:3px;transition:background .3s}
+.pdf-mini-body{background:#ffffff;padding:14px 20px}
+.pdf-mini-amount{font-size:20px;font-weight:700;color:#1a1f2e;margin-bottom:8px}
+.pdf-mini-route{display:flex;align-items:center;gap:8px;font-size:11px;color:#8fa3b8}
+
+/* ── Save bar ── */
+.save-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--panel);border-top:1px solid var(--border);
+  padding:16px 28px;display:flex;align-items:center;justify-content:space-between;
+  z-index:100;
+}
+.save-bar-note{font-size:12px;color:var(--text3)}
+.save-bar-note span{color:var(--green)}
+.save-btn{
+  font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;
+  padding:10px 28px;border-radius:8px;border:1px solid var(--accent);
+  background:var(--accent);color:#000;cursor:pointer;transition:all .15s;
+}
+.save-btn:hover{opacity:.88}
+
+/* ── Toast ── */
+.toast{
+  position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+  background:var(--green);color:#000;font-size:13px;font-weight:700;
+  padding:10px 24px;border-radius:20px;opacity:0;transition:opacity .3s;
+  pointer-events:none;z-index:200;white-space:nowrap;
+}
+.toast.show{opacity:1}
+
+@media(max-width:700px){
+  .field-grid,.field-grid-3{grid-template-columns:1fr}
+  .scheme-grid{grid-template-columns:repeat(2,1fr)}
+  .logo-upload-wrap{flex-direction:column}
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <a href="/" class="back-link">← Back to Calculator</a>
+  <div style="display:flex;align-items:center">
+    <div class="brand-name">Quick<span>Freight</span>Calc</div>
+    <div class="pro-badge">Pro</div>
+  </div>
+  <div class="header-right" style="display:flex;align-items:center;gap:12px">
+    <span id="header-user-label" style="font-size:12px;color:var(--text3)"></span>
+    <button id="signout-btn" onclick="handleSignOut()" style="display:none;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:6px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--card);color:var(--text3);cursor:pointer;transition:all .15s;align-items:center;gap:6px"
+      onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+      onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">
+      Sign Out
+    </button>
+    <button class="save-btn-header" onclick="saveProfile()">Save Changes</button>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-title">My Account</div>
+  <div class="page-sub">Manage your profile and customize how your PDF quotes look to customers.</div>
+
+  <div class="sections">
+
+    <!-- ── Company Info ── -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-icon">🏢</span>
+        <span class="section-title">Company Information</span>
+        <span class="section-sub">Appears on your PDF quotes</span>
+      </div>
+      <div class="section-body">
+        <div class="field-grid" style="margin-bottom:16px">
+          <div class="field">
+            <label>Company / Brokerage Name</label>
+            <input type="text" id="company-name" placeholder="e.g. Acme Freight Brokers LLC" />
+          </div>
+          <div class="field">
+            <label>Your Name</label>
+            <input type="text" id="contact-name" placeholder="e.g. John Smith" />
+          </div>
+        </div>
+        <div class="field-grid" style="margin-bottom:16px">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="contact-email" placeholder="john@acmefreight.com" />
+          </div>
+          <div class="field">
+            <label>Phone</label>
+            <input type="tel" id="contact-phone" placeholder="(555) 555-5555" />
+          </div>
+        </div>
+        <div class="field-grid-3">
+          <div class="field">
+            <label>MC Number</label>
+            <input type="text" id="mc-number" placeholder="MC-123456" />
+          </div>
+          <div class="field">
+            <label>DOT Number</label>
+            <input type="text" id="dot-number" placeholder="DOT-1234567" />
+          </div>
+          <div class="field">
+            <label>Custom Footer Text <span style="font-weight:400;text-transform:none;font-size:10px">(optional)</span></label>
+            <input type="text" id="footer-text" placeholder="e.g. Licensed & Bonded · FMCSA Registered" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Logo ── -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-icon">🖼</span>
+        <span class="section-title">Company Logo</span>
+        <span class="section-sub">Replaces the 🚛 emoji on your PDF</span>
+      </div>
+      <div class="section-body">
+        <div class="logo-upload-wrap">
+          <div class="logo-preview-box" onclick="document.getElementById('logo-file-input').click()">
+            <div class="logo-placeholder" id="logo-placeholder">
+              <div class="logo-placeholder-icon">📁</div>
+              <div class="logo-placeholder-text">Click to upload<br>PNG, JPG, SVG</div>
+            </div>
+            <img id="logo-preview-img" src="" alt="" style="display:none;max-width:160px;max-height:80px;object-fit:contain" />
+          </div>
+          <div class="logo-upload-controls">
+            <div>
+              <label class="logo-upload-btn" for="logo-file-input">📁 Choose File</label>
+              <button class="logo-remove-btn" id="logo-remove-btn" onclick="removeLogo()">✕ Remove</button>
+            </div>
+            <div class="logo-note">
+              Recommended: PNG with transparent background, landscape orientation.<br>
+              Max size: 2MB. Will be scaled to fit the PDF header automatically.<br>
+              Your logo is stored locally in your browser and in your account profile.
+            </div>
+          </div>
+        </div>
+        <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp" onchange="handleLogoUpload(this)" />
+      </div>
+    </div>
+
+    <!-- ── Color Scheme ── -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-icon">🎨</span>
+        <span class="section-title">PDF Color Scheme</span>
+        <span class="section-sub">Choose your header and accent colors</span>
+      </div>
+      <div class="section-body">
+        <div class="scheme-grid" id="scheme-grid">
+          <!-- Schemes rendered by JS -->
+        </div>
+
+        <!-- Live PDF preview -->
+        <div class="pdf-preview-wrap">
+          <div class="pdf-preview-label">Live Preview</div>
+          <div class="pdf-mini-preview">
+            <div class="pdf-mini-header" id="preview-header">
+              <div class="pdf-mini-brand">
+                <div id="preview-logo-area">
+                  <span class="pdf-mini-brand-emoji" id="preview-emoji">🚛</span>
+                </div>
+                <div>
+                  <div class="pdf-mini-brand-name">Quick<span id="preview-accent-text" style="color:#f0a500">Freight</span>Calc</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:1px">Freight Rate Calculator</div>
+                </div>
+              </div>
+              <div>
+                <div class="pdf-mini-title">Rate Confirmation</div>
+                <div style="font-size:9px;color:rgba(255,255,255,.35);margin-top:2px">Quote #QFC-20260415-0042</div>
+              </div>
+            </div>
+            <div class="pdf-mini-bar" id="preview-bar"></div>
+            <div class="pdf-mini-body">
+              <div style="font-size:9px;color:#8fa3b8;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Total Quote to Customer</div>
+              <div class="pdf-mini-amount">$3,842</div>
+              <div class="pdf-mini-route">
+                <span>📍 Hastings, FL</span>
+                <span style="color:#ccc">——— 1,042 mi ———</span>
+                <span>🏁 Lancaster, PA</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Quote Numbering ── -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-icon">🔢</span>
+        <span class="section-title">Quote Numbering</span>
+        <span class="section-sub">Customize your quote reference numbers</span>
+      </div>
+      <div class="section-body">
+        <div class="field-grid">
+          <div class="field">
+            <label>Quote Number Prefix</label>
+            <input type="text" id="quote-prefix" placeholder="QFC" maxlength="8" oninput="updateQuotePreview()" />
+            <div class="field-note">Up to 8 characters — e.g. your initials or company code</div>
+          </div>
+          <div class="field">
+            <label>Starting Number</label>
+            <input type="number" id="quote-start" placeholder="1001" min="1" oninput="updateQuotePreview()" />
+            <div class="field-note">Your next quote will use this number</div>
+          </div>
+        </div>
+        <div class="quote-num-preview" id="quote-num-preview">
+          Next quote: <span>QFC-20260415-1001</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end sections -->
+</div><!-- end page -->
+
+<!-- Save bar -->
+<div class="save-bar">
+  <div class="save-bar-note" id="save-note">Changes are saved locally until your account syncs.</div>
+  <button class="save-btn" onclick="saveProfile()">💾 Save Changes</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">✓ Profile saved successfully</div>
+
+<script>
+// ── Color schemes ─────────────────────────────────────────────────────────
+const SCHEMES = [
+  { id:'midnight', name:'Midnight',  header:'#1a1f2e', accent:'#f0a500', bar:'linear-gradient(to right,#f0a500,#f0c040,#f0a500)' },
+  { id:'slate',    name:'Slate',     header:'#1e2535', accent:'#60a5fa', bar:'linear-gradient(to right,#3b82f6,#60a5fa,#3b82f6)' },
+  { id:'forest',   name:'Forest',    header:'#14281d', accent:'#86efac', bar:'linear-gradient(to right,#22c55e,#86efac,#22c55e)' },
+  { id:'steel',    name:'Steel',     header:'#1c2228', accent:'#fb923c', bar:'linear-gradient(to right,#ea580c,#fb923c,#ea580c)' },
+  { id:'executive',name:'Executive', header:'#0d0d0d', accent:'#e2e8f0', bar:'linear-gradient(to right,#94a3b8,#e2e8f0,#94a3b8)' },
+  { id:'crimson',  name:'Crimson',   header:'#1f0d0d', accent:'#fca5a5', bar:'linear-gradient(to right,#dc2626,#fca5a5,#dc2626)' },
+  { id:'ocean',    name:'Ocean',     header:'#0c1f2e', accent:'#67e8f9', bar:'linear-gradient(to right,#0891b2,#67e8f9,#0891b2)' },
+  { id:'carbon',   name:'Carbon',    header:'#111111', accent:'#4ade80', bar:'linear-gradient(to right,#16a34a,#4ade80,#16a34a)' },
+];
+
+let currentScheme = 'midnight';
+let logoBase64 = '';
+let quoteCounter = 1001;
+
+function renderSchemes(){
+  const grid = document.getElementById('scheme-grid');
+  grid.innerHTML = SCHEMES.map(s => `
+    <div class="scheme-card ${s.id===currentScheme?'active':''}" onclick="selectScheme('${s.id}')" id="scheme-${s.id}">
+      <div class="scheme-preview-header" style="background:${s.header}">
+        <span class="scheme-preview-emoji">🚛</span>
+        <span class="scheme-preview-text">QuickFreightCalc</span>
+      </div>
+      <div class="scheme-preview-bar" style="background:${s.bar}"></div>
+      <div class="scheme-preview-body">
+        <div class="scheme-preview-line" style="background:${s.accent};opacity:.5"></div>
+        <div class="scheme-preview-line-short" style="background:#e4e8ef"></div>
+        <div class="scheme-preview-line-short" style="background:#e4e8ef;width:40%;margin-top:3px"></div>
+      </div>
+      <div class="scheme-name">${s.name}</div>
+    </div>
+  `).join('');
+}
+
+function selectScheme(id){
+  currentScheme = id;
+  document.querySelectorAll('.scheme-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('scheme-'+id)?.classList.add('active');
+  updatePreview();
+}
+
+function updatePreview(){
+  const s = SCHEMES.find(x => x.id === currentScheme) || SCHEMES[0];
+  document.getElementById('preview-header').style.background = s.header;
+  document.getElementById('preview-bar').style.background = s.bar;
+  document.getElementById('preview-accent-text').style.color = s.accent;
+  // Logo in preview
+  const emojiEl = document.getElementById('preview-emoji');
+  const logoArea = document.getElementById('preview-logo-area');
+  if(logoBase64){
+    logoArea.innerHTML = `<img src="${logoBase64}" style="height:28px;max-width:80px;object-fit:contain" />`;
+  } else {
+    logoArea.innerHTML = `<span class="pdf-mini-brand-emoji" id="preview-emoji">🚛</span>`;
+  }
+}
+
+// ── Logo upload ────────────────────────────────────────────────────────────
+function handleLogoUpload(input){
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > 2 * 1024 * 1024){
+    alert('File too large — max 2MB');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    logoBase64 = e.target.result;
+    document.getElementById('logo-placeholder').style.display = 'none';
+    const img = document.getElementById('logo-preview-img');
+    img.src = logoBase64;
+    img.style.display = 'block';
+    document.getElementById('logo-remove-btn').style.display = 'inline-block';
+    updatePreview();
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeLogo(){
+  logoBase64 = '';
+  document.getElementById('logo-placeholder').style.display = 'block';
+  const img = document.getElementById('logo-preview-img');
+  img.src = '';
+  img.style.display = 'none';
+  document.getElementById('logo-remove-btn').style.display = 'none';
+  document.getElementById('logo-file-input').value = '';
+  updatePreview();
+}
+
+// ── Quote number preview ───────────────────────────────────────────────────
+function updateQuotePreview(){
+  const prefix  = document.getElementById('quote-prefix').value.trim() || 'QFC';
+  const startNum = parseInt(document.getElementById('quote-start').value) || 1001;
+  const today = new Date();
+  const dateStr = today.getFullYear() +
+    String(today.getMonth()+1).padStart(2,'0') +
+    String(today.getDate()).padStart(2,'0');
+  document.getElementById('quote-num-preview').innerHTML =
+    `Next quote: <span>${prefix.toUpperCase()}-${dateStr}-${startNum}</span>`;
+}
+
+// ── Supabase Auth ──────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
+
+function getSession(){
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key) || '{}');
+      if(val?.access_token){
+        // Check if expired
+        if(val.expires_at && val.expires_at < Math.floor(Date.now()/1000)){
+          return null;
+        }
+        return val;
+      }
+    }
+  } catch(e){}
+  return null;
+}
+
+function clearSession(){
+  try {
+    Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k));
+  } catch(e){}
+}
+
+async function checkAuth(){
+  const session = getSession();
+  if(!session){
+    // Not logged in — redirect to signup
+    window.location.href = '/signup.html?login';
+    return null;
+  }
+  return session;
+}
+
+async function handleSignOut(){
+  try {
+    const session = getSession();
+    if(session){
+      await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` }
+      });
+    }
+  } catch(e){}
+  clearSession();
+  localStorage.removeItem('qfc_pro_profile');
+  window.location.href = '/';
+}
+
+// ── Save to Supabase + localStorage ───────────────────────────────────────
+async function saveProfile(){
+  const profile = {
+    companyName:  document.getElementById('company-name').value.trim(),
+    contactName:  document.getElementById('contact-name').value.trim(),
+    email:        document.getElementById('contact-email').value.trim(),
+    phone:        document.getElementById('contact-phone').value.trim(),
+    mcNumber:     document.getElementById('mc-number').value.trim(),
+    dotNumber:    document.getElementById('dot-number').value.trim(),
+    footerText:   document.getElementById('footer-text').value.trim(),
+    quotePrefix:  document.getElementById('quote-prefix').value.trim() || 'QFC',
+    quoteStart:   parseInt(document.getElementById('quote-start').value) || 1001,
+    colorScheme:  currentScheme,
+    logoBase64:   logoBase64,
+    savedAt:      new Date().toISOString(),
+  };
+
+  // Always save to localStorage as immediate fallback
+  try { localStorage.setItem('qfc_pro_profile', JSON.stringify(profile)); } catch(e){}
+
+  // Also save to Supabase if logged in
+  const session = getSession();
+  if(session){
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${session.user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          company_name:  profile.companyName,
+          contact_name:  profile.contactName,
+          phone:         profile.phone,
+          mc_number:     profile.mcNumber,
+          dot_number:    profile.dotNumber,
+          footer_text:   profile.footerText,
+          quote_prefix:  profile.quotePrefix,
+          quote_counter: profile.quoteStart,
+          color_scheme:  profile.colorScheme,
+          logo_base64:   profile.logoBase64,
+          updated_at:    new Date().toISOString(),
+        })
+      });
+      showToast('✓ Profile saved to your account');
+    } catch(e){
+      showToast('✓ Saved locally — will sync when online');
+    }
+  } else {
+    showToast('✓ Profile saved locally');
+  }
+
+  document.getElementById('save-note').innerHTML =
+    'Last saved: <span>' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) + '</span>';
+}
+
+// ── Load from Supabase (fall back to localStorage) ─────────────────────────
+async function loadProfile(){
+  const session = getSession();
+
+  // Try Supabase first
+  if(session){
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${session.user.id}&select=*`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` }
+      });
+      const rows = await resp.json();
+      if(rows?.[0]){
+        const p = rows[0];
+        populateForm({
+          companyName: p.company_name,
+          contactName: p.contact_name,
+          email:       p.email,
+          phone:       p.phone,
+          mcNumber:    p.mc_number,
+          dotNumber:   p.dot_number,
+          footerText:  p.footer_text,
+          quotePrefix: p.quote_prefix,
+          quoteStart:  p.quote_counter,
+          colorScheme: p.color_scheme,
+          logoBase64:  p.logo_base64,
+        });
+        // Update header with user name
+        updateHeaderUser(p.contact_name || p.company_name || session.user.email);
+        return;
+      }
+    } catch(e){}
+  }
+
+  // Fall back to localStorage
+  try {
+    const raw = localStorage.getItem('qfc_pro_profile');
+    if(raw) populateForm(JSON.parse(raw));
+  } catch(e){}
+
+  if(session){
+    updateHeaderUser(session.user.email);
+  }
+}
+
+function populateForm(p){
+  if(!p) return;
+  if(p.companyName) document.getElementById('company-name').value = p.companyName;
+  if(p.contactName) document.getElementById('contact-name').value = p.contactName;
+  if(p.email)       document.getElementById('contact-email').value = p.email;
+  if(p.phone)       document.getElementById('contact-phone').value = p.phone;
+  if(p.mcNumber)    document.getElementById('mc-number').value = p.mcNumber;
+  if(p.dotNumber)   document.getElementById('dot-number').value = p.dotNumber;
+  if(p.footerText)  document.getElementById('footer-text').value = p.footerText;
+  if(p.quotePrefix) document.getElementById('quote-prefix').value = p.quotePrefix;
+  if(p.quoteStart)  document.getElementById('quote-start').value = p.quoteStart;
+  if(p.colorScheme) currentScheme = p.colorScheme;
+  if(p.logoBase64){
+    logoBase64 = p.logoBase64;
+    document.getElementById('logo-placeholder').style.display = 'none';
+    const img = document.getElementById('logo-preview-img');
+    img.src = logoBase64;
+    img.style.display = 'block';
+    document.getElementById('logo-remove-btn').style.display = 'inline-block';
+  }
+}
+
+function updateHeaderUser(name){
+  const signOutBtn = document.getElementById('signout-btn');
+  const userLabel  = document.getElementById('header-user-label');
+  if(userLabel) userLabel.textContent = name ? name.split(' ')[0] : 'Account';
+  if(signOutBtn) signOutBtn.style.display = 'flex';
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+loadProfile();
+renderSchemes();
+updatePreview();
+updateQuotePreview();
+</script>
+</body>
+</html>

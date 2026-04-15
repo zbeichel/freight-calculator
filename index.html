@@ -880,6 +880,19 @@ html.light .hos-day-header{background:var(--card2)}
     <span class="theme-icon" id="theme-icon">🌙</span>
     <span class="theme-label" id="theme-label">Dark</span>
   </button>
+  <a href="/signup.html" id="pro-account-btn" style="
+    font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;
+    padding:6px 14px;border-radius:20px;
+    border:1px solid var(--border2);background:var(--card);
+    color:var(--text3);text-decoration:none;
+    display:flex;align-items:center;gap:6px;
+    transition:all .15s;white-space:nowrap;flex-shrink:0;
+  "
+  onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+  onmouseout="this.style.borderColor='var(--border2)';this.style.color=document.getElementById('pro-name-label').textContent?'var(--text2)':'var(--text3)'">
+    <span id="pro-btn-icon">⭐</span>
+    <span id="pro-name-label">Pro</span>
+  </a>
 </header>
 
 <!-- ── Hero ── -->
@@ -1375,7 +1388,13 @@ html.light .hos-day-header{background:var(--card2)}
           </div>
         </div>
 
-        <!-- Transit days callout — shown when pickup + delivery dates are entered -->
+        <!-- Load Notes — used for PDF quote -->
+        <div class="field ftl-only" id="load-notes-field" style="margin-top:12px;display:none">
+          <label>Load Notes <span style="font-size:10px;color:var(--text3);font-weight:400">(appears on PDF quote)</span></label>
+          <textarea id="load-notes" rows="3" placeholder="e.g. Temperature requirements, detention terms, driver instructions, accessorial expectations..."
+            style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;padding:8px 12px;outline:none;resize:vertical;line-height:1.5;margin-top:4px"
+            oninput="this.style.borderColor='var(--accent)'"></textarea>
+        </div>
         <div id="transit-callout" style="display:none;margin-top:12px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
             <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)">Transit Days</div>
@@ -1688,6 +1707,16 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="pill"><div class="pill-label">Capacity</div><div class="pill-val" id="m-cap" style="color:var(--text3)">off</div></div>
         <div class="pill" style="grid-column:1/-1"><div class="pill-label">Seasonal</div><div class="pill-val" id="m-seas">—</div></div>
       </div>
+      <!-- Download Quote button — Pro feature -->
+      <div style="padding:14px 16px;border-top:1px solid var(--border)">
+        <button id="btn-download-quote" onclick="generateQuotePDF()" disabled
+          style="width:100%;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;padding:11px;border-radius:8px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:not-allowed;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;opacity:0.45"
+          onmouseover="if(!this.disabled){this.style.background='var(--accent)';this.style.color='#000'}"
+          onmouseout="if(!this.disabled){this.style.background='var(--accentbg)';this.style.color='var(--accent)'}">
+          📄 Download Quote PDF
+        </button>
+        <div id="pro-upgrade-note" style="font-size:10px;color:var(--text3);text-align:center;margin-top:6px">Pro feature · <a href="#" style="color:var(--accent);text-decoration:none">Upgrade to unlock</a></div>
+      </div>
     </div>
 
     <!-- Profitability result panel — shown when in prof mode -->
@@ -1866,6 +1895,104 @@ const SEASON_PROFILES={
 };
 
 let quoteLog=[], advOpen=false, shipType='ftl';
+
+// ── Pro user flag — set to true when Supabase auth confirms active subscription ──
+let isProUser = false;
+
+async function checkProAuth(){
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key) || '{}');
+      if(val?.access_token){
+        if(val.expires_at && val.expires_at < Math.floor(Date.now()/1000)) continue;
+        // Valid session — check if pro user is active
+        const resp = await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users?id=eq.'+val.user.id+'&select=is_active', {
+          headers: {
+            'apikey': 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ',
+            'Authorization': `Bearer ${val.access_token}`
+          }
+        });
+        const rows = await resp.json();
+        if(rows?.[0]?.is_active){
+          isProUser = true;
+          // Also load their profile into localStorage for PDF generation
+          const profResp = await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users?id=eq.'+val.user.id+'&select=*', {
+            headers: {
+              'apikey': 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ',
+              'Authorization': `Bearer ${val.access_token}`
+            }
+          });
+          const profRows = await profResp.json();
+          if(profRows?.[0]){
+            const p = profRows[0];
+            localStorage.setItem('qfc_pro_profile', JSON.stringify({
+              companyName: p.company_name, contactName: p.contact_name,
+              email: p.email, phone: p.phone, mcNumber: p.mc_number,
+              dotNumber: p.dot_number, footerText: p.footer_text,
+              quotePrefix: p.quote_prefix, quoteStart: p.quote_counter,
+              colorScheme: p.color_scheme, logoBase64: p.logo_base64,
+            }));
+          }
+        }
+        break;
+      }
+    }
+  } catch(e){}
+  updateProUI();
+  updateProAccountBtn();
+}
+
+function updateProAccountBtn(){
+  try {
+    const profile = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}');
+    const btn = document.getElementById('pro-account-btn');
+    const nameLabel = document.getElementById('pro-name-label');
+    const icon = document.getElementById('pro-btn-icon');
+    if(!btn) return;
+    // Check if logged in
+    const loggedIn = Object.keys(localStorage).some(k => {
+      if(!k.startsWith('sb-')) return false;
+      try { const v = JSON.parse(localStorage.getItem(k)||'{}'); return !!v?.access_token; } catch(e){ return false; }
+    });
+    const name = profile.contactName || profile.companyName || '';
+    if(loggedIn && name){
+      nameLabel.textContent = name.split(' ')[0];
+      icon.textContent = '👤';
+      btn.href = '/profile.html';
+      btn.style.borderColor = 'var(--accent)';
+      btn.style.color = 'var(--text2)';
+      btn.style.background = 'var(--accentbg)';
+    } else if(loggedIn){
+      nameLabel.textContent = 'My Account';
+      icon.textContent = '👤';
+      btn.href = '/profile.html';
+      btn.style.borderColor = 'var(--accent)';
+      btn.style.color = 'var(--text2)';
+      btn.style.background = 'var(--accentbg)';
+    } else {
+      nameLabel.textContent = 'Pro';
+      icon.textContent = '⭐';
+      btn.href = '/signup.html';
+      btn.style.borderColor = 'var(--border2)';
+      btn.style.color = 'var(--text3)';
+      btn.style.background = 'var(--card)';
+    }
+  } catch(e){}
+}
+
+function updateProUI(){
+  const notesField = document.getElementById('load-notes-field');
+  const dlBtn      = document.getElementById('btn-download-quote');
+  const proNote    = document.getElementById('pro-upgrade-note');
+  if(notesField) notesField.style.display = isProUser ? '' : 'none';
+  if(dlBtn){
+    dlBtn.disabled = !isProUser;
+    dlBtn.style.opacity = isProUser ? '1' : '0.45';
+    dlBtn.style.cursor  = isProUser ? 'pointer' : 'not-allowed';
+  }
+  if(proNote) proNote.style.display = isProUser ? 'none' : '';
+}
 
 // ── LTL class rates ($/CWT) — industry standard national averages ─────────
 const LTL_CWT = {
@@ -2123,6 +2250,8 @@ function setShipType(t){
   const baseRatesMain = document.getElementById('base-rates-main');
   if(marginField) marginField.style.display = t==='prof' ? 'none' : '';
   if(baseRatesMain) baseRatesMain.style.display = t==='prof' ? 'none' : '';
+  const loadNotesField = document.getElementById('load-notes-field');
+  if(loadNotesField) loadNotesField.style.display = (t==='prof'||t==='ltl'||!isProUser) ? 'none' : '';
   if(t==='prof'){
     const qMiles=parseFloat(document.getElementById('miles').value)||0;
     const pMilesEl=document.getElementById('p-miles');
@@ -2365,7 +2494,256 @@ function triggerWeatherUpdate(){
   weatherTimer = setTimeout(fetchWeather, 1000);
 }
 
-// ── Supabase Lane Rate Data Capture ──────────────────────────────────────
+// ── PDF Quote Generator ───────────────────────────────────────────────────
+function generateQuotePDF(){
+  const quote    = document.getElementById('r-quote').textContent;
+  const miles    = document.getElementById('r-miles').textContent;
+  const pickup   = document.getElementById('r-pickup').textContent;
+  const delivery = document.getElementById('r-delivery').textContent;
+  const orig     = document.getElementById('origin').value.trim();
+  const dest     = document.getElementById('dest').value.trim();
+  const notes    = document.getElementById('load-notes').value.trim();
+  const weight   = document.getElementById('weight').value;
+  const trailer  = document.getElementById('trailer').value;
+  const commodity= document.getElementById('commodity').value;
+
+  if(quote === '—' || !orig || !dest){
+    alert('Please complete the quote before downloading.');
+    return;
+  }
+
+  // Load pro profile from localStorage
+  let profile = {};
+  try { profile = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}'); } catch(e){}
+
+  // Color scheme lookup
+  const SCHEMES = {
+    midnight: { header:'#1a1f2e', accent:'#f0a500', bar:'linear-gradient(to right,#f0a500,#f0c040,#f0a500)' },
+    slate:    { header:'#1e2535', accent:'#60a5fa', bar:'linear-gradient(to right,#3b82f6,#60a5fa,#3b82f6)' },
+    forest:   { header:'#14281d', accent:'#86efac', bar:'linear-gradient(to right,#22c55e,#86efac,#22c55e)' },
+    steel:    { header:'#1c2228', accent:'#fb923c', bar:'linear-gradient(to right,#ea580c,#fb923c,#ea580c)' },
+    executive:{ header:'#0d0d0d', accent:'#e2e8f0', bar:'linear-gradient(to right,#94a3b8,#e2e8f0,#94a3b8)' },
+    crimson:  { header:'#1f0d0d', accent:'#fca5a5', bar:'linear-gradient(to right,#dc2626,#fca5a5,#dc2626)' },
+    ocean:    { header:'#0c1f2e', accent:'#67e8f9', bar:'linear-gradient(to right,#0891b2,#67e8f9,#0891b2)' },
+    carbon:   { header:'#111111', accent:'#4ade80', bar:'linear-gradient(to right,#16a34a,#4ade80,#16a34a)' },
+  };
+  const scheme = SCHEMES[profile.colorScheme] || SCHEMES.midnight;
+
+  // Trailer / commodity / weight
+  const trailerLabels = { van:'Dry Van', reefer:'Refrigerated (Reefer)', flatbed:'Flatbed' };
+  const trailerDisplay = trailerLabels[trailer] || trailer;
+  const trailerBadge = { van:'🚛 Dry Van', reefer:'🧊 Reefer', flatbed:'🏗 Flatbed' }[trailer] || trailer;
+  const commLabels = { standard:'Standard Freight', food:'Food / Perishable', hazmat:'Hazmat', highval:'High Value', oversized:'Oversized' };
+  const commDisplay = commLabels[commodity] || commodity;
+  const weightDisplay = weight ? parseInt(weight).toLocaleString() + ' lbs' : '—';
+  const transitDays = document.getElementById('transit-days-badge')?.textContent || '—';
+
+  // Quote number
+  const now = new Date();
+  const prefix  = (profile.quotePrefix || 'QFC').toUpperCase();
+  const startNum = profile.quoteStart || 1001;
+  const dateStr  = now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0');
+  const qNum = `${prefix}-${dateStr}-${startNum}`;
+  const issuedDate = now.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+
+  // Increment quote counter in localStorage
+  try {
+    profile.quoteStart = startNum + 1;
+    localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
+  } catch(e){}
+
+  // Header branding — logo or emoji
+  const logoHTML = profile.logoBase64
+    ? `<img src="${profile.logoBase64}" style="max-height:44px;max-width:140px;object-fit:contain" />`
+    : `<span style="font-size:32px;line-height:1">🚛</span>`;
+
+  // Company name — use profile or fallback to QFC
+  const companyHTML = profile.companyName
+    ? `<div style="font-size:18px;font-weight:700;color:#ffffff;letter-spacing:-.02em">${profile.companyName}</div>
+       <div style="font-size:10px;color:rgba(255,255,255,.4);font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Licensed Freight Broker</div>`
+    : `<div style="font-size:18px;font-weight:700;color:#8fa3b8;letter-spacing:-.02em">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
+       <div style="font-size:10px;color:#4a6070;font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Freight Rate Calculator</div>`;
+
+  // Contact strip — only if profile has contact info
+  const hasContact = profile.contactName || profile.phone || profile.email || profile.mcNumber || profile.dotNumber;
+  const contactItems = [
+    profile.contactName,
+    profile.phone,
+    profile.email,
+    profile.mcNumber ? `MC# ${profile.mcNumber}` : '',
+    profile.dotNumber ? `DOT# ${profile.dotNumber}` : '',
+  ].filter(Boolean);
+  const contactStripHTML = hasContact ? `
+    <div style="background:#f4f6f9;border-bottom:1px solid #e4e8ef;padding:8px 40px;display:flex;align-items:center;gap:0;flex-wrap:wrap">
+      ${contactItems.map((item, i) => `
+        <span style="font-size:11px;color:#4a6070;font-weight:500">${item}</span>
+        ${i < contactItems.length-1 ? '<span style="color:#c8d4e0;margin:0 10px;font-size:11px">·</span>' : ''}
+      `).join('')}
+    </div>` : '';
+
+  // Footer text
+  const footerLeft = profile.companyName
+    ? `<div style="font-size:11px;color:#8fa3b8">${profile.companyName} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
+    : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">🚛 <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
+  const footerRight = profile.footerText
+    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${profile.footerText}<br>Rates are subject to change and valid for 24 hours from issue.</div>`
+    : `<div style="font-size:10px;color:#aab8c8;text-align:right">Rates are subject to change and valid for 24 hours from issue.</div>`;
+
+  const notesHTML = notes
+    ? `<div class="notes-text">${notes.replace(/\n/g,'<br>')}</div>`
+    : `<div class="notes-empty">No notes provided.</div>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Freight Quote ${qNum}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-height:100vh}
+.page-wrap{max-width:780px;margin:0 auto}
+.screen-controls{display:flex;gap:12px;margin-bottom:24px;align-items:center;flex-wrap:wrap}
+.btn-print{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:10px 22px;border-radius:8px;border:none;background:${scheme.header};color:${scheme.accent};cursor:pointer}
+.screen-note{font-size:12px;color:#6b7a8d}
+.doc{background:#fff;border-radius:4px;box-shadow:0 4px 40px rgba(0,0,0,.12);overflow:hidden}
+.doc-header{background:${scheme.header};padding:28px 40px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.doc-meta{text-align:right}
+.doc-title{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.02em;margin-bottom:4px}
+.doc-number{font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.35);margin-bottom:2px}
+.doc-date{font-size:11px;color:rgba(255,255,255,.35)}
+.accent-bar{height:4px;background:${scheme.bar}}
+.doc-body{padding:36px 40px}
+.quote-hero{background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:20px}
+.quote-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.quote-amount{font-size:42px;font-weight:700;color:#1a1f2e;letter-spacing:-.03em;line-height:1}
+.trailer-badge{display:inline-block;background:#fff8e6;border:1px solid ${scheme.accent};color:#c07800;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:.05em}
+.section-header{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #e4e8ef}
+.route-section,.details-section,.notes-section,.signature-section{margin-bottom:24px}
+.route-visual{display:table;width:100%;table-layout:fixed;background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;overflow:hidden}
+.route-point{display:table-cell;width:calc(50% - 50px);padding:16px 20px;vertical-align:middle;text-align:center}
+.route-point-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.route-point-city{font-size:16px;font-weight:700;color:#1a1f2e;margin-bottom:2px}
+.route-point-date{font-size:12px;color:#8fa3b8}
+.route-divider{display:table-cell;width:100px;text-align:center;vertical-align:middle;padding:16px 8px;background:#f0f3f8;border-left:1px solid #e4e8ef;border-right:1px solid #e4e8ef;white-space:nowrap}
+.route-miles{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:#1a1f2e}
+.route-miles-label{font-size:9px;color:#8fa3b8;text-transform:uppercase;letter-spacing:.08em}
+.route-arrow{font-size:16px;color:${scheme.accent};margin-top:2px}
+.details-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:#e4e8ef;border:1px solid #e4e8ef;border-radius:10px;overflow:hidden}
+.detail-cell{background:#fff;padding:14px 18px}
+.detail-cell-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.detail-cell-value{font-size:14px;font-weight:600;color:#1a1f2e}
+.notes-box{background:#fffbf0;border:1px solid #f0d080;border-radius:10px;padding:16px 20px;min-height:70px}
+.notes-text{font-size:13px;color:#4a3800;line-height:1.6}
+.notes-empty{font-size:12px;color:#c8a840;font-style:italic}
+.signature-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.signature-block{border:1px solid #e4e8ef;border-radius:10px;padding:16px 20px}
+.signature-block-title{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
+.signature-line{border-bottom:1px solid #1a1f2e;margin-bottom:6px;height:32px}
+.signature-line-label{font-size:10px;color:#8fa3b8;margin-bottom:10px}
+.signature-name-line{border-bottom:1px solid #d0d8e4;margin-bottom:6px;height:28px}
+.doc-footer{background:#f8f9fc;border-top:1px solid #e4e8ef;padding:16px 40px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+@media print{body{background:white;padding:0}.screen-controls{display:none!important}.page-wrap{max-width:100%}.doc{box-shadow:none;border-radius:0}@page{size:letter;margin:0}}
+</style>
+</head>
+<body>
+<div class="page-wrap">
+  <div class="screen-controls">
+    <button class="btn-print" onclick="window.print()">🖨 Print / Save as PDF</button>
+    <span class="screen-note">Use your browser's Print dialog → Save as PDF</span>
+  </div>
+  <div class="doc">
+    <div class="doc-header">
+      <div style="display:flex;align-items:center;gap:12px">
+        ${logoHTML}
+        <div>${companyHTML}</div>
+      </div>
+      <div class="doc-meta">
+        <div class="doc-title">Rate Confirmation</div>
+        <div class="doc-number">Quote #${qNum}</div>
+        <div class="doc-date">Issued: ${issuedDate}</div>
+      </div>
+    </div>
+    <div class="accent-bar"></div>
+    ${contactStripHTML}
+    <div class="doc-body">
+      <div class="quote-hero">
+        <div>
+          <div class="quote-label">Total Quote to Customer</div>
+          <div class="quote-amount">${quote}</div>
+        </div>
+        <div class="trailer-badge">${trailerBadge}</div>
+      </div>
+      <div class="route-section">
+        <div class="section-header">Route Details</div>
+        <div class="route-visual">
+          <div class="route-point">
+            <div class="route-point-label">📍 Pickup</div>
+            <div class="route-point-city">${orig}</div>
+            <div class="route-point-date">${pickup !== '—' ? pickup : ''}</div>
+          </div>
+          <div class="route-divider">
+            <div class="route-miles">${miles.replace(' mi','')}</div>
+            <div class="route-miles-label">miles</div>
+            <div class="route-arrow">→</div>
+          </div>
+          <div class="route-point">
+            <div class="route-point-label">🏁 Delivery</div>
+            <div class="route-point-city">${dest}</div>
+            <div class="route-point-date">${delivery !== '—' ? delivery : ''}</div>
+          </div>
+        </div>
+      </div>
+      <div class="details-section">
+        <div class="section-header">Load Details</div>
+        <div class="details-grid">
+          <div class="detail-cell"><div class="detail-cell-label">Trailer Type</div><div class="detail-cell-value">${trailerDisplay}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Weight</div><div class="detail-cell-value">${weightDisplay}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Commodity</div><div class="detail-cell-value">${commDisplay}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Pickup Date</div><div class="detail-cell-value">${pickup !== '—' ? pickup : '—'}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Delivery Date</div><div class="detail-cell-value">${delivery !== '—' ? delivery : '—'}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Transit</div><div class="detail-cell-value">${transitDays}</div></div>
+        </div>
+      </div>
+      <div class="notes-section">
+        <div class="section-header">Load Notes &amp; Requirements</div>
+        <div class="notes-box">${notesHTML}</div>
+      </div>
+      <div class="signature-section">
+        <div class="section-header">Acceptance &amp; Authorization</div>
+        <div class="signature-grid">
+          <div class="signature-block">
+            <div class="signature-block-title">Carrier / Driver Acceptance</div>
+            <div class="signature-line"></div>
+            <div class="signature-line-label">Signature</div>
+            <div class="signature-name-line"></div>
+            <div class="signature-line-label">Printed Name &amp; Date</div>
+          </div>
+          <div class="signature-block">
+            <div class="signature-block-title">Broker / Shipper Authorization</div>
+            <div class="signature-line"></div>
+            <div class="signature-line-label">Signature</div>
+            <div class="signature-name-line"></div>
+            <div class="signature-line-label">Printed Name &amp; Date</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="doc-footer">
+      ${footerLeft}
+      ${footerRight}
+    </div>
+  </div>
+</div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+}
+
+// ── End PDF Generator ─────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
 
@@ -4054,6 +4432,9 @@ updateAdvCount();
 renderLog();
 syncCWTDefault();
 renderCustomAccs(); // initialize with one empty custom charge slot
+updateProUI();     // apply Pro feature visibility based on auth state
+updateProAccountBtn(); // show name in header if profile exists
+checkProAuth();    // verify Supabase session and unlock Pro if active
 calc();
 </script>
 

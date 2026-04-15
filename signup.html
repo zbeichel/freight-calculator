@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign Up for Pro — QuickFreightCalc</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0c10;--panel:#0f1318;--card:#151a22;--card2:#1a2030;
+  --border:#1e2a38;--border2:#243040;--text:#f0f4f8;--text2:#8fa3b8;
+  --text3:#4a6070;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
+  --green:#4ade80;--red:#f87171;--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif}
+
+.header{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--border);background:var(--panel)}
+.brand-name{font-size:18px;font-weight:700;color:var(--text2);letter-spacing:-.02em}
+.brand-name span{color:var(--accent)}
+.back-link{font-size:12px;color:var(--text3);text-decoration:none;transition:color .15s}
+.back-link:hover{color:var(--accent)}
+
+.page{min-height:calc(100vh - 57px);display:flex;align-items:center;justify-content:center;padding:40px 20px}
+
+.auth-card{
+  width:100%;max-width:440px;
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;
+}
+
+.auth-hero{
+  background:linear-gradient(135deg,#1a1f2e 0%,#0f1318 100%);
+  padding:32px 32px 28px;text-align:center;border-bottom:1px solid var(--border);
+  position:relative;overflow:hidden;
+}
+.auth-hero::before{
+  content:'';position:absolute;top:-40px;right:-40px;
+  width:120px;height:120px;border-radius:50%;
+  background:radial-gradient(circle,rgba(240,165,0,.15) 0%,transparent 70%);
+}
+.auth-emoji{font-size:36px;margin-bottom:10px}
+.auth-title{font-size:22px;font-weight:700;margin-bottom:6px}
+.auth-sub{font-size:13px;color:var(--text3);line-height:1.5}
+
+.pro-features{
+  display:flex;flex-direction:column;gap:6px;margin-top:16px;text-align:left;
+}
+.pro-feature{
+  display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);
+}
+.pro-feature-icon{color:var(--accent);font-size:13px;flex-shrink:0}
+
+.auth-body{padding:28px 32px}
+
+.tabs{display:flex;gap:0;margin-bottom:24px;background:var(--card2);border-radius:8px;padding:3px}
+.tab{
+  flex:1;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;
+  padding:8px;border-radius:6px;border:none;background:transparent;
+  color:var(--text3);cursor:pointer;transition:all .15s;
+}
+.tab.active{background:var(--card);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.3)}
+
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.field label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.field input{
+  background:var(--card2);border:1px solid var(--border2);border-radius:8px;
+  color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:14px;
+  padding:10px 14px;outline:none;transition:border-color .15s;width:100%;
+}
+.field input:focus{border-color:var(--accent)}
+
+.submit-btn{
+  width:100%;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;
+  padding:12px;border-radius:8px;border:none;background:var(--accent);color:#000;
+  cursor:pointer;transition:opacity .15s;margin-top:4px;
+}
+.submit-btn:hover{opacity:.88}
+.submit-btn:disabled{opacity:.4;cursor:not-allowed}
+
+.divider{height:1px;background:var(--border);margin:20px 0;position:relative}
+.divider span{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:var(--panel);padding:0 10px;font-size:11px;color:var(--text3);
+}
+
+.error-msg{
+  background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);
+  border-radius:8px;padding:10px 14px;font-size:12px;color:var(--red);
+  margin-bottom:16px;display:none;line-height:1.5;
+}
+.success-msg{
+  background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);
+  border-radius:8px;padding:10px 14px;font-size:12px;color:var(--green);
+  margin-bottom:16px;display:none;line-height:1.5;
+}
+
+.footer-note{font-size:11px;color:var(--text3);text-align:center;margin-top:16px;line-height:1.6}
+.footer-note a{color:var(--accent);text-decoration:none}
+
+.price-note{
+  background:var(--accentbg);border:1px solid rgba(240,165,0,.2);
+  border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text2);
+  margin-bottom:20px;text-align:center;
+}
+.price-note strong{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="/" class="back-link">← Back to Calculator</a>
+  <div class="brand-name">Quick<span>Freight</span>Calc</div>
+  <div style="width:120px"></div>
+</div>
+
+<div class="page">
+  <div class="auth-card">
+
+    <div class="auth-hero">
+      <div class="auth-emoji">🚛</div>
+      <div class="auth-title">QuickFreightCalc <span style="color:var(--accent)">Pro</span></div>
+      <div class="auth-sub">The complete freight quoting toolkit for brokers and dispatchers</div>
+      <div class="pro-features">
+        <div class="pro-feature"><span class="pro-feature-icon">📄</span> Branded PDF quote generator</div>
+        <div class="pro-feature"><span class="pro-feature-icon">🎨</span> Custom logo & color schemes</div>
+        <div class="pro-feature"><span class="pro-feature-icon">🏢</span> Company info on every quote</div>
+        <div class="pro-feature"><span class="pro-feature-icon">🔢</span> Sequential quote numbering</div>
+        <div class="pro-feature"><span class="pro-feature-icon">📝</span> Load notes on PDF quotes</div>
+      </div>
+    </div>
+
+    <div class="auth-body">
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" id="tab-signup" onclick="switchTab('signup')">Create Account</button>
+        <button class="tab" id="tab-login" onclick="switchTab('login')">Sign In</button>
+      </div>
+
+      <!-- Error / success -->
+      <div class="error-msg" id="error-msg"></div>
+      <div class="success-msg" id="success-msg"></div>
+
+      <!-- Sign Up form -->
+      <div id="form-signup">
+        <div class="price-note">
+          <strong>$9/month</strong> · Cancel anytime · 7-day free trial
+        </div>
+        <div class="field">
+          <label>Company / Brokerage Name</label>
+          <input type="text" id="su-company" placeholder="Acme Freight Brokers LLC" />
+        </div>
+        <div class="field">
+          <label>Your Name</label>
+          <input type="text" id="su-name" placeholder="John Smith" />
+        </div>
+        <div class="field">
+          <label>Email Address</label>
+          <input type="email" id="su-email" placeholder="john@acmefreight.com" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="su-password" placeholder="At least 8 characters" />
+        </div>
+        <button class="submit-btn" id="su-btn" onclick="handleSignup()">
+          Continue to Payment →
+        </button>
+        <div class="footer-note">
+          By signing up you agree to our <a href="#">Terms of Service</a>.<br>
+          Already have an account? <a href="#" onclick="switchTab('login')">Sign in</a>
+        </div>
+      </div>
+
+      <!-- Sign In form -->
+      <div id="form-login" style="display:none">
+        <div class="field">
+          <label>Email Address</label>
+          <input type="email" id="li-email" placeholder="john@acmefreight.com" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="li-password" placeholder="Your password" />
+        </div>
+        <button class="submit-btn" id="li-btn" onclick="handleLogin()">
+          Sign In
+        </button>
+        <div class="footer-note">
+          <a href="#" onclick="handleForgotPassword()">Forgot your password?</a><br>
+          Don't have an account? <a href="#" onclick="switchTab('signup')">Sign up for Pro</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
+
+// ── Check if already logged in ─────────────────────────────────────────────
+async function checkSession(){
+  const session = getSession();
+  if(session){
+    window.location.href = '/profile.html';
+  }
+}
+
+function getSession(){
+  try {
+    // Supabase stores session in localStorage
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key) || '{}');
+      if(val?.access_token) return val;
+    }
+  } catch(e){}
+  return null;
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(tab){
+  document.getElementById('tab-signup').classList.toggle('active', tab==='signup');
+  document.getElementById('tab-login').classList.toggle('active', tab==='login');
+  document.getElementById('form-signup').style.display = tab==='signup' ? '' : 'none';
+  document.getElementById('form-login').style.display  = tab==='login'  ? '' : 'none';
+  hideMessages();
+}
+
+function showError(msg){ 
+  const el = document.getElementById('error-msg');
+  el.textContent = msg; el.style.display = 'block';
+  document.getElementById('success-msg').style.display = 'none';
+}
+function showSuccess(msg){ 
+  const el = document.getElementById('success-msg');
+  el.textContent = msg; el.style.display = 'block';
+  document.getElementById('error-msg').style.display = 'none';
+}
+function hideMessages(){
+  document.getElementById('error-msg').style.display = 'none';
+  document.getElementById('success-msg').style.display = 'none';
+}
+
+// ── Sign Up ────────────────────────────────────────────────────────────────
+async function handleSignup(){
+  const company  = document.getElementById('su-company').value.trim();
+  const name     = document.getElementById('su-name').value.trim();
+  const email    = document.getElementById('su-email').value.trim();
+  const password = document.getElementById('su-password').value;
+
+  if(!email || !password){ showError('Email and password are required.'); return; }
+  if(password.length < 8){ showError('Password must be at least 8 characters.'); return; }
+
+  const btn = document.getElementById('su-btn');
+  btn.disabled = true;
+  btn.textContent = 'Creating account...';
+
+  try {
+    // Create Supabase auth user
+    const resp = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await resp.json();
+
+    if(data.error){ showError(data.error.message || 'Signup failed.'); btn.disabled=false; btn.textContent='Continue to Payment →'; return; }
+
+    // Store session
+    if(data.access_token){
+      storeSession(data);
+      // Create pro_users row
+      await createProUserRow(data.user.id, email, company, name, data.access_token);
+      // Redirect to profile to complete setup
+      showSuccess('Account created! Redirecting to your profile...');
+      setTimeout(() => window.location.href = '/profile.html', 1200);
+    } else {
+      showSuccess('Account created! Check your email to confirm, then sign in.');
+      btn.disabled = false;
+      btn.textContent = 'Continue to Payment →';
+    }
+  } catch(e){
+    showError('Something went wrong. Please try again.');
+    btn.disabled = false;
+    btn.textContent = 'Continue to Payment →';
+  }
+}
+
+// ── Sign In ────────────────────────────────────────────────────────────────
+async function handleLogin(){
+  const email    = document.getElementById('li-email').value.trim();
+  const password = document.getElementById('li-password').value;
+
+  if(!email || !password){ showError('Email and password are required.'); return; }
+
+  const btn = document.getElementById('li-btn');
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await resp.json();
+
+    if(data.error){ showError(data.error.message || 'Sign in failed. Check your email and password.'); btn.disabled=false; btn.textContent='Sign In'; return; }
+
+    storeSession(data);
+    showSuccess('Signed in! Redirecting...');
+    setTimeout(() => window.location.href = '/profile.html', 800);
+  } catch(e){
+    showError('Something went wrong. Please try again.');
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+// ── Forgot Password ────────────────────────────────────────────────────────
+async function handleForgotPassword(){
+  const email = document.getElementById('li-email').value.trim();
+  if(!email){ showError('Enter your email address first.'); return; }
+  try {
+    await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
+      body: JSON.stringify({ email })
+    });
+    showSuccess('Password reset email sent — check your inbox.');
+  } catch(e){
+    showError('Could not send reset email. Try again.');
+  }
+}
+
+// ── Session helpers ────────────────────────────────────────────────────────
+function storeSession(data){
+  try {
+    const key = `sb-${SUPABASE_URL.split('//')[1].split('.')[0]}-auth-token`;
+    localStorage.setItem(key, JSON.stringify({
+      access_token:  data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at:    Math.floor(Date.now()/1000) + (data.expires_in || 3600),
+      user:          data.user,
+    }));
+  } catch(e){}
+}
+
+async function createProUserRow(userId, email, companyName, contactName, token){
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/pro_users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${token}`,
+        'Prefer': 'return=minimal,resolution=ignore-duplicates'
+      },
+      body: JSON.stringify({ id: userId, email, company_name: companyName, contact_name: contactName, is_active: true })
+    });
+  } catch(e){}
+}
+
+// ── Check URL params — auto-switch to login tab ────────────────────────────
+if(window.location.search.includes('login')){ switchTab('login'); }
+checkSession();
+</script>
+</body>
+</html>
