@@ -1342,26 +1342,36 @@ html.light .hos-day-header{background:var(--card2)}
               <a href="https://www.dat.com/trendlines" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none;font-weight:500;white-space:nowrap">DAT ↗</a>
             </div>
           </div>
+          <!-- Regional / National toggle -->
+          <div style="display:flex;gap:6px;margin-bottom:10px">
+            <button id="btn-rate-regional" onclick="setRateMode('regional')"
+              style="font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:pointer;transition:all .15s">
+              📍 Regional
+            </button>
+            <button id="btn-rate-national" onclick="setRateMode('national')"
+              style="font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--card);color:var(--text3);cursor:pointer;transition:all .15s">
+              🌐 National Avg
+            </button>
+          </div>
           <div class="adv-grid3">
             <div class="mini-input-group">
               <div class="mini-label" style="color:#60a5fa">Dry Van</div>
-              <input class="mini-input" type="number" id="rate-van" value="2.47" step="0.01" min="0.01" style="color:#60a5fa;border-color:rgba(59,130,246,.3)" oninput="saveRates();calc()" />
+              <input class="mini-input" type="number" id="rate-van" value="2.73" step="0.01" min="0.01" style="color:#60a5fa;border-color:rgba(59,130,246,.3)" oninput="saveRates();calc()" />
               <div class="mini-sub">per mile</div>
             </div>
             <div class="mini-input-group">
               <div class="mini-label" style="color:#4ade80">Reefer</div>
-              <input class="mini-input" type="number" id="rate-reefer" value="2.88" step="0.01" min="0.01" style="color:#4ade80;border-color:rgba(34,197,94,.3)" oninput="saveRates();calc()" />
+              <input class="mini-input" type="number" id="rate-reefer" value="3.15" step="0.01" min="0.01" style="color:#4ade80;border-color:rgba(34,197,94,.3)" oninput="saveRates();calc()" />
               <div class="mini-sub">per mile</div>
             </div>
             <div class="mini-input-group">
               <div class="mini-label" style="color:var(--accent)">Flatbed</div>
-              <input class="mini-input" type="number" id="rate-flatbed" value="2.95" step="0.01" min="0.01" style="color:var(--accent);border-color:rgba(240,165,0,.3)" oninput="saveRates();calc()" />
+              <input class="mini-input" type="number" id="rate-flatbed" value="3.38" step="0.01" min="0.01" style="color:var(--accent);border-color:rgba(240,165,0,.3)" oninput="saveRates();calc()" />
               <div class="mini-sub">per mile</div>
             </div>
           </div>
           <div style="font-size:10px;line-height:1.5;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
             <div id="rate-region-label" style="color:var(--text3);margin-bottom:4px">National average — enter origin to apply regional rates</div>
-            <div style="color:var(--text3)">Rates auto-update by DAT region when you enter an origin. You can override manually at any time.</div>
           </div>
         </div>
 
@@ -3137,13 +3147,60 @@ function updateRateDisclaimer(){
 
 function saveRates(){
   ratesManualOverride = true;
+  rateMode = 'manual';
+  // Deactivate both toggle buttons
+  const btnReg = document.getElementById('btn-rate-regional');
+  const btnNat = document.getElementById('btn-rate-national');
+  if(btnReg){ btnReg.style.background='var(--card)'; btnReg.style.borderColor='var(--border2)'; btnReg.style.color='var(--text3)'; }
+  if(btnNat){ btnNat.style.background='var(--card)'; btnNat.style.borderColor='var(--border2)'; btnNat.style.color='var(--text3)'; }
   const regionEl = document.getElementById('rate-region-label');
-  if(regionEl){ regionEl.textContent='Rates entered manually'; regionEl.style.color='var(--accent)'; }
+  if(regionEl){ regionEl.textContent='✏️ Rates entered manually'; regionEl.style.color='var(--accent)'; }
   updateHeaderRates();
   updateRateDisclaimer();
 }
 // ── Regional rates storage ────────────────────────────────────────────────
 let regionalRates = null; // populated from rates.json
+let rateMode = 'regional'; // 'regional' or 'national'
+
+function setRateMode(mode){
+  rateMode = mode;
+  ratesManualOverride = false;
+  // Update button styles
+  const btnReg = document.getElementById('btn-rate-regional');
+  const btnNat = document.getElementById('btn-rate-national');
+  if(btnReg){
+    btnReg.style.background   = mode==='regional' ? 'var(--accentbg)' : 'var(--card)';
+    btnReg.style.borderColor  = mode==='regional' ? 'var(--accent)'   : 'var(--border2)';
+    btnReg.style.color        = mode==='regional' ? 'var(--accent)'   : 'var(--text3)';
+  }
+  if(btnNat){
+    btnNat.style.background   = mode==='national' ? 'rgba(96,165,250,.12)' : 'var(--card)';
+    btnNat.style.borderColor  = mode==='national' ? 'var(--blue)'          : 'var(--border2)';
+    btnNat.style.color        = mode==='national' ? 'var(--blue)'          : 'var(--text3)';
+  }
+  if(mode === 'national'){
+    // Apply national rates — use regionalRates if loaded, fall back to hardcoded defaults
+    const nat = getRatesForRegion('national') || { van:2.73, reefer:3.15, flatbed:3.38 };
+    document.getElementById('rate-van').value    = nat.van;
+    document.getElementById('rate-reefer').value = nat.reefer;
+    document.getElementById('rate-flatbed').value= nat.flatbed;
+    const regionEl = document.getElementById('rate-region-label');
+    if(regionEl){ regionEl.textContent='Using national US average rates'; regionEl.style.color='var(--blue)'; }
+  } else {
+    // Re-apply regional rates based on current origin
+    // If no origin state detected, fall back to national
+    const state  = detectOriginState();
+    const region = getRegionForState(state);
+    const rates  = getRatesForRegion(region) || { van:2.73, reefer:3.15, flatbed:3.38 };
+    document.getElementById('rate-van').value     = rates.van;
+    document.getElementById('rate-reefer').value  = rates.reefer;
+    document.getElementById('rate-flatbed').value = rates.flatbed;
+    applyRegionalRates();
+  }
+  updateHeaderRates();
+  updateRateDisclaimer();
+  calc();
+}
 
 // State → DAT region mapping
 const STATE_TO_REGION = {};
@@ -3177,7 +3234,7 @@ function detectOriginState(){
 
 // Apply regional rates to inputs — called when origin changes or rates load
 function applyRegionalRates(){
-  if(!regionalRates || ratesManualOverride) return;
+  if(!regionalRates || ratesManualOverride || rateMode === 'national') return;
   const state  = detectOriginState();
   const region = getRegionForState(state);
   const rates  = getRatesForRegion(region);
@@ -3192,8 +3249,8 @@ function applyRegionalRates(){
   const regionEl = document.getElementById('rate-region-label');
   if(regionEl){
     regionEl.textContent = state
-      ? `Auto-applied: ${label} region (${state})`
-      : 'National average — enter origin to apply regional rates';
+      ? `📍 Auto-applied: ${label} region (${state})`
+      : 'Enter origin city to apply regional rates';
     regionEl.style.color = state ? 'var(--green)' : 'var(--text3)';
   }
   updateHeaderRates();
