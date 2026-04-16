@@ -1130,9 +1130,15 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
   </div>
 </div></body></html>`;
 
-  const win = window.open('', '_blank');
-  win.document.write(html);
-  win.document.close();
+  const blob = new Blob([html], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  const tab  = window.open(url, '_blank');
+  if(tab){
+    tab.addEventListener('load', () => URL.revokeObjectURL(url), { once: true });
+  } else {
+    URL.revokeObjectURL(url);
+    alert('Pop-up blocked — please allow pop-ups for this site to download quotes.');
+  }
 }
 
 // ── Theme ──────────────────────────────────────────────────────────────────

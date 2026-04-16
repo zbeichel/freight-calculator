@@ -2901,14 +2901,15 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 .screen-controls{display:flex;gap:12px;margin-bottom:24px;align-items:center;flex-wrap:wrap}
 .btn-print{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:10px 22px;border-radius:8px;border:none;background:${scheme.header};color:${scheme.accent};cursor:pointer}
 .screen-note{font-size:12px;color:#6b7a8d}
-.doc{background:#fff;border-radius:4px;box-shadow:0 4px 40px rgba(0,0,0,.12);overflow:hidden}
+.doc{background:#fff;border-radius:4px;box-shadow:0 4px 40px rgba(0,0,0,.12);overflow:hidden;display:flex;flex-direction:column;min-height:1050px}
+.doc-body-flex{flex:1}
 .doc-header{background:${scheme.header};padding:28px 40px;display:flex;align-items:center;justify-content:space-between;gap:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-meta{text-align:right}
 .doc-title{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.02em;margin-bottom:4px}
 .doc-number{font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.35);margin-bottom:2px}
 .doc-date{font-size:11px;color:rgba(255,255,255,.35)}
 .accent-bar{height:4px;background:${scheme.bar};-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.doc-body{padding:36px 40px}
+.doc-body{padding:36px 40px;flex:1}
 .quote-hero{background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .quote-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
 .quote-amount{font-size:42px;font-weight:700;color:#1a1f2e;letter-spacing:-.03em;line-height:1}
@@ -2943,27 +2944,20 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
   html,body{background:white;padding:0;margin:0}
   .screen-controls{display:none!important}
   .page-wrap{max-width:100%;margin:0;padding:0}
-  .doc{box-shadow:none;border-radius:0;margin:0}
-  .doc-body{padding:20px 30px}
+  .doc{box-shadow:none;border-radius:0;margin:0;display:flex;flex-direction:column;min-height:100vh}
   .doc-header{padding:20px 30px}
-
-  /* Footer fixed to bottom of every page */
+  .doc-body{padding:20px 30px;flex:1}
   .doc-footer{
-    position:fixed;
-    bottom:0;left:0;right:0;
     padding:10px 30px;
-    border-top:1px solid #e4e8ef;
-    background:#f8f9fc;
-    -webkit-print-color-adjust:exact;
-    print-color-adjust:exact;
+    background:#f8f9fc !important;
+    border-top:1px solid #e4e8ef !important;
+    margin-top:auto;
   }
-  /* Add bottom padding to body so content doesn't hide behind fixed footer */
-  .doc-body{padding-bottom:60px}
 
   /* Keep these sections together — never split mid-block */
   .route-section{page-break-inside:avoid;break-inside:avoid;margin-bottom:16px}
   .details-section{page-break-inside:avoid;break-inside:avoid;margin-bottom:16px}
-  .notes-section{page-break-inside:avoid;break-inside:avoid;margin-bottom:16px;max-height:none}
+  .notes-section{page-break-inside:avoid;break-inside:avoid;margin-bottom:16px}
   .signature-section{page-break-inside:avoid;break-inside:avoid;page-break-before:auto;break-before:auto;margin-bottom:16px}
   .signature-grid{page-break-inside:avoid;break-inside:avoid}
   .quote-hero{page-break-inside:avoid;break-inside:avoid;padding:16px 20px;margin-bottom:18px}
@@ -2974,7 +2968,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
   .notes-box{min-height:50px}
   .signature-line{height:24px}
   .signature-name-line{height:20px}
-  @page{size:letter portrait;margin:0 0 50px 0}
+  @page{size:letter portrait;margin:0}
 }
 </style>
 </head>
@@ -3070,9 +3064,18 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 </body>
 </html>`;
 
-  const win = window.open('', '_blank');
-  win.document.write(html);
-  win.document.close();
+  // Use a blob URL opened in a new tab — doesn't steal focus from current page
+  const blob = new Blob([html], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  const tab  = window.open(url, '_blank');
+  // Clean up the blob URL after the tab has loaded
+  if(tab){
+    tab.addEventListener('load', () => URL.revokeObjectURL(url), { once: true });
+  } else {
+    // Fallback if popup blocked
+    URL.revokeObjectURL(url);
+    alert('Pop-up blocked — please allow pop-ups for this site to download quotes.');
+  }
 }
 
 // ── End PDF Generator ─────────────────────────────────────────────────────
