@@ -1737,7 +1737,7 @@ html.light .hos-day-header{background:var(--card2)}
           onmouseout="if(!this.disabled){this.style.background='var(--accentbg)';this.style.color='var(--accent)'}">
           📄 Download Quote PDF
         </button>
-        <div id="pro-upgrade-note" style="font-size:10px;color:var(--text3);text-align:center;margin-top:6px">Pro feature · <a href="#" style="color:var(--accent);text-decoration:none">Upgrade to unlock</a></div>
+        <div id="pro-upgrade-note" style="font-size:10px;color:var(--text3);text-align:center;margin-top:6px">Pro feature · <a href="#" onclick="event.preventDefault();showProModal('Download Quote PDF is a Pro feature. Upgrade to generate branded PDF quotes with your logo, colors, and contact info.')" style="color:var(--accent);text-decoration:none">Upgrade to unlock</a></div>
       </div>
     </div>
 
@@ -4768,10 +4768,10 @@ calc();
     onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
     onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">✕</button>
 
-    <div style="background:linear-gradient(135deg,#1a1f2e 0%,#0f1318 100%);padding:28px 28px 24px;text-align:center;border-bottom:1px solid var(--border)">
+    <div style="background:linear-gradient(135deg,#1a1f2e 0%,#0f1318 100%);padding:28px 28px 24px;text-align:center;border-bottom:1px solid var(--border);-webkit-print-color-adjust:exact;print-color-adjust:exact">
       <div style="font-size:32px;margin-bottom:8px">🚛</div>
-      <div style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:6px">QuickFreightCalc <span style="color:var(--accent)">Pro</span></div>
-      <div style="font-size:13px;color:var(--text3);line-height:1.5" id="pro-modal-desc">This is a Pro feature. Upgrade to unlock the full toolkit.</div>
+      <div style="font-size:20px;font-weight:700;color:#f0f4f8;margin-bottom:6px">QuickFreightCalc <span style="color:#f0a500">Pro</span></div>
+      <div style="font-size:13px;color:#8fa3b8;line-height:1.5" id="pro-modal-desc">This is a Pro feature. Upgrade to unlock the full toolkit.</div>
     </div>
 
     <div style="padding:20px 28px;border-bottom:1px solid var(--border)">
@@ -4788,20 +4788,20 @@ calc();
 
     <div style="padding:20px 28px">
       <div style="text-align:center;font-size:13px;color:var(--text3);margin-bottom:14px">
-        <strong style="color:var(--accent);font-size:18px">$9</strong>/month &nbsp;·&nbsp; 7-day free trial &nbsp;·&nbsp; Cancel anytime
+        <strong style="color:var(--accent);font-size:18px">$9</strong>/month &nbsp;·&nbsp; Cancel anytime
       </div>
-      <a href="/signup.html" style="
+      <a href="/signup.html" onclick="closeProModal()" style="
         display:block;width:100%;text-align:center;
         font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;
         padding:12px;border-radius:8px;
-        background:var(--accent);color:#000;text-decoration:none;
-        transition:opacity .15s;
+        background:#f0a500;color:#000;text-decoration:none;
+        transition:opacity .15s;box-sizing:border-box;
       "
       onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
-        Start Free Trial →
+        Sign Up for Pro →
       </a>
       <div style="text-align:center;margin-top:10px">
-        <a href="/signup.html?login" style="font-size:12px;color:var(--text3);text-decoration:none"
+        <a href="/signup.html?login" onclick="closeProModal()" style="font-size:12px;color:var(--text3);text-decoration:none"
           onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">
           Already have an account? Sign in
         </a>
