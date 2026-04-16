@@ -278,6 +278,11 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Sp
               Max size: 2MB. Will be scaled to fit the PDF header automatically.<br>
               Your logo is stored locally in your browser and in your account profile.
             </div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:12px;color:var(--text2)">
+              <input type="checkbox" id="hide-logo" onchange="updatePreview()"
+                style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer" />
+              Hide logo from PDF quotes
+            </label>
           </div>
         </div>
         <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp" onchange="handleLogoUpload(this)" />
@@ -364,6 +369,18 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Sp
   <div class="save-bar-note" id="save-note">Changes are saved locally until your account syncs.</div>
   <button class="save-btn" onclick="saveProfile()">💾 Save Changes</button>
 </div>
+
+<!-- Floating theme button — sits above save bar -->
+<button id="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode" style="
+  position:fixed;bottom:80px;right:24px;z-index:200;
+  display:flex;align-items:center;gap:7px;
+  background:var(--card);border:1px solid var(--border2);border-radius:20px;
+  padding:8px 14px 8px 10px;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:var(--text2);
+  transition:all .15s;box-shadow:0 4px 16px rgba(0,0,0,.3);">
+  <span id="theme-icon" style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)">🌙</span>
+  <span id="theme-label">Dark</span>
+</button>
 
 <!-- Toast -->
 <div class="toast" id="toast">✓ Profile saved successfully</div>
@@ -474,21 +491,53 @@ function updateQuotePreview(){
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
 
-function getSession(){
+function getSessionRaw(){
   try {
     const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
     for(const key of keys){
       const val = JSON.parse(localStorage.getItem(key) || '{}');
-      if(val?.access_token){
-        // Check if expired
-        if(val.expires_at && val.expires_at < Math.floor(Date.now()/1000)){
-          return null;
-        }
-        return val;
-      }
+      if(val?.access_token) return { key, val };
     }
   } catch(e){}
   return null;
+}
+
+function getSession(){
+  const result = getSessionRaw();
+  if(!result) return null;
+  const { val } = result;
+  // Allow slightly expired tokens — refresh will handle it
+  return val;
+}
+
+async function getSessionRefreshed(){
+  const result = getSessionRaw();
+  if(!result) return null;
+  const { key, val } = result;
+  if(!val?.access_token) return null;
+  // Refresh if expired or expiring within 5 minutes
+  if(val.expires_at && val.expires_at < Math.floor(Date.now()/1000) + 300){
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
+        body: JSON.stringify({ refresh_token: val.refresh_token })
+      });
+      const data = await resp.json();
+      if(data.access_token){
+        const newVal = {
+          access_token:  data.access_token,
+          refresh_token: data.refresh_token || val.refresh_token,
+          expires_at:    Math.floor(Date.now()/1000) + (data.expires_in || 3600),
+          user:          data.user || val.user,
+        };
+        localStorage.setItem(key, JSON.stringify(newVal));
+        return newVal;
+      }
+    } catch(e){}
+    return null;
+  }
+  return val;
 }
 
 function clearSession(){
@@ -498,9 +547,8 @@ function clearSession(){
 }
 
 async function checkAuth(){
-  const session = getSession();
+  const session = await getSessionRefreshed();
   if(!session){
-    // Not logged in — redirect to signup
     window.location.href = '/signup.html?login';
     return null;
   }
@@ -536,6 +584,7 @@ async function saveProfile(){
     quoteStart:   parseInt(document.getElementById('quote-start').value) || 1001,
     colorScheme:  currentScheme,
     logoBase64:   logoBase64,
+    hideLogo:     document.getElementById('hide-logo').checked,
     savedAt:      new Date().toISOString(),
   };
 
@@ -543,10 +592,11 @@ async function saveProfile(){
   try { localStorage.setItem('qfc_pro_profile', JSON.stringify(profile)); } catch(e){}
 
   // Also save to Supabase if logged in
-  const session = getSession();
-  if(session){
+  const session = await getSessionRefreshed();
+  const userId = session?.user?.id || session?.user?.sub;
+  if(session && userId){
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${session.user.id}`, {
+      await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${userId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -582,12 +632,13 @@ async function saveProfile(){
 
 // ── Load from Supabase (fall back to localStorage) ─────────────────────────
 async function loadProfile(){
-  const session = getSession();
+  const session = await getSessionRefreshed();
+  const userId = session?.user?.id || session?.user?.sub;
 
   // Try Supabase first
-  if(session){
+  if(session && userId){
     try {
-      const resp = await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${session.user.id}&select=*`, {
+      const resp = await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${userId}&select=*`, {
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` }
       });
       const rows = await resp.json();
@@ -636,6 +687,7 @@ function populateForm(p){
   if(p.quotePrefix) document.getElementById('quote-prefix').value = p.quotePrefix;
   if(p.quoteStart)  document.getElementById('quote-start').value = p.quoteStart;
   if(p.colorScheme) currentScheme = p.colorScheme;
+  if(p.hideLogo) document.getElementById('hide-logo').checked = true;
   if(p.logoBase64){
     logoBase64 = p.logoBase64;
     document.getElementById('logo-placeholder').style.display = 'none';
@@ -666,18 +718,6 @@ renderSchemes();
 updatePreview();
 updateQuotePreview();
 </script>
-<!-- Floating theme button -->
-<button id="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode" style="
-  position:fixed;bottom:24px;right:24px;z-index:999;
-  display:flex;align-items:center;gap:7px;
-  background:var(--card);border:1px solid var(--border2);border-radius:20px;
-  padding:8px 14px 8px 10px;cursor:pointer;
-  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:var(--text2);
-  transition:border-color .15s,color .15s,box-shadow .15s;
-  box-shadow:0 4px 16px rgba(0,0,0,.3);">
-  <span id="theme-icon" style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)">🌙</span>
-  <span id="theme-label">Dark</span>
-</button>
 
 <script>
 // ── Theme sync ─────────────────────────────────────────────────────────────

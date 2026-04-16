@@ -1014,7 +1014,7 @@ function generateMultiStopPDF(){
   const scheme = SCHEMES[profile.colorScheme] || SCHEMES.midnight;
   const stopFee = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
 
-  const logoHTML = profile.logoBase64
+  const logoHTML = (!profile.hideLogo && profile.logoBase64)
     ? `<img src="${profile.logoBase64}" style="max-height:40px;max-width:130px;object-fit:contain">`
     : `<span style="font-size:28px">🚛</span>`;
   const companyHTML = profile.companyName

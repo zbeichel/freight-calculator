@@ -1944,50 +1944,92 @@ let quoteLog=[], advOpen=false, shipType='ftl';
 // ── Pro user flag — set to true when Supabase auth confirms active subscription ──
 let isProUser = false;
 
+async function refreshSession(key, val){
+  try {
+    if(!val.refresh_token) return null;
+    const resp = await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/auth/v1/token?grant_type=refresh_token', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ' },
+      body: JSON.stringify({ refresh_token: val.refresh_token })
+    });
+    const data = await resp.json();
+    if(data.access_token){
+      const newVal = {
+        access_token:  data.access_token,
+        refresh_token: data.refresh_token || val.refresh_token,
+        expires_at:    Math.floor(Date.now()/1000) + (data.expires_in || 3600),
+        user:          data.user || val.user,
+      };
+      localStorage.setItem(key, JSON.stringify(newVal));
+      return newVal;
+    }
+  } catch(e){}
+  return null;
+}
+
 async function checkProAuth(){
   try {
     const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
     for(const key of keys){
-      const val = JSON.parse(localStorage.getItem(key) || '{}');
-      if(val?.access_token){
-        if(val.expires_at && val.expires_at < Math.floor(Date.now()/1000)) continue;
-        // Valid session — check if pro user is active
-        const resp = await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users?id=eq.'+val.user.id+'&select=is_active', {
-          headers: {
-            'apikey': 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ',
-            'Authorization': `Bearer ${val.access_token}`
-          }
-        });
-        const rows = await resp.json();
-        if(rows?.[0]?.is_active){
-          isProUser = true;
-          // Also load their profile into localStorage for PDF generation
-          const profResp = await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users?id=eq.'+val.user.id+'&select=*', {
-            headers: {
-              'apikey': 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ',
-              'Authorization': `Bearer ${val.access_token}`
-            }
-          });
-          const profRows = await profResp.json();
-          if(profRows?.[0]){
-            const p = profRows[0];
-            localStorage.setItem('qfc_pro_profile', JSON.stringify({
-              companyName: p.company_name, contactName: p.contact_name,
-              email: p.email, phone: p.phone, mcNumber: p.mc_number,
-              dotNumber: p.dot_number, footerText: p.footer_text,
-              quotePrefix: p.quote_prefix, quoteStart: p.quote_counter,
-              colorScheme: p.color_scheme, logoBase64: p.logo_base64,
-            }));
-            // Load saved rate profiles
-            if(p.rate_profiles && Array.isArray(p.rate_profiles)){
-              localStorage.setItem(PROFILES_KEY, JSON.stringify(p.rate_profiles));
-            }
-          }
-        }
-        break;
+      let val;
+      try { val = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e){ continue; }
+      if(!val?.access_token) continue;
+
+      // Refresh if expired or expiring within 5 minutes
+      if(val.expires_at && val.expires_at < Math.floor(Date.now()/1000) + 300){
+        const refreshed = await refreshSession(key, val);
+        if(refreshed) val = refreshed;
+        else { localStorage.removeItem(key); continue; }
       }
+
+      // Get user id — handle both session formats
+      const userId = val.user?.id || val.user?.sub;
+      if(!userId) continue;
+
+      // Check pro_users table
+      const resp = await fetch(`https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users?id=eq.${userId}&select=*`, {
+        headers: {
+          'apikey': 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ',
+          'Authorization': `Bearer ${val.access_token}`
+        }
+      });
+      const rows = await resp.json();
+
+      if(rows?.[0]){
+        // Set pro active if row exists — is_active defaults true on signup
+        if(rows[0].is_active !== false) isProUser = true;
+
+        // Sync profile to localStorage
+        const p = rows[0];
+        localStorage.setItem('qfc_pro_profile', JSON.stringify({
+          companyName: p.company_name, contactName: p.contact_name,
+          email: p.email, phone: p.phone, mcNumber: p.mc_number,
+          dotNumber: p.dot_number, footerText: p.footer_text,
+          quotePrefix: p.quote_prefix, quoteStart: p.quote_counter,
+          colorScheme: p.color_scheme, logoBase64: p.logo_base64,
+        }));
+        if(p.rate_profiles && Array.isArray(p.rate_profiles)){
+          localStorage.setItem(PROFILES_KEY, JSON.stringify(p.rate_profiles));
+        }
+      } else {
+        // No row yet — create one (handles edge case where signup row creation failed)
+        if(val.user?.email){
+          await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users', {
+            method: 'POST',
+            headers: {
+              'Content-Type':'application/json',
+              'apikey':'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ',
+              'Authorization':`Bearer ${val.access_token}`,
+              'Prefer':'return=minimal,resolution=ignore-duplicates'
+            },
+            body: JSON.stringify({ id: userId, email: val.user.email, is_active: true })
+          });
+          isProUser = true;
+        }
+      }
+      break;
     }
-  } catch(e){}
+  } catch(e){ console.warn('checkProAuth error:', e); }
   updateProUI();
   updateProAccountBtn();
 }
@@ -2805,8 +2847,8 @@ function generateQuotePDF(){
     localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
   } catch(e){}
 
-  // Header branding — logo or emoji
-  const logoHTML = profile.logoBase64
+  // Header branding — logo or emoji (unless hidden)
+  const logoHTML = (!profile.hideLogo && profile.logoBase64)
     ? `<img src="${profile.logoBase64}" style="max-height:44px;max-width:140px;object-fit:contain" />`
     : `<span style="font-size:32px;line-height:1">🚛</span>`;
 
