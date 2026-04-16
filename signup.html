@@ -110,24 +110,39 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Sp
 <body>
 
 <div class="header">
-  <a href="/" class="back-link">← Back to Calculator</a>
+  <a href="/" class="back-link">← Calculator</a>
   <div class="brand-name">Quick<span>Freight</span>Calc</div>
-  <div style="width:120px"></div>
+  <div style="width:80px"></div>
 </div>
 
 <div class="page">
-  <div class="auth-card">
+  <div class="auth-card" style="position:relative">
+
+    <!-- Close button on the card -->
+    <button onclick="window.history.length>1?window.history.back():window.location.href='/'" style="
+      position:absolute;top:12px;right:12px;z-index:10;
+      font-size:16px;line-height:1;
+      background:var(--card2);border:1px solid var(--border2);border-radius:8px;
+      color:var(--text3);cursor:pointer;width:30px;height:30px;
+      display:flex;align-items:center;justify-content:center;
+      transition:all .15s;
+    "
+    onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+    onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'"
+    title="Close">✕</button>
 
     <div class="auth-hero">
       <div class="auth-emoji">🚛</div>
       <div class="auth-title">QuickFreightCalc <span style="color:var(--accent)">Pro</span></div>
       <div class="auth-sub">The complete freight quoting toolkit for brokers and dispatchers</div>
       <div class="pro-features">
-        <div class="pro-feature"><span class="pro-feature-icon">📄</span> Branded PDF quote generator</div>
-        <div class="pro-feature"><span class="pro-feature-icon">🎨</span> Custom logo & color schemes</div>
-        <div class="pro-feature"><span class="pro-feature-icon">🏢</span> Company info on every quote</div>
-        <div class="pro-feature"><span class="pro-feature-icon">🔢</span> Sequential quote numbering</div>
-        <div class="pro-feature"><span class="pro-feature-icon">📝</span> Load notes on PDF quotes</div>
+        <div class="pro-feature"><span class="pro-feature-icon">📄</span> Custom branded PDF quotes — your logo & colors</div>
+        <div class="pro-feature"><span class="pro-feature-icon">📝</span> Load notes added to every PDF quote</div>
+        <div class="pro-feature"><span class="pro-feature-icon">🗺</span> Multi-stop freight rate calculator</div>
+        <div class="pro-feature"><span class="pro-feature-icon">💾</span> Save up to 100 custom lane profiles</div>
+        <div class="pro-feature"><span class="pro-feature-icon">🔢</span> Sequential quote numbering — looks pro when billing</div>
+        <div class="pro-feature"><span class="pro-feature-icon">📇</span> Your contact info & MC/DOT# on every quote</div>
+        <div class="pro-feature"><span class="pro-feature-icon">🔄</span> Sync across devices — log in anywhere</div>
       </div>
     </div>
 
