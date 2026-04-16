@@ -9,8 +9,8 @@
 <style>
 :root{
   --bg:#0a0c10;--panel:#0f1318;--card:#151a22;--card2:#1a2030;
-  --border:#1e2a38;--border2:#243040;--text:#f0f4f8;--text2:#8fa3b8;
-  --text3:#4a6070;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
+  --border:#1e2a38;--border2:#243040;--text:#ffffff;--text2:#b0c4d8;
+  --text3:#6b7f94;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
   --green:#4ade80;--red:#f87171;--radius:12px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -400,7 +400,7 @@ checkSession();
 function applyTheme(theme){
   const root = document.documentElement;
   if(theme === 'light'){
-    root.style.setProperty('--bg','#f0f4f8');
+    root.style.setProperty('--bg','#ffffff');
     root.style.setProperty('--panel','#ffffff');
     root.style.setProperty('--card','#f8fafc');
     root.style.setProperty('--card2','#eef2f7');
@@ -418,9 +418,9 @@ function applyTheme(theme){
     root.style.setProperty('--card2','#1a2030');
     root.style.setProperty('--border','#1e2a38');
     root.style.setProperty('--border2','#243040');
-    root.style.setProperty('--text','#f0f4f8');
-    root.style.setProperty('--text2','#8fa3b8');
-    root.style.setProperty('--text3','#4a6070');
+    root.style.setProperty('--text','#ffffff');
+    root.style.setProperty('--text2','#b0c4d8');
+    root.style.setProperty('--text3','#6b7f94');
     document.getElementById('theme-icon').textContent = '🌙';
     document.getElementById('theme-label').textContent = 'Dark';
   }

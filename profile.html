@@ -14,9 +14,9 @@
   --card2:   #1a2030;
   --border:  #1e2a38;
   --border2: #243040;
-  --text:    #f0f4f8;
-  --text2:   #8fa3b8;
-  --text3:   #4a6070;
+  --text:    #ffffff;
+  --text2:   #b0c4d8;
+  --text3:   #6b7f94;
   --accent:  #f0a500;
   --accentbg:rgba(240,165,0,.1);
   --green:   #4ade80;
@@ -141,13 +141,13 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Sp
 }
 .pdf-mini-brand{display:flex;align-items:center;gap:8px}
 .pdf-mini-brand-emoji{font-size:18px}
-.pdf-mini-brand-name{font-size:11px;font-weight:700;color:#8fa3b8}
+.pdf-mini-brand-name{font-size:11px;font-weight:700;color:#b0c4d8}
 .pdf-mini-brand-name span{transition:color .3s}
 .pdf-mini-title{font-size:13px;font-weight:700;color:#fff}
 .pdf-mini-bar{height:3px;transition:background .3s}
 .pdf-mini-body{background:#ffffff;padding:14px 20px}
 .pdf-mini-amount{font-size:20px;font-weight:700;color:#1a1f2e;margin-bottom:8px}
-.pdf-mini-route{display:flex;align-items:center;gap:8px;font-size:11px;color:#8fa3b8}
+.pdf-mini-route{display:flex;align-items:center;gap:8px;font-size:11px;color:#b0c4d8}
 
 /* ── Save bar ── */
 .save-bar{
@@ -317,7 +317,7 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Sp
             </div>
             <div class="pdf-mini-bar" id="preview-bar"></div>
             <div class="pdf-mini-body">
-              <div style="font-size:9px;color:#8fa3b8;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Total Quote to Customer</div>
+              <div style="font-size:9px;color:#b0c4d8;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Total Quote to Customer</div>
               <div class="pdf-mini-amount">$3,842</div>
               <div class="pdf-mini-route">
                 <span>📍 Hastings, FL</span>
@@ -684,7 +684,7 @@ updateQuotePreview();
 function applyTheme(theme){
   const root = document.documentElement;
   if(theme === 'light'){
-    root.style.setProperty('--bg','#f0f4f8');
+    root.style.setProperty('--bg','#ffffff');
     root.style.setProperty('--panel','#ffffff');
     root.style.setProperty('--card','#f8fafc');
     root.style.setProperty('--card2','#eef2f7');
@@ -702,9 +702,9 @@ function applyTheme(theme){
     root.style.setProperty('--card2','#1a2030');
     root.style.setProperty('--border','#1e2a38');
     root.style.setProperty('--border2','#243040');
-    root.style.setProperty('--text','#f0f4f8');
-    root.style.setProperty('--text2','#8fa3b8');
-    root.style.setProperty('--text3','#4a6070');
+    root.style.setProperty('--text','#ffffff');
+    root.style.setProperty('--text2','#b0c4d8');
+    root.style.setProperty('--text3','#6b7f94');
     document.getElementById('theme-icon').textContent = '🌙';
     document.getElementById('theme-label').textContent = 'Dark';
   }

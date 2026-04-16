@@ -9,8 +9,8 @@
 <style>
 :root {
   --bg:#0a0c10;--panel:#0f1318;--card:#151a22;--card2:#1a2030;
-  --border:#1e2a38;--border2:#243040;--text:#f0f4f8;--text2:#8fa3b8;
-  --text3:#4a6070;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
+  --border:#1e2a38;--border2:#243040;--text:#ffffff;--text2:#b0c4d8;
+  --text3:#6b7f94;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
   --green:#4ade80;--red:#f87171;--blue:#60a5fa;--radius:12px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1020,14 +1020,14 @@ function generateMultiStopPDF(){
   const companyHTML = profile.companyName
     ? `<div style="font-size:16px;font-weight:700;color:#fff">${profile.companyName}</div>
        <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Licensed Freight Broker</div>`
-    : `<div style="font-size:16px;font-weight:700;color:#8fa3b8">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
-       <div style="font-size:10px;color:#4a6070;text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Freight Rate Calculator</div>`;
+    : `<div style="font-size:16px;font-weight:700;color:#b0c4d8">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
+       <div style="font-size:10px;color:#6b7f94;text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Freight Rate Calculator</div>`;
 
   const hasContact = profile.contactName || profile.phone || profile.email || profile.mcNumber;
   const contactItems = [profile.contactName, profile.phone, profile.email,
     profile.mcNumber?`MC# ${profile.mcNumber}`:'', profile.dotNumber?`DOT# ${profile.dotNumber}`:''].filter(Boolean);
   const contactStrip = hasContact
-    ? `<div style="background:#f4f6f9;border-bottom:1px solid #e4e8ef;padding:7px 36px;font-size:11px;color:#4a6070">
+    ? `<div style="background:#f4f6f9;border-bottom:1px solid #e4e8ef;padding:7px 36px;font-size:11px;color:#6b7f94">
         ${contactItems.join(' &nbsp;·&nbsp; ')}
        </div>` : '';
 
@@ -1039,15 +1039,15 @@ function generateMultiStopPDF(){
   const stopsHTML = stops.map((s, idx) => {
     const isLast = idx === stops.length - 1;
     const typeLabel = s.type === 'pickup' ? '📍 Pickup' : '🏁 Delivery';
-    const weightNote = s.type === 'pickup' && s.weight ? `<div style="font-size:11px;color:#8fa3b8;margin-top:2px">${parseInt(s.weight).toLocaleString()} lbs</div>` : '';
+    const weightNote = s.type === 'pickup' && s.weight ? `<div style="font-size:11px;color:#b0c4d8;margin-top:2px">${parseInt(s.weight).toLocaleString()} lbs</div>` : '';
     const legMi = legMiles[s.id];
-    const legLine = !isLast ? `<div style="text-align:center;padding:6px 0;color:#8fa3b8;font-size:11px">↓ ${legMi ? legMi.toLocaleString()+' mi' : '— mi'}</div>` : '';
+    const legLine = !isLast ? `<div style="text-align:center;padding:6px 0;color:#b0c4d8;font-size:11px">↓ ${legMi ? legMi.toLocaleString()+' mi' : '— mi'}</div>` : '';
     const charge = idx > 0 ? (stopChargeOverrides[s.id] !== undefined ? stopChargeOverrides[s.id] : stopFee) : null;
     const chargeNote = charge !== null ? `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+$${charge} stop fee</span>` : '';
 
     return `<div style="padding:10px 16px;background:#fff;border-radius:8px;margin-bottom:2px;border:1px solid #e4e8ef">
       <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.08em">Stop ${idx+1} · ${typeLabel}</span>
+        <span style="font-size:10px;font-weight:700;color:#b0c4d8;text-transform:uppercase;letter-spacing:.08em">Stop ${idx+1} · ${typeLabel}</span>
         ${chargeNote}
       </div>
       <div style="font-size:15px;font-weight:700;color:#1a1f2e;margin-top:3px">${s.location || '—'}</div>
@@ -1091,40 +1091,40 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
       <!-- Quote hero -->
       <div style="background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;-webkit-print-color-adjust:exact;print-color-adjust:exact">
         <div>
-          <div style="font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Total Quote to Customer</div>
+          <div style="font-size:10px;font-weight:700;color:#b0c4d8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Total Quote to Customer</div>
           <div style="font-size:38px;font-weight:700;color:#1a1f2e;letter-spacing:-.03em;line-height:1">${total}</div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:12px;color:#8fa3b8;margin-bottom:4px">${totalMiles.toLocaleString()} total miles</div>
-          <div style="font-size:12px;color:#8fa3b8">${totalWeight > 0 ? totalWeight.toLocaleString() + ' lbs total' : ''}</div>
+          <div style="font-size:12px;color:#b0c4d8;margin-bottom:4px">${totalMiles.toLocaleString()} total miles</div>
+          <div style="font-size:12px;color:#b0c4d8">${totalWeight > 0 ? totalWeight.toLocaleString() + ' lbs total' : ''}</div>
           <div style="display:inline-block;background:#fff8e6;border:1px solid ${scheme.accent};color:#c07800;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;margin-top:6px;text-transform:uppercase">${document.getElementById('ms-trailer').options[document.getElementById('ms-trailer').selectedIndex].text}</div>
         </div>
       </div>
       <!-- Route -->
       <div style="margin-bottom:24px">
-        <div style="font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e4e8ef">Route · ${stops.length} Stops</div>
+        <div style="font-size:10px;font-weight:700;color:#b0c4d8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e4e8ef">Route · ${stops.length} Stops</div>
         ${stopsHTML}
       </div>
       <!-- Signature -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div style="border:1px solid #e4e8ef;border-radius:10px;padding:14px 18px">
-          <div style="font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Carrier Acceptance</div>
+          <div style="font-size:10px;font-weight:700;color:#b0c4d8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Carrier Acceptance</div>
           <div style="border-bottom:1px solid #1a1f2e;height:28px;margin-bottom:5px"></div>
-          <div style="font-size:10px;color:#8fa3b8;margin-bottom:10px">Signature</div>
+          <div style="font-size:10px;color:#b0c4d8;margin-bottom:10px">Signature</div>
           <div style="border-bottom:1px solid #d0d8e4;height:24px;margin-bottom:5px"></div>
-          <div style="font-size:10px;color:#8fa3b8">Printed Name &amp; Date</div>
+          <div style="font-size:10px;color:#b0c4d8">Printed Name &amp; Date</div>
         </div>
         <div style="border:1px solid #e4e8ef;border-radius:10px;padding:14px 18px">
-          <div style="font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Broker Authorization</div>
+          <div style="font-size:10px;font-weight:700;color:#b0c4d8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Broker Authorization</div>
           <div style="border-bottom:1px solid #1a1f2e;height:28px;margin-bottom:5px"></div>
-          <div style="font-size:10px;color:#8fa3b8;margin-bottom:10px">Signature</div>
+          <div style="font-size:10px;color:#b0c4d8;margin-bottom:10px">Signature</div>
           <div style="border-bottom:1px solid #d0d8e4;height:24px;margin-bottom:5px"></div>
-          <div style="font-size:10px;color:#8fa3b8">Printed Name &amp; Date</div>
+          <div style="font-size:10px;color:#b0c4d8">Printed Name &amp; Date</div>
         </div>
       </div>
     </div>
     <div style="background:#f8f9fc;border-top:1px solid #e4e8ef;padding:12px 36px;display:flex;justify-content:space-between;align-items:center;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-      <div style="font-size:11px;color:#8fa3b8">${profile.companyName||'🚛 QuickFreightCalc'} · ${profile.companyName?'Powered by QuickFreightCalc':'quickfreightcalc.com'}</div>
+      <div style="font-size:11px;color:#b0c4d8">${profile.companyName||'🚛 QuickFreightCalc'} · ${profile.companyName?'Powered by QuickFreightCalc':'quickfreightcalc.com'}</div>
       <div style="font-size:10px;color:#aab8c8">Rates subject to change · Valid 24 hours from issue</div>
     </div>
   </div>
@@ -1139,7 +1139,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
 function applyTheme(theme){
   const r = document.documentElement;
   if(theme==='light'){
-    r.style.setProperty('--bg','#f0f4f8');r.style.setProperty('--panel','#ffffff');
+    r.style.setProperty('--bg','#ffffff');r.style.setProperty('--panel','#ffffff');
     r.style.setProperty('--card','#f8fafc');r.style.setProperty('--card2','#eef2f7');
     r.style.setProperty('--border','#dde3ed');r.style.setProperty('--border2','#c8d4e0');
     r.style.setProperty('--text','#0f172a');r.style.setProperty('--text2','#334155');
@@ -1150,8 +1150,8 @@ function applyTheme(theme){
     r.style.setProperty('--bg','#0a0c10');r.style.setProperty('--panel','#0f1318');
     r.style.setProperty('--card','#151a22');r.style.setProperty('--card2','#1a2030');
     r.style.setProperty('--border','#1e2a38');r.style.setProperty('--border2','#243040');
-    r.style.setProperty('--text','#f0f4f8');r.style.setProperty('--text2','#8fa3b8');
-    r.style.setProperty('--text3','#4a6070');
+    r.style.setProperty('--text','#ffffff');r.style.setProperty('--text2','#b0c4d8');
+    r.style.setProperty('--text3','#6b7f94');
     document.getElementById('theme-icon').textContent='🌙';
     document.getElementById('theme-label').textContent='Dark';
   }
