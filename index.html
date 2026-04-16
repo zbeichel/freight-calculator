@@ -184,14 +184,17 @@ header{
   z-index:10;
   border-bottom:1px solid var(--border);
   padding:0 40px;
-  display:flex;
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
   align-items:center;
-  justify-content:space-between;
   gap:16px;
   height:64px;
   background:rgba(10,12,16,0.9);
   backdrop-filter:blur(12px);
 }
+header .brand{ justify-self:start; }
+header .header-right{ justify-self:center; }
+header .pro-account-btn{ justify-self:end; }
 .brand{
   display:flex;
   align-items:center;
