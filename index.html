@@ -2901,14 +2901,14 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 .screen-controls{display:flex;gap:12px;margin-bottom:24px;align-items:center;flex-wrap:wrap}
 .btn-print{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:10px 22px;border-radius:8px;border:none;background:${scheme.header};color:${scheme.accent};cursor:pointer}
 .screen-note{font-size:12px;color:#6b7a8d}
-.doc{background:#fff;border-radius:4px;box-shadow:0 4px 40px rgba(0,0,0,.12);overflow:hidden;display:flex;flex-direction:column;min-height:1056px}
+.doc{background:#fff;border-radius:4px;box-shadow:0 4px 40px rgba(0,0,0,.12);overflow:hidden}
 .doc-header{background:${scheme.header};padding:28px 40px;display:flex;align-items:center;justify-content:space-between;gap:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-meta{text-align:right}
 .doc-title{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.02em;margin-bottom:4px}
 .doc-number{font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.35);margin-bottom:2px}
 .doc-date{font-size:11px;color:rgba(255,255,255,.35)}
 .accent-bar{height:4px;background:${scheme.bar};-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.doc-body{padding:36px 40px;flex:1}
+.doc-body{padding:36px 40px}
 .quote-hero{background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .quote-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
 .quote-amount{font-size:42px;font-weight:700;color:#1a1f2e;letter-spacing:-.03em;line-height:1}
@@ -2940,27 +2940,41 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 .doc-footer{background:#f8f9fc;border-top:1px solid #e4e8ef;padding:16px 40px;display:flex;align-items:center;justify-content:space-between;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 @media print{
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
-  html,body{height:100%;background:white;padding:0;margin:0}
+  html,body{background:white;padding:0;margin:0}
   .screen-controls{display:none!important}
-  .page-wrap{max-width:100%;margin:0;padding:0;height:100%}
-  .doc{
-    box-shadow:none;border-radius:0;margin:0;
-    display:flex;flex-direction:column;
-    min-height:100vh;
-  }
-  .doc-body{padding:20px 30px;flex:1}
+  .page-wrap{max-width:100%;margin:0;padding:0}
+  .doc{box-shadow:none;border-radius:0;margin:0}
+  .doc-body{padding:20px 30px}
   .doc-header{padding:20px 30px}
+
+  /* Footer fixed to bottom of every page */
   .doc-footer{
+    position:fixed;
+    bottom:0;left:0;right:0;
     padding:10px 30px;
-    margin-top:auto;
+    border-top:1px solid #e4e8ef;
+    background:#f8f9fc;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
   }
-  .quote-hero{padding:16px 20px;margin-bottom:18px}
+  /* Add bottom padding to body so content doesn't hide behind fixed footer */
+  .doc-body{padding-bottom:60px}
+
+  /* Keep these sections together — never split mid-block */
+  .route-section{page-break-inside:avoid;break-inside:avoid;margin-bottom:16px}
+  .details-section{page-break-inside:avoid;break-inside:avoid;margin-bottom:16px}
+  .notes-section{page-break-inside:avoid;break-inside:avoid;margin-bottom:16px;max-height:none}
+  .signature-section{page-break-inside:avoid;break-inside:avoid;page-break-before:auto;break-before:auto;margin-bottom:16px}
+  .signature-grid{page-break-inside:avoid;break-inside:avoid}
+  .quote-hero{page-break-inside:avoid;break-inside:avoid;padding:16px 20px;margin-bottom:18px}
+  .route-visual{page-break-inside:avoid;break-inside:avoid}
+  .details-grid{page-break-inside:avoid;break-inside:avoid}
+
   .quote-amount{font-size:32px}
-  .route-section,.details-section,.notes-section,.signature-section{margin-bottom:16px}
   .notes-box{min-height:50px}
   .signature-line{height:24px}
   .signature-name-line{height:20px}
-  @page{size:letter portrait;margin:0}
+  @page{size:letter portrait;margin:0 0 50px 0}
 }
 </style>
 </head>
