@@ -516,7 +516,6 @@ header{
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
   overflow:hidden;
-  margin-top:20px;
   grid-column:1/-1;
   max-width:100%;
 }
@@ -717,24 +716,29 @@ html.light .hos-day-header{background:var(--card2)}
 .acc-custom-row label{font-size:11px;color:var(--text2);white-space:nowrap}
 .acc-custom-input{width:80px;background:var(--card);border:1px solid var(--accent);border-radius:7px;color:var(--accent);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:4px 8px;outline:none;text-align:right}
 .acc-wrap{margin-bottom:7px}
-.theme-btn {
+.theme-btn-float {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999;
   display: flex;
   align-items: center;
   gap: 7px;
   background: var(--card);
   border: 1px solid var(--border2);
   border-radius: 20px;
-  padding: 5px 12px 5px 8px;
+  padding: 8px 14px 8px 10px;
   cursor: pointer;
   font-family: 'Space Grotesk', sans-serif;
   font-size: 12px;
   font-weight: 600;
   color: var(--text2);
-  transition: border-color .15s, color .15s;
+  transition: border-color .15s, color .15s, box-shadow .15s;
+  box-shadow: 0 4px 16px rgba(0,0,0,.3);
   flex-shrink: 0;
 }
-.theme-btn:hover { border-color: var(--accent); color: var(--text); }
-.theme-btn .theme-icon {
+.theme-btn-float:hover { border-color: var(--accent); color: var(--text); box-shadow: 0 4px 20px rgba(240,165,0,.2); }
+.theme-btn-float .theme-icon {
   width: 22px; height: 22px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -756,7 +760,6 @@ html.light .hos-day-header{background:var(--card2)}
   .result-card{position:static}
   .log-card{margin-top:0}
   .header-right{display:none}
-  .theme-btn .theme-label{display:none}
   .card-body{padding:12px}
   .card-header{padding:10px 12px}
   .grid2,.grid3{grid-template-columns:1fr 1fr}
@@ -876,10 +879,6 @@ html.light .hos-day-header{background:var(--card2)}
     <div class="rate-chip"><span class="dot"></span>Flatbed <strong id="hdr-flatbed">$2.95</strong></div>
     <span style="color:var(--text3);font-size:11px;margin-left:4px">per mile · DAT</span>
   </div>
-  <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">
-    <span class="theme-icon" id="theme-icon">🌙</span>
-    <span class="theme-label" id="theme-label">Dark</span>
-  </button>
   <a href="/signup.html" id="pro-account-btn" style="
     font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;
     padding:6px 14px;border-radius:20px;
@@ -894,6 +893,12 @@ html.light .hos-day-header{background:var(--card2)}
     <span id="pro-name-label">Pro</span>
   </a>
 </header>
+
+<!-- ── Floating theme button ── -->
+<button class="theme-btn-float" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">
+  <span class="theme-icon" id="theme-icon">🌙</span>
+  <span class="theme-label" id="theme-label">Dark</span>
+</button>
 
 <!-- ── Hero ── -->
 <div class="hero">
@@ -925,12 +930,44 @@ html.light .hos-day-header{background:var(--card2)}
           </button>
         </div>
 
+        <!-- Pro: Saved Rate Profiles — hidden for free users -->
+        <div id="rate-profiles-ui" style="display:none;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <select id="profile-select" onchange="loadProfile_rate()"
+              style="flex:1;min-width:0;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;padding:7px 10px;outline:none;cursor:pointer">
+              <option value="">— Load a saved profile —</option>
+            </select>
+            <button onclick="saveRateProfile()" title="Save current settings as a profile"
+              style="font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;padding:7px 12px;border-radius:8px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:pointer;white-space:nowrap;transition:all .15s"
+              onmouseover="this.style.background='var(--accent)';this.style.color='#000'"
+              onmouseout="this.style.background='var(--accentbg)';this.style.color='var(--accent)'">
+              💾 Save Profile
+            </button>
+            <button id="delete-profile-btn" onclick="deleteRateProfile()" title="Delete selected profile" style="display:none;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;padding:7px 12px;border-radius:8px;border:1px solid rgba(248,113,113,.3);background:transparent;color:var(--red);cursor:pointer;transition:all .15s"
+              onmouseover="this.style.background='rgba(248,113,113,.1)'"
+              onmouseout="this.style.background='transparent'">
+              🗑
+            </button>
+          </div>
+          <div id="profile-count-note" style="font-size:10px;color:var(--text3);margin-top:5px">0 / 100 profiles saved</div>
+        </div>
+
         <!-- Profitability calculator toggle button -->
         <button id="btn-prof" onclick="setShipType(shipType==='prof'?'ftl':'prof')"
-          style="width:100%;margin-bottom:18px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em">
+          style="width:100%;margin-bottom:10px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em">
           <span id="prof-btn-icon">💰</span>
           <span id="prof-btn-label">Profitability Calculator</span>
         </button>
+
+        <!-- Multi-Stop builder link -->
+        <a id="multistop-btn" href="#"
+          onclick="handleMultiStopClick(event)"
+          style="width:100%;margin-bottom:18px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none"
+          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+          🗺 Multi-Stop Load Builder
+          <span id="multistop-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid rgba(240,165,0,.3);padding:1px 6px;border-radius:8px;letter-spacing:.05em">PRO</span>
+        </a>
 
         <!-- Profitability calculator form -->
         <div class="ltl-only" id="prof-fields">
@@ -944,11 +981,13 @@ html.light .hos-day-header{background:var(--card2)}
             <div class="field">
               <label>Origin</label>
               <input type="text" id="p-origin" placeholder="e.g. Hastings, FL" autocomplete="off"
+                onblur="formatLocation(this)"
                 oninput="clearTimeout(pLookupTimer);pLookupTimer=setTimeout(tryProfLookup,900)" />
             </div>
             <div class="field">
               <label>Destination</label>
               <input type="text" id="p-dest" placeholder="e.g. Charlotte, NC" autocomplete="off"
+                onblur="formatLocation(this)"
                 oninput="clearTimeout(pLookupTimer);pLookupTimer=setTimeout(tryProfLookup,900)" />
             </div>
           </div>
@@ -1098,8 +1137,8 @@ html.light .hos-day-header{background:var(--card2)}
         </div>
 
         <div class="grid2" id="route-grid">
-          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';if(!ratesManualOverride)applyRegionalRates();clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
-          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" onblur="formatLocation(this)" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';if(!ratesManualOverride)applyRegionalRates();clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" onblur="formatLocation(this)" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
         </div>
 
         <!-- Miles status row -->
@@ -1566,26 +1605,6 @@ html.light .hos-day-header{background:var(--card2)}
       </div>
     </div>
 
-    <!-- Quote Log -->
-    <div class="log-card" style="margin-top:20px">
-      <div class="card-header">
-        <span class="card-title">Quote Log</span>
-      </div>
-      <div class="log-actions">
-        <button class="btn btn-primary" onclick="saveQuote()">+ Save Quote</button>
-        <button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button>
-        <button class="btn btn-danger" onclick="clearLog()">Clear All</button>
-      </div>
-      <div class="log-wrap">
-        <table>
-          <thead>
-            <tr><th>Date</th><th>Route</th><th>Mi</th><th>Type</th><th>Commodity</th><th>Margin</th><th>Base RPM</th><th>Quote</th><th>RPM</th><th></th></tr>
-          </thead>
-          <tbody id="log-body"></tbody>
-        </table>
-      </div>
-    </div>
-
     <!-- HOS Trip Plan -->
     <div class="hos-card" id="hos-card">
       <div class="hos-header">
@@ -1771,6 +1790,26 @@ html.light .hos-day-header{background:var(--card2)}
     </div>
   </div>
 
+  <!-- Quote Log — spans full width of both columns -->
+  <div class="log-card" style="grid-column:1/-1;margin-top:0">
+    <div class="card-header">
+      <span class="card-title">Quote Log</span>
+    </div>
+    <div class="log-actions">
+      <button class="btn btn-primary" onclick="saveQuote()">+ Save Quote</button>
+      <button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button>
+      <button class="btn btn-danger" onclick="clearLog()">Clear All</button>
+    </div>
+    <div class="log-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Route</th><th>Mi</th><th>Type</th><th>Commodity</th><th>Margin</th><th>Base RPM</th><th>Quote</th><th>RPM</th><th></th></tr>
+        </thead>
+        <tbody id="log-body"></tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
 
 <!-- ── Footer ── -->
@@ -1933,6 +1972,10 @@ async function checkProAuth(){
               quotePrefix: p.quote_prefix, quoteStart: p.quote_counter,
               colorScheme: p.color_scheme, logoBase64: p.logo_base64,
             }));
+            // Load saved rate profiles
+            if(p.rate_profiles && Array.isArray(p.rate_profiles)){
+              localStorage.setItem(PROFILES_KEY, JSON.stringify(p.rate_profiles));
+            }
           }
         }
         break;
@@ -1981,10 +2024,23 @@ function updateProAccountBtn(){
   } catch(e){}
 }
 
+function handleMultiStopClick(e){
+  e.preventDefault();
+  if(isProUser){
+    window.location.href = '/multistop.html';
+  } else {
+    if(confirm('The Multi-Stop Load Builder is a Pro feature.\n\nUpgrade to Pro to access multi-stop quoting, PDF exports, saved rate profiles, and more.\n\nClick OK to see Pro plans.')){
+      window.location.href = '/signup.html';
+    }
+  }
+}
+
 function updateProUI(){
   const notesField = document.getElementById('load-notes-field');
   const dlBtn      = document.getElementById('btn-download-quote');
   const proNote    = document.getElementById('pro-upgrade-note');
+  const profilesUI = document.getElementById('rate-profiles-ui');
+  const msTag      = document.getElementById('multistop-pro-tag');
   if(notesField) notesField.style.display = isProUser ? '' : 'none';
   if(dlBtn){
     dlBtn.disabled = !isProUser;
@@ -1992,6 +2048,11 @@ function updateProUI(){
     dlBtn.style.cursor  = isProUser ? 'pointer' : 'not-allowed';
   }
   if(proNote) proNote.style.display = isProUser ? 'none' : '';
+  if(profilesUI){
+    profilesUI.style.display = isProUser ? '' : 'none';
+    if(isProUser) renderProfileSelect();
+  }
+  if(msTag) msTag.style.display = isProUser ? 'none' : '';
 }
 
 // ── LTL class rates ($/CWT) — industry standard national averages ─────────
@@ -2494,7 +2555,207 @@ function triggerWeatherUpdate(){
   weatherTimer = setTimeout(fetchWeather, 1000);
 }
 
-// ── PDF Quote Generator ───────────────────────────────────────────────────
+// ── Saved Rate Profiles (Pro) ─────────────────────────────────────────────
+const MAX_PROFILES = 100;
+const PROFILES_KEY = 'qfc_rate_profiles';
+
+function getRateProfiles(){
+  try { return JSON.parse(localStorage.getItem(PROFILES_KEY) || '[]'); } catch(e){ return []; }
+}
+
+function saveRateProfiles(profiles){
+  try { localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles)); } catch(e){}
+}
+
+function renderProfileSelect(){
+  const profiles = getRateProfiles();
+  const sel = document.getElementById('profile-select');
+  if(!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— Load a saved profile —</option>';
+  profiles.forEach((p, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+  // Restore selection if still valid
+  if(current !== '' && profiles[parseInt(current)]) sel.value = current;
+  // Update count
+  const note = document.getElementById('profile-count-note');
+  if(note) note.textContent = `${profiles.length} / ${MAX_PROFILES} profiles saved`;
+  // Show/hide delete button
+  const delBtn = document.getElementById('delete-profile-btn');
+  if(delBtn) delBtn.style.display = sel.value !== '' ? 'inline-block' : 'none';
+}
+
+function saveRateProfile(){
+  const profiles = getRateProfiles();
+  if(profiles.length >= MAX_PROFILES){
+    alert(`You've reached the maximum of ${MAX_PROFILES} saved profiles. Delete one before saving a new one.`);
+    return;
+  }
+
+  // Ask for profile name — suggest one based on origin
+  const orig = document.getElementById('origin').value.trim();
+  const trailer = document.getElementById('trailer').value;
+  const trailerLabel = {van:'Van', reefer:'Reefer', flatbed:'Flatbed'}[trailer] || '';
+  const suggested = orig ? `${orig} · ${trailerLabel}` : `Profile ${profiles.length + 1}`;
+  const name = prompt('Name this profile:', suggested);
+  if(!name || !name.trim()) return;
+
+  // Capture current state
+  const profile = {
+    name:        name.trim(),
+    origin:      document.getElementById('origin').value.trim(),
+    dest:        document.getElementById('dest').value.trim(),
+    miles:       document.getElementById('miles').value,
+    weight:      document.getElementById('weight').value,
+    trailer:     document.getElementById('trailer').value,
+    commodity:   document.getElementById('commodity').value,
+    margin:      document.getElementById('margin').value,
+    rateVan:     document.getElementById('rate-van').value,
+    rateReefer:  document.getElementById('rate-reefer').value,
+    rateFlatbed: document.getElementById('rate-flatbed').value,
+    rateManual:  ratesManualOverride,
+    rateMode:    rateMode,
+    seasEnabled: document.getElementById('seas-enabled').checked,
+    seasRegion:  document.getElementById('seas-region').value,
+    loadNotes:   document.getElementById('load-notes')?.value || '',
+    savedAt:     new Date().toISOString(),
+  };
+
+  // Check if overwriting existing profile with same name
+  const existing = profiles.findIndex(p => p.name === profile.name);
+  if(existing >= 0){
+    if(!confirm(`A profile named "${profile.name}" already exists. Overwrite it?`)) return;
+    profiles[existing] = profile;
+  } else {
+    profiles.push(profile);
+  }
+
+  saveRateProfiles(profiles);
+  renderProfileSelect();
+  syncProfilesToSupabase(profiles);
+
+  // Select the newly saved profile
+  const sel = document.getElementById('profile-select');
+  const idx = profiles.findIndex(p => p.name === profile.name);
+  if(sel) sel.value = idx;
+  const delBtn = document.getElementById('delete-profile-btn');
+  if(delBtn) delBtn.style.display = 'inline-block';
+
+  showToastMsg('✓ Profile saved: ' + profile.name);
+}
+
+function loadProfile_rate(){
+  const sel = document.getElementById('profile-select');
+  const delBtn = document.getElementById('delete-profile-btn');
+  if(!sel) return;
+
+  if(sel.value === ''){
+    if(delBtn) delBtn.style.display = 'none';
+    return;
+  }
+
+  const profiles = getRateProfiles();
+  const p = profiles[parseInt(sel.value)];
+  if(!p) return;
+
+  if(delBtn) delBtn.style.display = 'inline-block';
+
+  // Populate fields
+  if(p.origin)   document.getElementById('origin').value = p.origin;
+  if(p.dest)     document.getElementById('dest').value   = p.dest;
+  if(p.weight)   document.getElementById('weight').value = p.weight;
+  if(p.trailer)  document.getElementById('trailer').value = p.trailer;
+  if(p.commodity)document.getElementById('commodity').value = p.commodity;
+  if(p.margin)   document.getElementById('margin').value = p.margin;
+  if(p.loadNotes && document.getElementById('load-notes'))
+    document.getElementById('load-notes').value = p.loadNotes;
+
+  // Miles — use saved value, skip Google API call
+  if(p.miles && parseFloat(p.miles) > 0){
+    document.getElementById('miles').value = p.miles;
+    setMilesSource('manual');
+    showMilesStatus('✅', `${parseInt(p.miles).toLocaleString()} miles (saved profile)`, 'var(--green)');
+    lastLookedUpOrig = p.origin?.toLowerCase() || '';
+    lastLookedUpDest = p.dest?.toLowerCase()   || '';
+  }
+
+  // Base rates
+  if(p.rateVan)    document.getElementById('rate-van').value     = p.rateVan;
+  if(p.rateReefer) document.getElementById('rate-reefer').value  = p.rateReefer;
+  if(p.rateFlatbed)document.getElementById('rate-flatbed').value = p.rateFlatbed;
+  ratesManualOverride = p.rateManual || false;
+  if(p.rateMode) rateMode = p.rateMode;
+
+  // Seasonal
+  const seasEnabled = document.getElementById('seas-enabled');
+  const seasRegion  = document.getElementById('seas-region');
+  if(seasEnabled) seasEnabled.checked = p.seasEnabled || false;
+  if(seasRegion && p.seasRegion) seasRegion.value = p.seasRegion;
+  if(p.seasEnabled) toggleSeason();
+
+  updateHeaderRates();
+  updateRateDisclaimer();
+  applyRegionalRates();
+  calc();
+  showToastMsg('✓ Profile loaded: ' + p.name);
+}
+
+function deleteRateProfile(){
+  const sel = document.getElementById('profile-select');
+  if(!sel || sel.value === '') return;
+  const profiles = getRateProfiles();
+  const p = profiles[parseInt(sel.value)];
+  if(!p) return;
+  if(!confirm(`Delete profile "${p.name}"? This cannot be undone.`)) return;
+  profiles.splice(parseInt(sel.value), 1);
+  saveRateProfiles(profiles);
+  renderProfileSelect();
+  syncProfilesToSupabase(profiles);
+  showToastMsg('Profile deleted');
+}
+
+async function syncProfilesToSupabase(profiles){
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key) || '{}');
+      if(val?.access_token){
+        await fetch(`https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users?id=eq.${val.user.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ',
+            'Authorization': `Bearer ${val.access_token}`,
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ rate_profiles: profiles })
+        });
+        break;
+      }
+    }
+  } catch(e){}
+}
+
+function showToastMsg(msg){
+  // Reuse existing save toast or create a quick one
+  let t = document.getElementById('profile-toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'profile-toast';
+    t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;font-family:Space Grotesk,sans-serif;font-size:13px;font-weight:700;padding:10px 24px;border-radius:20px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:9999;white-space:nowrap';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.style.opacity = '0', 2500);
+}
+
+// ── End Saved Rate Profiles ───────────────────────────────────────────────
 function generateQuotePDF(){
   const quote    = document.getElementById('r-quote').textContent;
   const miles    = document.getElementById('r-miles').textContent;
@@ -2607,14 +2868,14 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 .btn-print{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:10px 22px;border-radius:8px;border:none;background:${scheme.header};color:${scheme.accent};cursor:pointer}
 .screen-note{font-size:12px;color:#6b7a8d}
 .doc{background:#fff;border-radius:4px;box-shadow:0 4px 40px rgba(0,0,0,.12);overflow:hidden}
-.doc-header{background:${scheme.header};padding:28px 40px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.doc-header{background:${scheme.header};padding:28px 40px;display:flex;align-items:center;justify-content:space-between;gap:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-meta{text-align:right}
 .doc-title{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.02em;margin-bottom:4px}
 .doc-number{font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.35);margin-bottom:2px}
 .doc-date{font-size:11px;color:rgba(255,255,255,.35)}
-.accent-bar{height:4px;background:${scheme.bar}}
+.accent-bar{height:4px;background:${scheme.bar};-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-body{padding:36px 40px}
-.quote-hero{background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:20px}
+.quote-hero{background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .quote-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
 .quote-amount{font-size:42px;font-weight:700;color:#1a1f2e;letter-spacing:-.03em;line-height:1}
 .trailer-badge{display:inline-block;background:#fff8e6;border:1px solid ${scheme.accent};color:#c07800;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:.05em}
@@ -2633,7 +2894,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 .detail-cell{background:#fff;padding:14px 18px}
 .detail-cell-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
 .detail-cell-value{font-size:14px;font-weight:600;color:#1a1f2e}
-.notes-box{background:#fffbf0;border:1px solid #f0d080;border-radius:10px;padding:16px 20px;min-height:70px}
+.notes-box{background:#fffbf0;border:1px solid #f0d080;border-radius:10px;padding:16px 20px;min-height:70px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .notes-text{font-size:13px;color:#4a3800;line-height:1.6}
 .notes-empty{font-size:12px;color:#c8a840;font-style:italic}
 .signature-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
@@ -2642,8 +2903,24 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 .signature-line{border-bottom:1px solid #1a1f2e;margin-bottom:6px;height:32px}
 .signature-line-label{font-size:10px;color:#8fa3b8;margin-bottom:10px}
 .signature-name-line{border-bottom:1px solid #d0d8e4;margin-bottom:6px;height:28px}
-.doc-footer{background:#f8f9fc;border-top:1px solid #e4e8ef;padding:16px 40px;display:flex;align-items:center;justify-content:space-between;gap:12px}
-@media print{body{background:white;padding:0}.screen-controls{display:none!important}.page-wrap{max-width:100%}.doc{box-shadow:none;border-radius:0}@page{size:letter;margin:0}}
+.doc-footer{background:#f8f9fc;border-top:1px solid #e4e8ef;padding:16px 40px;display:flex;align-items:center;justify-content:space-between;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+  body{background:white;padding:0;margin:0}
+  .screen-controls{display:none!important}
+  .page-wrap{max-width:100%;margin:0;padding:0}
+  .doc{box-shadow:none;border-radius:0;margin:0}
+  .doc-body{padding:20px 30px}
+  .doc-header{padding:20px 30px}
+  .doc-footer{padding:10px 30px}
+  .quote-hero{padding:16px 20px;margin-bottom:18px}
+  .quote-amount{font-size:32px}
+  .route-section,.details-section,.notes-section,.signature-section{margin-bottom:16px}
+  .notes-box{min-height:50px}
+  .signature-line{height:24px}
+  .signature-name-line{height:20px}
+  @page{size:letter portrait;margin:0}
+}
 </style>
 </head>
 <body>
@@ -3492,6 +3769,48 @@ function calcLTL(){
 // ── Helpers ────────────────────────────────────────────────────────────────
 function fmt(n){return'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function fmtInt(n){return'$'+Math.round(n).toLocaleString('en-US')}
+
+async function formatLocation(input){
+  let val = input.value.trim();
+  if(!val) return;
+
+  // Detect zip code — 5 digits, optionally with -4 extension
+  if(/^\d{5}(-\d{4})?$/.test(val)){
+    // Look up via our existing geocode proxy
+    try {
+      const resp = await fetch(`/.netlify/functions/geocode?address=${encodeURIComponent(val)}`);
+      const data = await resp.json();
+      if(data && data.name && !data.error){
+        input.value = data.name;
+        // Trigger dependent actions
+        input.dispatchEvent(new Event('input', {bubbles:true}));
+        return;
+      }
+    } catch(e){}
+    // If proxy fails, try Open-Meteo geocoding as fallback
+    try {
+      const resp = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${val}&count=1&language=en&format=json&countryCode=US`);
+      const data = await resp.json();
+      if(data.results?.[0]){
+        const r = data.results[0];
+        const city = r.name.replace(/\b\w/g, c => c.toUpperCase());
+        const state = r.admin1_code || '';
+        input.value = state ? `${city}, ${state.toUpperCase()}` : city;
+        input.dispatchEvent(new Event('input', {bubbles:true}));
+        return;
+      }
+    } catch(e){}
+    return; // leave as-is if lookup fails
+  }
+
+  // Standard city/state formatting
+  val = val.replace(/\s*,\s*/g, ', ');
+  val = val.replace(/,?\s+([A-Za-z]{2})\s*$/, (m, st) => ', ' + st.toUpperCase());
+  val = val.replace(/^([^,]+)/, city =>
+    city.trim().replace(/\b\w/g, c => c.toUpperCase())
+  );
+  input.value = val;
+}
 function wTier(w){return WTIERS.find(t=>w<=t.max)||WTIERS[3]}
 function dMult(mi){return DMULTS.find(t=>mi<=t.max)||DMULTS[4]}
 

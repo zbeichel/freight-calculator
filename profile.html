@@ -666,5 +666,56 @@ renderSchemes();
 updatePreview();
 updateQuotePreview();
 </script>
+<!-- Floating theme button -->
+<button id="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode" style="
+  position:fixed;bottom:24px;right:24px;z-index:999;
+  display:flex;align-items:center;gap:7px;
+  background:var(--card);border:1px solid var(--border2);border-radius:20px;
+  padding:8px 14px 8px 10px;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:var(--text2);
+  transition:border-color .15s,color .15s,box-shadow .15s;
+  box-shadow:0 4px 16px rgba(0,0,0,.3);">
+  <span id="theme-icon" style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)">🌙</span>
+  <span id="theme-label">Dark</span>
+</button>
+
+<script>
+// ── Theme sync ─────────────────────────────────────────────────────────────
+function applyTheme(theme){
+  const root = document.documentElement;
+  if(theme === 'light'){
+    root.style.setProperty('--bg','#f0f4f8');
+    root.style.setProperty('--panel','#ffffff');
+    root.style.setProperty('--card','#f8fafc');
+    root.style.setProperty('--card2','#eef2f7');
+    root.style.setProperty('--border','#dde3ed');
+    root.style.setProperty('--border2','#c8d4e0');
+    root.style.setProperty('--text','#0f172a');
+    root.style.setProperty('--text2','#334155');
+    root.style.setProperty('--text3','#64748b');
+    document.getElementById('theme-icon').textContent = '☀️';
+    document.getElementById('theme-label').textContent = 'Light';
+  } else {
+    root.style.setProperty('--bg','#0a0c10');
+    root.style.setProperty('--panel','#0f1318');
+    root.style.setProperty('--card','#151a22');
+    root.style.setProperty('--card2','#1a2030');
+    root.style.setProperty('--border','#1e2a38');
+    root.style.setProperty('--border2','#243040');
+    root.style.setProperty('--text','#f0f4f8');
+    root.style.setProperty('--text2','#8fa3b8');
+    root.style.setProperty('--text3','#4a6070');
+    document.getElementById('theme-icon').textContent = '🌙';
+    document.getElementById('theme-label').textContent = 'Dark';
+  }
+}
+function toggleTheme(){
+  const current = localStorage.getItem('qfc_theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('qfc_theme', next);
+  applyTheme(next);
+}
+applyTheme(localStorage.getItem('qfc_theme') || 'dark');
+</script>
 </body>
 </html>
