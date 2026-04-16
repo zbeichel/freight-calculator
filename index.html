@@ -4791,23 +4791,27 @@ calc();
 
     <div style="padding:20px 28px">
       <div style="text-align:center;font-size:13px;color:var(--text3);margin-bottom:14px">
-        <strong style="color:var(--accent);font-size:18px">$9</strong>/month &nbsp;·&nbsp; Cancel anytime
+        <strong style="color:#f0a500;font-size:18px">$9</strong>/month &nbsp;·&nbsp; Cancel anytime
       </div>
-      <a href="/signup.html" onclick="closeProModal()" style="
+      <button onclick="closeProModal();window.location.href='/signup.html'" style="
         display:block;width:100%;text-align:center;
         font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;
-        padding:12px;border-radius:8px;
+        padding:12px;border-radius:8px;border:none;
         background:#f0a500;color:#000;text-decoration:none;
-        transition:opacity .15s;box-sizing:border-box;
+        cursor:pointer;transition:opacity .15s;box-sizing:border-box;
       "
-      onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+      onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
         Sign Up for Pro →
-      </a>
+      </button>
       <div style="text-align:center;margin-top:10px">
-        <a href="/signup.html?login" onclick="closeProModal()" style="font-size:12px;color:var(--text3);text-decoration:none"
-          onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">
+        <button onclick="closeProModal();window.location.href='/signup.html?login'" style="
+          font-family:'Space Grotesk',sans-serif;font-size:12px;
+          background:none;border:none;cursor:pointer;
+          color:var(--text3);text-decoration:underline;
+        "
+        onmouseover="this.style.color='#f0a500'" onmouseout="this.style.color='var(--text3)'">
           Already have an account? Sign in
-        </a>
+        </button>
       </div>
     </div>
   </div>
