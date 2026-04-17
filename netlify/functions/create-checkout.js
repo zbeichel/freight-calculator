@@ -41,8 +41,8 @@ exports.handler = async function(event){
   }
 
   const priceId = process.env.STRIPE_PRICE_ID;
-  // Use DEPLOY_URL for branch deploys, URL for production
-  const siteUrl = process.env.DEPLOY_URL || process.env.URL || 'https://quickfreightcalc.com';
+  // Hardcode dev URL for testing — change to quickfreightcalc.com before going live
+  const siteUrl = 'https://dev--quickfreightcalculator.netlify.app';
 
   try {
     const resp = await stripeRequest('/v1/checkout/sessions', 'POST', {
