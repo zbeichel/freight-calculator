@@ -41,7 +41,8 @@ exports.handler = async function(event){
   }
 
   const priceId = process.env.STRIPE_PRICE_ID;
-  const siteUrl = process.env.URL || 'https://quickfreightcalc.com';
+  // Use DEPLOY_URL for branch deploys, URL for production
+  const siteUrl = process.env.DEPLOY_URL || process.env.URL || 'https://quickfreightcalc.com';
 
   try {
     const resp = await stripeRequest('/v1/checkout/sessions', 'POST', {

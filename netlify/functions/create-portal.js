@@ -66,7 +66,7 @@ exports.handler = async function(event){
     return { statusCode: 400, body: JSON.stringify({ error: 'Missing userId' }) };
   }
 
-  const siteUrl = process.env.URL || 'https://quickfreightcalc.com';
+  const siteUrl = process.env.DEPLOY_URL || process.env.URL || 'https://quickfreightcalc.com';
 
   try {
     const customerId = await getStripeCustomerId(userId);
