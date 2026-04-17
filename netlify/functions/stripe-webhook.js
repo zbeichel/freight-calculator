@@ -6,8 +6,9 @@ const crypto = require('crypto');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 
-function supabaseRequest(path, method, data, serviceKey){
+function supabaseRequest(path, method, data, serviceKey, preferExtra){
   const body = JSON.stringify(data);
+  const preferHeader = preferExtra ? `return=minimal,${preferExtra}` : 'return=minimal';
   return new Promise((resolve, reject) => {
     const url = new URL(SUPABASE_URL + path);
     const req = https.request({
@@ -18,7 +19,7 @@ function supabaseRequest(path, method, data, serviceKey){
         'apikey': serviceKey,
         'Authorization': `Bearer ${serviceKey}`,
         'Content-Type': 'application/json',
-        'Prefer': 'return=minimal',
+        'Prefer': preferHeader,
         ...(body ? { 'Content-Length': Buffer.byteLength(body) } : {})
       }
     }, res => {
@@ -57,12 +58,34 @@ async function setProActive(userId, isActive, stripeCustomerId, stripeSubscripti
   if(stripeCustomerId) updateData.stripe_customer_id = stripeCustomerId;
   if(stripeSubscriptionId) updateData.stripe_subscription_id = stripeSubscriptionId;
 
-  return supabaseRequest(
+  // Try PATCH first
+  const patchResp = await supabaseRequest(
     `/rest/v1/pro_users?id=eq.${userId}`,
     'PATCH',
     updateData,
     serviceKey
   );
+  console.log(`PATCH response status: ${patchResp.status}`);
+  console.log(`PATCH response body: ${JSON.stringify(patchResp.body)}`);
+
+  // If no row found, upsert it
+  if(patchResp.status === 404 || patchResp.status === 204){
+    console.log(`Upserting pro_users row for ${userId}`);
+    const upsertData = { id: userId, ...updateData };
+    if(stripeCustomerId) upsertData.stripe_customer_id = stripeCustomerId;
+    if(stripeSubscriptionId) upsertData.stripe_subscription_id = stripeSubscriptionId;
+    const upsertResp = await supabaseRequest(
+      `/rest/v1/pro_users`,
+      'POST',
+      upsertData,
+      serviceKey,
+      'resolution=merge-duplicates'
+    );
+    console.log(`UPSERT response status: ${upsertResp.status}`);
+    console.log(`UPSERT response body: ${JSON.stringify(upsertResp.body)}`);
+    return upsertResp;
+  }
+  return patchResp;
 }
 
 exports.handler = async function(event){
