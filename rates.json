@@ -2,41 +2,67 @@
   "regions": {
     "northeast": {
       "states": ["ME","VT","NH","MA","RI","CT","NY","NJ","PA","DE","MD"],
-      "van": 2.73,
-      "reefer": 3.15,
-      "flatbed": 3.38
+      "van": 2.73, "reefer": 3.15, "flatbed": 3.38
     },
     "southeast": {
       "states": ["VA","WV","KY","TN","NC","SC","FL","GA","AL","MS"],
-      "van": 2.73,
-      "reefer": 3.15,
-      "flatbed": 3.38
+      "van": 2.73, "reefer": 3.15, "flatbed": 3.38
     },
     "midwest": {
       "states": ["OH","IN","MI","WI","MN","IA","IL","MO","ND","SD","NE","KS"],
-      "van": 2.73,
-      "reefer": 3.15,
-      "flatbed": 3.38
+      "van": 2.73, "reefer": 3.15, "flatbed": 3.38
     },
     "southwest": {
       "states": ["NM","TX","OK","AR","LA"],
-      "van": 2.73,
-      "reefer": 3.15,
-      "flatbed": 3.38
+      "van": 2.73, "reefer": 3.15, "flatbed": 3.38
     },
     "west": {
       "states": ["MT","WY","CO","AZ","ID","NV","UT","WA","OR","CA","AK","HI"],
-      "van": 2.73,
-      "reefer": 3.15,
-      "flatbed": 3.38
+      "van": 2.73, "reefer": 3.15, "flatbed": 3.38
     },
     "national": {
       "states": [],
-      "van": 2.73,
-      "reefer": 3.15,
-      "flatbed": 3.38
+      "van": 2.73, "reefer": 3.15, "flatbed": 3.38
     }
   },
+  "history": [
+    {
+      "date": "2026-01-15",
+      "label": "Jan 2026",
+      "regions": {
+        "northeast": { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
+        "southeast":  { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
+        "midwest":    { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
+        "southwest":  { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
+        "west":       { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
+        "national":   { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 }
+      }
+    },
+    {
+      "date": "2026-03-15",
+      "label": "Mar 2026",
+      "regions": {
+        "northeast": { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
+        "southeast":  { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
+        "midwest":    { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
+        "southwest":  { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
+        "west":       { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
+        "national":   { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 }
+      }
+    },
+    {
+      "date": "2026-04-15",
+      "label": "Apr 2026",
+      "regions": {
+        "northeast": { "van": 2.73, "reefer": 3.15, "flatbed": 3.38 },
+        "southeast":  { "van": 2.73, "reefer": 3.15, "flatbed": 3.38 },
+        "midwest":    { "van": 2.73, "reefer": 3.15, "flatbed": 3.38 },
+        "southwest":  { "van": 2.73, "reefer": 3.15, "flatbed": 3.38 },
+        "west":       { "van": 2.73, "reefer": 3.15, "flatbed": 3.38 },
+        "national":   { "van": 2.73, "reefer": 3.15, "flatbed": 3.38 }
+      }
+    }
+  ],
   "updated": "Apr 15, 2026",
   "source": "DAT Trendlines"
 }
