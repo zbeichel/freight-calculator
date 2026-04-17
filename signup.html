@@ -160,7 +160,7 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Sp
       <!-- Sign Up form -->
       <div id="form-signup">
         <div class="price-note">
-          <strong>$4.99/month + tax</strong> · Cancel anytime
+          <strong>$4.99/month</strong> · Cancel anytime
         </div>
         <div class="field">
           <label>Company / Brokerage Name</label>
@@ -178,11 +178,17 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Sp
           <label>Password</label>
           <input type="password" id="su-password" placeholder="At least 8 characters" />
         </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px">
+          <input type="checkbox" id="su-agree" style="width:15px;height:15px;margin-top:2px;accent-color:#f0a500;cursor:pointer;flex-shrink:0" />
+          <label for="su-agree" style="font-size:12px;color:#8fa3b8;line-height:1.6;cursor:pointer">
+            I agree to the <a href="/terms.html" target="_blank" style="color:#f0a500;text-decoration:none">Terms of Service</a> and <a href="/privacy.html" target="_blank" style="color:#f0a500;text-decoration:none">Privacy Policy</a>. I understand that rate quotes are estimates only and not guaranteed.
+          </label>
+        </div>
         <button class="submit-btn" id="su-btn" onclick="handleSignup()">
           Sign Up for Pro →
         </button>
         <div class="footer-note">
-          By signing up you agree to our <a href="#">Terms of Service</a>.<br>
+          By signing up you agree to our <a href="/terms.html" target="_blank">Terms of Service</a> and <a href="/privacy.html" target="_blank">Privacy Policy</a>.<br>
           Already have an account? <a href="#" onclick="switchTab('login')">Sign in</a>
         </div>
       </div>
@@ -267,6 +273,7 @@ async function handleSignup(){
 
   if(!email || !password){ showError('Email and password are required.'); return; }
   if(password.length < 8){ showError('Password must be at least 8 characters.'); return; }
+  if(!document.getElementById('su-agree').checked){ showError('Please agree to the Terms of Service and Privacy Policy to continue.'); return; }
 
   const btn = document.getElementById('su-btn');
   btn.disabled = true;
