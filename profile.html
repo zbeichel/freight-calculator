@@ -361,6 +361,35 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Sp
       </div>
     </div>
 
+    <!-- Subscription -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-icon">💳</span>
+        <span class="section-title">Subscription</span>
+        <span class="section-sub">Manage your Pro billing</span>
+      </div>
+      <div class="section-body">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">QuickFreightCalc Pro</div>
+            <div style="font-size:12px;color:var(--text3)">$4.99/month · Cancel anytime</div>
+          </div>
+          <button onclick="handleManageBilling()" style="
+            font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
+            padding:8px 18px;border-radius:8px;cursor:pointer;transition:all .15s;
+            border:1px solid var(--border2);background:var(--card);color:var(--text2);
+          "
+          onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+          onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">
+            Manage / Cancel
+          </button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
+          Clicking "Manage / Cancel" opens the Stripe billing portal where you can update your payment method or cancel your subscription. Cancellation takes effect at the end of your current billing period.
+        </div>
+      </div>
+    </div>
+
   </div><!-- end sections -->
 </div><!-- end page -->
 
@@ -712,11 +741,35 @@ function showToast(msg){
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// ── Init ───────────────────────────────────────────────────────────────────
+async function handleManageBilling(){
+  const session = await getSessionRefreshed();
+  if(!session){ window.location.href = '/signup.html?login'; return; }
+  try {
+    const resp = await fetch('/.netlify/functions/create-portal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: session.user?.id || session.user?.sub })
+    });
+    const data = await resp.json();
+    if(data.url){ window.location.href = data.url; }
+    else { showToast('⚠ Could not open billing portal. Try again.'); }
+  } catch(e){ showToast('⚠ Could not open billing portal. Try again.'); }
+}
 loadProfile();
 renderSchemes();
 updatePreview();
 updateQuotePreview();
+
+// Handle Stripe redirect back
+const urlParams = new URLSearchParams(window.location.search);
+if(urlParams.get('checkout') === 'success'){
+  showToast('🎉 Payment successful! Your Pro account is now active.');
+  // Clean URL
+  window.history.replaceState({}, '', '/profile.html');
+} else if(urlParams.get('checkout') === 'cancelled'){
+  showToast('⚠ Checkout cancelled — you can try again anytime.');
+  window.history.replaceState({}, '', '/profile.html');
+}
 </script>
 
 <script>

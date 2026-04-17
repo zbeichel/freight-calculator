@@ -293,20 +293,33 @@ async function handleSignup(){
     // Store session
     if(data.access_token){
       storeSession(data);
-      // Create pro_users row
+      // Create pro_users row (is_active: false until payment)
       await createProUserRow(data.user.id, email, company, name, data.access_token);
-      // Redirect to profile to complete setup
-      showSuccess('Account created! Redirecting to your profile...');
-      setTimeout(() => window.location.href = '/profile.html', 1200);
+      // Redirect to Stripe checkout
+      showSuccess('Account created! Redirecting to checkout...');
+      btn.textContent = 'Redirecting to payment...';
+      const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: data.user.id, email })
+      });
+      const checkoutData = await checkoutResp.json();
+      if(checkoutData.url){
+        window.location.href = checkoutData.url;
+      } else {
+        showError('Could not start checkout. Please try signing in and upgrading from your profile.');
+        btn.disabled = false;
+        btn.textContent = 'Sign Up for Pro →';
+      }
     } else {
       showSuccess('Account created! Check your email to confirm, then sign in.');
       btn.disabled = false;
-      btn.textContent = 'Continue to Payment →';
+      btn.textContent = 'Sign Up for Pro →';
     }
   } catch(e){
     showError('Something went wrong. Please try again.');
     btn.disabled = false;
-    btn.textContent = 'Continue to Payment →';
+    btn.textContent = 'Sign Up for Pro →';
   }
 }
 
@@ -380,7 +393,7 @@ async function createProUserRow(userId, email, companyName, contactName, token){
         'Authorization': `Bearer ${token}`,
         'Prefer': 'return=minimal,resolution=ignore-duplicates'
       },
-      body: JSON.stringify({ id: userId, email, company_name: companyName, contact_name: contactName, is_active: true })
+      body: JSON.stringify({ id: userId, email, company_name: companyName, contact_name: contactName, is_active: false })
     });
   } catch(e){}
 }
