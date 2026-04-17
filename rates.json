@@ -2,27 +2,27 @@
   "regions": {
     "northeast": {
       "states": ["ME","VT","NH","MA","RI","CT","NY","NJ","PA","DE","MD"],
-      "van": 2.73, "reefer": 3.15, "flatbed": 3.38
+      "van": 2.38, "reefer": 2.64, "flatbed": 3.24
     },
     "southeast": {
       "states": ["VA","WV","KY","TN","NC","SC","FL","GA","AL","MS"],
-      "van": 2.73, "reefer": 3.15, "flatbed": 3.38
+      "van": 2.61, "reefer": 2.73, "flatbed": 3.57
     },
     "midwest": {
       "states": ["OH","IN","MI","WI","MN","IA","IL","MO","ND","SD","NE","KS"],
-      "van": 2.73, "reefer": 3.15, "flatbed": 3.38
+      "van": 2.88, "reefer": 3.39, "flatbed": 3.49
     },
     "southwest": {
       "states": ["NM","TX","OK","AR","LA"],
-      "van": 2.73, "reefer": 3.15, "flatbed": 3.38
+      "van": 2.69, "reefer": 3.34, "flatbed": 3.28
     },
     "west": {
       "states": ["MT","WY","CO","AZ","ID","NV","UT","WA","OR","CA","AK","HI"],
-      "van": 2.73, "reefer": 3.15, "flatbed": 3.38
+      "van": 2.49, "reefer": 3.22, "flatbed": 2.88
     },
     "national": {
       "states": [],
-      "van": 2.73, "reefer": 3.15, "flatbed": 3.38
+      "van": 2.70, "reefer": 3.17, "flatbed": 3.45
     }
   },
   "history": [
@@ -30,36 +30,36 @@
       "date": "2026-01-15",
       "label": "Jan 2026",
       "regions": {
-        "northeast": { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
-        "southeast":  { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
-        "midwest":    { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
-        "southwest":  { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
-        "west":       { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
-        "national":   { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 }
+        "northeast": { "van": 2.20, "reefer": 2.70, "flatbed": 2.50 },
+        "southeast":  { "van": 2.20, "reefer": 2.70, "flatbed": 2.50 },
+        "midwest":    { "van": 2.20, "reefer": 2.70, "flatbed": 2.50 },
+        "southwest":  { "van": 2.20, "reefer": 2.70, "flatbed": 2.50 },
+        "west":       { "van": 2.20, "reefer": 2.70, "flatbed": 2.50 },
+        "national":   { "van": 2.20, "reefer": 2.70, "flatbed": 2.50 }
       }
     },
     {
       "date": "2026-03-15",
       "label": "Mar 2026",
       "regions": {
-        "northeast": { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
-        "southeast":  { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
-        "midwest":    { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
-        "southwest":  { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
-        "west":       { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 },
-        "national":   { "van": 0.00, "reefer": 0.00, "flatbed": 0.00 }
+        "northeast": { "van": 2.40, "reefer": 2.80, "flatbed": 2.60 },
+        "southeast":  { "van": 2.40, "reefer": 2.80, "flatbed": 3.25 },
+        "midwest":    { "van": 2.40, "reefer": 2.80, "flatbed": 3.30 },
+        "southwest":  { "van": 2.40, "reefer": 2.80, "flatbed": 3.10 },
+        "west":       { "van": 2.40, "reefer": 2.80, "flatbed": 2.70 },
+        "national":   { "van": 2.40, "reefer": 2.80, "flatbed": 3.00 }
       }
     },
     {
       "date": "2026-04-15",
       "label": "Apr 2026",
       "regions": {
-        "northeast": { "van": 2.73, "reefer": 3.15, "flatbed": 3.38 },
-        "southeast":  { "van": 2.73, "reefer": 3.15, "flatbed": 3.38 },
-        "midwest":    { "van": 2.73, "reefer": 3.15, "flatbed": 3.38 },
-        "southwest":  { "van": 2.73, "reefer": 3.15, "flatbed": 3.38 },
-        "west":       { "van": 2.73, "reefer": 3.15, "flatbed": 3.38 },
-        "national":   { "van": 2.73, "reefer": 3.15, "flatbed": 3.38 }
+        "northeast": { "van": 2.38, "reefer": 2.64, "flatbed": 3.24 },
+        "southeast":  { "van": 2.61, "reefer": 2.73, "flatbed": 3.57 },
+        "midwest":    { "van": 2.88, "reefer": 3.39, "flatbed": 3.49 },
+        "southwest":  { "van": 2.69, "reefer": 3.34, "flatbed": 3.28 },
+        "west":       { "van": 2.49, "reefer": 3.22, "flatbed": 2.88 },
+        "national":   { "van": 2.70, "reefer": 3.17, "flatbed": 3.45 }
       }
     }
   ],
