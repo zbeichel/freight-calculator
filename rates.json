@@ -37,12 +37,12 @@
       "date": "2026-01-15",
       "label": "Jan 2026",
       "regions": {
-        "northeast": { "van": 2.00, "reefer": 2.50, "flatbed": 2.50 },
-        "southeast":  { "van": 2.10, "reefer": 2.40, "flatbed": 2.50 },
-        "midwest":    { "van": 2.15, "reefer": 2.50, "flatbed": 2.50 },
-        "southwest":  { "van": 2.00, "reefer": 2.70, "flatbed": 2.50 },
+        "northeast": { "van": 2.00, "reefer": 2.53, "flatbed": 2.52 },
+        "southeast":  { "van": 2.10, "reefer": 2.45, "flatbed": 2.55 },
+        "midwest":    { "van": 2.15, "reefer": 2.55, "flatbed": 2.60 },
+        "southwest":  { "van": 2.00, "reefer": 2.70, "flatbed": 2.70 },
         "west":       { "van": 2.20, "reefer": 2.58, "flatbed": 2.50 },
-        "national":   { "van": 2.20, "reefer": 2.60, "flatbed": 2.50 }
+        "national":   { "van": 2.20, "reefer": 2.60, "flatbed": 2.65 }
       }
     },
     {
