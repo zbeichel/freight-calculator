@@ -597,6 +597,7 @@ async function handleSignOut(){
   } catch(e){}
   clearSession();
   localStorage.removeItem('qfc_pro_profile');
+  localStorage.removeItem('qfc_pro_status');
   window.location.href = '/';
 }
 
