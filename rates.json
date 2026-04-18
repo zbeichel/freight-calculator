@@ -26,9 +26,9 @@
     }
   },
   "loadToTruck": {
-    "van":     { "current": 8.1,  "base": 6.0  },
+    "van":     { "current": 7.6,  "base": 6.0  },
     "reefer":  { "current": 14.9, "base": 10.0 },
-    "flatbed": { "current": 25.0, "base": 25.0 },
+    "flatbed": { "current": 81.0, "base": 25.0 },
     "updated": "Apr 15, 2026",
     "source": "DAT Trendlines"
   },
@@ -37,23 +37,23 @@
       "date": "2026-01-15",
       "label": "Jan 2026",
       "regions": {
-        "northeast": { "van": 2.20, "reefer": 2.70, "flatbed": 2.50 },
-        "southeast":  { "van": 2.20, "reefer": 2.70, "flatbed": 2.50 },
-        "midwest":    { "van": 2.20, "reefer": 2.70, "flatbed": 2.50 },
-        "southwest":  { "van": 2.20, "reefer": 2.70, "flatbed": 2.50 },
-        "west":       { "van": 2.20, "reefer": 2.70, "flatbed": 2.50 },
-        "national":   { "van": 2.20, "reefer": 2.70, "flatbed": 2.50 }
+        "northeast": { "van": 2.00, "reefer": 2.50, "flatbed": 2.50 },
+        "southeast":  { "van": 2.10, "reefer": 2.40, "flatbed": 2.50 },
+        "midwest":    { "van": 2.15, "reefer": 2.50, "flatbed": 2.50 },
+        "southwest":  { "van": 2.00, "reefer": 2.70, "flatbed": 2.50 },
+        "west":       { "van": 2.20, "reefer": 2.58, "flatbed": 2.50 },
+        "national":   { "van": 2.20, "reefer": 2.60, "flatbed": 2.50 }
       }
     },
     {
       "date": "2026-03-15",
       "label": "Mar 2026",
       "regions": {
-        "northeast": { "van": 2.40, "reefer": 2.80, "flatbed": 2.60 },
-        "southeast":  { "van": 2.40, "reefer": 2.80, "flatbed": 3.25 },
-        "midwest":    { "van": 2.40, "reefer": 2.80, "flatbed": 3.30 },
-        "southwest":  { "van": 2.40, "reefer": 2.80, "flatbed": 3.10 },
-        "west":       { "van": 2.40, "reefer": 2.80, "flatbed": 2.70 },
+        "northeast": { "van": 2.17, "reefer": 2.65, "flatbed": 2.60 },
+        "southeast":  { "van": 2.30, "reefer": 2.80, "flatbed": 3.25 },
+        "midwest":    { "van": 2.30, "reefer": 2.65, "flatbed": 3.30 },
+        "southwest":  { "van": 2.25, "reefer": 2.70, "flatbed": 3.10 },
+        "west":       { "van": 2.30, "reefer": 2.75, "flatbed": 2.70 },
         "national":   { "van": 2.40, "reefer": 2.80, "flatbed": 3.00 }
       }
     },
