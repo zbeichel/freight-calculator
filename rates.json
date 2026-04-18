@@ -25,6 +25,13 @@
       "van": 2.70, "reefer": 3.17, "flatbed": 3.45
     }
   },
+  "loadToTruck": {
+    "van":     { "current": 8.1,  "base": 6.0  },
+    "reefer":  { "current": 14.9, "base": 10.0 },
+    "flatbed": { "current": 25.0, "base": 25.0 },
+    "updated": "Apr 15, 2026",
+    "source": "DAT Trendlines"
+  },
   "history": [
     {
       "date": "2026-01-15",
@@ -66,4 +73,3 @@
   "updated": "Apr 15, 2026",
   "source": "DAT Trendlines"
 }
- 
