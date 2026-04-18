@@ -89,16 +89,16 @@ html.light {
   --card2:     #f5f7fa;
   --border:    rgba(0,0,0,0.08);
   --border2:   rgba(0,0,0,0.14);
-  --accent:    #d4900a;
-  --accent2:   #e8a012;
-  --accentbg:  rgba(212,144,10,0.08);
-  --blue:      #2563eb;
-  --green:     #16a34a;
-  --red:       #dc2626;
-  --purple:    #7c3aed;
+  --accent:    #b87a00;
+  --accent2:   #cc8a00;
+  --accentbg:  rgba(184,122,0,0.08);
+  --blue:      #1d4ed8;
+  --green:     #15803d;
+  --red:       #b91c1c;
+  --purple:    #6d28d9;
   --text:      #0f172a;
-  --text2:     #334155;
-  --text3:     #64748b;
+  --text2:     #1e293b;
+  --text3:     #475569;
   --shadow:    0 1px 4px rgba(0,0,0,0.1);
 }
 
@@ -259,7 +259,7 @@ header .pro-account-btn{ justify-self:end; }
 .hero-eyebrow{
   display:inline-flex;align-items:center;gap:8px;
   background:var(--accentbg);
-  border:1px solid rgba(240,165,0,0.2);
+  border:1px solid rgba(var(--accent),0.3);
   border-radius:20px;
   padding:5px 14px;
   font-size:11px;
@@ -988,7 +988,7 @@ html.light .hos-day-header{background:var(--card2)}
           onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
           onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
           <span style="flex:1;text-align:center">🗺 Multi-Stop Load Builder</span>
-          <span id="multistop-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid rgba(240,165,0,.3);padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PRO</span>
+          <span id="multistop-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);opacity:.6;padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PRO</span>
         </a>
 
         <!-- Lane Rate Tracker link -->
@@ -998,7 +998,7 @@ html.light .hos-day-header{background:var(--card2)}
           onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
           onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
           <span style="flex:1;text-align:center">📈 Lane Rate Tracker</span>
-          <span id="lanes-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid rgba(240,165,0,.3);padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PRO</span>
+          <span id="lanes-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);opacity:.6;padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PRO</span>
         </a>
 
         <!-- Profitability calculator form -->
