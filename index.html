@@ -2100,7 +2100,7 @@ function updateProAccountBtn(){
     });
     const name = profile.contactName || profile.companyName || '';
     if(loggedIn){
-      nameLabel.textContent = name ? name.split(' ')[0] : 'My Account';
+      nameLabel.textContent = name ? name.split(' ')[0] : 'Account';
       icon.textContent = '👤';
       btn.href = '/profile.html';
       btn.classList.add('logged-in');
@@ -4877,6 +4877,28 @@ updateProUI();     // apply Pro feature visibility based on auth state
 updateProAccountBtn(); // show name in header if profile exists
 checkProAuth();    // verify Supabase session and unlock Pro if active
 calc();
+
+// Handle return from Stripe checkout
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  if(params.get('checkout') === 'success'){
+    window.history.replaceState({}, '', '/');
+    // Show welcome toast once Pro auth confirms
+    const origUpdate = window.updateProUI;
+    window.updateProUI = function(){
+      origUpdate();
+      if(isProUser){
+        const t = document.getElementById('profile-toast');
+        if(t){
+          t.textContent = '🎉 Welcome to Pro! Your account is now active.';
+          t.style.opacity = '1';
+          setTimeout(() => t.style.opacity = '0', 4000);
+        }
+        window.updateProUI = origUpdate;
+      }
+    };
+  }
+})();
 </script>
 
 <!-- ── Pro Upgrade Modal ── -->
