@@ -752,7 +752,7 @@ async function handleManageBilling(){
       body: JSON.stringify({ userId: session.user?.id || session.user?.sub })
     });
     const data = await resp.json();
-    if(data.url){ window.location.href = data.url; }
+    if(data.url){ window.open(data.url, '_blank'); }
     else { showToast('⚠ Could not open billing portal. Try again.'); }
   } catch(e){ showToast('⚠ Could not open billing portal. Try again.'); }
 }
