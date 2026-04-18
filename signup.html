@@ -8,9 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#0a0c10;--panel:#0f1318;--card:#151a22;--card2:#1a2030;
-  --border:#1e2a38;--border2:#243040;--text:#ffffff;--text2:#b0c4d8;
-  --text3:#6b7f94;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
+  --bg:#1a1d24;--panel:#1f2330;--card:#22262f;--card2:#272c38;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#ffffff;--text2:#b0c4d8;
+  --text3:#8896a8;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
   --green:#4ade80;--red:#f87171;--radius:12px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -433,15 +433,15 @@ function applyTheme(theme){
     document.getElementById('theme-icon').textContent = '☀️';
     document.getElementById('theme-label').textContent = 'Light';
   } else {
-    root.style.setProperty('--bg','#0a0c10');
-    root.style.setProperty('--panel','#0f1318');
-    root.style.setProperty('--card','#151a22');
-    root.style.setProperty('--card2','#1a2030');
+    root.style.setProperty('--bg','#1a1d24');
+    root.style.setProperty('--panel','#1f2330');
+    root.style.setProperty('--card','#22262f');
+    root.style.setProperty('--card2','#272c38');
     root.style.setProperty('--border','#1e2a38');
     root.style.setProperty('--border2','#243040');
-    root.style.setProperty('--text','#ffffff');
-    root.style.setProperty('--text2','#b0c4d8');
-    root.style.setProperty('--text3','#6b7f94');
+    root.style.setProperty('--text','#e2e8f0');
+    root.style.setProperty('--text2','#9aafc4');
+    root.style.setProperty('--text3','#8896a8');
     document.getElementById('theme-icon').textContent = '🌙';
     document.getElementById('theme-label').textContent = 'Dark';
   }

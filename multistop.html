@@ -8,9 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:#0a0c10;--panel:#0f1318;--card:#151a22;--card2:#1a2030;
-  --border:#1e2a38;--border2:#243040;--text:#ffffff;--text2:#b0c4d8;
-  --text3:#6b7f94;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
+  --bg:#1a1d24;--panel:#1f2330;--card:#22262f;--card2:#272c38;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#ffffff;--text2:#b0c4d8;
+  --text3:#8896a8;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
   --green:#4ade80;--red:#f87171;--blue:#60a5fa;--radius:12px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1154,11 +1154,11 @@ function applyTheme(theme){
     document.getElementById('theme-icon').textContent='☀️';
     document.getElementById('theme-label').textContent='Light';
   } else {
-    r.style.setProperty('--bg','#0a0c10');r.style.setProperty('--panel','#0f1318');
-    r.style.setProperty('--card','#151a22');r.style.setProperty('--card2','#1a2030');
+    r.style.setProperty('--bg','#1a1d24');r.style.setProperty('--panel','#1f2330');
+    r.style.setProperty('--card','#22262f');r.style.setProperty('--card2','#272c38');
     r.style.setProperty('--border','#1e2a38');r.style.setProperty('--border2','#243040');
-    r.style.setProperty('--text','#ffffff');r.style.setProperty('--text2','#b0c4d8');
-    r.style.setProperty('--text3','#6b7f94');
+    r.style.setProperty('--text','#e2e8f0');r.style.setProperty('--text2','#9aafc4');
+    r.style.setProperty('--text3','#8896a8');
     document.getElementById('theme-icon').textContent='🌙';
     document.getElementById('theme-label').textContent='Dark';
   }
