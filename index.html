@@ -75,7 +75,7 @@
   --purple:    #8b5cf6;
   --text:      #ffffff;
   --text2:     #b0c4d8;
-  --text3:     #6b7f94;
+  --text3:     #7e95ad;
   --radius:    12px;
   --radius-lg: 18px;
   --shadow:    0 1px 3px rgba(0,0,0,0.4);
@@ -97,8 +97,8 @@ html.light {
   --red:       #dc2626;
   --purple:    #7c3aed;
   --text:      #0f172a;
-  --text2:     #475569;
-  --text3:     #94a3b8;
+  --text2:     #334155;
+  --text3:     #64748b;
   --shadow:    0 1px 4px rgba(0,0,0,0.1);
 }
 
@@ -1195,11 +1195,11 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="grid2" id="dates-grid">
           <div class="field">
             <label>Pickup Date</label>
-            <input type="date" id="pickup" onchange="calc();calcTransit();triggerWeatherUpdate()" />
+            <input type="date" id="pickup" aria-label="Pickup date" onchange="calc();calcTransit();triggerWeatherUpdate()" />
           </div>
           <div class="field">
             <label>Delivery Date</label>
-            <input type="date" id="delivery" onchange="calcTransit();triggerWeatherUpdate()" />
+            <input type="date" id="delivery" aria-label="Delivery date" onchange="calcTransit();triggerWeatherUpdate()" />
           </div>
         </div>
 
@@ -1414,7 +1414,7 @@ html.light .hos-day-header{background:var(--card2)}
 
         <div class="field ftl-only" id="margin-field" style="max-width:160px;margin-top:12px">
           <label>Your Margin %</label>
-          <input type="number" id="margin" value="15" min="0" max="100" oninput="calc()" />
+          <input type="number" id="margin" aria-label="Margin percentage" value="15" min="0" max="100" oninput="calc()" />
         </div>
 
         <!-- Base Rates — moved here from Advanced for easy access -->
@@ -1440,17 +1440,17 @@ html.light .hos-day-header{background:var(--card2)}
           <div class="adv-grid3">
             <div class="mini-input-group">
               <div class="mini-label" style="color:#60a5fa">Dry Van</div>
-              <input class="mini-input" type="number" id="rate-van" value="2.73" step="0.01" min="0.01" style="color:#60a5fa;border-color:rgba(59,130,246,.3)" oninput="saveRates();calc()" />
+              <input class="mini-input" type="number" id="rate-van" aria-label="Van rate per mile" value="2.73" step="0.01" min="0.01" style="color:#60a5fa;border-color:rgba(59,130,246,.3)" oninput="saveRates();calc()" />
               <div class="mini-sub">per mile</div>
             </div>
             <div class="mini-input-group">
               <div class="mini-label" style="color:#4ade80">Reefer</div>
-              <input class="mini-input" type="number" id="rate-reefer" value="3.15" step="0.01" min="0.01" style="color:#4ade80;border-color:rgba(34,197,94,.3)" oninput="saveRates();calc()" />
+              <input class="mini-input" type="number" id="rate-reefer" aria-label="Reefer rate per mile" value="3.15" step="0.01" min="0.01" style="color:#4ade80;border-color:rgba(34,197,94,.3)" oninput="saveRates();calc()" />
               <div class="mini-sub">per mile</div>
             </div>
             <div class="mini-input-group">
               <div class="mini-label" style="color:var(--accent)">Flatbed</div>
-              <input class="mini-input" type="number" id="rate-flatbed" value="3.38" step="0.01" min="0.01" style="color:var(--accent);border-color:rgba(240,165,0,.3)" oninput="saveRates();calc()" />
+              <input class="mini-input" type="number" id="rate-flatbed" aria-label="Flatbed rate per mile" value="3.38" step="0.01" min="0.01" style="color:var(--accent);border-color:rgba(240,165,0,.3)" oninput="saveRates();calc()" />
               <div class="mini-sub">per mile</div>
             </div>
           </div>

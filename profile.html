@@ -36,6 +36,7 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Sp
 }
 .brand-name{font-size:18px;font-weight:700;color:var(--text2);letter-spacing:-.02em}
 .brand-name span{color:var(--accent)}
+a.brand-name:hover span{opacity:.8}
 .pro-badge{font-size:10px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);padding:2px 8px;border-radius:10px;letter-spacing:.06em;text-transform:uppercase;margin-left:8px}
 .back-link{font-size:12px;color:var(--text3);text-decoration:none;display:flex;align-items:center;gap:6px;transition:color .15s}
 .back-link:hover{color:var(--accent)}
@@ -187,7 +188,7 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Sp
 <div class="header">
   <a href="/" class="back-link">← Back to Calculator</a>
   <div style="display:flex;align-items:center">
-    <div class="brand-name">Quick<span>Freight</span>Calc</div>
+    <a href="/" class="brand-name" style="text-decoration:none">Quick<span>Freight</span>Calc</a>
     <div class="pro-badge">Pro</div>
   </div>
   <div class="header-right" style="display:flex;align-items:center;gap:12px">
