@@ -51,7 +51,7 @@ exports.handler = async function(event){
       'line_items[0][quantity]': '1',
       'customer_email': email,
       'client_reference_id': userId,
-      'success_url': `${siteUrl}/profile.html?checkout=success`,
+      'success_url': `${siteUrl}/?checkout=success`,
       'cancel_url': `${siteUrl}/signup.html?checkout=cancelled`,
       'subscription_data[metadata][userId]': userId,
       'metadata[userId]': userId,
