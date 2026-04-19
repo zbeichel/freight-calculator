@@ -773,9 +773,16 @@ function updateStopLocation(id, val){
   // Re-apply regional rate if this is the first pickup
   const firstPickup = stops.find(s => s.type === 'pickup');
   if(firstPickup?.id === id && !msRateManual) applyMsRate();
-  // Debounce mileage lookup
+  // Debounce mileage lookup for this leg
   clearTimeout(legTimers[id]);
   legTimers[id] = setTimeout(() => lookupLegMiles(id), 900);
+  // Also trigger the previous stop's leg (this stop is its destination)
+  const idx = stops.findIndex(s => s.id === id);
+  if(idx > 0){
+    const prevId = stops[idx-1].id;
+    clearTimeout(legTimers[prevId]);
+    legTimers[prevId] = setTimeout(() => lookupLegMiles(prevId), 900);
+  }
 }
 
 function updateStopDate(id, val){
@@ -896,7 +903,7 @@ async function lookupLegMiles(id){
     calcTotal();
   } catch(e){
     if(badge){ badge.className = 'leg-miles-badge'; badge.textContent = '— mi'; }
-    if(status){ status.className = 'miles-status err'; status.textContent = '⚠ Could not look up miles — enter manually'; }
+    if(status){ status.className = 'miles-status err'; status.textContent = `⚠ ${e.message === 'No key' ? 'Could not load Maps key' : 'Could not look up miles'} — enter manually`; }
   }
 }
 
