@@ -306,10 +306,12 @@ async function handleSignup(){
       });
       const checkoutData = await checkoutResp.json();
       if(checkoutData.url){
-        // Store session backup before leaving for Stripe
+        // Store credentials temporarily for auto-login after Stripe redirect
+        // Cleared immediately on return — only lives for the checkout session
         localStorage.setItem('qfc_pending_checkout', JSON.stringify({
           userId: data.user.id,
           email,
+          pw: btoa(password), // base64 — not secure but obfuscated, cleared on return
           ts: Date.now()
         }));
         window.location.href = checkoutData.url;

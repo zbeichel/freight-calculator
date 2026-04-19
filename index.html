@@ -5393,11 +5393,37 @@ async function startup(){
         document.cookie = 'qfc_uid=;path=/;max-age=0';
       }
 
-      if(!hasSession){
-        // Nothing worked — send to login
-        window.location.href = '/signup.html?login&reason=checkout-complete';
-        return;
-      }
+      // Try auto-login with stored credentials
+        if(!hasSession){
+          try {
+            const pending = JSON.parse(localStorage.getItem('qfc_pending_checkout')||'{}');
+            const age = (Date.now() - (pending.ts||0)) / 1000 / 60;
+            if(pending.email && pending.pw && age < 30){
+              const loginResp = await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/auth/v1/token?grant_type=password', {
+                method: 'POST',
+                headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ' },
+                body: JSON.stringify({ email: pending.email, password: atob(pending.pw) })
+              });
+              const loginData = await loginResp.json();
+              if(loginData.access_token){
+                localStorage.setItem('sb-xgrmbhmgcsbnazupfybd-auth-token', JSON.stringify({
+                  access_token:  loginData.access_token,
+                  refresh_token: loginData.refresh_token,
+                  expires_at:    Math.floor(Date.now()/1000) + (loginData.expires_in || 3600),
+                  user:          loginData.user,
+                }));
+                hasSession = true;
+              }
+            }
+          } catch(e){}
+          localStorage.removeItem('qfc_pending_checkout');
+        }
+
+        if(!hasSession){
+          // Nothing worked — send to login
+          window.location.href = '/signup.html?login&reason=checkout-complete';
+          return;
+        }
     }
 
     // Session exists — run Pro check and show welcome toast
