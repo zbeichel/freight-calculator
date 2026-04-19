@@ -93,9 +93,9 @@ html.light {
   --card2:     #f5f7fa;
   --border:    rgba(0,0,0,0.08);
   --border2:   rgba(0,0,0,0.14);
-  --accent:    #b87a00;
-  --accent2:   #cc8a00;
-  --accentbg:  rgba(184,122,0,0.08);
+  --accent:    #c07c00;
+  --accent2:   #c07c00;
+  --accentbg:  rgba(192,124,0,0.08);
   --blue:      #1d4ed8;
   --green:     #15803d;
   --red:       #b91c1c;
@@ -1829,24 +1829,41 @@ html.light .hos-day-header{background:var(--card2)}
     </div>
   </div>
 
-  <!-- Quote Log — spans full width of both columns -->
-  <div class="log-card" style="grid-column:1/-1;margin-top:0">
-    <div class="card-header">
-      <span class="card-title">Quote Log</span>
+  <!-- Quote Log — Pro only -->
+  <div class="log-card" style="grid-column:1/-1;margin-top:0" id="quote-log-card">
+
+    <!-- Free user gate -->
+    <div id="quote-log-gate" style="display:none;padding:32px 24px;text-align:center">
+      <div style="font-size:28px;margin-bottom:12px">📋</div>
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Quote Log is a Pro Feature</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:18px;line-height:1.6">Save unlimited quotes with notes, synced across all your devices.</div>
+      <button onclick="showProModal('Upgrade to Pro to save and sync your quote history across all devices.')"
+        style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;padding:10px 24px;border-radius:10px;border:none;background:var(--accent);color:#000;cursor:pointer">
+        Upgrade to Pro — $4.99/mo
+      </button>
     </div>
-    <div class="log-actions">
-      <button class="btn btn-primary" onclick="saveQuote()">+ Save Quote</button>
-      <button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button>
-      <button class="btn btn-danger" onclick="clearLog()">Clear All</button>
+
+    <!-- Pro user log -->
+    <div id="quote-log-pro">
+      <div class="card-header">
+        <span class="card-title">Quote Log</span>
+        <span style="font-size:10px;color:var(--text3)" id="quote-log-sync-status"></span>
+      </div>
+      <div class="log-actions">
+        <button class="btn btn-primary" onclick="saveQuote()">+ Save Quote</button>
+        <button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button>
+        <button class="btn btn-danger" onclick="clearLog()">Clear All</button>
+      </div>
+      <div class="log-wrap">
+        <table>
+          <thead>
+            <tr><th>Date</th><th>Route</th><th>Mi</th><th>Type</th><th>Commodity</th><th>Margin</th><th>Base RPM</th><th>Quote</th><th>RPM</th><th>Notes</th><th></th></tr>
+          </thead>
+          <tbody id="log-body"></tbody>
+        </table>
+      </div>
     </div>
-    <div class="log-wrap">
-      <table>
-        <thead>
-          <tr><th>Date</th><th>Route</th><th>Mi</th><th>Type</th><th>Commodity</th><th>Margin</th><th>Base RPM</th><th>Quote</th><th>RPM</th><th></th></tr>
-        </thead>
-        <tbody id="log-body"></tbody>
-      </table>
-    </div>
+
   </div>
 
 </div>
@@ -2184,8 +2201,8 @@ function updateProUI(){
     if(isProUser) renderProfileSelect();
   }
   if(msTag) msTag.style.display = isProUser ? 'none' : '';
-  const lanesTag = document.getElementById('lanes-pro-tag');
-  if(lanesTag) lanesTag.style.display = isProUser ? 'none' : '';
+  updateQuoteLogGate();
+  if(isProUser) loadQuoteLogFromSupabase();
 }
 
 // ── LTL class rates ($/CWT) — industry standard national averages ─────────
@@ -4387,9 +4404,38 @@ function calc(){
 }
 
 // ── Save/load quote log ───────────────────────────────────────────────────
-function saveQuote(){
+// ── Quote Log (Pro only — Supabase synced) ───────────────────────────────
+const SUPABASE_URL_QL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
+const SUPABASE_KEY_QL = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
+
+function updateQuoteLogGate(){
+  const gate = document.getElementById('quote-log-gate');
+  const pro  = document.getElementById('quote-log-pro');
+  if(!gate || !pro) return;
+  if(isProUser){
+    gate.style.display = 'none';
+    pro.style.display  = '';
+  } else {
+    gate.style.display = '';
+    pro.style.display  = 'none';
+  }
+}
+
+function getProSession(){
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+  for(const key of keys){
+    try {
+      const val = JSON.parse(localStorage.getItem(key)||'{}');
+      if(val?.access_token) return val;
+    } catch(e){}
+  }
+  return null;
+}
+
+async function saveQuote(){
+  if(!isProUser){ showProModal('Save Quote is a Pro feature. Upgrade to save and sync your quote history.'); return; }
   const miles=parseFloat(document.getElementById('miles').value)||0;
-  if(!miles){alert('Enter miles before saving.');return;}
+  if(!miles){ showToast('⚠ Enter miles before saving.'); return; }
   const trailer=document.getElementById('trailer').value;
   const commodity=document.getElementById('commodity').value;
   const weight=parseFloat(document.getElementById('weight').value)||0;
@@ -4407,46 +4453,112 @@ function saveQuote(){
   const qRpm=quote/miles;
   const dateStr=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
 
-  // ── Save to localStorage (on-screen log) ──
-  quoteLog.unshift({
-    id:Date.now(),
-    date:dateStr,
-    orig,dest,miles,trailer,commodity:CLABEL[commodity],
-    margin:(marginPct*100).toFixed(0)+'%',
-    baseRpm:base.toFixed(2),quote:Math.round(quote),rpm:qRpm.toFixed(2)
-  });
-  try{localStorage.setItem('frc_log',JSON.stringify(quoteLog));}catch(e){}
+  const entry = {
+    id: Date.now(),
+    date: dateStr,
+    orig, dest, miles, trailer,
+    commodity: CLABEL[commodity],
+    margin: (marginPct*100).toFixed(0)+'%',
+    baseRpm: base.toFixed(2),
+    quote: Math.round(quote),
+    rpm: qRpm.toFixed(2),
+    notes: ''
+  };
+
+  quoteLog.unshift(entry);
   renderLog();
+  showToast('💾 Quote saved');
 
-  // ── Post to Netlify Forms ──
-  // TO RE-ENABLE: set NETLIFY_FORMS_ENABLED = true
-  // Free tier limit is 100 submissions/month — enable when on a paid plan
-  const NETLIFY_FORMS_ENABLED = false;
-
-  if(NETLIFY_FORMS_ENABLED){
-    const formData=new FormData();
-    formData.append('form-name','freight-quotes');
-    formData.append('bot-field','');
-    formData.append('date', dateStr);
-    formData.append('origin', orig||'—');
-    formData.append('destination', dest||'—');
-    formData.append('miles', miles);
-    formData.append('trailer', TLABEL[trailer]);
-    formData.append('commodity', CLABEL[commodity]);
-    formData.append('weight', weight||'—');
-    formData.append('margin', (marginPct*100).toFixed(0)+'%');
-    formData.append('base-rpm', '$'+base.toFixed(2));
-    formData.append('quote-total', '$'+Math.round(quote).toLocaleString());
-    formData.append('quote-rpm', '$'+qRpm.toFixed(2));
-    formData.append('pickup-date', pickup||'—');
-    formData.append('adj-rpm', '$'+adjRpm.toFixed(2));
-
-    fetch('/', {method:'POST', body:formData})
-      .then(()=>showToast('✅ Quote saved'))
-      .catch(()=>showToast('💾 Saved locally'));
-  } else {
-    showToast('💾 Quote saved');
+  // Sync to Supabase
+  const session = getProSession();
+  if(session){
+    const userId = session.user?.id || session.user?.sub;
+    try {
+      await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY_QL,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          date: entry.date,
+          origin: entry.orig,
+          destination: entry.dest,
+          miles: entry.miles,
+          trailer: entry.trailer,
+          commodity: entry.commodity,
+          margin: entry.margin,
+          base_rpm: entry.baseRpm,
+          quote: entry.quote,
+          rpm: entry.rpm,
+          notes: ''
+        })
+      });
+      setQuoteLogStatus('✓ Synced');
+    } catch(e){ setQuoteLogStatus('Saved locally'); }
   }
+}
+
+function setQuoteLogStatus(msg){
+  const el = document.getElementById('quote-log-sync-status');
+  if(el) el.textContent = msg;
+}
+
+async function loadQuoteLogFromSupabase(){
+  const session = getProSession();
+  if(!session || !isProUser) return;
+  const userId = session.user?.id || session.user?.sub;
+  try {
+    setQuoteLogStatus('Syncing...');
+    const resp = await fetch(
+      `${SUPABASE_URL_QL}/rest/v1/quote_log?user_id=eq.${userId}&order=created_at.desc&limit=200`,
+      { headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` } }
+    );
+    const rows = await resp.json();
+    if(Array.isArray(rows) && rows.length){
+      quoteLog = rows.map(r => ({
+        id: r.id,
+        date: r.date,
+        orig: r.origin,
+        dest: r.destination,
+        miles: r.miles,
+        trailer: r.trailer,
+        commodity: r.commodity,
+        margin: r.margin,
+        baseRpm: r.base_rpm,
+        quote: r.quote,
+        rpm: r.rpm,
+        notes: r.notes || ''
+      }));
+      renderLog();
+      setQuoteLogStatus(`✓ ${rows.length} quotes synced`);
+    } else {
+      setQuoteLogStatus('No quotes yet');
+    }
+  } catch(e){ setQuoteLogStatus(''); }
+}
+
+async function saveQuoteNote(id, notes){
+  const session = getProSession();
+  if(!session) return;
+  try {
+    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY_QL,
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ notes })
+    });
+  } catch(e){}
+  // Update local
+  const q = quoteLog.find(q => q.id == id);
+  if(q) q.notes = notes;
 }
 
 function showToast(msg){
@@ -4457,21 +4569,63 @@ function showToast(msg){
   setTimeout(()=>{t.style.opacity='0';},2500);
   setTimeout(()=>{t.style.display='none';},3000);
 }
-function deleteQuote(id){quoteLog=quoteLog.filter(q=>q.id!==id);try{localStorage.setItem('frc_log',JSON.stringify(quoteLog));}catch(e){}renderLog();}
-function clearLog(){if(!quoteLog.length)return;if(confirm('Clear all saved quotes?')){quoteLog=[];try{localStorage.setItem('frc_log','[]');}catch(e){}renderLog();}}
-function exportCSV(){
-  if(!quoteLog.length){alert('No quotes to export.');return;}
-  const hdr='Date,Origin,Destination,Miles,Trailer,Commodity,Margin,Base RPM,Quote,RPM\n';
-  const rows=quoteLog.map(q=>[q.date,q.orig,q.dest,q.miles,TLABEL[q.trailer]||q.trailer,q.commodity,q.margin,q.baseRpm,q.quote,q.rpm].join(',')).join('\n');
-  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(hdr+rows);
-  a.download='freight_quotes_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+
+async function deleteQuote(id){
+  quoteLog = quoteLog.filter(q => q.id != id);
+  renderLog();
+  const session = getProSession();
+  if(!session) return;
+  try {
+    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` }
+    });
+  } catch(e){}
 }
+
+async function clearLog(){
+  if(!quoteLog.length) return;
+  if(!confirm('Clear all saved quotes? This cannot be undone.')) return;
+  const ids = quoteLog.map(q => q.id);
+  quoteLog = [];
+  renderLog();
+  const session = getProSession();
+  if(!session) return;
+  const userId = session.user?.id || session.user?.sub;
+  try {
+    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?user_id=eq.${userId}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` }
+    });
+    setQuoteLogStatus('Cleared');
+  } catch(e){}
+}
+
+function exportCSV(){
+  if(!quoteLog.length){ showToast('⚠ No quotes to export.'); return; }
+  const hdr = 'Date,Origin,Destination,Miles,Trailer,Commodity,Margin,Base RPM,Quote,RPM,Notes\n';
+  const rows = quoteLog.map(q => [
+    q.date, q.orig, q.dest, q.miles,
+    TLABEL[q.trailer]||q.trailer, q.commodity,
+    q.margin, q.baseRpm, q.quote, q.rpm,
+    '"'+(q.notes||'').replace(/"/g,'""')+'"'
+  ].join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(hdr + rows);
+  a.download = 'freight_quotes_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
 function renderLog(){
-  const tbody=document.getElementById('log-body');
-  if(!quoteLog.length){tbody.innerHTML='<tr><td colspan="10" class="empty-log">No quotes saved yet — fill out the form and click Save Quote.</td></tr>';return;}
-  tbody.innerHTML=quoteLog.map(q=>`<tr>
+  const tbody = document.getElementById('log-body');
+  if(!tbody) return;
+  if(!quoteLog.length){
+    tbody.innerHTML = '<tr><td colspan="11" class="empty-log">No quotes saved yet — fill out the form and click Save Quote.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = quoteLog.map(q => `<tr>
     <td class="dim">${q.date}</td>
-    <td style="font-size:11px;max-width:160px;white-space:normal">${q.orig||'—'}${q.dest?' → '+q.dest:''}</td>
+    <td style="font-size:11px;max-width:140px;white-space:normal">${q.orig||'—'}${q.dest?' → '+q.dest:''}</td>
     <td>${Number(q.miles).toLocaleString()}</td>
     <td><span class="tag ${TTAG[q.trailer]||'tag-van'}">${TLABEL[q.trailer]||q.trailer}</span></td>
     <td class="dim">${q.commodity}</td>
@@ -4479,6 +4633,13 @@ function renderLog(){
     <td class="dim">$${q.baseRpm}</td>
     <td class="money">$${Number(q.quote).toLocaleString()}</td>
     <td class="dim">$${q.rpm}</td>
+    <td><input type="text" value="${(q.notes||'').replace(/"/g,'&quot;')}" placeholder="Add note..."
+      style="background:var(--card2);border:1px solid var(--border2);border-radius:6px;
+      color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:11px;
+      padding:4px 8px;width:120px;outline:none"
+      onchange="saveQuoteNote(${q.id}, this.value)"
+      onfocus="this.style.borderColor='var(--accent)'"
+      onblur="this.style.borderColor='var(--border2)'" /></td>
     <td><button class="del-btn" onclick="deleteQuote(${q.id})">✕</button></td>
   </tr>`).join('');
 }
@@ -4522,7 +4683,7 @@ function loadAll(){
     // Only enable if user explicitly turned it on before — default is Off for new visitors
     if(s.enabled===true){document.getElementById('seas-enabled').checked=true;toggleSeason();}
 
-    quoteLog=JSON.parse(localStorage.getItem('frc_log')||'[]');
+    quoteLog=[];
   }catch(e){}
 }
 
