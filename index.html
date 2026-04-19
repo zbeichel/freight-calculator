@@ -2201,6 +2201,8 @@ function updateProUI(){
     if(isProUser) renderProfileSelect();
   }
   if(msTag) msTag.style.display = isProUser ? 'none' : '';
+  const lanesTag = document.getElementById('lanes-pro-tag');
+  if(lanesTag) lanesTag.style.display = isProUser ? 'none' : '';
   updateQuoteLogGate();
   if(isProUser) loadQuoteLogFromSupabase();
 }
