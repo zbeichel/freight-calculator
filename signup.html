@@ -306,12 +306,18 @@ async function handleSignup(){
       });
       const checkoutData = await checkoutResp.json();
       if(checkoutData.url){
-        // Store credentials temporarily for auto-login after Stripe redirect
-        // Cleared immediately on return — only lives for the checkout session
+        // Store full session so index.html can restore the correct user on return.
+        // This survives the cross-origin Stripe redirect where localStorage may
+        // revert to a previously-logged-in user's session.
+        // Cleared immediately on return — only lives for the checkout session.
         localStorage.setItem('qfc_pending_checkout', JSON.stringify({
-          userId: data.user.id,
+          userId:        data.user.id,
           email,
-          ts: Date.now()
+          ts:            Date.now(),
+          access_token:  data.access_token,
+          refresh_token: data.refresh_token,
+          expires_at:    Math.floor(Date.now()/1000) + (data.expires_in || 3600),
+          user:          data.user,
         }));
         window.location.href = checkoutData.url;
       } else {

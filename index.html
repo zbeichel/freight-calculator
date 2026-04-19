@@ -5364,11 +5364,23 @@ async function startup(){
       // Ignore if stale (older than 2 hours — something went badly wrong if so)
       if(pending.userId && pending.ts && (Date.now() - pending.ts) < 7200000){
         pendingUserId = pending.userId;
+
+        // If the pending entry has full session tokens, restore them now.
+        // This fixes the case where a previously-logged-in user's session
+        // survived the cross-origin Stripe redirect and overrode the new user.
+        if(pending.access_token && pending.user){
+          const sbKey = 'sb-xgrmbhmgcsbnazupfybd-auth-token';
+          localStorage.setItem(sbKey, JSON.stringify({
+            access_token:  pending.access_token,
+            refresh_token: pending.refresh_token,
+            expires_at:    pending.expires_at,
+            user:          pending.user,
+          }));
+        }
       }
     } catch(e){}
 
-    // Find the session that belongs to the user who just paid
-    // Ignore any other sessions (e.g. a previously logged-in user on this machine)
+    // Verify the restored session matches the pending user
     let hasSession = false;
     if(pendingUserId){
       const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
