@@ -5337,97 +5337,82 @@ function calcHOS(totalDriveSecs, googleDriveText, origin, dest){
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
-loadTheme();
-loadAll();
-loadRates();
-loadGMapsKey(); // fetch Google Maps key from Netlify env — never in source
-document.getElementById('pickup').valueAsDate=new Date();
-updateFSCLabel();
-updateAdvCount();
-renderLog();
-syncCWTDefault();
-renderCustomAccs(); // initialize with one empty custom charge slot
-updateProUI();     // apply Pro feature visibility based on auth state
-updateProAccountBtn(); // show name in header if profile exists
-checkProAuth();    // verify Supabase session and unlock Pro if active
-calc();
+// ── Startup — handle checkout return BEFORE auth check ───────────────────
+async function startup(){
+  loadTheme();
+  loadAll();
+  loadRates();
+  loadGMapsKey();
+  document.getElementById('pickup').valueAsDate=new Date();
+  updateFSCLabel();
+  updateAdvCount();
+  renderLog();
+  syncCWTDefault();
+  renderCustomAccs();
+  updateProUI();
+  updateProAccountBtn();
 
-// Handle return from Stripe checkout
-(function(){
+  // Handle return from Stripe checkout BEFORE checkProAuth
   const params = new URLSearchParams(window.location.search);
   if(params.get('checkout') === 'success'){
     window.history.replaceState({}, '', '/');
-    // Check if we have a session in localStorage
+
+    // Check localStorage first
     const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
-    let hasSession = false;
-    for(const key of keys){
-      try {
-        const v = JSON.parse(localStorage.getItem(key)||'{}');
-        if(v?.access_token){ hasSession = true; break; }
-      } catch(e){}
-    }
-    if(hasSession){
-      // Session exists in localStorage — normal Pro check will handle it
-      const origUpdateProUI = updateProUI;
-      let welcomed = false;
-      updateProUI = function(){
-        origUpdateProUI();
-        if(isProUser && !welcomed){
-          welcomed = true;
-          showToastMsg('🎉 Welcome to Pro! Your account is now active.');
-          updateProUI = origUpdateProUI;
-        }
-      };
-    } else {
-      // Session lost during Stripe redirect — try to restore from cookie
+    let hasSession = keys.some(k => {
+      try { return !!JSON.parse(localStorage.getItem(k)||'{}')?.access_token; } catch(e){ return false; }
+    });
+
+    if(!hasSession){
+      // Try cookie refresh token
       const getCookie = name => {
         const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
         return match ? decodeURIComponent(match[2]) : null;
       };
       const refreshToken = getCookie('qfc_rt');
       if(refreshToken){
-        // Use refresh token to get a new session silently
-        fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/auth/v1/token?grant_type=refresh_token', {
-          method: 'POST',
-          headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ' },
-          body: JSON.stringify({ refresh_token: refreshToken })
-        }).then(r => r.json()).then(data => {
+        try {
+          const resp = await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/auth/v1/token?grant_type=refresh_token', {
+            method: 'POST',
+            headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ' },
+            body: JSON.stringify({ refresh_token: refreshToken })
+          });
+          const data = await resp.json();
           if(data.access_token){
-            const key = `sb-xgrmbhmgcsbnazupfybd-auth-token`;
-            const sessionData = {
+            localStorage.setItem('sb-xgrmbhmgcsbnazupfybd-auth-token', JSON.stringify({
               access_token:  data.access_token,
               refresh_token: data.refresh_token || refreshToken,
               expires_at:    Math.floor(Date.now()/1000) + (data.expires_in || 3600),
               user:          data.user,
-            };
-            localStorage.setItem(key, JSON.stringify(sessionData));
-            // Clear cookie
-            document.cookie = 'qfc_rt=;path=/;max-age=0';
-            document.cookie = 'qfc_uid=;path=/;max-age=0';
-            // Now run Pro check with restored session
-            checkProAuth().then(() => {
-              showToastMsg('🎉 Welcome to Pro! Your account is now active.');
-            });
-          } else {
-            // Refresh failed — send to login with message
-            localStorage.removeItem('qfc_pending_checkout');
-            window.location.href = '/signup.html?login&reason=checkout-complete';
+            }));
+            hasSession = true;
           }
-        }).catch(() => {
-          window.location.href = '/signup.html?login&reason=checkout-complete';
-        });
-      } else {
-        // No cookie either — check pending checkout flag
-        const pending = JSON.parse(localStorage.getItem('qfc_pending_checkout')||'{}');
-        const age = (Date.now() - (pending.ts||0)) / 1000 / 60;
-        if(pending.userId && age < 30){
-          localStorage.removeItem('qfc_pending_checkout');
-          window.location.href = '/signup.html?login&reason=checkout-complete';
-        }
+        } catch(e){}
+        // Clear cookie regardless
+        document.cookie = 'qfc_rt=;path=/;max-age=0';
+        document.cookie = 'qfc_uid=;path=/;max-age=0';
+      }
+
+      if(!hasSession){
+        // Nothing worked — send to login
+        window.location.href = '/signup.html?login&reason=checkout-complete';
+        return;
       }
     }
+
+    // Session exists — run Pro check and show welcome toast
+    await checkProAuth();
+    showToastMsg('🎉 Welcome to Pro! Your account is now active.');
+    calc();
+    return;
   }
-})();
+
+  // Normal startup
+  checkProAuth();
+  calc();
+}
+
+startup();
 </script>
 
 <!-- ── Save Profile Modal ── -->
