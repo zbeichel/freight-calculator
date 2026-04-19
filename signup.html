@@ -137,13 +137,13 @@ a.brand-name:hover span{opacity:.8}
       <div class="auth-title">QuickFreightCalc <span style="color:#f0a500">Pro</span></div>
       <div class="auth-sub">The complete freight quoting toolkit for brokers and dispatchers</div>
       <div class="pro-features">
-        <div class="pro-feature"><span class="pro-feature-icon">📄</span> Custom branded PDF quotes — your logo & colors</div>
-        <div class="pro-feature"><span class="pro-feature-icon">📝</span> Load notes added to every PDF quote</div>
-        <div class="pro-feature"><span class="pro-feature-icon">🗺</span> Multi-stop freight rate calculator</div>
+        <div class="pro-feature"><span class="pro-feature-icon">📄</span> Branded PDF quotes — your logo, colors & MC/DOT#</div>
+        <div class="pro-feature"><span class="pro-feature-icon">📋</span> Quote log with notes — saved & synced across devices</div>
+        <div class="pro-feature"><span class="pro-feature-icon">🗺</span> Multi-stop load builder with per-mile stop charges</div>
+        <div class="pro-feature"><span class="pro-feature-icon">📈</span> Lane rate tracker — automatic monthly rate history</div>
         <div class="pro-feature"><span class="pro-feature-icon">💾</span> Save up to 100 custom lane profiles</div>
-        <div class="pro-feature"><span class="pro-feature-icon">🔢</span> Sequential quote numbering — looks pro when billing</div>
-        <div class="pro-feature"><span class="pro-feature-icon">📇</span> Your contact info & MC/DOT# on every quote</div>
-        <div class="pro-feature"><span class="pro-feature-icon">🔄</span> Sync across devices — log in anywhere</div>
+        <div class="pro-feature"><span class="pro-feature-icon">🔢</span> Sequential quote numbering</div>
+        <div class="pro-feature"><span class="pro-feature-icon">🔄</span> Everything synced across all your devices</div>
       </div>
     </div>
 
@@ -401,6 +401,10 @@ async function createProUserRow(userId, email, companyName, contactName, token){
 
 // ── Check URL params — auto-switch to login tab ────────────────────────────
 if(window.location.search.includes('login')){ switchTab('login'); }
+if(window.location.search.includes('reason=pro-required')){
+  showError('That page requires a Pro subscription. Sign up or log in to continue.');
+  switchTab('login');
+}
 checkSession();
 </script>
 <!-- Floating theme button -->

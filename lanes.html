@@ -523,7 +523,52 @@ function toggleTheme(){
 applyTheme(localStorage.getItem('qfc_theme')||'dark');
 
 // ── Init ──────────────────────────────────────────────────────────────────
+async function verifyProAccess(){
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key)||'{}');
+      if(!val?.access_token) continue;
+      const userId = val.user?.id || val.user?.sub;
+      if(!userId) continue;
+      const resp = await fetch('/.netlify/functions/verify-pro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, accessToken: val.access_token })
+      });
+      if(!resp.ok) return clientSideProCheck(); // function not deployed yet — fallback
+      const data = await resp.json();
+      if(data.active) return true;
+      break;
+    }
+  } catch(e){
+    // Network error — fall back to client-side check rather than locking out user
+    return clientSideProCheck();
+  }
+  return false;
+}
+
+function clientSideProCheck(){
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key)||'{}');
+      if(!val?.access_token) continue;
+      const userId = val.user?.id || val.user?.sub;
+      if(!userId) continue;
+      const cached = JSON.parse(localStorage.getItem('qfc_pro_status')||'{}');
+      if(cached.isActive && cached.userId === userId) return true;
+    }
+  } catch(e){}
+  return false;
+}
+
 async function init(){
+  const isPro = await verifyProAccess();
+  if(!isPro){
+    window.location.href = '/signup.html?reason=pro-required';
+    return;
+  }
   await loadRates();
   await loadRateHistory();
   await loadProfiles();
