@@ -5400,9 +5400,33 @@ async function startup(){
         }
     }
 
-    // Session exists — run Pro check and show welcome toast
-    await checkProAuth();
-    showToastMsg('🎉 Welcome to Pro! Your account is now active.');
+    // Session exists — poll for Pro activation (webhook may take a few seconds to fire)
+    localStorage.removeItem('qfc_pro_status'); // force a fresh check, ignore any stale cache
+    showToastMsg('⏳ Activating your Pro account…');
+
+    const MAX_ATTEMPTS = 6;
+    const POLL_INTERVAL_MS = 2000;
+    let activated = false;
+
+    for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
+      await checkProAuth();
+      if(isProUser){
+        activated = true;
+        break;
+      }
+      if(attempt < MAX_ATTEMPTS){
+        await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+      }
+    }
+
+    if(activated){
+      showToastMsg('🎉 Welcome to Pro! Your account is now active.');
+    } else {
+      // Webhook is unusually delayed — account will activate within minutes.
+      // Show a friendly holding message rather than a broken-looking screen.
+      showToastMsg('✅ Payment received! Your Pro account will activate in a moment — refresh if features haven\'t unlocked yet.');
+    }
+
     calc();
     return;
   }
