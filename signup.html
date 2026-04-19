@@ -430,11 +430,13 @@ if(window.location.search.includes('reason=pro-required')){
   showError('That page requires a Pro subscription. Sign up or log in to continue.');
   switchTab('login');
 }
-if(window.location.search.includes('reason=checkout-complete')){
+const isPostCheckout = window.location.search.includes('reason=checkout-complete');
+if(isPostCheckout){
   showSuccess('Payment successful! Sign in below to access your Pro account.');
   switchTab('login');
 }
-checkSession();
+// Don't auto-redirect if user just came from checkout — they need to log in fresh
+if(!isPostCheckout){ checkSession(); }
 </script>
 <!-- Floating theme button -->
 <button id="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode" style="
