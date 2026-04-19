@@ -5357,20 +5357,41 @@ async function startup(){
   if(params.get('checkout') === 'success'){
     window.history.replaceState({}, '', '/');
 
-    // Check localStorage first
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
-    let hasSession = keys.some(k => {
-      try { return !!JSON.parse(localStorage.getItem(k)||'{}')?.access_token; } catch(e){ return false; }
-    });
+    // Get the userId of whoever just paid — stored at signup before the Stripe redirect
+    let pendingUserId = null;
+    try {
+      const pending = JSON.parse(localStorage.getItem('qfc_pending_checkout') || '{}');
+      // Ignore if stale (older than 2 hours — something went badly wrong if so)
+      if(pending.userId && pending.ts && (Date.now() - pending.ts) < 7200000){
+        pendingUserId = pending.userId;
+      }
+    } catch(e){}
+
+    // Find the session that belongs to the user who just paid
+    // Ignore any other sessions (e.g. a previously logged-in user on this machine)
+    let hasSession = false;
+    if(pendingUserId){
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+      hasSession = keys.some(k => {
+        try {
+          const v = JSON.parse(localStorage.getItem(k) || '{}');
+          const sessionUserId = v?.user?.id || v?.user?.sub;
+          return v?.access_token && sessionUserId === pendingUserId;
+        } catch(e){ return false; }
+      });
+    }
 
     if(!hasSession){
-      // Try cookie refresh token
+      // Try cookie refresh token (written at signup as a fallback)
       const getCookie = name => {
         const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
         return match ? decodeURIComponent(match[2]) : null;
       };
       const refreshToken = getCookie('qfc_rt');
-      if(refreshToken){
+      const cookieUserId  = getCookie('qfc_uid');
+
+      // Only use the cookie if it matches the pending user
+      if(refreshToken && (!pendingUserId || cookieUserId === pendingUserId)){
         try {
           const resp = await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/auth/v1/token?grant_type=refresh_token', {
             method: 'POST',
@@ -5388,16 +5409,16 @@ async function startup(){
             hasSession = true;
           }
         } catch(e){}
-        // Clear cookie regardless
+        // Clear cookies regardless
         document.cookie = 'qfc_rt=;path=/;max-age=0';
         document.cookie = 'qfc_uid=;path=/;max-age=0';
       }
 
       if(!hasSession){
-          localStorage.removeItem('qfc_pending_checkout');
-          window.location.href = '/signup.html?login&reason=checkout-complete';
-          return;
-        }
+        localStorage.removeItem('qfc_pending_checkout');
+        window.location.href = '/signup.html?login&reason=checkout-complete';
+        return;
+      }
     }
 
     // Session exists — poll for Pro activation (webhook may take a few seconds to fire)
