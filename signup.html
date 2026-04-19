@@ -381,12 +381,18 @@ async function handleForgotPassword(){
 function storeSession(data){
   try {
     const key = `sb-${SUPABASE_URL.split('//')[1].split('.')[0]}-auth-token`;
-    localStorage.setItem(key, JSON.stringify({
+    const sessionData = {
       access_token:  data.access_token,
       refresh_token: data.refresh_token,
       expires_at:    Math.floor(Date.now()/1000) + (data.expires_in || 3600),
       user:          data.user,
-    }));
+    };
+    localStorage.setItem(key, JSON.stringify(sessionData));
+    // Also store in sessionStorage as backup (survives some cross-origin redirects)
+    sessionStorage.setItem(key, JSON.stringify(sessionData));
+    // Store refresh token in cookie as last resort (survives most redirects)
+    document.cookie = `qfc_rt=${encodeURIComponent(data.refresh_token)};path=/;max-age=86400;SameSite=Lax`;
+    document.cookie = `qfc_uid=${encodeURIComponent(data.user?.id||'')};path=/;max-age=86400;SameSite=Lax`;
   } catch(e){}
 }
 

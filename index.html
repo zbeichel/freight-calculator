@@ -5367,8 +5367,7 @@ calc();
       } catch(e){}
     }
     if(hasSession){
-      // Session exists — normal Pro check will handle it
-      // Just show a welcome message after auth completes
+      // Session exists in localStorage — normal Pro check will handle it
       const origUpdateProUI = updateProUI;
       let welcomed = false;
       updateProUI = function(){
@@ -5380,13 +5379,51 @@ calc();
         }
       };
     } else {
-      // No session — check if there's a pending checkout
-      const pending = JSON.parse(localStorage.getItem('qfc_pending_checkout')||'{}');
-      const age = (Date.now() - (pending.ts||0)) / 1000 / 60;
-      if(pending.userId && age < 30){
-        // Recent checkout — session was lost in redirect, send to login
-        localStorage.removeItem('qfc_pending_checkout');
-        window.location.href = '/signup.html?login&reason=checkout-complete';
+      // Session lost during Stripe redirect — try to restore from cookie
+      const getCookie = name => {
+        const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+        return match ? decodeURIComponent(match[2]) : null;
+      };
+      const refreshToken = getCookie('qfc_rt');
+      if(refreshToken){
+        // Use refresh token to get a new session silently
+        fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/auth/v1/token?grant_type=refresh_token', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ' },
+          body: JSON.stringify({ refresh_token: refreshToken })
+        }).then(r => r.json()).then(data => {
+          if(data.access_token){
+            const key = `sb-xgrmbhmgcsbnazupfybd-auth-token`;
+            const sessionData = {
+              access_token:  data.access_token,
+              refresh_token: data.refresh_token || refreshToken,
+              expires_at:    Math.floor(Date.now()/1000) + (data.expires_in || 3600),
+              user:          data.user,
+            };
+            localStorage.setItem(key, JSON.stringify(sessionData));
+            // Clear cookie
+            document.cookie = 'qfc_rt=;path=/;max-age=0';
+            document.cookie = 'qfc_uid=;path=/;max-age=0';
+            // Now run Pro check with restored session
+            checkProAuth().then(() => {
+              showToastMsg('🎉 Welcome to Pro! Your account is now active.');
+            });
+          } else {
+            // Refresh failed — send to login with message
+            localStorage.removeItem('qfc_pending_checkout');
+            window.location.href = '/signup.html?login&reason=checkout-complete';
+          }
+        }).catch(() => {
+          window.location.href = '/signup.html?login&reason=checkout-complete';
+        });
+      } else {
+        // No cookie either — check pending checkout flag
+        const pending = JSON.parse(localStorage.getItem('qfc_pending_checkout')||'{}');
+        const age = (Date.now() - (pending.ts||0)) / 1000 / 60;
+        if(pending.userId && age < 30){
+          localStorage.removeItem('qfc_pending_checkout');
+          window.location.href = '/signup.html?login&reason=checkout-complete';
+        }
       }
     }
   }
