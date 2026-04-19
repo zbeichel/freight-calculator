@@ -223,15 +223,9 @@ const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
 
 // ── Check if already logged in ─────────────────────────────────────────────
 async function checkSession(){
-  // Don't auto-redirect if we're waiting for a fresh login after checkout —
-  // the previous user's session may still be in localStorage
-  const hasPending = (() => {
-    try {
-      const p = JSON.parse(localStorage.getItem('qfc_pending_checkout') || '{}');
-      return p.userId && p.ts && (Date.now() - p.ts) < 7200000;
-    } catch(e){ return false; }
-  })();
-  if(hasPending) return;
+  // Never auto-redirect when the user needs to log in fresh after checkout
+  if(window.location.search.includes('reason=checkout-complete')) return;
+  if(window.location.search.includes('reason=pro-required')) return;
 
   const session = getSession();
   if(session){
