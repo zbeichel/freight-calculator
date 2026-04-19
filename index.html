@@ -2050,7 +2050,6 @@ async function checkProAuth(){
   // ── Instant cache check — show Pro immediately if cached ──────────────────
   try {
     const cached = JSON.parse(localStorage.getItem('qfc_pro_status') || '{}');
-    // Get current userId from session
     let currentUserId = null;
     for(const key of Object.keys(localStorage).filter(k => k.startsWith('sb-'))){
       try {
@@ -2058,7 +2057,6 @@ async function checkProAuth(){
         if(v?.access_token){ currentUserId = v.user?.id || v.user?.sub; break; }
       } catch(e){}
     }
-    // Cache is only valid if it matches the current user AND is less than 5 minutes old
     if(currentUserId && cached.isActive && cached.userId === currentUserId && cached.cachedAt){
       const age = (Date.now() - cached.cachedAt) / 1000;
       if(age < 300){
@@ -2071,7 +2069,35 @@ async function checkProAuth(){
     }
   } catch(e){}
 
-  // ── Full Supabase check ───────────────────────────────────────────────────
+  // ── If user just came from checkout, poll until webhook fires ─────────────
+  let isPendingCheckout = false;
+  try {
+    const pending = JSON.parse(localStorage.getItem('qfc_pending_checkout') || '{}');
+    if(pending.userId && pending.ts && (Date.now() - pending.ts) < 7200000){
+      isPendingCheckout = true;
+    }
+  } catch(e){}
+
+  if(isPendingCheckout){
+    showToastMsg('⏳ Activating your Pro account…');
+    const MAX_ATTEMPTS = 6;
+    const POLL_MS = 2000;
+    for(let i = 1; i <= MAX_ATTEMPTS; i++){
+      await _verifyProAuthBackground();
+      if(isProUser){
+        localStorage.removeItem('qfc_pending_checkout');
+        showToastMsg('🎉 Welcome to Pro! Your account is now active.');
+        return;
+      }
+      if(i < MAX_ATTEMPTS) await new Promise(r => setTimeout(r, POLL_MS));
+    }
+    // Webhook unusually delayed — clear pending so we don't poll forever
+    localStorage.removeItem('qfc_pending_checkout');
+    showToastMsg('✅ Payment received! Pro features will activate shortly — refresh in a moment if they haven\'t unlocked.');
+    return;
+  }
+
+  // ── Normal full check ─────────────────────────────────────────────────────
   await _verifyProAuthBackground();
 }
 
@@ -5352,116 +5378,19 @@ async function startup(){
   updateProUI();
   updateProAccountBtn();
 
-  // Handle return from Stripe checkout BEFORE checkProAuth
+  // Handle return from Stripe checkout
   const params = new URLSearchParams(window.location.search);
   if(params.get('checkout') === 'success'){
     window.history.replaceState({}, '', '/');
-
-    // Get the userId of whoever just paid — stored at signup before the Stripe redirect
-    let pendingUserId = null;
-    try {
-      const pending = JSON.parse(localStorage.getItem('qfc_pending_checkout') || '{}');
-      // Ignore if stale (older than 2 hours — something went badly wrong if so)
-      if(pending.userId && pending.ts && (Date.now() - pending.ts) < 7200000){
-        pendingUserId = pending.userId;
-
-        // If the pending entry has full session tokens, restore them now.
-        // This fixes the case where a previously-logged-in user's session
-        // survived the cross-origin Stripe redirect and overrode the new user.
-        if(pending.access_token && pending.user){
-          const sbKey = 'sb-xgrmbhmgcsbnazupfybd-auth-token';
-          localStorage.setItem(sbKey, JSON.stringify({
-            access_token:  pending.access_token,
-            refresh_token: pending.refresh_token,
-            expires_at:    pending.expires_at,
-            user:          pending.user,
-          }));
-        }
-      }
-    } catch(e){}
-
-    // Verify the restored session matches the pending user
-    let hasSession = false;
-    if(pendingUserId){
-      const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
-      hasSession = keys.some(k => {
-        try {
-          const v = JSON.parse(localStorage.getItem(k) || '{}');
-          const sessionUserId = v?.user?.id || v?.user?.sub;
-          return v?.access_token && sessionUserId === pendingUserId;
-        } catch(e){ return false; }
-      });
-    }
-
-    if(!hasSession){
-      // Try cookie refresh token (written at signup as a fallback)
-      const getCookie = name => {
-        const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-        return match ? decodeURIComponent(match[2]) : null;
-      };
-      const refreshToken = getCookie('qfc_rt');
-      const cookieUserId  = getCookie('qfc_uid');
-
-      // Only use the cookie if it matches the pending user
-      if(refreshToken && (!pendingUserId || cookieUserId === pendingUserId)){
-        try {
-          const resp = await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/auth/v1/token?grant_type=refresh_token', {
-            method: 'POST',
-            headers: { 'Content-Type':'application/json', 'apikey':'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ' },
-            body: JSON.stringify({ refresh_token: refreshToken })
-          });
-          const data = await resp.json();
-          if(data.access_token){
-            localStorage.setItem('sb-xgrmbhmgcsbnazupfybd-auth-token', JSON.stringify({
-              access_token:  data.access_token,
-              refresh_token: data.refresh_token || refreshToken,
-              expires_at:    Math.floor(Date.now()/1000) + (data.expires_in || 3600),
-              user:          data.user,
-            }));
-            hasSession = true;
-          }
-        } catch(e){}
-        // Clear cookies regardless
-        document.cookie = 'qfc_rt=;path=/;max-age=0';
-        document.cookie = 'qfc_uid=;path=/;max-age=0';
-      }
-
-      if(!hasSession){
-        localStorage.removeItem('qfc_pending_checkout');
-        window.location.href = '/signup.html?login&reason=checkout-complete';
-        return;
-      }
-    }
-
-    // Session exists — poll for Pro activation (webhook may take a few seconds to fire)
-    localStorage.removeItem('qfc_pro_status'); // force a fresh check, ignore any stale cache
-    showToastMsg('⏳ Activating your Pro account…');
-
-    const MAX_ATTEMPTS = 6;
-    const POLL_INTERVAL_MS = 2000;
-    let activated = false;
-
-    for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
-      await checkProAuth();
-      if(isProUser){
-        activated = true;
-        break;
-      }
-      if(attempt < MAX_ATTEMPTS){
-        await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
-      }
-    }
-
-    if(activated){
-      showToastMsg('🎉 Welcome to Pro! Your account is now active.');
-    } else {
-      // Webhook is unusually delayed — account will activate within minutes.
-      // Show a friendly holding message rather than a broken-looking screen.
-      showToastMsg('✅ Payment received! Your Pro account will activate in a moment — refresh if features haven\'t unlocked yet.');
-    }
-
-    calc();
+    localStorage.removeItem('qfc_pro_status'); // clear any stale cache
+    // Send to login — qfc_pending_checkout is still set so login will redirect back here
+    window.location.href = '/signup.html?login&reason=checkout-complete';
     return;
+  }
+
+  // Handle return from login after checkout — poll for Pro activation
+  if(params.get('from') === 'login'){
+    window.history.replaceState({}, '', '/');
   }
 
   // Normal startup
