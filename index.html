@@ -2776,6 +2776,8 @@ function saveRateProfile(){
       seasEnabled: document.getElementById('seas-enabled').checked,
       seasRegion:  document.getElementById('seas-region').value,
       loadNotes:   document.getElementById('load-notes')?.value || '',
+      driveSecs:   lastDriveSecs || 0,
+      driveText:   lastDriveText || '',
       savedAt:     new Date().toISOString(),
     };
 
@@ -2857,6 +2859,21 @@ function loadProfile_rate(){
   calc();
   calcTransit();
   triggerWeatherUpdate();
+  // Trigger HOS using cached drive time — no API call needed
+  if(p.driveSecs && p.driveSecs > 0){
+    lastDriveSecs = p.driveSecs;
+    lastDriveText = p.driveText || fmtDuration(p.driveSecs);
+    calcHOS(p.driveSecs, lastDriveText,
+      p.origin || '',
+      p.dest   || '');
+  } else if(p.origin && p.dest){
+    // Older profiles without saved drive time — make one API call to get it
+    lastLookedUpOrig = '';
+    lastLookedUpDest = '';
+    manualMiles = false;
+    clearTimeout(lookupTimer);
+    lookupTimer = setTimeout(tryLookupMiles, 400);
+  }
   showToastMsg('✓ Profile loaded: ' + p.name);
 }
 
@@ -5001,6 +5018,8 @@ let lookupTimer = null;
 let manualMiles = false;
 let lastLookedUpOrig = '';
 let lastLookedUpDest = '';
+let lastDriveSecs    = 0;
+let lastDriveText    = '';
 
 // Wire up debounced lookup once DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -5133,6 +5152,8 @@ async function tryLookupMiles(){
     // Cache so repeat cursor movements don't re-fire the API call
     lastLookedUpOrig = orig.toLowerCase();
     lastLookedUpDest = dest.toLowerCase();
+    lastDriveSecs    = driveSecs;
+    lastDriveText    = driveText;
     calcHOS(driveSecs, driveText,
       document.getElementById('origin').value.trim(),
       document.getElementById('dest').value.trim());
