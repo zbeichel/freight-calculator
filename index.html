@@ -2087,7 +2087,8 @@ async function _verifyProAuthBackground(){
       if(val.expires_at && val.expires_at < Math.floor(Date.now()/1000) + 300){
         const refreshed = await refreshSession(key, val);
         if(refreshed) val = refreshed;
-        else { localStorage.removeItem(key); continue; }
+        // Don't delete session on refresh failure — token may still be valid
+        // Just continue with existing token and let Supabase validate it
       }
 
       const userId = val.user?.id || val.user?.sub;
@@ -5356,20 +5357,24 @@ calc();
   const params = new URLSearchParams(window.location.search);
   if(params.get('checkout') === 'success'){
     window.history.replaceState({}, '', '/');
-    // Show welcome toast once Pro auth confirms
-    const origUpdate = window.updateProUI;
-    window.updateProUI = function(){
-      origUpdate();
+    // Force Pro UI immediately — webhook has already set is_active = true
+    // Don't wait for the Supabase verification round trip
+    isProUser = true;
+    updateProUI();
+    updateProAccountBtn();
+    // Then verify in background and show toast once confirmed
+    _verifyProAuthBackground().then(() => {
       if(isProUser){
-        const t = document.getElementById('profile-toast');
+        const t = document.getElementById('save-toast');
         if(t){
           t.textContent = '🎉 Welcome to Pro! Your account is now active.';
+          t.style.display = 'flex';
           t.style.opacity = '1';
-          setTimeout(() => t.style.opacity = '0', 4000);
+          setTimeout(() => { t.style.opacity = '0'; }, 4000);
+          setTimeout(() => { t.style.display = 'none'; }, 4500);
         }
-        window.updateProUI = origUpdate;
       }
-    };
+    });
   }
 })();
 </script>
