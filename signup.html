@@ -177,7 +177,7 @@ a.brand-name:hover span{opacity:.8}
         </div>
         <div class="field">
           <label>Password</label>
-          <input type="password" id="su-password" placeholder="At least 8 characters" />
+          <input type="password" id="su-password" placeholder="At least 8 characters" onkeydown="if(event.key==='Enter')handleSignup()" />
         </div>
         <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px">
           <input type="checkbox" id="su-agree" style="width:15px;height:15px;margin-top:2px;accent-color:#f0a500;cursor:pointer;flex-shrink:0" />
@@ -202,7 +202,7 @@ a.brand-name:hover span{opacity:.8}
         </div>
         <div class="field">
           <label>Password</label>
-          <input type="password" id="li-password" placeholder="Your password" />
+          <input type="password" id="li-password" placeholder="Your password" onkeydown="if(event.key==='Enter')handleLogin()" />
         </div>
         <button class="submit-btn" id="li-btn" onclick="handleLogin()">
           Sign In
