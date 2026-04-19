@@ -306,6 +306,12 @@ async function handleSignup(){
       });
       const checkoutData = await checkoutResp.json();
       if(checkoutData.url){
+        // Store session backup before leaving for Stripe
+        localStorage.setItem('qfc_pending_checkout', JSON.stringify({
+          userId: data.user.id,
+          email,
+          ts: Date.now()
+        }));
         window.location.href = checkoutData.url;
       } else {
         showError('Could not start checkout. Please try signing in and upgrading from your profile.');
@@ -403,6 +409,10 @@ async function createProUserRow(userId, email, companyName, contactName, token){
 if(window.location.search.includes('login')){ switchTab('login'); }
 if(window.location.search.includes('reason=pro-required')){
   showError('That page requires a Pro subscription. Sign up or log in to continue.');
+  switchTab('login');
+}
+if(window.location.search.includes('reason=checkout-complete')){
+  showSuccess('Payment successful! Sign in below to access your Pro account.');
   switchTab('login');
 }
 checkSession();

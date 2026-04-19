@@ -5357,24 +5357,38 @@ calc();
   const params = new URLSearchParams(window.location.search);
   if(params.get('checkout') === 'success'){
     window.history.replaceState({}, '', '/');
-    // Force Pro UI immediately — webhook has already set is_active = true
-    // Don't wait for the Supabase verification round trip
-    isProUser = true;
-    updateProUI();
-    updateProAccountBtn();
-    // Then verify in background and show toast once confirmed
-    _verifyProAuthBackground().then(() => {
-      if(isProUser){
-        const t = document.getElementById('save-toast');
-        if(t){
-          t.textContent = '🎉 Welcome to Pro! Your account is now active.';
-          t.style.display = 'flex';
-          t.style.opacity = '1';
-          setTimeout(() => { t.style.opacity = '0'; }, 4000);
-          setTimeout(() => { t.style.display = 'none'; }, 4500);
+    // Check if we have a session in localStorage
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    let hasSession = false;
+    for(const key of keys){
+      try {
+        const v = JSON.parse(localStorage.getItem(key)||'{}');
+        if(v?.access_token){ hasSession = true; break; }
+      } catch(e){}
+    }
+    if(hasSession){
+      // Session exists — normal Pro check will handle it
+      // Just show a welcome message after auth completes
+      const origUpdateProUI = updateProUI;
+      let welcomed = false;
+      updateProUI = function(){
+        origUpdateProUI();
+        if(isProUser && !welcomed){
+          welcomed = true;
+          showToastMsg('🎉 Welcome to Pro! Your account is now active.');
+          updateProUI = origUpdateProUI;
         }
+      };
+    } else {
+      // No session — check if there's a pending checkout
+      const pending = JSON.parse(localStorage.getItem('qfc_pending_checkout')||'{}');
+      const age = (Date.now() - (pending.ts||0)) / 1000 / 60;
+      if(pending.userId && age < 30){
+        // Recent checkout — session was lost in redirect, send to login
+        localStorage.removeItem('qfc_pending_checkout');
+        window.location.href = '/signup.html?login&reason=checkout-complete';
       }
-    });
+    }
   }
 })();
 </script>
