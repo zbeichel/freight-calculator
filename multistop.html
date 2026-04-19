@@ -556,7 +556,7 @@ function adjustExtraDays(delta){
 }
 let legTimers = {};
 let GMAPS_KEY = null;
-let stopChargeOverrides = {}; // stopId → custom charge amount
+let stopChargeOverrides = {}; // stopId → { amount, type } where type is 'flat' or 'permile'
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
@@ -931,19 +931,34 @@ function calcTotal(){
     .filter(s => s.type === 'pickup')
     .reduce((sum, s) => sum + (parseFloat(s.weight)||0), 0);
 
-  // Additional stops = total stops - 1 (first stop is always free)
-  const addlStops = Math.max(0, stops.length - 1);
+  // Additional stops = everything beyond the first pickup + first delivery pair
+  const firstPickupIdx   = stops.findIndex(s => s.type === 'pickup');
+  const firstDeliveryIdx = stops.findIndex(s => s.type === 'delivery');
+  const freeStopIds = new Set([
+    firstPickupIdx  >= 0 ? stops[firstPickupIdx].id  : null,
+    firstDeliveryIdx >= 0 ? stops[firstDeliveryIdx].id : null,
+  ]);
+  freeStopIds.delete(null);
+  const extraStops = stops.filter(s => !freeStopIds.has(s.id));
+  const addlStops  = extraStops.length;
 
   // Linehaul
   const linehaul = totalMiles > 0 ? baseRate * cm * totalMiles : 0;
 
-  // Stop charges — use per-stop overrides if set
+  // Stop charges — use per-stop overrides if set, handle flat vs per-mile
   const stopChargesTotal = addlStops > 0
-    ? Array.from({length: addlStops}, (_, i) => {
-        const stopId = stops[i+1]?.id;
-        return stopId && stopChargeOverrides[stopId] !== undefined
-          ? parseFloat(stopChargeOverrides[stopId]) || 0
-          : stopFee;
+    ? extraStops.map(stop => {
+        const stopId  = stop?.id;
+        if(!stopId) return stopFee;
+        const override = stopChargeOverrides[stopId];
+        if(!override) return stopFee;
+        if(override.type === 'permile'){
+          const prevIdx  = stops.indexOf(stop) - 1;
+          const prevStop = prevIdx >= 0 ? stops[prevIdx] : null;
+          const miles    = legMiles[prevStop?.id] || 0;
+          return miles * (override.amount || 0);
+        }
+        return override.amount !== undefined ? override.amount : stopFee;
       }).reduce((a,b) => a+b, 0)
     : 0;
 
@@ -966,7 +981,7 @@ function calcTotal(){
   document.getElementById('ms-rpm-sub').textContent        = totalMiles > 0 ? `${fmtD(rpm)} per loaded mile` : 'Fill in stops to calculate';
   document.getElementById('ms-total-miles').textContent    = totalMiles > 0 ? totalMiles.toLocaleString() + ' mi' : '—';
   document.getElementById('ms-total-weight').textContent   = totalWeight > 0 ? totalWeight.toLocaleString() + ' lbs' : '—';
-  document.getElementById('ms-stops-count').textContent    = `${stops.length} stops (${stops.filter(s=>s.type==='pickup').length} pickups, ${stops.filter(s=>s.type==='delivery').length} deliveries)`;
+  document.getElementById('ms-stops-count').textContent    = `${stops.length} stops (${stops.filter(s=>s.type==='pickup').length} pickups, ${stops.filter(s=>s.type==='delivery').length} deliveries${addlStops > 0 ? ' · '+addlStops+' extra' : ''})`;
   document.getElementById('ms-linehaul').textContent       = totalMiles > 0 ? fmt(linehaul) : '—';
   document.getElementById('ms-stop-charges-total').textContent = addlStops > 0 ? fmt(stopChargesTotal) : '$0';
   document.getElementById('ms-day-charges-row').style.display = extraDays > 0 ? '' : 'none';
@@ -982,23 +997,70 @@ function renderCharges(){
   const rows = document.getElementById('charges-rows');
   if(!rows) return;
 
-  if(stops.length <= 1){ rows.innerHTML = '<div style="font-size:12px;color:var(--text3)">Add stops to see charges</div>'; return; }
+  // Only charge for stops beyond the first pickup + first delivery pair
+  const firstPickupIdx   = stops.findIndex(s => s.type === 'pickup');
+  const firstDeliveryIdx = stops.findIndex(s => s.type === 'delivery');
+  const freeIds = new Set([
+    firstPickupIdx  >= 0 ? stops[firstPickupIdx].id  : null,
+    firstDeliveryIdx >= 0 ? stops[firstDeliveryIdx].id : null,
+  ]);
+  freeIds.delete(null);
+  const extraStops = stops.filter(s => !freeIds.has(s.id));
 
-  rows.innerHTML = stops.slice(1).map((s, i) => {
-    const label = `Stop ${i+2} — ${s.type === 'pickup' ? '📍 Pickup' : '🏁 Delivery'}${s.location ? ': ' + s.location : ''}`;
-    const val = stopChargeOverrides[s.id] !== undefined ? stopChargeOverrides[s.id] : stopFee;
-    return `<div class="charge-row">
-      <span class="charge-label">${label}</span>
-      <input class="charge-input" type="number" value="${val}" min="0"
-        onchange="setStopChargeOverride(${s.id}, this.value)"
-        title="Override charge for this stop" />
+  if(!extraStops.length){
+    rows.innerHTML = '<div style="font-size:12px;color:var(--text3)">Add extra stops to see charges</div>';
+    return;
+  }
+
+  rows.innerHTML = extraStops.map((s, i) => {
+    const override   = stopChargeOverrides[s.id];
+    const chargeType = override?.type || 'flat';
+    const chargeVal  = override?.amount !== undefined ? override.amount : (chargeType === 'flat' ? stopFee : 0);
+    const prevIdx    = stops.indexOf(s) - 1;
+    const legMi      = prevIdx >= 0 ? (legMiles[stops[prevIdx]?.id] || 0) : 0;
+    const stopNum    = stops.indexOf(s) + 1;
+    const label      = `Stop ${stopNum} — ${s.type === 'pickup' ? '📍 Pickup' : '🏁 Delivery'}${s.location ? ': ' + s.location : ''}`;
+    const perMileCalc = chargeType === 'permile' && legMi > 0
+      ? `<div style="font-size:10px;color:var(--text3);margin-top:3px;padding-left:2px">${legMi.toLocaleString()} mi × $${chargeVal}/mi = $${Math.round(legMi * chargeVal).toLocaleString()}</div>`
+      : '';
+    return `<div class="charge-row" style="flex-wrap:wrap;gap:6px">
+      <span class="charge-label" style="flex:1;min-width:120px">${label}</span>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <select style="background:var(--card2);border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:11px;padding:4px 6px;outline:none;cursor:pointer"
+          onchange="setStopChargeType(${s.id}, this.value)">
+          <option value="flat" ${chargeType==='flat'?'selected':''}>Flat fee</option>
+          <option value="permile" ${chargeType==='permile'?'selected':''}>Per mile</option>
+        </select>
+        <input class="charge-input" type="number" value="${chargeVal}" min="0" step="${chargeType==='permile'?'0.01':'25'}"
+          onchange="setStopChargeOverride(${s.id}, this.value)"
+          title="${chargeType==='permile'?'Rate per mile for this leg':'Flat stop charge'}" />
+        <span style="font-size:11px;color:var(--text3)">${chargeType==='permile'?'/mi':'flat'}</span>
+      </div>
+      ${perMileCalc}
     </div>`;
   }).join('');
 }
 
 function setStopChargeOverride(id, val){
-  stopChargeOverrides[id] = parseFloat(val) || 0;
+  if(!stopChargeOverrides[id]) stopChargeOverrides[id] = { type: 'flat', amount: 0 };
+  stopChargeOverrides[id].amount = parseFloat(val) || 0;
   calcTotal();
+  renderCharges();
+}
+
+function setStopChargeType(id, type){
+  if(!stopChargeOverrides[id]){
+    const stopFee = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
+    stopChargeOverrides[id] = { type, amount: type === 'permile' ? 0 : stopFee };
+  } else {
+    stopChargeOverrides[id].type = type;
+    if(type === 'permile' && stopChargeOverrides[id].amount > 50){
+      // Likely was a flat fee — reset to a reasonable per-mile default
+      stopChargeOverrides[id].amount = 0;
+    }
+  }
+  calcTotal();
+  renderCharges();
 }
 
 // ── PDF Generation ─────────────────────────────────────────────────────────
@@ -1050,8 +1112,19 @@ function generateMultiStopPDF(){
     const weightNote = s.type === 'pickup' && s.weight ? `<div style="font-size:11px;color:#b0c4d8;margin-top:2px">${parseInt(s.weight).toLocaleString()} lbs</div>` : '';
     const legMi = legMiles[s.id];
     const legLine = !isLast ? `<div style="text-align:center;padding:6px 0;color:#b0c4d8;font-size:11px">↓ ${legMi ? legMi.toLocaleString()+' mi' : '— mi'}</div>` : '';
-    const charge = idx > 0 ? (stopChargeOverrides[s.id] !== undefined ? stopChargeOverrides[s.id] : stopFee) : null;
-    const chargeNote = charge !== null ? `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+$${charge} stop fee</span>` : '';
+    const overrideData = stopChargeOverrides[s.id];
+    let charge = null, chargeNote = '';
+    if(idx > 0){
+      if(overrideData?.type === 'permile'){
+        const prevStop = stops[idx-1];
+        const mi = legMiles[prevStop?.id] || 0;
+        charge = mi * (overrideData.amount || 0);
+        chargeNote = charge > 0 ? `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+$${Math.round(charge).toLocaleString()} (${mi.toLocaleString()} mi × $${overrideData.amount}/mi)</span>` : '';
+      } else {
+        charge = overrideData?.amount !== undefined ? overrideData.amount : stopFee;
+        chargeNote = `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+$${charge} stop fee</span>`;
+      }
+    }
 
     return `<div style="padding:10px 16px;background:#fff;border-radius:8px;margin-bottom:2px;border:1px solid #e4e8ef">
       <div style="display:flex;align-items:center;gap:8px">
