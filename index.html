@@ -2554,8 +2554,8 @@ function setShipType(t){
   // Hide margin field and base rates in prof mode
   const marginField = document.getElementById('margin-field');
   const baseRatesMain = document.getElementById('base-rates-main');
-  if(marginField) marginField.style.display = t==='prof' ? 'none' : '';
-  if(baseRatesMain) baseRatesMain.style.display = t==='prof' ? 'none' : '';
+  if(marginField) marginField.style.display = (t==='prof'||t==='ltl') ? 'none' : '';
+  if(baseRatesMain) baseRatesMain.style.display = (t==='prof'||t==='ltl') ? 'none' : '';
   const loadNotesField = document.getElementById('load-notes-field');
   if(loadNotesField) loadNotesField.style.display = (t==='prof'||t==='ltl'||!isProUser) ? 'none' : '';
   const quickSaveBtn = document.getElementById('quick-save-quote-btn');
