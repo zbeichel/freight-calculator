@@ -1769,7 +1769,7 @@ function loadMsQuote(id){
   // Restore settings
   if(q.trailer){ const el = document.getElementById('ms-trailer'); if(el) el.value = q.trailer; }
   if(q.commodityKey){ const el = document.getElementById('ms-commodity'); if(el) el.value = q.commodityKey; }
-  if(q.marginVal !== undefined){ const el = document.getElementById('ms-margin'); if(el) el.value = (q.marginVal * 100).toFixed(0); }
+  if(q.marginVal !== undefined){ const el = document.getElementById('ms-margin'); if(el) el.value = q.marginVal; }
   if(q.baseRate){ const el = document.getElementById('ms-rate'); if(el) el.value = q.baseRate.toFixed(2); }
   if(q.notes){ const el = document.getElementById('ms-load-notes'); if(el) el.value = q.notes; }
 
