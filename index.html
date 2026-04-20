@@ -1915,6 +1915,7 @@ function toggleSeoBlock(){
 
 <footer>
   <p>Rates sourced from <a href="https://www.dat.com/trendlines" target="_blank">DAT Trendlines</a> · Diesel from <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank">EIA Weekly</a> · LTL FSC calibrated to <a href="https://www.odfl.com/us/en/resources/fuel-surcharge.html" target="_blank">ODFL published rates</a> · For informational use — always verify before quoting</p>
+  <p style="margin-top:10px;font-size:11px;color:var(--text3)">Questions? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent);text-decoration:none">info@quickfreightcalc.com</a></p>
   <p style="margin-top:10px;font-size:11px;color:var(--text3)">By using QuickFreightCalc you agree to our <a href="/terms.html" style="color:var(--text3);text-decoration:underline" target="_blank">Terms of Service</a> and <a href="/privacy.html" style="color:var(--text3);text-decoration:underline" target="_blank">Privacy Policy</a>. Rates are estimates only — not guaranteed quotes.</p>
 </footer>
 
@@ -3637,6 +3638,18 @@ function calcProfTransit(){
   }
 }
 
+// ── Shared diesel price cache (sessionStorage, 30 min TTL) ────────────────
+function getCachedDiesel(){
+  try {
+    const c = JSON.parse(sessionStorage.getItem('qfc_diesel_cache') || '{}');
+    if(c.price && c.ts && (Date.now() - c.ts) < 1800000) return c;
+  } catch(e){}
+  return null;
+}
+function setCachedDiesel(price, period){
+  try { sessionStorage.setItem('qfc_diesel_cache', JSON.stringify({ price, period, ts: Date.now() })); } catch(e){}
+}
+
 async function fetchProfDiesel(){
   const btn = document.getElementById('p-eia-btn');
   const src = document.getElementById('p-fuel-src');
@@ -3645,12 +3658,21 @@ async function fetchProfDiesel(){
   src.textContent = 'Fetching...';
   src.style.color = 'var(--text3)';
   try {
-    const resp = await fetch('/.netlify/functions/diesel-price?region=NUS');
-    if(!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    if(data.error) throw new Error(data.error);
-    const price = parseFloat(data.price);
-    if(isNaN(price)) throw new Error('Invalid price');
+    let price, period;
+    const cached = getCachedDiesel();
+    if(cached){
+      price = cached.price;
+      period = cached.period;
+    } else {
+      const resp = await fetch('/.netlify/functions/diesel-price?region=NUS');
+      if(!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      if(data.error) throw new Error(data.error);
+      price = parseFloat(data.price);
+      period = data.period;
+      if(isNaN(price)) throw new Error('Invalid price');
+      setCachedDiesel(price, period);
+    }
     profDieselPrice = price;
     src.textContent = `⚡ $${price.toFixed(2)}/gal national avg`;
     src.style.color = 'var(--green)';
@@ -4349,6 +4371,8 @@ async function fetchEIADiesel(){
     document.getElementById('diesel-price').value = price.toFixed(2);
     status.textContent = `✓ $${price.toFixed(2)}/gal · ${regionName} · Week of ${dateStr}`;
     status.style.color = 'var(--green)';
+    // Cache NUS fetches so LTL and profitability tabs can reuse without a cold start
+    if(region === 'NUS') setCachedDiesel(price, period);
     saveDiesel();
     calc();
 
@@ -4375,22 +4399,26 @@ async function fetchLTLDiesel(){
   status.style.color = 'var(--text3)';
 
   try {
-    // Use national average for LTL — most LTL carriers reference national DOE price
-    const resp = await fetch('/.netlify/functions/diesel-price?region=NUS');
-    if(!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    if(data.error) throw new Error(data.error);
-
-    const price = parseFloat(data.price);
-    if(isNaN(price)) throw new Error('Invalid price');
+    let price, period;
+    const cached = getCachedDiesel();
+    if(cached){
+      price = cached.price;
+      period = cached.period;
+    } else {
+      const resp = await fetch('/.netlify/functions/diesel-price?region=NUS');
+      if(!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      if(data.error) throw new Error(data.error);
+      price = parseFloat(data.price);
+      period = data.period;
+      if(isNaN(price)) throw new Error('Invalid price');
+      setCachedDiesel(price, period);
+    }
 
     ltlDieselPrice = price;
-
-    // Format date
-    const clean = (data.period||'').replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+    const clean = (period||'').replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
     const d = new Date(clean + 'T12:00:00');
     const dateStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-
     status.textContent = `✓ National avg $${price.toFixed(2)}/gal · Week of ${dateStr}`;
     status.style.color = 'var(--green)';
     updateFSCLabel();
