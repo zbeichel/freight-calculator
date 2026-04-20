@@ -4694,16 +4694,48 @@ async function toggleTrack(id, checked){
 function loadQuoteIntoCalc(id){
   const q = quoteLog.find(q => q.id == id);
   if(!q) return;
-  if(q.orig)   document.getElementById('origin').value  = q.orig;
-  if(q.dest)   document.getElementById('dest').value    = q.dest;
-  if(q.miles)  { document.getElementById('miles').value = q.miles; setMilesSource('manual'); }
-  if(q.trailer){ document.getElementById('trailer').value = q.trailer; setShipType('ftl'); }
-  if(q.commodityKey){ document.getElementById('commodity').value = q.commodityKey; }
-  if(q.margin) { document.getElementById('margin').value = parseFloat(q.margin); }
+
+  // Route
+  if(q.orig) document.getElementById('origin').value = q.orig;
+  if(q.dest) document.getElementById('dest').value   = q.dest;
+
+  // Miles — set manually so Google API doesn't override it
+  if(q.miles){
+    document.getElementById('miles').value = q.miles;
+    setMilesSource('manual');
+    showMilesStatus('✅', `${parseInt(q.miles).toLocaleString()} miles (from quote log)`, 'var(--green)');
+    lastLookedUpOrig = (q.orig || '').toLowerCase();
+    lastLookedUpDest = (q.dest || '').toLowerCase();
+  }
+
+  // Trailer + ship type
+  if(q.trailer){
+    document.getElementById('trailer').value = q.trailer;
+    setShipType('ftl');
+  }
+
+  // Commodity
+  if(q.commodityKey) document.getElementById('commodity').value = q.commodityKey;
+
+  // Margin — strip the % sign
+  if(q.margin){
+    const m = parseFloat(q.margin);
+    if(!isNaN(m)) document.getElementById('margin').value = m;
+  }
+
+  // Base RPM — restore into the matching trailer rate input and lock as manual
+  if(q.baseRpm && q.trailer){
+    const rateId = q.trailer === 'van' ? 'rate-van' : q.trailer === 'reefer' ? 'rate-reefer' : 'rate-flatbed';
+    document.getElementById(rateId).value = parseFloat(q.baseRpm).toFixed(2);
+    ratesManualOverride = true;
+    rateMode = 'manual';
+  }
+
+  // Load notes
   if(q.notes && document.getElementById('load-notes'))
     document.getElementById('load-notes').value = q.notes;
+
   calc();
-  // Scroll to top of calculator
   document.getElementById('origin').scrollIntoView({ behavior: 'smooth', block: 'center' });
   showToast('✓ Quote loaded into calculator');
 }
