@@ -4741,8 +4741,9 @@ async function loadQuoteLogFromSupabase(){
 async function saveQuoteNote(id, notes){
   const session = getProSession();
   if(!session) return;
+  const userId = session.user?.id || session.user?.sub;
   try {
-    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
+    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}&user_id=eq.${userId}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY_QL,
@@ -4763,11 +4764,11 @@ async function toggleTrack(id, checked){
   const q = quoteLog.find(q => q.id == id);
   if(!q) return;
   q.tracked = checked;
-  // Update in Supabase
   const session = getProSession();
   if(session){
+    const userId = session.user?.id || session.user?.sub;
     try {
-      await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
+      await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}&user_id=eq.${userId}`, {
         method: 'PATCH',
         headers: {
           'apikey': SUPABASE_KEY_QL,
