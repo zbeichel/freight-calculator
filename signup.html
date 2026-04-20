@@ -428,8 +428,8 @@ if(window.location.search.includes('reason=checkout-complete')){
     localStorage.removeItem('qfc_pro_profile');
     localStorage.removeItem('qfc_pending_checkout');
   } catch(e){}
-  showSuccess('Payment successful! Sign in to access your Pro account.');
   switchTab('login');
+  showSuccess('Payment successful! Sign in to access your Pro account.');
 }
 checkSession();
 </script>
