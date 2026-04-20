@@ -1495,6 +1495,18 @@ html.light .hos-day-header{background:var(--card2)}
           </div>
         </div>
 
+        <!-- Quick save to quote log — Pro only -->
+        <div class="ftl-only" id="quick-save-quote-btn" style="display:none;margin-top:14px">
+          <button onclick="saveQuote()"
+            style="width:100%;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;
+            padding:9px 16px;border-radius:8px;border:1px solid var(--accent);
+            background:var(--accentbg);color:var(--accent);cursor:pointer;transition:all .15s"
+            onmouseover="this.style.background='var(--accent)';this.style.color='#000'"
+            onmouseout="this.style.background='var(--accentbg)';this.style.color='var(--accent)'">
+            💾 Save Quote to Log
+          </button>
+        </div>
+
       </div>
 
       <!-- Advanced section -->
@@ -2233,11 +2245,13 @@ function handleMultiStopClick(e){
 
 function updateProUI(){
   const notesField = document.getElementById('load-notes-field');
+  const quickSave  = document.getElementById('quick-save-quote-btn');
   const dlBtn      = document.getElementById('btn-download-quote');
   const proNote    = document.getElementById('pro-upgrade-note');
   const profilesUI = document.getElementById('rate-profiles-ui');
   const msTag      = document.getElementById('multistop-pro-tag');
   if(notesField) notesField.style.display = isProUser ? '' : 'none';
+  if(quickSave)  quickSave.style.display  = isProUser ? '' : 'none';
   if(dlBtn){
     dlBtn.disabled = !isProUser;
     dlBtn.style.opacity = isProUser ? '1' : '0.45';
@@ -2510,6 +2524,8 @@ function setShipType(t){
   if(baseRatesMain) baseRatesMain.style.display = t==='prof' ? 'none' : '';
   const loadNotesField = document.getElementById('load-notes-field');
   if(loadNotesField) loadNotesField.style.display = (t==='prof'||t==='ltl'||!isProUser) ? 'none' : '';
+  const quickSaveBtn = document.getElementById('quick-save-quote-btn');
+  if(quickSaveBtn) quickSaveBtn.style.display = (t==='prof'||t==='ltl'||!isProUser) ? 'none' : '';
   if(t==='prof'){
     const qMiles=parseFloat(document.getElementById('miles').value)||0;
     const pMilesEl=document.getElementById('p-miles');
