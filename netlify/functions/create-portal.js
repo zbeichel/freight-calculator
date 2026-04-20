@@ -66,7 +66,8 @@ exports.handler = async function(event){
     return { statusCode: 400, body: JSON.stringify({ error: 'Missing userId' }) };
   }
 
-  const siteUrl = process.env.DEPLOY_URL || process.env.URL || 'https://quickfreightcalc.com';
+  // Set SITE_URL in Netlify env vars. Swap to https://quickfreightcalc.com before going live.
+  const siteUrl = process.env.SITE_URL || 'https://dev--quickfreightcalculator.netlify.app';
 
   try {
     const customerId = await getStripeCustomerId(userId);
