@@ -5030,11 +5030,11 @@ function toggleTheme(){
   const isLight=document.documentElement.classList.toggle('light');
   document.getElementById('theme-icon').textContent=isLight?'☀️':'🌙';
   document.getElementById('theme-label').textContent=isLight?'Light':'Dark';
-  try{localStorage.setItem('frc_theme',isLight?'light':'dark');}catch(e){}
+  try{localStorage.setItem('qfc_theme',isLight?'light':'dark');}catch(e){}
 }
 function loadTheme(){
   try{
-    const saved=localStorage.getItem('frc_theme');
+    const saved=localStorage.getItem('qfc_theme');
     const preferLight=window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches;
     const useLight=saved?saved==='light':preferLight;
     if(useLight){
