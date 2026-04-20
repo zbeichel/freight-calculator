@@ -223,10 +223,8 @@ const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
 
 // ── Check if already logged in ─────────────────────────────────────────────
 async function checkSession(){
-  // Never auto-redirect when the user needs to log in fresh after checkout
   if(window.location.search.includes('reason=checkout-complete')) return;
   if(window.location.search.includes('reason=pro-required')) return;
-
   const session = getSession();
   if(session){
     window.location.href = '/profile.html';
@@ -358,9 +356,7 @@ async function handleLogin(){
 
     storeSession(data);
     showSuccess('Signed in! Redirecting...');
-    // Go to calculator — it will detect qfc_pending_checkout and poll for Pro activation
-    const dest = localStorage.getItem('qfc_pending_checkout') ? '/?from=login' : '/profile.html';
-    setTimeout(() => window.location.href = dest, 800);
+    setTimeout(() => window.location.href = '/profile.html', 800);
   } catch(e){
     showError('Something went wrong. Please try again.');
     btn.disabled = false;
@@ -424,13 +420,18 @@ if(window.location.search.includes('reason=pro-required')){
   showError('That page requires a Pro subscription. Sign up or log in to continue.');
   switchTab('login');
 }
-const isPostCheckout = window.location.search.includes('reason=checkout-complete');
-if(isPostCheckout){
-  showSuccess('Payment successful! Sign in below to access your Pro account.');
+if(window.location.search.includes('reason=checkout-complete')){
+  // Clear any stale session so the previous user doesn't get auto-logged in
+  try {
+    Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k));
+    localStorage.removeItem('qfc_pro_status');
+    localStorage.removeItem('qfc_pro_profile');
+    localStorage.removeItem('qfc_pending_checkout');
+  } catch(e){}
+  showSuccess('Payment successful! Sign in to access your Pro account.');
   switchTab('login');
 }
-// Don't auto-redirect if user just came from checkout — they need to log in fresh
-if(!isPostCheckout){ checkSession(); }
+checkSession();
 </script>
 <!-- Floating theme button -->
 <button id="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode" style="
