@@ -164,14 +164,6 @@ a.brand-name:hover span{opacity:.8}
           <strong>$4.99/month</strong> · Cancel anytime
         </div>
         <div class="field">
-          <label>Company / Brokerage Name</label>
-          <input type="text" id="su-company" placeholder="Acme Freight Brokers LLC" />
-        </div>
-        <div class="field">
-          <label>Your Name</label>
-          <input type="text" id="su-name" placeholder="John Smith" />
-        </div>
-        <div class="field">
           <label>Email Address</label>
           <input type="email" id="su-email" placeholder="john@acmefreight.com" />
         </div>
@@ -269,8 +261,6 @@ function hideMessages(){
 
 // ── Sign Up ────────────────────────────────────────────────────────────────
 async function handleSignup(){
-  const company  = document.getElementById('su-company').value.trim();
-  const name     = document.getElementById('su-name').value.trim();
   const email    = document.getElementById('su-email').value.trim();
   const password = document.getElementById('su-password').value;
 
@@ -297,7 +287,7 @@ async function handleSignup(){
     if(data.access_token){
       storeSession(data);
       // Create pro_users row (is_active: false until payment)
-      await createProUserRow(data.user.id, email, company, name, data.access_token);
+      await createProUserRow(data.user.id, email, '', '', data.access_token);
       // Redirect to Stripe checkout
       showSuccess('Account created! Redirecting to checkout...');
       btn.textContent = 'Redirecting to payment...';
@@ -322,7 +312,26 @@ async function handleSignup(){
         btn.textContent = 'Sign Up for Pro →';
       }
     } else {
-      showSuccess('Account created! Check your email to confirm, then sign in.');
+      // No access_token means email confirmation is required OR email already exists.
+      // Supabase doesn't distinguish these when email confirmation is off —
+      // check if this looks like a duplicate by attempting a password signin.
+      // If the signin returns a valid session, the email already exists.
+      try {
+        const checkResp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
+          body: JSON.stringify({ email, password })
+        });
+        const checkData = await checkResp.json();
+        if(checkData.access_token){
+          // Email already exists with this password — tell them to sign in
+          showError('An account with this email already exists. Please sign in instead.');
+        } else {
+          showError('An account with this email already exists. Please sign in or use a different email.');
+        }
+      } catch(e){
+        showError('An account with this email may already exist. Please try signing in.');
+      }
       btn.disabled = false;
       btn.textContent = 'Sign Up for Pro →';
     }
