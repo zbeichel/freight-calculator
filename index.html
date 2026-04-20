@@ -961,26 +961,9 @@ html.light .hos-day-header{background:var(--card2)}
           </button>
         </div>
 
-        <!-- Pro: Saved Rate Profiles — hidden for free users -->
+        <!-- Pro: Quote count indicator -->
         <div id="rate-profiles-ui" style="display:none;margin-bottom:16px">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <select id="profile-select" onchange="loadProfile_rate()"
-              style="flex:1;min-width:0;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;padding:7px 10px;outline:none;cursor:pointer">
-              <option value="">— Load a saved profile —</option>
-            </select>
-            <button onclick="saveRateProfile()" title="Save current settings as a profile"
-              style="font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;padding:7px 12px;border-radius:8px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:pointer;white-space:nowrap;transition:all .15s"
-              onmouseover="this.style.background='var(--accent)';this.style.color='#000'"
-              onmouseout="this.style.background='var(--accentbg)';this.style.color='var(--accent)'">
-              💾 Save Profile
-            </button>
-            <button id="delete-profile-btn" onclick="deleteRateProfile()" title="Delete selected profile" style="display:none;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;padding:7px 12px;border-radius:8px;border:1px solid rgba(248,113,113,.3);background:transparent;color:var(--red);cursor:pointer;transition:all .15s"
-              onmouseover="this.style.background='rgba(248,113,113,.1)'"
-              onmouseout="this.style.background='transparent'">
-              🗑
-            </button>
-          </div>
-          <div id="profile-count-note" style="font-size:10px;color:var(--text3);margin-top:5px">0 / 100 profiles saved</div>
+          <div id="profile-count-note" style="font-size:10px;color:var(--text3)">0 / 100 quotes saved</div>
         </div>
 
         <!-- Profitability calculator toggle button -->
@@ -1862,7 +1845,7 @@ html.light .hos-day-header{background:var(--card2)}
       <div class="log-wrap">
         <table>
           <thead>
-            <tr><th>Date</th><th>Route</th><th>Mi</th><th>Type</th><th>Commodity</th><th>Margin</th><th>Base RPM</th><th>Quote</th><th>RPM</th><th>Notes</th><th></th></tr>
+            <tr><th title="Track in Lane Tracker">Track</th><th>Date</th><th>Route</th><th>Mi</th><th>Type</th><th>Commodity</th><th>Margin</th><th>Base RPM</th><th>Quote</th><th>RPM</th><th>Notes</th><th></th></tr>
           </thead>
           <tbody id="log-body"></tbody>
         </table>
@@ -2770,208 +2753,6 @@ async function fetchWeather(){
 function triggerWeatherUpdate(){
   clearTimeout(weatherTimer);
   weatherTimer = setTimeout(fetchWeather, 1000);
-}
-
-// ── Saved Rate Profiles (Pro) ─────────────────────────────────────────────
-const MAX_PROFILES = 100;
-const PROFILES_KEY = 'qfc_rate_profiles';
-
-function getRateProfiles(){
-  try { return JSON.parse(localStorage.getItem(PROFILES_KEY) || '[]'); } catch(e){ return []; }
-}
-
-function saveRateProfiles(profiles){
-  try { localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles)); } catch(e){}
-}
-
-function renderProfileSelect(){
-  const profiles = getRateProfiles();
-  const sel = document.getElementById('profile-select');
-  if(!sel) return;
-  const current = sel.value;
-  sel.innerHTML = '<option value="">— Load a saved profile —</option>';
-  profiles.forEach((p, i) => {
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = p.name;
-    sel.appendChild(opt);
-  });
-  // Restore selection if still valid
-  if(current !== '' && profiles[parseInt(current)]) sel.value = current;
-  // Update count
-  const note = document.getElementById('profile-count-note');
-  if(note) note.textContent = `${profiles.length} / ${MAX_PROFILES} profiles saved`;
-  // Show/hide delete button
-  const delBtn = document.getElementById('delete-profile-btn');
-  if(delBtn) delBtn.style.display = sel.value !== '' ? 'inline-block' : 'none';
-}
-
-function saveRateProfile(){
-  const profiles = getRateProfiles();
-  if(profiles.length >= MAX_PROFILES){
-    showToastMsg(`⚠ Maximum of ${MAX_PROFILES} profiles reached. Delete one first.`);
-    return;
-  }
-
-  const orig = document.getElementById('origin').value.trim();
-  const trailer = document.getElementById('trailer').value;
-  const trailerLabel = {van:'Van', reefer:'Reefer', flatbed:'Flatbed'}[trailer] || '';
-  const suggested = orig ? `${orig} · ${trailerLabel}` : `Profile ${profiles.length + 1}`;
-
-  _pendingProfileSave = function(name){
-    const profiles = getRateProfiles();
-    const profile = {
-      name,
-      origin:      document.getElementById('origin').value.trim(),
-      dest:        document.getElementById('dest').value.trim(),
-      miles:       document.getElementById('miles').value,
-      weight:      document.getElementById('weight').value,
-      trailer:     document.getElementById('trailer').value,
-      commodity:   document.getElementById('commodity').value,
-      margin:      document.getElementById('margin').value,
-      rateVan:     document.getElementById('rate-van').value,
-      rateReefer:  document.getElementById('rate-reefer').value,
-      rateFlatbed: document.getElementById('rate-flatbed').value,
-      rateManual:  ratesManualOverride,
-      rateMode:    rateMode,
-      seasEnabled: document.getElementById('seas-enabled').checked,
-      seasRegion:  document.getElementById('seas-region').value,
-      loadNotes:   document.getElementById('load-notes')?.value || '',
-      driveSecs:   lastDriveSecs || 0,
-      driveText:   lastDriveText || '',
-      savedAt:     new Date().toISOString(),
-    };
-
-    const existing = profiles.findIndex(p => p.name === profile.name);
-    if(existing >= 0){
-      profiles[existing] = profile;
-    } else {
-      profiles.push(profile);
-    }
-
-    saveRateProfiles(profiles);
-    renderProfileSelect();
-    syncProfilesToSupabase(profiles);
-
-    const sel = document.getElementById('profile-select');
-    const idx = profiles.findIndex(p => p.name === profile.name);
-    if(sel) sel.value = idx;
-    const delBtn = document.getElementById('delete-profile-btn');
-    if(delBtn) delBtn.style.display = 'inline-block';
-
-    showToastMsg('✓ Profile saved: ' + profile.name);
-  };
-
-  openSaveProfileModal(suggested);
-}
-
-function loadProfile_rate(){
-  const sel = document.getElementById('profile-select');
-  const delBtn = document.getElementById('delete-profile-btn');
-  if(!sel) return;
-
-  if(sel.value === ''){
-    if(delBtn) delBtn.style.display = 'none';
-    return;
-  }
-
-  const profiles = getRateProfiles();
-  const p = profiles[parseInt(sel.value)];
-  if(!p) return;
-
-  if(delBtn) delBtn.style.display = 'inline-block';
-
-  // Populate fields
-  if(p.origin)   document.getElementById('origin').value = p.origin;
-  if(p.dest)     document.getElementById('dest').value   = p.dest;
-  if(p.weight)   document.getElementById('weight').value = p.weight;
-  if(p.trailer)  document.getElementById('trailer').value = p.trailer;
-  if(p.commodity)document.getElementById('commodity').value = p.commodity;
-  if(p.margin)   document.getElementById('margin').value = p.margin;
-  if(p.loadNotes && document.getElementById('load-notes'))
-    document.getElementById('load-notes').value = p.loadNotes;
-
-  // Miles — use saved value, skip Google API call
-  if(p.miles && parseFloat(p.miles) > 0){
-    document.getElementById('miles').value = p.miles;
-    setMilesSource('manual');
-    showMilesStatus('✅', `${parseInt(p.miles).toLocaleString()} miles (saved profile)`, 'var(--green)');
-    lastLookedUpOrig = p.origin?.toLowerCase() || '';
-    lastLookedUpDest = p.dest?.toLowerCase()   || '';
-  }
-
-  // Base rates
-  if(p.rateVan)    document.getElementById('rate-van').value     = p.rateVan;
-  if(p.rateReefer) document.getElementById('rate-reefer').value  = p.rateReefer;
-  if(p.rateFlatbed)document.getElementById('rate-flatbed').value = p.rateFlatbed;
-  ratesManualOverride = p.rateManual || false;
-  if(p.rateMode) rateMode = p.rateMode;
-
-  // Seasonal
-  const seasEnabled = document.getElementById('seas-enabled');
-  const seasRegion  = document.getElementById('seas-region');
-  if(seasEnabled) seasEnabled.checked = p.seasEnabled || false;
-  if(seasRegion && p.seasRegion) seasRegion.value = p.seasRegion;
-  if(p.seasEnabled) toggleSeason();
-
-  updateHeaderRates();
-  updateRateDisclaimer();
-  applyRegionalRates();
-  calc();
-  calcTransit();
-  triggerWeatherUpdate();
-  // Trigger HOS using cached drive time — no API call needed
-  if(p.driveSecs && p.driveSecs > 0){
-    lastDriveSecs = p.driveSecs;
-    lastDriveText = p.driveText || fmtDuration(p.driveSecs);
-    calcHOS(p.driveSecs, lastDriveText,
-      p.origin || '',
-      p.dest   || '');
-  } else if(p.origin && p.dest){
-    // Older profiles without saved drive time — make one API call to get it
-    lastLookedUpOrig = '';
-    lastLookedUpDest = '';
-    manualMiles = false;
-    clearTimeout(lookupTimer);
-    lookupTimer = setTimeout(tryLookupMiles, 400);
-  }
-  showToastMsg('✓ Profile loaded: ' + p.name);
-}
-
-function deleteRateProfile(){
-  const sel = document.getElementById('profile-select');
-  if(!sel || sel.value === '') return;
-  const profiles = getRateProfiles();
-  const p = profiles[parseInt(sel.value)];
-  if(!p) return;
-  if(!confirm(`Delete profile "${p.name}"? This cannot be undone.`)) return;
-  profiles.splice(parseInt(sel.value), 1);
-  saveRateProfiles(profiles);
-  renderProfileSelect();
-  syncProfilesToSupabase(profiles);
-  showToastMsg('Profile deleted');
-}
-
-async function syncProfilesToSupabase(profiles){
-  try {
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
-    for(const key of keys){
-      const val = JSON.parse(localStorage.getItem(key) || '{}');
-      if(val?.access_token){
-        await fetch(`https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users?id=eq.${val.user.id}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ',
-            'Authorization': `Bearer ${val.access_token}`,
-            'Prefer': 'return=minimal'
-          },
-          body: JSON.stringify({ rate_profiles: profiles })
-        });
-        break;
-      }
-    }
-  } catch(e){}
 }
 
 function showToastMsg(msg){
@@ -4753,6 +4534,7 @@ function getProSession(){
 
 async function saveQuote(){
   if(!isProUser){ showProModal('Save Quote is a Pro feature. Upgrade to save and sync your quote history.'); return; }
+  if(quoteLog.length >= 100){ showToast('⚠ Quote log is full (100 max). Delete old quotes to save new ones.'); return; }
   const miles=parseFloat(document.getElementById('miles').value)||0;
   if(!miles){ showToast('⚠ Enter miles before saving.'); return; }
   const trailer=document.getElementById('trailer').value;
@@ -4776,12 +4558,14 @@ async function saveQuote(){
     id: Date.now(),
     date: dateStr,
     orig, dest, miles, trailer,
+    commodityKey: commodity,
     commodity: CLABEL[commodity],
     margin: (marginPct*100).toFixed(0)+'%',
     baseRpm: base.toFixed(2),
     quote: Math.round(quote),
     rpm: qRpm.toFixed(2),
-    notes: document.getElementById('load-notes')?.value.trim() || ''
+    notes: document.getElementById('load-notes')?.value.trim() || '',
+    tracked: true
   };
 
   quoteLog.unshift(entry);
@@ -4813,10 +4597,12 @@ async function saveQuote(){
           base_rpm: entry.baseRpm,
           quote: entry.quote,
           rpm: entry.rpm,
-          notes: entry.notes
+          notes: entry.notes,
+          tracked: entry.tracked
         })
       });
       setQuoteLogStatus('✓ Synced');
+      syncTrackedToProfiles();
     } catch(e){ setQuoteLogStatus('Saved locally'); }
   }
 }
@@ -4845,15 +4631,18 @@ async function loadQuoteLogFromSupabase(){
         dest: r.destination,
         miles: r.miles,
         trailer: r.trailer,
+        commodityKey: r.commodity_key || '',
         commodity: r.commodity,
         margin: r.margin,
         baseRpm: r.base_rpm,
         quote: r.quote,
         rpm: r.rpm,
-        notes: r.notes || ''
+        notes: r.notes || '',
+        tracked: r.tracked !== false  // default true if not set
       }));
       renderLog();
       setQuoteLogStatus(`✓ ${rows.length} quotes synced`);
+      syncTrackedToProfiles();
     } else {
       setQuoteLogStatus('No quotes yet');
     }
@@ -4878,6 +4667,79 @@ async function saveQuoteNote(id, notes){
   // Update local
   const q = quoteLog.find(q => q.id == id);
   if(q) q.notes = notes;
+}
+
+// ── Toggle tracked status ─────────────────────────────────────────────────
+async function toggleTrack(id, checked){
+  const q = quoteLog.find(q => q.id == id);
+  if(!q) return;
+  q.tracked = checked;
+  // Update in Supabase
+  const session = getProSession();
+  if(session){
+    try {
+      await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY_QL,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ tracked: checked })
+      });
+    } catch(e){}
+  }
+  syncTrackedToProfiles();
+}
+
+// ── Load quote entry into calculator fields ───────────────────────────────
+function loadQuoteIntoCalc(id){
+  const q = quoteLog.find(q => q.id == id);
+  if(!q) return;
+  if(q.orig)   document.getElementById('origin').value  = q.orig;
+  if(q.dest)   document.getElementById('dest').value    = q.dest;
+  if(q.miles)  { document.getElementById('miles').value = q.miles; setMilesSource('manual'); }
+  if(q.trailer){ document.getElementById('trailer').value = q.trailer; setShipType('ftl'); }
+  if(q.commodityKey){ document.getElementById('commodity').value = q.commodityKey; }
+  if(q.margin) { document.getElementById('margin').value = parseFloat(q.margin); }
+  if(q.notes && document.getElementById('load-notes'))
+    document.getElementById('load-notes').value = q.notes;
+  calc();
+  // Scroll to top of calculator
+  document.getElementById('origin').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  showToast('✓ Quote loaded into calculator');
+}
+
+// ── Sync tracked quotes → rate_profiles in Supabase (feeds lanes.html) ────
+async function syncTrackedToProfiles(){
+  const tracked = quoteLog.filter(q => q.tracked !== false);
+  // Build profile-shaped objects that lanes.html understands
+  const profiles = tracked.map(q => ({
+    name:    `${q.orig||'?'} → ${q.dest||'?'} (${q.date})`,
+    origin:  q.orig  || '',
+    dest:    q.dest  || '',
+    miles:   q.miles || 0,
+    trailer: q.trailer || 'van',
+  }));
+  // Sync to pro_users.rate_profiles
+  const session = getProSession();
+  if(!session) return;
+  try {
+    const userId = session.user?.id || session.user?.sub;
+    await fetch(`https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users?id=eq.${userId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ',
+        'Authorization': `Bearer ${session.access_token}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ rate_profiles: profiles })
+    });
+    // Also update localStorage so lanes.html gets it on next load
+    localStorage.setItem('qfc_rate_profiles', JSON.stringify(profiles));
+  } catch(e){}
 }
 
 // ── Quote Log Notes Modal ─────────────────────────────────────────────────
@@ -4931,13 +4793,13 @@ async function deleteQuote(id){
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` }
     });
+    syncTrackedToProfiles();
   } catch(e){}
 }
 
 async function clearLog(){
   if(!quoteLog.length) return;
   if(!confirm('Clear all saved quotes? This cannot be undone.')) return;
-  const ids = quoteLog.map(q => q.id);
   quoteLog = [];
   renderLog();
   const session = getProSession();
@@ -4949,6 +4811,7 @@ async function clearLog(){
       headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` }
     });
     setQuoteLogStatus('Cleared');
+    syncTrackedToProfiles();
   } catch(e){}
 }
 
@@ -4970,11 +4833,21 @@ function exportCSV(){
 function renderLog(){
   const tbody = document.getElementById('log-body');
   if(!tbody) return;
+
+  // Update quote count
+  const note = document.getElementById('profile-count-note');
+  if(note) note.textContent = `${quoteLog.length} / 100 quotes saved`;
+
   if(!quoteLog.length){
-    tbody.innerHTML = '<tr><td colspan="11" class="empty-log">No quotes saved yet — fill out the form and click Save Quote.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="empty-log">No quotes saved yet — fill out the form and click Save Quote.</td></tr>';
     return;
   }
   tbody.innerHTML = quoteLog.map(q => `<tr>
+    <td style="text-align:center">
+      <input type="checkbox" title="Track in Lane Tracker" ${q.tracked !== false ? 'checked' : ''}
+        style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)"
+        onchange="toggleTrack(${q.id}, this.checked)" />
+    </td>
     <td class="dim">${q.date}</td>
     <td style="font-size:11px;max-width:140px;white-space:normal">${q.orig||'—'}${q.dest?' → '+q.dest:''}</td>
     <td>${Number(q.miles).toLocaleString()}</td>
@@ -4996,6 +4869,12 @@ function renderLog(){
       </button>
     </td>
     <td style="white-space:nowrap">
+      <button onclick="loadQuoteIntoCalc(${q.id})" title="Load into calculator"
+        style="font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:600;
+        padding:3px 8px;border-radius:6px;border:1px solid var(--border2);
+        background:transparent;color:var(--text3);cursor:pointer;margin-right:4px;transition:all .15s"
+        onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+        onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">⬆ Load</button>
       <button onclick="generateQuotePDFFromLog(${q.id})" title="Download PDF"
         style="font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:600;
         padding:3px 8px;border-radius:6px;border:1px solid var(--border2);

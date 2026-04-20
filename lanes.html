@@ -123,7 +123,7 @@ a.brand-name:hover span{opacity:.8}
         <div id="lane-list">
           <div class="empty-state">
             <div class="empty-icon">🗺</div>
-            <div>No lanes tracked yet.<br>Save a rate profile on the calculator to start tracking.</div>
+            <div>No lanes tracked yet.<br>Save a quote to the Quote Log and check "Track" to start tracking.</div>
           </div>
         </div>
       </div>
@@ -282,7 +282,7 @@ function renderLaneList(){
   if(!profiles.length){
     list.innerHTML = `<div class="empty-state">
       <div class="empty-icon">🗺</div>
-      <div>No lanes tracked yet.<br>Save a rate profile on the calculator to start tracking.</div>
+      <div>No lanes tracked yet.<br>Save a quote to the Quote Log and check "Track" to start tracking.</div>
     </div>`;
     return;
   }
