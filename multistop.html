@@ -1478,6 +1478,7 @@ async function initWithProCheck(){
   loadMsRates();
   addStop('pickup');
   addStop('delivery');
+  loadMsLogFromSupabase();
 }
 
 // ── Multi-Stop Quote Log ──────────────────────────────────────────────────
@@ -1488,6 +1489,61 @@ const CLABEL_MS = {standard:'Standard',food:'Food/Perishable',hazmat:'Hazmat',hi
 
 function getMsLog(){ try{ return JSON.parse(localStorage.getItem(MS_LOG_KEY)||'[]'); }catch(e){ return []; } }
 function saveMsLog(log){ try{ localStorage.setItem(MS_LOG_KEY, JSON.stringify(log)); }catch(e){} }
+
+function getMsSession(){
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key)||'{}');
+      if(val?.access_token) return val;
+    }
+  } catch(e){}
+  return null;
+}
+
+function setMsLogStatus(msg){
+  const el = document.getElementById('ms-log-count');
+  const log = getMsLog();
+  if(el) el.textContent = msg || `${log.length} / ${MS_MAX} saved`;
+}
+
+async function loadMsLogFromSupabase(){
+  const session = getMsSession();
+  if(!session) return;
+  const userId = session.user?.id || session.user?.sub;
+  try {
+    setMsLogStatus('Syncing...');
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/ms_quote_log?user_id=eq.${userId}&order=created_at.desc&limit=50`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` } }
+    );
+    const rows = await resp.json();
+    if(Array.isArray(rows) && rows.length){
+      const log = rows.map(r => ({
+        id:          r.id,
+        date:        r.date,
+        route:       r.route,
+        miles:       r.miles,
+        stopsCount:  r.stops_count,
+        commodity:   r.commodity,
+        margin:      r.margin,
+        quote:       r.quote,
+        rpm:         r.rpm,
+        notes:       r.notes || '',
+        stopData:    r.stop_data || [],
+        trailer:     r.trailer || '',
+        commodityKey:r.commodity_key || '',
+        marginVal:   r.margin_val || 15,
+        baseRate:    r.base_rate || 3.15
+      }));
+      saveMsLog(log);
+      renderMsLog();
+      setMsLogStatus(`✓ ${rows.length} quotes synced`);
+    } else {
+      setMsLogStatus('No quotes yet');
+    }
+  } catch(e){ setMsLogStatus(''); }
+}
 
 function renderMsLog(){
   const log = getMsLog();
@@ -1557,20 +1613,18 @@ async function saveMsQuote(){
     return;
   }
 
-  // Build route string from stops
-  const pickups   = stops.filter(s => s.type==='pickup').map(s => s.location).filter(Boolean);
-  const deliveries= stops.filter(s => s.type==='delivery').map(s => s.location).filter(Boolean);
+  const pickups    = stops.filter(s => s.type==='pickup').map(s => s.location).filter(Boolean);
+  const deliveries = stops.filter(s => s.type==='delivery').map(s => s.location).filter(Boolean);
   const route = pickups.length && deliveries.length
-    ? `${pickups[0]} → ${deliveries[deliveries.length-1]}${stops.length>2?' (+'+( stops.length-2)+' stops)':''}`
+    ? `${pickups[0]} → ${deliveries[deliveries.length-1]}${stops.length>2?' ('+(stops.length-2)+' stops)':''}`
     : `${stops.length} stops`;
 
-  const rpm   = parseFloat((document.getElementById('ms-rpm-sub')?.textContent||'').replace(/[^0-9.]/g,''))||0;
-  const marginPct = parseFloat(document.getElementById('ms-margin')?.value)||15;
-  const commodity = document.getElementById('ms-commodity')?.value || 'standard';
+  const rpm        = parseFloat((document.getElementById('ms-rpm-sub')?.textContent||'').replace(/[^0-9.]/g,''))||0;
+  const marginPct  = parseFloat(document.getElementById('ms-margin')?.value)||15;
+  const commodity  = document.getElementById('ms-commodity')?.value || 'standard';
   const stopsCount = `${stops.filter(s=>s.type==='pickup').length}P / ${stops.filter(s=>s.type==='delivery').length}D`;
-  const dateStr = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
+  const dateStr    = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
 
-  // Duplicate check
   const dupe = log.find(q => q.route === route && q.miles === miles);
   if(dupe){
     const ok = await showMsDupeModal(`A quote for this load was already saved on ${dupe.date}.<br>${route}`);
@@ -1595,20 +1649,75 @@ async function saveMsQuote(){
   saveMsLog(log);
   renderMsLog();
   showMsToast('💾 Quote saved');
+
+  // Sync to Supabase
+  const session = getMsSession();
+  if(session){
+    const userId = session.user?.id || session.user?.sub;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          id:           entry.id,
+          user_id:      userId,
+          date:         entry.date,
+          route:        entry.route,
+          miles:        entry.miles,
+          stops_count:  entry.stopsCount,
+          commodity:    entry.commodity,
+          margin:       entry.margin,
+          quote:        entry.quote,
+          rpm:          entry.rpm,
+          notes:        entry.notes,
+          stop_data:    entry.stopData,
+          trailer:      entry.trailer,
+          commodity_key: entry.commodityKey,
+          margin_val:   entry.marginVal,
+          base_rate:    entry.baseRate
+        })
+      });
+      setMsLogStatus(`✓ Synced`);
+    } catch(e){ setMsLogStatus('Saved locally'); }
+  }
 }
 
-// ── Delete / Clear ────────────────────────────────────────────────────────
-function deleteMsQuote(id){
+// ── Delete ────────────────────────────────────────────────────────────────
+async function deleteMsQuote(id){
   const log = getMsLog().filter(q => q.id !== id);
   saveMsLog(log);
   renderMsLog();
+  const session = getMsSession();
+  if(!session) return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` }
+    });
+  } catch(e){}
 }
 
-function clearMsLog(){
+// ── Clear All ─────────────────────────────────────────────────────────────
+async function clearMsLog(){
   if(!getMsLog().length) return;
   if(!confirm('Clear all saved multi-stop quotes? This cannot be undone.')) return;
   saveMsLog([]);
   renderMsLog();
+  const session = getMsSession();
+  if(!session) return;
+  const userId = session.user?.id || session.user?.sub;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log?user_id=eq.${userId}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` }
+    });
+    setMsLogStatus('Cleared');
+  } catch(e){}
 }
 
 // ── Load saved quote into calculator ─────────────────────────────────────
@@ -1679,7 +1788,26 @@ function saveMsNotesModal(){
   if(!_msNotesId) return;
   const log = getMsLog();
   const q = log.find(q => q.id === _msNotesId);
-  if(q){ q.notes = document.getElementById('ms-notes-input').value.trim(); saveMsLog(log); renderMsLog(); }
+  const notes = document.getElementById('ms-notes-input').value.trim();
+  if(q){
+    q.notes = notes;
+    saveMsLog(log);
+    renderMsLog();
+    // Sync to Supabase
+    const session = getMsSession();
+    if(session){
+      fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log?id=eq.${_msNotesId}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ notes })
+      }).catch(()=>{});
+    }
+  }
   closeMsNotesModal();
   showMsToast('💾 Notes saved');
 }
@@ -1718,8 +1846,6 @@ function showMsToast(msg){
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
-renderMsLog();
-
 initWithProCheck();
 </script>
 </body>
