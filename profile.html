@@ -185,6 +185,9 @@ a.brand-name:hover span{opacity:.8}
   .back-link{font-size:12px;padding:6px 10px}
   .save-btn{width:100%;padding:14px}
 }
+footer{text-align:center;padding:24px 24px 80px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);margin-top:32px}
+footer a{color:var(--text2);text-decoration:none}
+footer a:hover{color:var(--accent)}
 </style>
 </head>
 <body>
@@ -817,5 +820,10 @@ function toggleTheme(){
 }
 applyTheme(localStorage.getItem('qfc_theme') || 'dark');
 </script>
+<footer>
+  <p style="margin-bottom:8px">Questions? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent)">info@quickfreightcalc.com</a></p>
+  <p>By using QuickFreightCalc you agree to our <a href="/terms.html" target="_blank">Terms of Service</a> and <a href="/privacy.html" target="_blank">Privacy Policy</a>.</p>
+</footer>
+
 </body>
 </html>

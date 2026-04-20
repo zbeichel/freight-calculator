@@ -96,6 +96,10 @@ a.brand-name:hover span{opacity:.8}
 /* Floating theme */
 .theme-btn-float{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:8px 14px 8px 10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:var(--text2);transition:all .15s;box-shadow:0 4px 16px rgba(0,0,0,.3)}
 .theme-btn-float:hover{border-color:var(--accent);color:var(--text)}
+/* Footer */
+footer{text-align:center;padding:24px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);margin-top:32px}
+footer a{color:var(--text2);text-decoration:none}
+footer a:hover{color:var(--accent)}
 .theme-icon-wrap{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)}
 </style>
 </head>
@@ -123,7 +127,7 @@ a.brand-name:hover span{opacity:.8}
         <div id="lane-list">
           <div class="empty-state">
             <div class="empty-icon">🗺</div>
-            <div>No lanes tracked yet.<br>Save a quote to the Quote Log and check "Track" to start tracking.</div>
+            <div>No lanes tracked yet.<br>Save a rate profile on the calculator to start tracking.</div>
           </div>
         </div>
       </div>
@@ -147,6 +151,11 @@ a.brand-name:hover span{opacity:.8}
   </div>
 
 </div>
+
+<footer>
+  <p style="margin-bottom:8px">Questions? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent)">info@quickfreightcalc.com</a></p>
+  <p>By using QuickFreightCalc you agree to our <a href="/terms.html" target="_blank">Terms of Service</a> and <a href="/privacy.html" target="_blank">Privacy Policy</a>. Rates are estimates only — not guaranteed quotes.</p>
+</footer>
 
 <!-- Floating theme button -->
 <button class="theme-btn-float" onclick="toggleTheme()">
@@ -282,7 +291,7 @@ function renderLaneList(){
   if(!profiles.length){
     list.innerHTML = `<div class="empty-state">
       <div class="empty-icon">🗺</div>
-      <div>No lanes tracked yet.<br>Save a quote to the Quote Log and check "Track" to start tracking.</div>
+      <div>No lanes tracked yet.<br>Save a rate profile on the calculator to start tracking.</div>
     </div>`;
     return;
   }
