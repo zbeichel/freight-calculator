@@ -199,6 +199,21 @@ a.brand-name:hover span{opacity:.8}
 }
 .dl-btn:hover{background:var(--accent);color:#000}
 
+/* ── Multi-stop Quote Log ── */
+.ms-log-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:20px}
+.ms-log-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.ms-log-wrap{overflow-x:auto}
+.ms-log-wrap table{width:100%;border-collapse:collapse;font-size:12px}
+.ms-log-wrap th{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.ms-log-wrap td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle}
+.ms-log-wrap tr:last-child td{border-bottom:none}
+.ms-log-wrap tr:hover td{background:var(--card2)}
+.ms-log-wrap .money{color:var(--accent);font-weight:700}
+.ms-log-wrap .dim{color:var(--text3)}
+.ms-empty-log{text-align:center;color:var(--text3);font-size:12px;padding:24px}
+.ms-del-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px;transition:color .15s}
+.ms-del-btn:hover{color:var(--red)}
+
 /* ── Mileage status ── */
 .miles-status{font-size:11px;color:var(--text3);margin-top:4px;min-height:16px}
 .miles-status.ok{color:var(--green)}
@@ -381,10 +396,63 @@ a.brand-name:hover span{opacity:.8}
       </div>
 
       <button class="dl-btn" onclick="generateMultiStopPDF()">📄 Download Quote PDF</button>
+      <button class="dl-btn" onclick="saveMsQuote()" style="border-color:var(--border2);color:var(--text2);margin-top:6px" onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background='var(--accentbg)'">💾 Save to Quote Log</button>
 
     </div>
   </div>
 
+  <!-- Multi-stop Quote Log -->
+  <div class="ms-log-card" id="ms-log-card">
+    <div class="ms-log-header">
+      <div style="font-size:13px;font-weight:700;color:var(--text)">Multi-Stop Quote Log</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span id="ms-log-count" style="font-size:11px;color:var(--text3)">0 / 50 saved</span>
+        <button onclick="exportMsCSV()" style="font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">Export CSV</button>
+        <button onclick="clearMsLog()" style="font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;border:1px solid rgba(248,113,113,.3);background:transparent;color:var(--red);cursor:pointer;transition:all .15s">Clear All</button>
+      </div>
+    </div>
+    <div class="ms-log-wrap">
+      <table>
+        <thead>
+          <tr><th>Track</th><th>Date</th><th>Route</th><th>Mi</th><th>Stops</th><th>Commodity</th><th>Margin</th><th>Quote</th><th>RPM</th><th>Notes</th><th></th></tr>
+        </thead>
+        <tbody id="ms-log-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- MS Notes Modal -->
+<div id="ms-notes-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+    <div style="padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:14px;font-weight:700;color:var(--text)">Load Notes</div>
+      <button onclick="closeMsNotesModal()" style="font-size:18px;line-height:1;background:none;border:none;color:var(--text3);cursor:pointer;padding:2px 6px;border-radius:6px">✕</button>
+    </div>
+    <div style="padding:20px 24px">
+      <textarea id="ms-notes-input" rows="6" placeholder="e.g. Temperature requirements, detention terms, driver instructions..." style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;padding:10px 14px;outline:none;resize:vertical;line-height:1.6" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px">
+        <button onclick="closeMsNotesModal()" style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancel</button>
+        <button onclick="saveMsNotesModal()" style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;padding:8px 18px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#000;cursor:pointer">Save Notes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MS Dupe Modal -->
+<div id="ms-dupe-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;max-width:400px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+    <div style="padding:24px 24px 8px;text-align:center">
+      <div style="font-size:22px;margin-bottom:12px">📋</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px">Already Saved</div>
+      <div id="ms-dupe-msg" style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:4px"></div>
+    </div>
+    <div style="padding:16px 24px 24px;display:flex;gap:10px">
+      <button onclick="closeMsDupeModal(false)" style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:10px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancel</button>
+      <button onclick="closeMsDupeModal(true)" style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;padding:10px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#000;cursor:pointer">Save Again</button>
+    </div>
+  </div>
 </div>
 
 <!-- Floating theme button -->
@@ -1303,6 +1371,198 @@ async function initWithProCheck(){
   addStop('pickup');
   addStop('delivery');
 }
+
+// ── Multi-Stop Quote Log ──────────────────────────────────────────────────
+const MS_LOG_KEY = 'qfc_ms_quote_log';
+const MS_MAX = 50;
+const CMULT_MS  = {standard:1.0,food:1.08,hazmat:1.20,highval:1.12,oversized:1.25};
+const CLABEL_MS = {standard:'Standard',food:'Food/Perishable',hazmat:'Hazmat',highval:'High Value',oversized:'Oversized'};
+
+function getMsLog(){ try{ return JSON.parse(localStorage.getItem(MS_LOG_KEY)||'[]'); }catch(e){ return []; } }
+function saveMsLog(log){ try{ localStorage.setItem(MS_LOG_KEY, JSON.stringify(log)); }catch(e){} }
+
+function renderMsLog(){
+  const log = getMsLog();
+  const tbody = document.getElementById('ms-log-body');
+  const count = document.getElementById('ms-log-count');
+  if(count) count.textContent = `${log.length} / ${MS_MAX} saved`;
+  if(!tbody) return;
+  if(!log.length){
+    tbody.innerHTML = '<tr><td colspan="11" class="ms-empty-log">No multi-stop quotes saved yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = log.map(q => `<tr>
+    <td style="text-align:center">
+      <input type="checkbox" title="Track in Lane Tracker" ${q.tracked!==false?'checked':''}
+        style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)"
+        onchange="toggleMsTrack(${q.id}, this.checked)" />
+    </td>
+    <td class="dim">${q.date}</td>
+    <td style="font-size:11px;max-width:160px;white-space:normal">${q.route||'—'}</td>
+    <td>${Number(q.miles||0).toLocaleString()}</td>
+    <td class="dim">${q.stopsCount||'—'}</td>
+    <td class="dim">${q.commodity||'—'}</td>
+    <td class="dim">${q.margin||'—'}</td>
+    <td class="money">$${Number(q.quote||0).toLocaleString()}</td>
+    <td class="dim">$${q.rpm||'—'}</td>
+    <td>
+      <button onclick="openMsNotesModal(${q.id})"
+        style="font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:600;
+        padding:3px 8px;border-radius:6px;border:1px solid var(--border2);
+        background:${q.notes?'var(--accentbg)':'transparent'};
+        color:${q.notes?'var(--accent)':'var(--text3)'};cursor:pointer;white-space:nowrap"
+        onmouseover="this.style.borderColor='var(--accent)'"
+        onmouseout="this.style.borderColor='var(--border2)'">
+        ${q.notes?'📝 Notes':'+ Notes'}
+      </button>
+    </td>
+    <td><button class="ms-del-btn" onclick="deleteMsQuote(${q.id})">✕</button></td>
+  </tr>`).join('');
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────
+let _msDupeResolve = null;
+
+function showMsDupeModal(msg){
+  document.getElementById('ms-dupe-msg').innerHTML = msg;
+  document.getElementById('ms-dupe-modal').style.display = 'flex';
+  return new Promise(r => { _msDupeResolve = r; });
+}
+function closeMsDupeModal(confirmed){
+  document.getElementById('ms-dupe-modal').style.display = 'none';
+  if(_msDupeResolve){ _msDupeResolve(confirmed); _msDupeResolve = null; }
+}
+
+async function saveMsQuote(){
+  const totalMilesEl = document.getElementById('ms-total-miles');
+  const quoteEl      = document.getElementById('ms-quote');
+  const miles = parseInt((totalMilesEl?.textContent||'').replace(/[^\d]/g,''))||0;
+  const quoteVal = parseInt((quoteEl?.textContent||'').replace(/[^\d]/g,''))||0;
+  if(!miles || !quoteVal){ alert('Fill in stop locations to calculate before saving.'); return; }
+
+  const log = getMsLog();
+  if(log.length >= MS_MAX){
+    alert(`Quote log is full (${MS_MAX} max). Delete old quotes to save new ones.`);
+    return;
+  }
+
+  // Build route string from stops
+  const pickups   = stops.filter(s => s.type==='pickup').map(s => s.location).filter(Boolean);
+  const deliveries= stops.filter(s => s.type==='delivery').map(s => s.location).filter(Boolean);
+  const route = pickups.length && deliveries.length
+    ? `${pickups[0]} → ${deliveries[deliveries.length-1]}${stops.length>2?' (+'+( stops.length-2)+' stops)':''}`
+    : `${stops.length} stops`;
+
+  const rpm   = parseFloat((document.getElementById('ms-rpm-sub')?.textContent||'').replace(/[^0-9.]/g,''))||0;
+  const marginPct = parseFloat(document.getElementById('ms-margin')?.value)||15;
+  const commodity = document.getElementById('ms-commodity')?.value || 'standard';
+  const stopsCount = `${stops.filter(s=>s.type==='pickup').length}P / ${stops.filter(s=>s.type==='delivery').length}D`;
+  const dateStr = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
+
+  // Duplicate check
+  const dupe = log.find(q => q.route === route && q.miles === miles);
+  if(dupe){
+    const ok = await showMsDupeModal(`A quote for this load was already saved on ${dupe.date}.<br>${route}`);
+    if(!ok) return;
+  }
+
+  const entry = {
+    id: Date.now(), date: dateStr, route, miles, stopsCount,
+    commodity: CLABEL_MS[commodity]||commodity,
+    margin: marginPct.toFixed(0)+'%',
+    quote: quoteVal,
+    rpm: rpm.toFixed(2),
+    notes: '',
+    tracked: true
+  };
+
+  log.unshift(entry);
+  saveMsLog(log);
+  renderMsLog();
+  showMsToast('💾 Quote saved');
+}
+
+// ── Delete / Clear ────────────────────────────────────────────────────────
+function deleteMsQuote(id){
+  const log = getMsLog().filter(q => q.id !== id);
+  saveMsLog(log);
+  renderMsLog();
+}
+
+function clearMsLog(){
+  if(!getMsLog().length) return;
+  if(!confirm('Clear all saved multi-stop quotes? This cannot be undone.')) return;
+  saveMsLog([]);
+  renderMsLog();
+}
+
+// ── Track toggle ──────────────────────────────────────────────────────────
+function toggleMsTrack(id, checked){
+  const log = getMsLog();
+  const q = log.find(q => q.id === id);
+  if(q){ q.tracked = checked; saveMsLog(log); }
+}
+
+// ── Notes modal ───────────────────────────────────────────────────────────
+let _msNotesId = null;
+
+function openMsNotesModal(id){
+  const log = getMsLog();
+  const q = log.find(q => q.id === id);
+  if(!q) return;
+  _msNotesId = id;
+  document.getElementById('ms-notes-input').value = q.notes || '';
+  document.getElementById('ms-notes-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('ms-notes-input').focus(), 50);
+}
+function closeMsNotesModal(){
+  document.getElementById('ms-notes-modal').style.display = 'none';
+  _msNotesId = null;
+}
+function saveMsNotesModal(){
+  if(!_msNotesId) return;
+  const log = getMsLog();
+  const q = log.find(q => q.id === _msNotesId);
+  if(q){ q.notes = document.getElementById('ms-notes-input').value.trim(); saveMsLog(log); renderMsLog(); }
+  closeMsNotesModal();
+  showMsToast('💾 Notes saved');
+}
+document.getElementById('ms-notes-modal').addEventListener('click', function(e){ if(e.target===this) closeMsNotesModal(); });
+document.getElementById('ms-dupe-modal').addEventListener('click', function(e){ if(e.target===this) closeMsDupeModal(false); });
+
+// ── Export CSV ────────────────────────────────────────────────────────────
+function exportMsCSV(){
+  const log = getMsLog();
+  if(!log.length){ showMsToast('⚠ No quotes to export'); return; }
+  const hdr = 'Date,Route,Miles,Stops,Commodity,Margin,Quote,RPM,Notes\n';
+  const rows = log.map(q => [
+    q.date, `"${q.route}"`, q.miles, q.stopsCount,
+    q.commodity, q.margin, q.quote, q.rpm,
+    `"${(q.notes||'').replace(/"/g,'""')}"`
+  ].join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(hdr + rows);
+  a.download = 'ms_quotes_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function showMsToast(msg){
+  let t = document.getElementById('ms-toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'ms-toast';
+    t.style.cssText = 'position:fixed;bottom:28px;right:28px;z-index:9999;background:#22c55e;color:#fff;font-family:Space Grotesk,sans-serif;font-size:13px;font-weight:600;padding:12px 20px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.3);opacity:0;transition:opacity .3s;pointer-events:none';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.style.opacity = '0', 2500);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+renderMsLog();
 
 initWithProCheck();
 </script>
