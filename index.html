@@ -4553,10 +4553,21 @@ async function saveQuote(){
   const trailer=document.getElementById('trailer').value;
   const commodity=document.getElementById('commodity').value;
   const weight=parseFloat(document.getElementById('weight').value)||0;
-  const marginPct=(parseFloat(document.getElementById('margin').value)||0)/100;
-  const pickup=document.getElementById('pickup').value;
+
+  // Check for duplicate — same origin, destination, miles, and trailer
   const orig=document.getElementById('origin').value.trim();
   const dest=document.getElementById('dest').value.trim();
+  const duplicate = quoteLog.find(q =>
+    q.orig === orig &&
+    q.dest === dest &&
+    parseFloat(q.miles) === miles &&
+    q.trailer === trailer
+  );
+  if(duplicate){
+    if(!confirm(`A quote for this load (${orig} → ${dest}, ${miles.toLocaleString()} mi, ${TLABEL[trailer]}) was already saved on ${duplicate.date}. Save again?`)) return;
+  }
+  const marginPct=(parseFloat(document.getElementById('margin').value)||0)/100;
+  const pickup=document.getElementById('pickup').value;
   const BASE=getBase();
   const base=BASE[trailer];
   const wt=weight?wTier(weight):{m:1.0};
