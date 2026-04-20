@@ -157,8 +157,11 @@ html.light .flat-result {
 
 html.light tbody tr:hover { background: rgba(0,0,0,0.02); }
 
-/* Smooth theme transition */
-*, *::before, *::after {
+/* Smooth theme transition — scoped to elements that actually change with theme */
+header, .card, .panel, .btn, .seg-btn, .input, input, select, textarea,
+.rate-chip, .pro-account-btn, .adv-section, .adv-warn, .result-hero,
+.flat-result, .acc-item, .hos-day, .weather-card, tbody tr,
+.pill, .tab, .back-link, .save-btn, .save-btn-header {
   transition: background-color .25s ease, border-color .25s ease, color .15s ease, box-shadow .25s ease;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -5360,7 +5363,6 @@ async function startup(){
   loadTheme();
   loadAll();
   loadRates();
-  loadGMapsKey();
   document.getElementById('pickup').valueAsDate=new Date();
   updateFSCLabel();
   updateAdvCount();
@@ -5369,6 +5371,10 @@ async function startup(){
   renderCustomAccs();
   updateProUI();
   updateProAccountBtn();
+
+  // Defer network-dependent calls until after first paint
+  // so they don't block the initial render
+  setTimeout(() => { loadGMapsKey(); }, 300);
 
   // Normal startup
   checkProAuth();
