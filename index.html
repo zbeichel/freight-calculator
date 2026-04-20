@@ -2244,10 +2244,7 @@ function updateProUI(){
     dlBtn.style.cursor  = isProUser ? 'pointer' : 'not-allowed';
   }
   if(proNote) proNote.style.display = isProUser ? 'none' : '';
-  if(profilesUI){
-    profilesUI.style.display = isProUser ? '' : 'none';
-    if(isProUser) renderProfileSelect();
-  }
+  if(profilesUI) profilesUI.style.display = isProUser ? '' : 'none';
   if(msTag) msTag.style.display = isProUser ? 'none' : '';
   const lanesTag = document.getElementById('lanes-pro-tag');
   if(lanesTag) lanesTag.style.display = isProUser ? 'none' : '';
