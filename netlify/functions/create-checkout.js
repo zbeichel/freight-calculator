@@ -41,17 +41,19 @@ exports.handler = async function(event){
   }
 
   const priceId = process.env.STRIPE_PRICE_ID;
-  // Set SITE_URL in Netlify env vars. Swap to https://quickfreightcalc.com before going live.
-  const siteUrl = process.env.SITE_URL || 'https://dev--quickfreightcalculator.netlify.app';
+  const siteUrl = process.env.DEPLOY_URL && process.env.DEPLOY_URL.includes('dev--')
+    ? process.env.DEPLOY_URL
+    : 'https://quickfreightcalc.com';
 
   try {
     const resp = await stripeRequest('/v1/checkout/sessions', 'POST', {
       'mode': 'subscription',
+      'allow_promotion_codes': 'true',
       'line_items[0][price]': priceId,
       'line_items[0][quantity]': '1',
       'customer_email': email,
       'client_reference_id': userId,
-      'success_url': `${siteUrl}/signup.html?login&reason=checkout-complete`,
+      'success_url': `${siteUrl}/?checkout=success`,
       'cancel_url': `${siteUrl}/signup.html?checkout=cancelled`,
       'subscription_data[metadata][userId]': userId,
       'metadata[userId]': userId,
