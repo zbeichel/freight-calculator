@@ -85,6 +85,13 @@ a.brand-name:hover span{opacity:.8}
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   background:var(--panel);padding:0 10px;font-size:11px;color:var(--text3);
 }
+.google-btn{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:11px;border-radius:8px;border:1px solid var(--border2);
+  background:var(--card);color:var(--text2);font-family:'Space Grotesk',sans-serif;
+  font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;
+}
+.google-btn:hover{border-color:var(--accent);color:var(--text)}
 
 .error-msg{
   background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);
@@ -180,6 +187,11 @@ a.brand-name:hover span{opacity:.8}
         <button class="submit-btn" id="su-btn" onclick="handleSignup()">
           Sign Up for Pro →
         </button>
+        <div class="divider"><span>or</span></div>
+        <button class="google-btn" onclick="handleGoogleAuth()">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z"/></svg>
+          Continue with Google
+        </button>
         <div class="footer-note">
           By signing up you agree to our <a href="/terms.html" target="_blank">Terms of Service</a> and <a href="/privacy.html" target="_blank">Privacy Policy</a>.<br>
           Already have an account? <a href="#" onclick="switchTab('login')">Sign in</a>
@@ -198,6 +210,11 @@ a.brand-name:hover span{opacity:.8}
         </div>
         <button class="submit-btn" id="li-btn" onclick="handleLogin()">
           Sign In
+        </button>
+        <div class="divider"><span>or</span></div>
+        <button class="google-btn" onclick="handleGoogleAuth()">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z"/></svg>
+          Continue with Google
         </button>
         <div class="footer-note">
           <a href="#" onclick="handleForgotPassword()">Forgot your password?</a><br>
@@ -257,6 +274,98 @@ function showSuccess(msg){
 function hideMessages(){
   document.getElementById('error-msg').style.display = 'none';
   document.getElementById('success-msg').style.display = 'none';
+}
+
+// ── Google OAuth ───────────────────────────────────────────────────────────
+async function handleGoogleAuth(){
+  try {
+    // Store which tab they were on so we know signup vs login after redirect
+    const isSignup = document.getElementById('tab-signup').classList.contains('active');
+    if(isSignup){
+      if(!document.getElementById('su-agree').checked){
+        showError('Please agree to the Terms of Service and Privacy Policy to continue.');
+        return;
+      }
+      localStorage.setItem('qfc_google_intent', 'signup');
+    } else {
+      localStorage.setItem('qfc_google_intent', 'login');
+    }
+
+    const resp = await fetch(`${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(window.location.origin + '/signup.html?google=return')}`, {
+      method: 'GET',
+      headers: { 'apikey': SUPABASE_KEY }
+    });
+
+    // Supabase returns the Google OAuth URL — redirect to it
+    if(resp.url && resp.url.includes('accounts.google.com')){
+      window.location.href = resp.url;
+    } else {
+      // Standard Supabase OAuth redirect
+      window.location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(window.location.origin + '/signup.html?google=return')}`;
+    }
+  } catch(e){
+    showError('Could not connect to Google. Please try again.');
+  }
+}
+
+// ── Handle Google OAuth return ─────────────────────────────────────────────
+async function handleGoogleReturn(){
+  // Supabase puts the session in the URL hash after OAuth
+  const hash = window.location.hash;
+  if(!hash.includes('access_token')) return;
+
+  const params = new URLSearchParams(hash.replace('#', ''));
+  const accessToken  = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  const expiresIn    = parseInt(params.get('expires_in')) || 3600;
+
+  if(!accessToken) return;
+
+  // Get user info
+  try {
+    const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${accessToken}` }
+    });
+    const user = await userResp.json();
+    if(!user.id) return;
+
+    // Store session
+    storeSession({ access_token: accessToken, refresh_token: refreshToken, expires_in: expiresIn, user });
+
+    // Clear URL hash
+    window.history.replaceState({}, '', '/signup.html');
+
+    const intent = localStorage.getItem('qfc_google_intent') || 'login';
+    localStorage.removeItem('qfc_google_intent');
+
+    if(intent === 'signup'){
+      // New signup via Google — create pro_users row and send to Stripe
+      await createProUserRow(user.id, user.email, '', '', accessToken);
+      showSuccess('Account created! Redirecting to checkout...');
+
+      const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, email: user.email })
+      });
+      const checkoutData = await checkoutResp.json();
+      if(checkoutData.url){
+        localStorage.setItem('qfc_pending_checkout', JSON.stringify({
+          userId: user.id, email: user.email, ts: Date.now()
+        }));
+        window.location.href = checkoutData.url;
+      } else {
+        showError('Could not start checkout. Please try signing in.');
+      }
+    } else {
+      // Existing user logging in via Google
+      showSuccess('Signed in! Redirecting...');
+      const dest = localStorage.getItem('qfc_pending_checkout') ? '/?from=login' : '/profile.html';
+      setTimeout(() => window.location.href = dest, 800);
+    }
+  } catch(e){
+    showError('Something went wrong with Google sign in. Please try again.');
+  }
 }
 
 // ── Sign Up ────────────────────────────────────────────────────────────────
@@ -432,24 +541,27 @@ async function createProUserRow(userId, email, companyName, contactName, token){
 }
 
 // ── Check URL params — auto-switch to login tab ────────────────────────────
-if(window.location.search.includes('login')){ switchTab('login'); }
-if(window.location.search.includes('reason=pro-required')){
-  showError('That page requires a Pro subscription. Sign up or log in to continue.');
-  switchTab('login');
+if(window.location.search.includes('google=return') || window.location.hash.includes('access_token')){
+  handleGoogleReturn();
+} else {
+  if(window.location.search.includes('login')){ switchTab('login'); }
+  if(window.location.search.includes('reason=pro-required')){
+    showError('That page requires a Pro subscription. Sign up or log in to continue.');
+    switchTab('login');
+  }
+  const isPostCheckout = window.location.search.includes('reason=checkout-complete');
+  if(isPostCheckout){
+    try {
+      Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k));
+      localStorage.removeItem('qfc_pro_status');
+      localStorage.removeItem('qfc_pro_profile');
+      localStorage.removeItem('qfc_pending_checkout');
+    } catch(e){}
+    switchTab('login');
+    showSuccess('Payment successful! Sign in to access your Pro account.');
+  }
+  if(!isPostCheckout){ checkSession(); }
 }
-const isPostCheckout = window.location.search.includes('reason=checkout-complete');
-if(isPostCheckout){
-  // Clear any stale session so the previous user doesn't get auto-logged in
-  try {
-    Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k));
-    localStorage.removeItem('qfc_pro_status');
-    localStorage.removeItem('qfc_pro_profile');
-    localStorage.removeItem('qfc_pending_checkout');
-  } catch(e){}
-  switchTab('login');
-  showSuccess('Payment successful! Sign in to access your Pro account.');
-}
-if(!isPostCheckout){ checkSession(); }
 </script>
 <!-- Floating theme button -->
 <button id="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode" style="
