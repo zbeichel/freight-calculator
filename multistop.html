@@ -30,6 +30,7 @@ a.brand-name:hover span{opacity:.8}
 @media(max-width:800px){
   .page{grid-template-columns:1fr;padding:16px 12px 100px}
   .result-card{position:static}
+  .result-col{position:static!important}
   .stop-type-toggle{flex-wrap:wrap}
   .stop-type-btn{font-size:10px;padding:3px 7px}
   .field-row{grid-template-columns:1fr}
@@ -162,7 +163,7 @@ a.brand-name:hover span{opacity:.8}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
 /* ── Result card ── */
-.result-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;position:sticky;top:74px}
+.result-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
 
 .result-hero{background:linear-gradient(135deg,var(--card2) 0%,var(--card) 100%);padding:20px;border-bottom:1px solid var(--border);text-align:center}
 .result-hero-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
@@ -492,7 +493,7 @@ footer a:hover{color:var(--accent)}
           <div id="ms-seas-controls" style="display:none">
             <div class="field" style="margin-bottom:10px">
               <label>Origin Region</label>
-              <select id="ms-seas-region" onchange="calcTotal()">
+              <select id="ms-seas-region" onchange="msUpdateSeasonCalendar();calcTotal()">
                 <optgroup label="── Produce / Reefer Lanes ──">
                   <option value="fl">Florida · potatoes, citrus, tomatoes</option>
                   <option value="se">Southeast · GA, SC, NC peaches, watermelon</option>
@@ -524,7 +525,7 @@ footer a:hover{color:var(--accent)}
   </div>
 
   <!-- RIGHT: Results -->
-  <div>
+  <div class="result-col" style="position:sticky;top:74px">
     <div class="result-card">
 
       <div class="result-hero">
@@ -770,6 +771,7 @@ function setMsRateMode(mode){
 
 function onTrailerChange(){
   if(!msRateManual) applyMsRate();
+  msUpdateSeasonCalendar();
   calcTotal();
 }
 let stops = [];
