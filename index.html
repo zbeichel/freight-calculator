@@ -5601,7 +5601,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
       <div style="text-align:center;font-size:13px;color:var(--text3);margin-bottom:14px">
         <strong style="color:#f0a500;font-size:18px">$4.99</strong>/month &nbsp;·&nbsp; Cancel anytime
       </div>
-      <button onclick="closeProModal();window.location.href='/signup.html'" style="
+      <button onclick="handleProModalUpgrade()" style="
         display:block;width:100%;text-align:center;
         font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;
         padding:12px;border-radius:8px;border:none;
@@ -5626,6 +5626,34 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
 </div>
 
 <script>
+function showProModal(desc){
+  const overlay = document.getElementById('pro-modal-overlay');
+
+async function handleProModalUpgrade(){
+  closeProModal();
+  // If user is already logged in, go straight to checkout
+  const session = getProSession();
+  if(session){
+    const userId = session.user?.id || session.user?.sub;
+    const email  = session.user?.email;
+    try {
+      const resp = await fetch('/.netlify/functions/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, email })
+      });
+      const data = await resp.json();
+      if(data.url){
+        localStorage.setItem('qfc_pending_checkout', JSON.stringify({ userId, email, ts: Date.now() }));
+        window.location.href = data.url;
+        return;
+      }
+    } catch(e){}
+  }
+  // Not logged in — go to signup page
+  window.location.href = '/signup.html';
+}
+
 function showProModal(desc){
   const overlay = document.getElementById('pro-modal-overlay');
   if(desc) document.getElementById('pro-modal-desc').textContent = desc;
