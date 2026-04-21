@@ -406,10 +406,7 @@ async function handleSignup(){
         btn.textContent = 'Sign Up for Pro →';
       }
     } else {
-      // No access_token means email confirmation is required OR email already exists.
-      // Supabase doesn't distinguish these when email confirmation is off —
-      // check if this looks like a duplicate by attempting a password signin.
-      // If the signin returns a valid session, the email already exists.
+      // No access_token — email may already exist
       try {
         const checkResp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
           method: 'POST',
@@ -418,8 +415,31 @@ async function handleSignup(){
         });
         const checkData = await checkResp.json();
         if(checkData.access_token){
-          // Email already exists with this password — tell them to sign in
-          showError('An account with this email already exists. Please sign in instead.');
+          // Account exists with this password — check if they need to complete checkout
+          storeSession(checkData);
+          const userId = checkData.user?.id;
+          const proResp = await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${userId}&select=is_active,stripe_subscription_id`, {
+            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${checkData.access_token}` }
+          });
+          const proRows = await proResp.json();
+          const proRow = proRows?.[0];
+          if(proRow && !proRow.is_active && !proRow.stripe_subscription_id){
+            // They signed up but never paid — send to checkout
+            showSuccess('Account found! Completing your Pro signup...');
+            const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId, email })
+            });
+            const checkoutData = await checkoutResp.json();
+            if(checkoutData.url){
+              localStorage.setItem('qfc_pending_checkout', JSON.stringify({ userId, email, ts: Date.now() }));
+              window.location.href = checkoutData.url;
+              return;
+            }
+          } else {
+            showError('An account with this email already exists. Please sign in instead.');
+          }
         } else {
           showError('An account with this email already exists. Please sign in or use a different email.');
         }
@@ -465,6 +485,32 @@ async function handleLogin(){
     }
 
     storeSession(data);
+
+    // Check if this user signed up but never completed checkout
+    try {
+      const userId = data.user?.id;
+      const proResp = await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${userId}&select=is_active,stripe_subscription_id`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${data.access_token}` }
+      });
+      const proRows = await proResp.json();
+      const proRow = proRows?.[0];
+      // If they have a pro_users row but never paid (no subscription ID and not active)
+      if(proRow && !proRow.is_active && !proRow.stripe_subscription_id){
+        showSuccess('Welcome back! Completing your Pro signup...');
+        const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, email })
+        });
+        const checkoutData = await checkoutResp.json();
+        if(checkoutData.url){
+          localStorage.setItem('qfc_pending_checkout', JSON.stringify({ userId, email, ts: Date.now() }));
+          window.location.href = checkoutData.url;
+          return;
+        }
+      }
+    } catch(e){}
+
     showSuccess('Signed in! Redirecting...');
     const dest = localStorage.getItem('qfc_pending_checkout') ? '/?from=login' : '/profile.html';
     setTimeout(() => window.location.href = dest, 800);
