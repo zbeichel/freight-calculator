@@ -2155,6 +2155,8 @@ async function checkProAuth(){
       if(i < 6) await new Promise(r => setTimeout(r, 2000));
     }
     localStorage.removeItem('qfc_pending_checkout');
+    // Poll timed out — user didn't pay. Run normal check and update UI.
+    await _verifyProAuthBackground();
     return;
   }
 

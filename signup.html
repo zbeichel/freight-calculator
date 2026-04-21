@@ -576,6 +576,11 @@ if(window.location.search.includes('google=return') || window.location.hash.incl
   handleGoogleReturn();
 } else {
   if(window.location.search.includes('login')){ switchTab('login'); }
+  if(window.location.search.includes('checkout=cancelled')){
+    try { localStorage.removeItem('qfc_pending_checkout'); } catch(e){}
+    showError('Checkout cancelled. You can complete your Pro signup anytime.');
+    switchTab('login');
+  }
   if(window.location.search.includes('reason=pro-required')){
     showError('That page requires a Pro subscription. Sign up or log in to continue.');
     switchTab('login');
