@@ -5454,6 +5454,13 @@ function calcHOS(totalDriveSecs, googleDriveText, origin, dest){
 // ── Init ──────────────────────────────────────────────────────────────────
 // ── Startup — handle checkout return BEFORE auth check ───────────────────
 async function startup(){
+  // If user hit back button from Stripe, qfc_pending_checkout is still set
+  // but they never paid — clear it immediately so Pro modal works normally
+  const urlParams = new URLSearchParams(window.location.search);
+  if(!urlParams.has('checkout') && !urlParams.has('reason')){
+    try { localStorage.removeItem('qfc_pending_checkout'); } catch(e){}
+  }
+
   loadTheme();
   loadAll();
   loadRates();
