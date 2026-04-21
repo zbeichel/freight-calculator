@@ -1054,6 +1054,8 @@ function calcTransitSummary(){
     const fmt = d => new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
     document.getElementById('ms-dates-range').textContent = `${fmt(firstPickup.date)} → ${fmt(lastDelivery.date)}`;
     datesRow.style.display = '';
+    // Update season calendar to reflect pickup date month
+    msUpdateSeasonCalendar();
 
     // Calendar days between first pickup and last delivery
     const d1 = new Date(firstPickup.date+'T12:00:00');
@@ -1069,14 +1071,18 @@ function calcTransitSummary(){
       document.getElementById('ms-extra-days-warning-text').textContent =
         `⚠ ${extraCalDays} extra day${extraCalDays>1?'s':''} beyond estimated drive time — consider adding extra day charges`;
       warningRow.style.display = '';
-      // Auto-suggest extra days if user hasn't set any
-      if(extraDays === 0){
-        document.getElementById('ms-extra-days-count').textContent = extraCalDays;
-        extraDays = extraCalDays;
-        calcTotal();
-      }
+      // Always sync extra days to match the date-calculated value
+      extraDays = extraCalDays;
+      document.getElementById('ms-extra-days-count').textContent = extraCalDays;
+      calcTotal();
     } else {
       warningRow.style.display = 'none';
+      // Reset extra days if dates no longer warrant them
+      if(extraDays > 0){
+        extraDays = 0;
+        document.getElementById('ms-extra-days-count').textContent = '0';
+        calcTotal();
+      }
     }
   } else {
     datesRow.style.display = 'none';
@@ -1277,7 +1283,9 @@ function msGetSeasonMult(trailer){
   const region = document.getElementById('ms-seas-region').value;
   const profile = MS_SEASON_PROFILES[region];
   if(!profile) return 1.0;
-  const month = new Date().getMonth();
+  // Use first pickup date if available, otherwise today
+  const firstPickup = stops.find(s => s.type==='pickup' && s.date);
+  const month = firstPickup ? new Date(firstPickup.date+'T12:00:00').getMonth() : new Date().getMonth();
   return (profile[trailer] || profile.van)[month];
 }
 
@@ -1287,7 +1295,9 @@ function msUpdateSeasonCalendar(){
   const profile = MS_SEASON_PROFILES[region];
   if(!profile) return;
   const trailer = document.getElementById('ms-trailer')?.value || 'reefer';
-  const month = new Date().getMonth();
+  // Use first pickup date if available, otherwise today
+  const firstPickup = stops.find(s => s.type==='pickup' && s.date);
+  const month = firstPickup ? new Date(firstPickup.date+'T12:00:00').getMonth() : new Date().getMonth();
   const curve = profile[trailer] || profile.van;
   document.getElementById('ms-seas-label').textContent = profile.label;
   const cal = document.getElementById('ms-seas-calendar');
