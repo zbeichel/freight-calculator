@@ -452,7 +452,10 @@ footer a:hover{color:var(--accent)}
 
           <!-- Capacity -->
           <div class="adv-sub">
-            <span>Capacity / Load-to-Truck</span>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span>Capacity / Load-to-Truck</span>
+              <span style="font-size:10px;color:var(--text3);font-weight:400">Updated: <span id="ms-lt-updated" style="color:var(--text2)">—</span></span>
+            </div>
             <label class="tog" style="margin-bottom:0">
               <input type="checkbox" id="ms-cap-enabled" onchange="msToggleCapacity()" />
               <span class="tog-track"><span class="tog-thumb"></span></span>
@@ -465,17 +468,17 @@ footer a:hover{color:var(--accent)}
               <div class="mini-input-group">
                 <div class="mini-label" style="color:#60a5fa">Van L:T</div>
                 <input class="mini-input" type="number" id="ms-lt-van" value="8.1" step="0.1" min="0.1" style="color:#60a5fa;border-color:rgba(59,130,246,.3)" oninput="calcTotal()" />
-                <div class="mini-sub">base 6.0 · <span id="ms-lt-van-mult" style="font-weight:600">—</span></div>
+                <div class="mini-sub">base <span id="ms-lt-van-base">6.0</span> · <span id="ms-lt-van-mult" style="font-weight:600">—</span></div>
               </div>
               <div class="mini-input-group">
                 <div class="mini-label" style="color:#4ade80">Reefer L:T</div>
                 <input class="mini-input" type="number" id="ms-lt-reefer" value="14.9" step="0.1" min="0.1" style="color:#4ade80;border-color:rgba(34,197,94,.3)" oninput="calcTotal()" />
-                <div class="mini-sub">base 10.0 · <span id="ms-lt-reefer-mult" style="font-weight:600">—</span></div>
+                <div class="mini-sub">base <span id="ms-lt-reefer-base">10.0</span> · <span id="ms-lt-reefer-mult" style="font-weight:600">—</span></div>
               </div>
               <div class="mini-input-group">
                 <div class="mini-label" style="color:var(--accent)">Flatbed L:T</div>
                 <input class="mini-input" type="number" id="ms-lt-flatbed" value="25.0" step="0.1" min="0.1" style="color:var(--accent);border-color:rgba(240,165,0,.3)" oninput="calcTotal()" />
-                <div class="mini-sub">base 25.0 · <span id="ms-lt-flatbed-mult" style="font-weight:600">—</span></div>
+                <div class="mini-sub">base <span id="ms-lt-flatbed-base">25.0</span> · <span id="ms-lt-flatbed-mult" style="font-weight:600">—</span></div>
               </div>
             </div>
           </div>
@@ -696,6 +699,22 @@ async function loadMsRates(){
         msRegionalRates[region] = { van: rdata.van, reefer: rdata.reefer, flatbed: rdata.flatbed };
         (rdata.states||[]).forEach(s => MS_STATE_TO_REGION[s] = region);
       });
+    }
+    // Load L:T ratios from rates.json — same source as main calculator
+    if(data.loadToTruck){
+      const lt = data.loadToTruck;
+      if(lt.van?.current)     { const el = document.getElementById('ms-lt-van');     if(el) el.value = lt.van.current; }
+      if(lt.reefer?.current)  { const el = document.getElementById('ms-lt-reefer');  if(el) el.value = lt.reefer.current; }
+      if(lt.flatbed?.current) { const el = document.getElementById('ms-lt-flatbed'); if(el) el.value = lt.flatbed.current; }
+      // Update base values and baseline constant
+      if(lt.van?.base)     { MS_LT_BASELINE.van     = lt.van.base;     const el = document.getElementById('ms-lt-van-base');     if(el) el.textContent = lt.van.base; }
+      if(lt.reefer?.base)  { MS_LT_BASELINE.reefer  = lt.reefer.base;  const el = document.getElementById('ms-lt-reefer-base');  if(el) el.textContent = lt.reefer.base; }
+      if(lt.flatbed?.base) { MS_LT_BASELINE.flatbed = lt.flatbed.base; const el = document.getElementById('ms-lt-flatbed-base'); if(el) el.textContent = lt.flatbed.base; }
+      // Show updated date
+      if(lt.updated){
+        const el = document.getElementById('ms-lt-updated');
+        if(el) el.textContent = lt.updated;
+      }
     }
     applyMsRate();
   } catch(e){}
