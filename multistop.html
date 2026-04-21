@@ -1515,6 +1515,12 @@ function generateMultiStopPDF(){
   const qNum = `${prefix}-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-MS${Math.floor(Math.random()*9000)+1000}`;
   const issuedDate = now.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
 
+  const pdfFreeIds = new Set([
+    stops.find(s => s.type==='pickup')?.id,
+    stops.find(s => s.type==='delivery')?.id,
+  ]);
+  pdfFreeIds.delete(undefined);
+
   const stopsHTML = stops.map((s, idx) => {
     const isLast = idx === stops.length - 1;
     const typeLabel = s.type === 'pickup' ? '📍 Pickup' : '🏁 Delivery';
@@ -1522,15 +1528,15 @@ function generateMultiStopPDF(){
     const legMi = legMiles[s.id];
     const legLine = !isLast ? `<div style="text-align:center;padding:6px 0;color:#b0c4d8;font-size:11px">↓ ${legMi ? legMi.toLocaleString()+' mi' : '— mi'}</div>` : '';
     const overrideData = stopChargeOverrides[s.id];
-    let charge = null, chargeNote = '';
-    if(idx > 0){
+    let chargeNote = '';
+    if(!pdfFreeIds.has(s.id)){
       if(overrideData?.type === 'permile'){
         const prevStop = stops[idx-1];
         const mi = legMiles[prevStop?.id] || 0;
-        charge = mi * (overrideData.amount || 0);
+        const charge = mi * (overrideData.amount || 0);
         chargeNote = charge > 0 ? `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+$${Math.round(charge).toLocaleString()} (${mi.toLocaleString()} mi × $${overrideData.amount}/mi)</span>` : '';
       } else {
-        charge = overrideData?.amount !== undefined ? overrideData.amount : stopFee;
+        const charge = overrideData?.amount !== undefined ? overrideData.amount : stopFee;
         chargeNote = `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+$${charge} stop fee</span>`;
       }
     }
