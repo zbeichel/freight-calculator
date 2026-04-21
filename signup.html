@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign Up for Pro — QuickFreightCalc</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1a1d24;--panel:#1f2330;--card:#22262f;--card2:#272c38;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#ffffff;--text2:#b0c4d8;
+  --text3:#8896a8;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
+  --green:#4ade80;--red:#f87171;--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif}
+
+.header{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--border);background:var(--panel)}
+.brand-name{font-size:18px;font-weight:700;color:var(--text2);letter-spacing:-.02em}
+.brand-name span{color:var(--accent)}
+a.brand-name:hover span{opacity:.8}
+.back-link{font-size:12px;color:var(--text3);text-decoration:none;transition:color .15s}
+.back-link:hover{color:var(--accent)}
+
+.page{min-height:calc(100vh - 57px);display:flex;align-items:center;justify-content:center;padding:40px 20px}
+
+.auth-card{
+  width:100%;max-width:440px;
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;
+}
+
+.auth-hero{
+  background:linear-gradient(135deg,#1a1f2e 0%,#0f1318 100%);
+  padding:32px 32px 28px;text-align:center;border-bottom:1px solid var(--border);
+  position:relative;overflow:hidden;
+}
+.auth-hero::before{
+  content:'';position:absolute;top:-40px;right:-40px;
+  width:120px;height:120px;border-radius:50%;
+  background:radial-gradient(circle,rgba(240,165,0,.15) 0%,transparent 70%);
+}
+.auth-emoji{font-size:36px;margin-bottom:10px}
+.auth-title{font-size:22px;font-weight:700;margin-bottom:6px;color:#f0f4f8}
+.auth-sub{font-size:13px;color:#8fa3b8;line-height:1.5}
+
+.pro-features{
+  display:flex;flex-direction:column;gap:6px;margin-top:16px;text-align:left;
+}
+.pro-feature{
+  display:flex;align-items:center;gap:8px;font-size:12px;color:#b0c4d8;
+}
+.pro-feature-icon{color:#f0a500;font-size:13px;flex-shrink:0}
+
+.auth-body{padding:28px 32px}
+
+.tabs{display:flex;gap:0;margin-bottom:24px;background:var(--card2);border-radius:8px;padding:3px}
+.tab{
+  flex:1;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;
+  padding:8px;border-radius:6px;border:none;background:transparent;
+  color:var(--text3);cursor:pointer;transition:all .15s;
+}
+.tab.active{background:var(--card);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.3)}
+
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.field label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.field input{
+  background:var(--card2);border:1px solid var(--border2);border-radius:8px;
+  color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:14px;
+  padding:10px 14px;outline:none;transition:border-color .15s;width:100%;
+}
+.field input:focus{border-color:var(--accent)}
+
+.submit-btn{
+  width:100%;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;
+  padding:12px;border-radius:8px;border:none;background:var(--accent);color:#000;
+  cursor:pointer;transition:opacity .15s;margin-top:4px;
+}
+.submit-btn:hover{opacity:.88}
+.submit-btn:disabled{opacity:.4;cursor:not-allowed}
+
+.divider{height:1px;background:var(--border);margin:20px 0;position:relative}
+.divider span{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:var(--panel);padding:0 10px;font-size:11px;color:var(--text3);
+}
+.google-btn{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:11px;border-radius:8px;border:1px solid var(--border2);
+  background:var(--card);color:var(--text2);font-family:'Space Grotesk',sans-serif;
+  font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;
+}
+.google-btn:hover{border-color:var(--accent);color:var(--text)}
+
+.error-msg{
+  background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);
+  border-radius:8px;padding:10px 14px;font-size:12px;color:var(--red);
+  margin-bottom:16px;display:none;line-height:1.5;
+}
+.success-msg{
+  background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);
+  border-radius:8px;padding:10px 14px;font-size:12px;color:var(--green);
+  margin-bottom:16px;display:none;line-height:1.5;
+}
+
+.footer-note{font-size:11px;color:var(--text3);text-align:center;margin-top:16px;line-height:1.6}
+.footer-note a{color:var(--accent);text-decoration:none}
+
+.price-note{
+  background:var(--accentbg);border:1px solid rgba(240,165,0,.2);
+  border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text2);
+  margin-bottom:20px;text-align:center;
+}
+.price-note strong{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="/" class="back-link">← Calculator</a>
+  <a href="/" class="brand-name" style="text-decoration:none">Quick<span>Freight</span>Calc</a>
+  <div style="width:80px"></div>
+</div>
+
+<div class="page">
+  <div class="auth-card" style="position:relative">
+
+    <!-- Close button on the card -->
+    <button onclick="window.history.length>1?window.history.back():window.location.href='/'" style="
+      position:absolute;top:12px;right:12px;z-index:10;
+      font-size:16px;line-height:1;
+      background:var(--card2);border:1px solid var(--border2);border-radius:8px;
+      color:var(--text3);cursor:pointer;width:30px;height:30px;
+      display:flex;align-items:center;justify-content:center;
+      transition:all .15s;
+    "
+    onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+    onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'"
+    title="Close">✕</button>
+
+    <div class="auth-hero">
+      <div class="auth-emoji">🚛</div>
+      <div class="auth-title">QuickFreightCalc <span style="color:#f0a500">Pro</span></div>
+      <div class="auth-sub">The complete freight quoting toolkit for brokers and dispatchers</div>
+      <div class="pro-features">
+        <div class="pro-feature"><span class="pro-feature-icon">📄</span> Branded PDF quotes — your logo, colors & MC/DOT#</div>
+        <div class="pro-feature"><span class="pro-feature-icon">📋</span> Quote log with notes — saved & synced across devices</div>
+        <div class="pro-feature"><span class="pro-feature-icon">🗺</span> Multi-stop load builder with per-mile stop charges</div>
+        <div class="pro-feature"><span class="pro-feature-icon">📈</span> Lane rate tracker — automatic monthly rate history</div>
+        <div class="pro-feature"><span class="pro-feature-icon">💾</span> Save up to 100 custom lane profiles</div>
+        <div class="pro-feature"><span class="pro-feature-icon">🔢</span> Sequential quote numbering</div>
+        <div class="pro-feature"><span class="pro-feature-icon">🔄</span> Everything synced across all your devices</div>
+      </div>
+    </div>
+
+    <div class="auth-body">
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" id="tab-signup" onclick="switchTab('signup')">Create Account</button>
+        <button class="tab" id="tab-login" onclick="switchTab('login')">Sign In</button>
+      </div>
+
+      <!-- Error / success -->
+      <div class="error-msg" id="error-msg"></div>
+      <div class="success-msg" id="success-msg"></div>
+
+      <!-- Sign Up form -->
+      <div id="form-signup">
+        <div class="price-note">
+          <strong>$4.99/month</strong> · Cancel anytime
+        </div>
+        <div class="field">
+          <label>Email Address</label>
+          <input type="email" id="su-email" placeholder="john@acmefreight.com" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="su-password" placeholder="At least 8 characters" onkeydown="if(event.key==='Enter')handleSignup()" />
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px">
+          <input type="checkbox" id="su-agree" style="width:15px;height:15px;margin-top:2px;accent-color:#f0a500;cursor:pointer;flex-shrink:0" />
+          <label for="su-agree" style="font-size:12px;color:#8fa3b8;line-height:1.6;cursor:pointer">
+            I agree to the <a href="/terms.html" target="_blank" style="color:#f0a500;text-decoration:none">Terms of Service</a> and <a href="/privacy.html" target="_blank" style="color:#f0a500;text-decoration:none">Privacy Policy</a>. I understand that rate quotes are estimates only and not guaranteed.
+          </label>
+        </div>
+        <button class="submit-btn" id="su-btn" onclick="handleSignup()">
+          Sign Up for Pro →
+        </button>
+        <div class="divider"><span>or</span></div>
+        <button class="google-btn" onclick="handleGoogleAuth()">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z"/></svg>
+          Continue with Google
+        </button>
+        <div class="footer-note">
+          By signing up you agree to our <a href="/terms.html" target="_blank">Terms of Service</a> and <a href="/privacy.html" target="_blank">Privacy Policy</a>.<br>
+          Already have an account? <a href="#" onclick="switchTab('login')">Sign in</a>
+        </div>
+      </div>
+
+      <!-- Sign In form -->
+      <div id="form-login" style="display:none">
+        <div class="field">
+          <label>Email Address</label>
+          <input type="email" id="li-email" placeholder="john@acmefreight.com" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="li-password" placeholder="Your password" onkeydown="if(event.key==='Enter')handleLogin()" />
+        </div>
+        <button class="submit-btn" id="li-btn" onclick="handleLogin()">
+          Sign In
+        </button>
+        <div class="divider"><span>or</span></div>
+        <button class="google-btn" onclick="handleGoogleAuth()">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z"/></svg>
+          Continue with Google
+        </button>
+        <div class="footer-note">
+          <a href="#" onclick="handleForgotPassword()">Forgot your password?</a><br>
+          Don't have an account? <a href="#" onclick="switchTab('signup')">Sign up for Pro</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
+
+// ── Check if already logged in ─────────────────────────────────────────────
+async function checkSession(){
+  if(window.location.search.includes('reason=checkout-complete')) return;
+  if(window.location.search.includes('reason=pro-required')) return;
+  const session = getSession();
+  if(session){
+    window.location.href = '/profile.html';
+  }
+}
+
+function getSession(){
+  try {
+    // Supabase stores session in localStorage
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key) || '{}');
+      if(val?.access_token) return val;
+    }
+  } catch(e){}
+  return null;
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(tab){
+  document.getElementById('tab-signup').classList.toggle('active', tab==='signup');
+  document.getElementById('tab-login').classList.toggle('active', tab==='login');
+  document.getElementById('form-signup').style.display = tab==='signup' ? '' : 'none';
+  document.getElementById('form-login').style.display  = tab==='login'  ? '' : 'none';
+  hideMessages();
+}
+
+function showError(msg){ 
+  const el = document.getElementById('error-msg');
+  el.textContent = msg; el.style.display = 'block';
+  document.getElementById('success-msg').style.display = 'none';
+}
+function showSuccess(msg){ 
+  const el = document.getElementById('success-msg');
+  el.textContent = msg; el.style.display = 'block';
+  document.getElementById('error-msg').style.display = 'none';
+}
+function hideMessages(){
+  document.getElementById('error-msg').style.display = 'none';
+  document.getElementById('success-msg').style.display = 'none';
+}
+
+// ── Google OAuth ───────────────────────────────────────────────────────────
+function handleGoogleAuth(){
+  const isSignup = document.getElementById('tab-signup').classList.contains('active');
+  if(isSignup){
+    if(!document.getElementById('su-agree').checked){
+      showError('Please agree to the Terms of Service and Privacy Policy to continue.');
+      return;
+    }
+    localStorage.setItem('qfc_google_intent', 'signup');
+  } else {
+    localStorage.setItem('qfc_google_intent', 'login');
+  }
+  // Navigate directly — do not fetch(), Supabase OAuth is a redirect not an API call
+  const redirectTo = encodeURIComponent(window.location.origin + '/signup.html?google=return');
+  window.location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${redirectTo}`;
+}
+
+// ── Handle Google OAuth return ─────────────────────────────────────────────
+async function handleGoogleReturn(){
+  // Supabase puts the session in the URL hash after OAuth
+  const hash = window.location.hash;
+  if(!hash.includes('access_token')) return;
+
+  const params = new URLSearchParams(hash.replace('#', ''));
+  const accessToken  = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  const expiresIn    = parseInt(params.get('expires_in')) || 3600;
+
+  if(!accessToken) return;
+
+  // Get user info
+  try {
+    const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${accessToken}` }
+    });
+    const user = await userResp.json();
+    if(!user.id) return;
+
+    // Store session
+    storeSession({ access_token: accessToken, refresh_token: refreshToken, expires_in: expiresIn, user });
+
+    // Clear URL hash
+    window.history.replaceState({}, '', '/signup.html');
+
+    const intent = localStorage.getItem('qfc_google_intent') || 'login';
+    localStorage.removeItem('qfc_google_intent');
+
+    if(intent === 'signup'){
+      // New signup via Google — create pro_users row and send to Stripe
+      await createProUserRow(user.id, user.email, '', '', accessToken);
+      showSuccess('Account created! Redirecting to checkout...');
+
+      const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, email: user.email })
+      });
+      const checkoutData = await checkoutResp.json();
+      if(checkoutData.url){
+        localStorage.setItem('qfc_pending_checkout', JSON.stringify({
+          userId: user.id, email: user.email, ts: Date.now()
+        }));
+        window.location.href = checkoutData.url;
+      } else {
+        showError('Could not start checkout. Please try signing in.');
+      }
+    } else {
+      // Existing user logging in via Google
+      showSuccess('Signed in! Redirecting...');
+      const dest = localStorage.getItem('qfc_pending_checkout') ? '/?from=login' : '/profile.html';
+      setTimeout(() => window.location.href = dest, 800);
+    }
+  } catch(e){
+    showError('Something went wrong with Google sign in. Please try again.');
+  }
+}
+
+// ── Sign Up ────────────────────────────────────────────────────────────────
+async function handleSignup(){
+  const email    = document.getElementById('su-email').value.trim();
+  const password = document.getElementById('su-password').value;
+
+  if(!email || !password){ showError('Email and password are required.'); return; }
+  if(password.length < 8){ showError('Password must be at least 8 characters.'); return; }
+  if(!document.getElementById('su-agree').checked){ showError('Please agree to the Terms of Service and Privacy Policy to continue.'); return; }
+
+  const btn = document.getElementById('su-btn');
+  btn.disabled = true;
+  btn.textContent = 'Creating account...';
+
+  try {
+    // Create Supabase auth user
+    const resp = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await resp.json();
+
+    if(data.error){ showError(data.error.message || 'Signup failed.'); btn.disabled=false; btn.textContent='Continue to Payment →'; return; }
+
+    // Store session
+    if(data.access_token){
+      storeSession(data);
+      // Create pro_users row (is_active: false until payment)
+      await createProUserRow(data.user.id, email, '', '', data.access_token);
+      // Redirect to Stripe checkout
+      showSuccess('Account created! Redirecting to checkout...');
+      btn.textContent = 'Redirecting to payment...';
+      const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: data.user.id, email })
+      });
+      const checkoutData = await checkoutResp.json();
+      if(checkoutData.url){
+        // Store credentials temporarily for auto-login after Stripe redirect
+        // Cleared immediately on return — only lives for the checkout session
+        localStorage.setItem('qfc_pending_checkout', JSON.stringify({
+          userId: data.user.id,
+          email,
+          ts: Date.now()
+        }));
+        window.location.href = checkoutData.url;
+      } else {
+        showError('Could not start checkout. Please try signing in and upgrading from your profile.');
+        btn.disabled = false;
+        btn.textContent = 'Sign Up for Pro →';
+      }
+    } else {
+      // No access_token means email confirmation is required OR email already exists.
+      // Supabase doesn't distinguish these when email confirmation is off —
+      // check if this looks like a duplicate by attempting a password signin.
+      // If the signin returns a valid session, the email already exists.
+      try {
+        const checkResp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
+          body: JSON.stringify({ email, password })
+        });
+        const checkData = await checkResp.json();
+        if(checkData.access_token){
+          // Email already exists with this password — tell them to sign in
+          showError('An account with this email already exists. Please sign in instead.');
+        } else {
+          showError('An account with this email already exists. Please sign in or use a different email.');
+        }
+      } catch(e){
+        showError('An account with this email may already exist. Please try signing in.');
+      }
+      btn.disabled = false;
+      btn.textContent = 'Sign Up for Pro →';
+    }
+  } catch(e){
+    showError('Something went wrong. Please try again.');
+    btn.disabled = false;
+    btn.textContent = 'Sign Up for Pro →';
+  }
+}
+
+// ── Sign In ────────────────────────────────────────────────────────────────
+async function handleLogin(){
+  const email    = document.getElementById('li-email').value.trim();
+  const password = document.getElementById('li-password').value;
+
+  if(!email || !password){ showError('Email and password are required.'); return; }
+
+  const btn = document.getElementById('li-btn');
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await resp.json();
+
+    // Supabase returns 400 for bad credentials — check both status and error field
+    if(!resp.ok || data.error || !data.access_token){
+      const msg = data.error_description || data.error?.message || data.msg || 'Incorrect email or password.';
+      showError(msg);
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+      return;
+    }
+
+    storeSession(data);
+    showSuccess('Signed in! Redirecting...');
+    const dest = localStorage.getItem('qfc_pending_checkout') ? '/?from=login' : '/profile.html';
+    setTimeout(() => window.location.href = dest, 800);
+  } catch(e){
+    showError('Something went wrong. Please try again.');
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+// ── Forgot Password ────────────────────────────────────────────────────────
+async function handleForgotPassword(){
+  const email = document.getElementById('li-email').value.trim();
+  if(!email){ showError('Enter your email address first.'); return; }
+  try {
+    await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
+      body: JSON.stringify({ email })
+    });
+    showSuccess('Password reset email sent — check your inbox.');
+  } catch(e){
+    showError('Could not send reset email. Try again.');
+  }
+}
+
+// ── Session helpers ────────────────────────────────────────────────────────
+function storeSession(data){
+  try {
+    const key = `sb-${SUPABASE_URL.split('//')[1].split('.')[0]}-auth-token`;
+    const sessionData = {
+      access_token:  data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at:    Math.floor(Date.now()/1000) + (data.expires_in || 3600),
+      user:          data.user,
+    };
+    localStorage.setItem(key, JSON.stringify(sessionData));
+    // Also store in sessionStorage as backup (survives some cross-origin redirects)
+    sessionStorage.setItem(key, JSON.stringify(sessionData));
+    // Store refresh token in cookie as last resort (survives most redirects)
+    document.cookie = `qfc_rt=${encodeURIComponent(data.refresh_token)};path=/;max-age=86400;SameSite=Lax`;
+    document.cookie = `qfc_uid=${encodeURIComponent(data.user?.id||'')};path=/;max-age=86400;SameSite=Lax`;
+  } catch(e){}
+}
+
+async function createProUserRow(userId, email, companyName, contactName, token){
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/pro_users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${token}`,
+        'Prefer': 'return=minimal,resolution=ignore-duplicates'
+      },
+      body: JSON.stringify({ id: userId, email, company_name: companyName, contact_name: contactName, is_active: false })
+    });
+  } catch(e){}
+}
+
+// ── Check URL params — auto-switch to login tab ────────────────────────────
+if(window.location.search.includes('google=return') || window.location.hash.includes('access_token')){
+  handleGoogleReturn();
+} else {
+  if(window.location.search.includes('login')){ switchTab('login'); }
+  if(window.location.search.includes('reason=pro-required')){
+    showError('That page requires a Pro subscription. Sign up or log in to continue.');
+    switchTab('login');
+  }
+  const isPostCheckout = window.location.search.includes('reason=checkout-complete');
+  if(isPostCheckout){
+    try {
+      Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k));
+      localStorage.removeItem('qfc_pro_status');
+      localStorage.removeItem('qfc_pro_profile');
+      localStorage.removeItem('qfc_pending_checkout');
+    } catch(e){}
+    switchTab('login');
+    showSuccess('Payment successful! Sign in to access your Pro account.');
+  }
+  if(!isPostCheckout){ checkSession(); }
+}
+</script>
+<!-- Floating theme button -->
+<button id="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode" style="
+  position:fixed;bottom:24px;right:24px;z-index:999;
+  display:flex;align-items:center;gap:7px;
+  background:var(--card);border:1px solid var(--border2);border-radius:20px;
+  padding:8px 14px 8px 10px;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:var(--text2);
+  transition:border-color .15s,color .15s,box-shadow .15s;
+  box-shadow:0 4px 16px rgba(0,0,0,.3);">
+  <span id="theme-icon" style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)">🌙</span>
+  <span id="theme-label">Dark</span>
+</button>
+
+<script>
+// ── Theme sync with main calculator ───────────────────────────────────────
+function applyTheme(theme){
+  const root = document.documentElement;
+  if(theme === 'light'){
+    root.style.setProperty('--bg','#ffffff');
+    root.style.setProperty('--panel','#ffffff');
+    root.style.setProperty('--card','#f8fafc');
+    root.style.setProperty('--card2','#eef2f7');
+    root.style.setProperty('--border','#dde3ed');
+    root.style.setProperty('--border2','#c8d4e0');
+    root.style.setProperty('--text','#0f172a');
+    root.style.setProperty('--text2','#334155');
+    root.style.setProperty('--text3','#64748b');
+    document.getElementById('theme-icon').textContent = '☀️';
+    document.getElementById('theme-label').textContent = 'Light';
+  } else {
+    root.style.setProperty('--bg','#1a1d24');
+    root.style.setProperty('--panel','#1f2330');
+    root.style.setProperty('--card','#22262f');
+    root.style.setProperty('--card2','#272c38');
+    root.style.setProperty('--border','#1e2a38');
+    root.style.setProperty('--border2','#243040');
+    root.style.setProperty('--text','#e2e8f0');
+    root.style.setProperty('--text2','#9aafc4');
+    root.style.setProperty('--text3','#8896a8');
+    document.getElementById('theme-icon').textContent = '🌙';
+    document.getElementById('theme-label').textContent = 'Dark';
+  }
+}
+function toggleTheme(){
+  const current = localStorage.getItem('qfc_theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('qfc_theme', next);
+  applyTheme(next);
+}
+// Apply saved theme on load
+applyTheme(localStorage.getItem('qfc_theme') || 'dark');
+</script>
+</body>
+</html>

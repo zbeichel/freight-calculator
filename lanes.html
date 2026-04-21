@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lane Rate Tracker — QuickFreightCalc Pro</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#1a1d24;--panel:#1f2330;--card:#22262f;--card2:#272c38;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#ffffff;--text2:#b0c4d8;
+  --text3:#8896a8;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
+  --green:#4ade80;--red:#f87171;--blue:#60a5fa;--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif}
+
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:100}
+.brand-name{font-size:17px;font-weight:700;color:var(--text2);letter-spacing:-.02em}
+.brand-name span{color:var(--accent)}
+a.brand-name:hover span{opacity:.8}
+.pro-badge{font-size:10px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);padding:2px 7px;border-radius:10px;letter-spacing:.06em;text-transform:uppercase;margin-left:6px}
+.back-link{font-size:12px;font-weight:600;color:var(--text2);text-decoration:none;display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--card);transition:all .15s;white-space:nowrap}
+.back-link:hover{color:var(--accent);border-color:var(--accent);background:var(--accentbg)}
+
+.page{max-width:1100px;margin:0 auto;padding:28px 20px 100px;display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
+@media(max-width:800px){.page{grid-template-columns:1fr;padding:16px 12px 100px}}
+
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:13px;font-weight:700;color:var(--text)}
+.card-body{padding:16px}
+
+/* Lane list */
+.lane-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 12px;border-radius:8px;cursor:pointer;
+  border:1px solid transparent;transition:all .15s;margin-bottom:4px;
+  gap:8px;
+}
+.lane-item:hover{background:var(--card2);border-color:var(--border2)}
+.lane-item.active{background:var(--accentbg);border-color:rgba(240,165,0,.3)}
+.lane-name{font-size:12px;font-weight:600;color:var(--text);line-height:1.4}
+.lane-meta{font-size:10px;color:var(--text3);margin-top:2px}
+.lane-rate{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;color:var(--accent);flex-shrink:0}
+.lane-change{font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;flex-shrink:0}
+.lane-change.up{background:rgba(74,222,128,.12);color:var(--green)}
+.lane-change.down{background:rgba(248,113,113,.12);color:var(--red)}
+.lane-change.flat{background:var(--card2);color:var(--text3)}
+
+.empty-state{text-align:center;padding:32px 16px;color:var(--text3);font-size:12px;line-height:1.7}
+.empty-icon{font-size:32px;margin-bottom:10px}
+
+/* Stats row */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.stat-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.stat-val{font-family:'DM Mono',monospace;font-size:22px;font-weight:600;color:var(--text);line-height:1}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:4px}
+.stat-val.green{color:var(--green)}
+.stat-val.red{color:var(--red)}
+.stat-val.accent{color:var(--accent)}
+
+/* Chart */
+.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;position:relative}
+.chart-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px}
+.chart-sub{font-size:11px;color:var(--text3);margin-bottom:16px}
+.trailer-toggle{display:flex;gap:6px;margin-bottom:16px}
+.trailer-btn{
+  font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;
+  padding:4px 12px;border-radius:20px;border:1px solid var(--border2);
+  background:var(--card2);color:var(--text3);cursor:pointer;transition:all .15s;
+}
+.trailer-btn.active{background:var(--accentbg);border-color:var(--accent);color:var(--accent)}
+
+/* History table */
+.history-table{width:100%;border-collapse:collapse;font-size:12px}
+.history-table th{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+.history-table td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text2)}
+.history-table tr:last-child td{border-bottom:none}
+.history-table tr:hover td{background:var(--card2)}
+.mono{font-family:'DM Mono',monospace;color:var(--text)}
+.change-pill{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px}
+.change-pill.up{background:rgba(74,222,128,.12);color:var(--green)}
+.change-pill.down{background:rgba(248,113,113,.12);color:var(--red)}
+.change-pill.flat{background:var(--card2);color:var(--text3)}
+
+/* No lane selected */
+.no-lane{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center;color:var(--text3)}
+.no-lane-icon{font-size:48px;margin-bottom:16px;opacity:.4}
+.no-lane h3{font-size:16px;font-weight:600;color:var(--text2);margin-bottom:8px}
+.no-lane p{font-size:13px;line-height:1.6;max-width:320px}
+
+/* Floating theme */
+.theme-btn-float{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:8px 14px 8px 10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:var(--text2);transition:all .15s;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.theme-btn-float:hover{border-color:var(--accent);color:var(--text)}
+/* Footer */
+footer{text-align:center;padding:24px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);margin-top:32px}
+footer a{color:var(--text2);text-decoration:none}
+footer a:hover{color:var(--accent)}
+.theme-icon-wrap{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="/" class="back-link">← Calculator</a>
+  <div style="display:flex;align-items:center">
+    <a href="/" class="brand-name" style="text-decoration:none">Quick<span>Freight</span>Calc</a>
+    <div class="pro-badge">Pro</div>
+  </div>
+  <div style="font-size:13px;font-weight:700;color:var(--text2)">Lane Rate Tracker</div>
+</div>
+
+<div class="page">
+
+  <!-- LEFT: Lane list -->
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Tracked Lanes</span>
+        <span id="lane-count" style="font-size:11px;color:var(--text3)">0 lanes</span>
+      </div>
+      <div class="card-body" style="padding:12px">
+        <div id="lane-list">
+          <div class="empty-state">
+            <div class="empty-icon">🗺</div>
+            <div>No lanes tracked yet.<br>Save a rate profile on the calculator to start tracking.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius)">
+      <div style="font-size:11px;color:var(--text3);line-height:1.7">
+        <strong style="color:var(--text2)">How it works</strong><br>
+        Rates are tracked automatically each time DAT Trendlines data is updated in our system. Historical data points are added monthly so you can see how the rate per mile changes on your lanes over time.
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Chart + history -->
+  <div id="right-panel">
+    <div class="no-lane">
+      <div class="no-lane-icon">📈</div>
+      <h3>Select a lane to view rate history</h3>
+      <p>Click any lane on the left to see how rates have changed over time for that origin region and trailer type.</p>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <p style="margin-bottom:8px">Questions? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent)">info@quickfreightcalc.com</a></p>
+  <p>By using QuickFreightCalc you agree to our <a href="/terms.html" target="_blank">Terms of Service</a> and <a href="/privacy.html" target="_blank">Privacy Policy</a>. Rates are estimates only — not guaranteed quotes.</p>
+</footer>
+
+<!-- Floating theme button -->
+<button class="theme-btn-float" onclick="toggleTheme()">
+  <span class="theme-icon-wrap" id="theme-icon">🌙</span>
+  <span id="theme-label">Dark</span>
+</button>
+
+<script>
+const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
+const PROFILES_KEY = 'qfc_rate_profiles';
+
+const STATE_TO_REGION = {};
+let ratesData = null;
+let profiles = [];
+let selectedIdx = null;
+let activeTrailer = 'reefer';
+let chartInstance = null;
+
+// ── State → Region map ────────────────────────────────────────────────────
+const REGION_LABELS = {
+  northeast:'Northeast', southeast:'Southeast', midwest:'Midwest',
+  southwest:'Southwest', west:'West', national:'National'
+};
+
+// ── Load rates.json (current rates + region map) ──────────────────────────
+async function loadRates(){
+  try {
+    const resp = await fetch('/rates.json');
+    ratesData = await resp.json();
+    if(ratesData.regions){
+      Object.entries(ratesData.regions).forEach(([region, data]) => {
+        (data.states||[]).forEach(s => STATE_TO_REGION[s] = region);
+      });
+    }
+  } catch(e){ console.warn('Could not load rates.json', e); }
+}
+
+// ── Load rate history from Supabase ──────────────────────────────────────
+async function loadRateHistory(){
+  try {
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/rate_history?select=snapshot_date,region,van,reefer,flatbed&order=snapshot_date.asc`,
+      { headers:{ 'apikey': SUPABASE_KEY } }
+    );
+    const rows = await resp.json();
+    if(!rows?.length) return;
+
+    // Convert flat rows into the same history structure as rates.json
+    const byDate = {};
+    rows.forEach(r => {
+      if(!byDate[r.snapshot_date]) byDate[r.snapshot_date] = { date: r.snapshot_date, regions:{} };
+      byDate[r.snapshot_date].regions[r.region] = { van: r.van, reefer: r.reefer, flatbed: r.flatbed };
+    });
+
+    // Add labels
+    Object.keys(byDate).sort().forEach(date => {
+      const d = new Date(date+'T12:00:00');
+      byDate[date].label = d.toLocaleDateString('en-US',{month:'short',year:'numeric'});
+    });
+
+    if(ratesData) ratesData.history = Object.values(byDate);
+  } catch(e){ console.warn('Could not load rate history from Supabase', e); }
+}
+
+// ── Get region from origin string ─────────────────────────────────────────
+function getRegionFromOrigin(origin){
+  if(!origin) return 'national';
+  const match = origin.trim().match(/,?\s*([A-Za-z]{2})\s*$/);
+  if(!match) return 'national';
+  return STATE_TO_REGION[match[1].toUpperCase()] || 'national';
+}
+
+// ── Get rate from history for a region/trailer/date ───────────────────────
+function getRateFromHistory(region, trailer, dateStr){
+  if(!ratesData?.history) return null;
+  // Find closest entry on or before the date
+  const entries = [...ratesData.history]
+    .filter(h => h.date <= dateStr)
+    .sort((a,b) => b.date.localeCompare(a.date));
+  if(!entries.length) return null;
+  return entries[0].regions?.[region]?.[trailer] || null;
+}
+
+// ── Build chart data for a profile ───────────────────────────────────────
+function buildChartData(profile, trailer){
+  if(!ratesData?.history) return { labels:[], data:[] };
+  const region = getRegionFromOrigin(profile.origin);
+  const entries = [...ratesData.history]
+    .filter(h => h.regions?.[region]?.[trailer] > 0)
+    .sort((a,b) => a.date.localeCompare(b.date));
+  return {
+    labels: entries.map(h => h.label || h.date),
+    data:   entries.map(h => h.regions[region][trailer]),
+    region
+  };
+}
+
+// ── Load profiles ─────────────────────────────────────────────────────────
+async function loadProfiles(){
+  // Try Supabase first
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key)||'{}');
+      if(val?.access_token){
+        const userId = val.user?.id || val.user?.sub;
+        if(!userId) continue;
+        const resp = await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${userId}&select=rate_profiles`, {
+          headers:{ 'apikey':SUPABASE_KEY, 'Authorization':`Bearer ${val.access_token}` }
+        });
+        const rows = await resp.json();
+        if(rows?.[0]?.rate_profiles?.length){
+          profiles = rows[0].rate_profiles;
+          localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+          renderLaneList();
+          return;
+        }
+      }
+    }
+  } catch(e){}
+  // Fall back to localStorage
+  try { profiles = JSON.parse(localStorage.getItem(PROFILES_KEY)||'[]'); } catch(e){ profiles=[]; }
+  renderLaneList();
+}
+
+// ── Render lane list ──────────────────────────────────────────────────────
+function renderLaneList(){
+  const list = document.getElementById('lane-list');
+  const count = document.getElementById('lane-count');
+  count.textContent = `${profiles.length} lane${profiles.length!==1?'s':''}`;
+
+  if(!profiles.length){
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">🗺</div>
+      <div>No lanes tracked yet.<br>Save a rate profile on the calculator to start tracking.</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = profiles.map((p, i) => {
+    const region = getRegionFromOrigin(p.origin);
+    const trailer = p.trailer || 'reefer';
+    const history = ratesData?.history?.filter(h => h.regions?.[region]?.[trailer] > 0)
+      .sort((a,b) => b.date.localeCompare(a.date)) || [];
+    const currentRate = history[0]?.regions?.[region]?.[trailer];
+    const prevRate    = history[1]?.regions?.[region]?.[trailer];
+    const change = currentRate && prevRate ? ((currentRate - prevRate) / prevRate * 100) : null;
+    const changeClass = change === null ? 'flat' : change > 0 ? 'up' : change < 0 ? 'down' : 'flat';
+    const changeText  = change === null ? '—' : `${change > 0 ? '+' : ''}${change.toFixed(1)}%`;
+    const trailerLabel = {van:'Van',reefer:'Reefer',flatbed:'Flatbed'}[trailer]||trailer;
+
+    return `<div class="lane-item ${selectedIdx===i?'active':''}" onclick="selectLane(${i})">
+      <div style="min-width:0;flex:1">
+        <div class="lane-name">${p.name}</div>
+        <div class="lane-meta">${REGION_LABELS[region]||region} · ${trailerLabel}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
+        ${currentRate ? `<div class="lane-rate">$${currentRate.toFixed(2)}/mi</div>` : '<div class="lane-rate" style="color:var(--text3)">—</div>'}
+        <div class="lane-change ${changeClass}">${changeText}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Select a lane ─────────────────────────────────────────────────────────
+function selectLane(idx){
+  selectedIdx = idx;
+  activeTrailer = profiles[idx]?.trailer || 'reefer';
+  renderLaneList();
+  renderDetail();
+}
+
+// ── Render detail panel ───────────────────────────────────────────────────
+function renderDetail(){
+  if(selectedIdx === null) return;
+  const p = profiles[selectedIdx];
+  const region = getRegionFromOrigin(p.origin);
+  const { labels, data } = buildChartData(p, activeTrailer);
+  const currentRate = data[data.length-1];
+  const prevRate    = data[data.length-2];
+  const firstRate   = data[0];
+  const changeMonth = currentRate && prevRate ? ((currentRate-prevRate)/prevRate*100) : null;
+  const changeTotal = currentRate && firstRate ? ((currentRate-firstRate)/firstRate*100) : null;
+  const trailerLabel = {van:'🚛 Van',reefer:'🧊 Reefer',flatbed:'🏗 Flatbed'}[activeTrailer]||activeTrailer;
+
+  const panel = document.getElementById('right-panel');
+  panel.innerHTML = `
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Current Rate</div>
+        <div class="stat-val accent">${currentRate ? '$'+currentRate.toFixed(2) : '—'}</div>
+        <div class="stat-sub">per mile · ${trailerLabel}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Month Change</div>
+        <div class="stat-val ${changeMonth===null?'':changeMonth>0?'green':'red'}">
+          ${changeMonth===null ? '—' : (changeMonth>0?'+':'')+changeMonth.toFixed(1)+'%'}
+        </div>
+        <div class="stat-sub">vs previous month</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Overall Trend</div>
+        <div class="stat-val ${changeTotal===null?'':changeTotal>0?'green':'red'}">
+          ${changeTotal===null ? '—' : (changeTotal>0?'+':'')+changeTotal.toFixed(1)+'%'}
+        </div>
+        <div class="stat-sub">since first tracked</div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-wrap">
+      <div class="chart-title">${p.name}</div>
+      <div class="chart-sub">${p.origin||'—'} → ${p.dest||'—'} · ${REGION_LABELS[region]||region} region</div>
+      <div class="trailer-toggle">
+        <button class="trailer-btn ${activeTrailer==='reefer'?'active':''}" onclick="setTrailer('reefer')">🧊 Reefer</button>
+        <button class="trailer-btn ${activeTrailer==='van'?'active':''}" onclick="setTrailer('van')">🚛 Van</button>
+        <button class="trailer-btn ${activeTrailer==='flatbed'?'active':''}" onclick="setTrailer('flatbed')">🏗 Flatbed</button>
+      </div>
+      <div style="position:relative;height:220px">
+        <canvas id="rate-chart"></canvas>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:10px;text-align:center">
+        Rates sourced from DAT Trendlines · Updated monthly · ${ratesData?.updated||''}
+      </div>
+    </div>
+
+    <!-- History table -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Rate History</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Period</th>
+              <th>Rate/mi</th>
+              <th>Van</th>
+              <th>Flatbed</th>
+              <th>Change</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody"></tbody>
+        </table>
+      </div>
+    </div>`;
+
+  // Build history table
+  const histEntries = (ratesData?.history||[])
+    .filter(h => h.regions?.[region])
+    .sort((a,b) => b.date.localeCompare(a.date));
+
+  const tbody = document.getElementById('history-tbody');
+  tbody.innerHTML = histEntries.map((h, i) => {
+    const r  = h.regions[region][activeTrailer];
+    const rv = h.regions[region].van;
+    const rf = h.regions[region].flatbed;
+    const prev = histEntries[i+1]?.regions?.[region]?.[activeTrailer];
+    const chg = r && prev ? ((r-prev)/prev*100) : null;
+    const chgClass = chg===null?'flat':chg>0?'up':chg<0?'down':'flat';
+    const chgText  = chg===null?'—':(chg>0?'+':'')+chg.toFixed(1)+'%';
+    if(!r) return '';
+    return `<tr>
+      <td>${h.label||h.date}</td>
+      <td class="mono">$${r.toFixed(2)}</td>
+      <td class="mono" style="color:var(--text3)">$${rv.toFixed(2)}</td>
+      <td class="mono" style="color:var(--text3)">$${rf.toFixed(2)}</td>
+      <td><span class="change-pill ${chgClass}">${chgClass==='up'?'▲':chgClass==='down'?'▼':'—'} ${chgText}</span></td>
+    </tr>`;
+  }).join('');
+
+  renderChart(labels, data);
+}
+
+// ── Render chart ──────────────────────────────────────────────────────────
+function renderChart(labels, data){
+  if(chartInstance) chartInstance.destroy();
+  const ctx = document.getElementById('rate-chart');
+  if(!ctx) return;
+
+  const isDark = !document.documentElement.classList.contains('light');
+  const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';
+  const textColor = isDark ? '#6b7f94' : '#94a3b8';
+
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets:[{
+        label: 'Rate ($/mi)',
+        data,
+        borderColor: '#f0a500',
+        backgroundColor: 'rgba(240,165,0,.08)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#f0a500',
+        pointBorderColor: isDark ? '#0f1318' : '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        fill: true,
+        tension: 0.3,
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor: isDark ? '#151a22' : '#ffffff',
+          borderColor: isDark ? '#1e2a38' : '#e4e8ef',
+          borderWidth: 1,
+          titleColor: isDark ? '#ffffff' : '#0f172a',
+          bodyColor: '#f0a500',
+          callbacks:{
+            label: ctx => ` $${ctx.parsed.y.toFixed(2)} per mile`
+          }
+        }
+      },
+      scales:{
+        x:{
+          grid:{color:gridColor},
+          ticks:{color:textColor,font:{family:'Space Grotesk',size:11}}
+        },
+        y:{
+          grid:{color:gridColor},
+          ticks:{
+            color:textColor,
+            font:{family:'DM Mono',size:11},
+            callback: v => '$'+v.toFixed(2)
+          },
+          suggestedMin: data.length ? Math.min(...data) * 0.97 : 2,
+          suggestedMax: data.length ? Math.max(...data) * 1.03 : 4,
+        }
+      }
+    }
+  });
+}
+
+function setTrailer(t){
+  activeTrailer = t;
+  renderDetail();
+}
+
+// ── Theme ──────────────────────────────────────────────────────────────────
+function applyTheme(theme){
+  const r = document.documentElement;
+  if(theme==='light'){
+    r.style.setProperty('--bg','#f0f4f8');r.style.setProperty('--panel','#ffffff');
+    r.style.setProperty('--card','#f8fafc');r.style.setProperty('--card2','#eef2f7');
+    r.style.setProperty('--border','#dde3ed');r.style.setProperty('--border2','#c8d4e0');
+    r.style.setProperty('--text','#0f172a');r.style.setProperty('--text2','#334155');
+    r.style.setProperty('--text3','#64748b');
+    document.getElementById('theme-icon').textContent='☀️';
+    document.getElementById('theme-label').textContent='Light';
+  } else {
+    r.style.setProperty('--bg','#1a1d24');r.style.setProperty('--panel','#1f2330');
+    r.style.setProperty('--card','#22262f');r.style.setProperty('--card2','#272c38');
+    r.style.setProperty('--border','#1e2a38');r.style.setProperty('--border2','#243040');
+    r.style.setProperty('--text','#e2e8f0');r.style.setProperty('--text2','#9aafc4');
+    r.style.setProperty('--text3','#8896a8');
+    document.getElementById('theme-icon').textContent='🌙';
+    document.getElementById('theme-label').textContent='Dark';
+  }
+  // Re-render chart with new colors
+  if(selectedIdx !== null) renderDetail();
+}
+function toggleTheme(){
+  const next = (localStorage.getItem('qfc_theme')||'dark')==='dark'?'light':'dark';
+  localStorage.setItem('qfc_theme',next);applyTheme(next);
+}
+applyTheme(localStorage.getItem('qfc_theme')||'dark');
+
+// ── Init ──────────────────────────────────────────────────────────────────
+async function verifyProAccess(){
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key)||'{}');
+      if(!val?.access_token) continue;
+      const userId = val.user?.id || val.user?.sub;
+      if(!userId) continue;
+      const resp = await fetch('/.netlify/functions/verify-pro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, accessToken: val.access_token })
+      });
+      if(!resp.ok) return clientSideProCheck(); // function not deployed yet — fallback
+      const data = await resp.json();
+      if(data.active) return true;
+      break;
+    }
+  } catch(e){
+    // Network error — fall back to client-side check rather than locking out user
+    return clientSideProCheck();
+  }
+  return false;
+}
+
+function clientSideProCheck(){
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key)||'{}');
+      if(!val?.access_token) continue;
+      const userId = val.user?.id || val.user?.sub;
+      if(!userId) continue;
+      const cached = JSON.parse(localStorage.getItem('qfc_pro_status')||'{}');
+      if(cached.isActive && cached.userId === userId) return true;
+    }
+  } catch(e){}
+  return false;
+}
+
+async function init(){
+  const isPro = await verifyProAccess();
+  if(!isPro){
+    window.location.href = '/signup.html?reason=pro-required';
+    return;
+  }
+  await loadRates();
+  await loadRateHistory();
+  await loadProfiles();
+}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,2199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Stop Load Builder — QuickFreightCalc Pro</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#1a1d24;--panel:#1f2330;--card:#22262f;--card2:#272c38;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#ffffff;--text2:#b0c4d8;
+  --text3:#8896a8;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
+  --green:#4ade80;--red:#f87171;--blue:#60a5fa;--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif}
+
+/* ── Header ── */
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:100}
+.brand-name{font-size:17px;font-weight:700;color:var(--text2);letter-spacing:-.02em}
+.brand-name span{color:var(--accent)}
+a.brand-name:hover span{opacity:.8}
+.pro-badge{font-size:10px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);padding:2px 7px;border-radius:10px;letter-spacing:.06em;text-transform:uppercase;margin-left:6px}
+.back-link{font-size:12px;font-weight:600;color:var(--text2);text-decoration:none;display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--card);transition:all .15s;white-space:nowrap}
+.back-link:hover{color:var(--accent);border-color:var(--accent);background:var(--accentbg)}
+
+/* ── Layout ── */
+.page{max-width:1100px;margin:0 auto;padding:28px 20px 100px;display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start}
+@media(max-width:800px){
+  .page{grid-template-columns:1fr;padding:16px 12px 100px}
+  .result-card{position:static}
+  .result-col{position:static!important}
+  .stop-type-toggle{flex-wrap:wrap}
+  .stop-type-btn{font-size:10px;padding:3px 7px}
+  .field-row{grid-template-columns:1fr}
+}
+
+/* ── Section card ── */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.card-title{font-size:13px;font-weight:700;color:var(--text)}
+.card-body{padding:20px}
+
+/* ── Stop cards ── */
+.stops-list{display:flex;flex-direction:column;gap:0}
+
+.stop-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);margin-bottom:4px;overflow:hidden;
+  transition:border-color .2s;
+}
+.stop-card:hover{border-color:var(--border2)}
+
+.stop-header{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:10px 14px;background:var(--card2);
+  border-bottom:1px solid var(--border);
+}
+.stop-number{
+  width:24px;height:24px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;flex-shrink:0;
+}
+.stop-number.pickup{background:rgba(74,222,128,.15);color:var(--green);border:1px solid rgba(74,222,128,.3)}
+.stop-number.delivery{background:rgba(240,165,0,.15);color:var(--accent);border:1px solid rgba(240,165,0,.3)}
+
+.stop-type-toggle{display:flex;gap:4px}
+.stop-type-btn{
+  font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;
+  padding:4px 10px;border-radius:6px;border:1px solid var(--border2);
+  background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;
+}
+.stop-type-btn.active.pickup{background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.4);color:var(--green)}
+.stop-type-btn.active.delivery{background:var(--accentbg);border-color:rgba(240,165,0,.4);color:var(--accent)}
+
+.stop-remove{
+  margin-left:auto;font-size:16px;color:var(--text3);cursor:pointer;
+  background:none;border:none;padding:2px 6px;border-radius:4px;
+  transition:color .15s;line-height:1;
+}
+.stop-remove:hover{color:var(--red)}
+
+.stop-body{padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start}
+.stop-location{display:flex;flex-direction:column;gap:4px;width:100%}
+.stop-input{
+  background:var(--card2);border:1px solid var(--border2);border-radius:8px;
+  color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;
+  padding:8px 11px;outline:none;transition:border-color .15s;width:100%;
+}
+.stop-input:focus{border-color:var(--accent)}
+.stop-input.weight-input{width:130px}
+.stop-weight-row{display:flex;align-items:center;gap:6px;margin-top:4px}
+.stop-weight-label{font-size:10px;color:var(--text3);white-space:nowrap}
+
+/* ── Leg connector ── */
+.leg-connector{
+  display:flex;align-items:center;gap:10px;
+  padding:4px 20px;background:transparent;
+}
+.leg-line{flex:1;height:1px;background:var(--border);position:relative;min-width:12px}
+.leg-line::before{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:var(--border2)}
+.leg-miles-badge{
+  font-size:11px;font-weight:600;color:var(--text3);
+  background:var(--card2);border:1px solid var(--border2);
+  border-radius:12px;padding:3px 10px;white-space:nowrap;
+  display:flex;align-items:center;gap:5px;flex-shrink:0;
+}
+.leg-miles-badge.loaded{color:var(--blue);border-color:rgba(96,165,250,.3);background:rgba(96,165,250,.08)}
+.leg-miles-badge.loading{color:var(--text3);font-style:italic}
+@media(max-width:480px){
+  .leg-connector{padding:4px 14px;gap:6px}
+  .leg-miles-badge{font-size:10px;padding:2px 8px}
+}
+
+/* ── Stop location row ── */
+.stop-location-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px}
+.stop-location-row .stop-input:first-child{flex:1;min-width:0}
+.stop-date-wrap{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
+.stop-date-input{font-size:11px;padding:5px 8px;width:140px}
+@media(max-width:480px){
+  .stop-location-row{flex-direction:column}
+  .stop-date-input{width:100%}
+  .stop-date-wrap{width:100%}
+}
+
+/* ── Drag handle ── */
+.drag-handle{
+  display:none;cursor:grab;color:var(--text3);padding:0 6px 0 2px;
+  font-size:16px;line-height:1;user-select:none;flex-shrink:0;
+}
+.drag-handle:active{cursor:grabbing}
+.edit-mode .drag-handle{display:flex;align-items:center}
+.edit-mode .stop-card{cursor:default;border-color:var(--accent) !important}
+.stop-card.drag-over{border-color:var(--blue) !important;background:rgba(96,165,250,.05)}
+.stop-card.dragging{opacity:.4}
+.edit-mode-banner{
+  display:none;background:var(--accentbg);border:1px solid rgba(240,165,0,.3);
+  border-radius:8px;padding:8px 12px;font-size:11px;color:var(--accent);
+  margin-bottom:10px;text-align:center;
+}
+.edit-mode-banner.show{display:block}
+.add-stop-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.add-btn{
+  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
+  padding:8px 16px;border-radius:8px;cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;gap:6px;
+}
+.add-btn-pickup{border:1px solid rgba(74,222,128,.3);background:rgba(74,222,128,.06);color:var(--green)}
+.add-btn-pickup:hover{background:rgba(74,222,128,.14);border-color:var(--green)}
+.add-btn-delivery{border:1px solid rgba(240,165,0,.3);background:var(--accentbg);color:var(--accent)}
+.add-btn-delivery:hover{background:rgba(240,165,0,.18);border-color:var(--accent)}
+
+/* ── Settings card ── */
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.field label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em}
+.field input,.field select{
+  background:var(--card2);border:1px solid var(--border2);border-radius:8px;
+  color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;
+  padding:8px 11px;outline:none;transition:border-color .15s;width:100%;
+}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* ── Result card ── */
+.result-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+
+.result-hero{background:linear-gradient(135deg,var(--card2) 0%,var(--card) 100%);padding:20px;border-bottom:1px solid var(--border);text-align:center}
+.result-hero-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.result-hero-val{font-size:38px;font-weight:700;color:var(--text);letter-spacing:-.03em;line-height:1}
+.result-hero-sub{font-size:12px;color:var(--text3);margin-top:4px}
+
+.result-rows{padding:16px 20px;border-bottom:1px solid var(--border)}
+.rrow{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.rrow:last-child{border-bottom:none}
+.rrow-label{color:var(--text3)}
+.rrow-val{font-weight:600;color:var(--text)}
+.rrow-val.green{color:var(--green)}
+.rrow-val.accent{color:var(--accent)}
+
+/* ── Stop charges breakdown ── */
+.charges-list{padding:14px 20px;border-bottom:1px solid var(--border)}
+.charge-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px;gap:8px}
+.charge-label{color:var(--text3);flex:1}
+.charge-input{
+  background:var(--card2);border:1px solid var(--border2);border-radius:6px;
+  color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;
+  padding:4px 8px;outline:none;width:80px;text-align:right;
+}
+.charge-input:focus{border-color:var(--accent)}
+.charge-total{font-weight:700;color:var(--accent)}
+
+/* ── Download btn ── */
+.dl-btn{
+  width:100%;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;
+  padding:11px;border-radius:8px;border:1px solid var(--accent);
+  background:var(--accentbg);color:var(--accent);cursor:pointer;
+  transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;
+  margin:14px 20px 0;width:calc(100% - 40px);margin-bottom:16px;
+}
+.dl-btn:hover{background:var(--accent);color:#000}
+
+/* ── Multi-stop Quote Log ── */
+.ms-log-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:20px}
+.ms-log-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.ms-log-wrap{overflow-x:auto}
+.ms-log-wrap table{width:100%;border-collapse:collapse;font-size:12px}
+.ms-log-wrap th{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.ms-log-wrap td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle}
+.ms-log-wrap tr:last-child td{border-bottom:none}
+.ms-log-wrap tr:hover td{background:var(--card2)}
+.ms-log-wrap .money{color:var(--accent);font-weight:700}
+.ms-log-wrap .dim{color:var(--text3)}
+.ms-empty-log{text-align:center;color:var(--text3);font-size:12px;padding:24px}
+.ms-del-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px;transition:color .15s}
+.ms-del-btn:hover{color:var(--red)}
+
+/* ── Mileage status ── */
+.miles-status{font-size:11px;color:var(--text3);margin-top:4px;min-height:16px}
+.miles-status.ok{color:var(--green)}
+.miles-status.err{color:var(--red)}
+.miles-status.loading{color:var(--blue)}
+
+/* ── Footer ── */
+footer{text-align:center;padding:24px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);margin-top:32px}
+footer a{color:var(--text2);text-decoration:none}
+footer a:hover{color:var(--accent)}
+
+/* ── Floating theme btn ── */
+.theme-btn-float{
+  position:fixed;bottom:24px;right:24px;z-index:999;
+  display:flex;align-items:center;gap:7px;
+  background:var(--card);border:1px solid var(--border2);border-radius:20px;
+  padding:8px 14px 8px 10px;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:var(--text2);
+  transition:all .15s;box-shadow:0 4px 16px rgba(0,0,0,.3);
+}
+.theme-btn-float:hover{border-color:var(--accent);color:var(--text)}
+.theme-icon-wrap{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)}
+/* ── Advanced Adjustments ── */
+.adv-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:14px 0;border-top:1px solid var(--border);user-select:none;margin-top:8px}
+.adv-toggle-left{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--text2)}
+.adv-arrow{transition:transform .2s;font-size:12px}
+.adv-arrow.open{transform:rotate(180deg)}
+.adv-body{display:none}
+.adv-body.open{display:block}
+.tog{display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:12px}
+.tog input[type=checkbox]{display:none}
+.tog-track{width:34px;height:20px;background:var(--card2);border:1px solid var(--border2);border-radius:10px;position:relative;transition:background .2s,border-color .2s;flex-shrink:0}
+.tog-thumb{position:absolute;top:3px;left:3px;width:12px;height:12px;background:var(--text3);border-radius:50%;transition:transform .2s,background .2s}
+.tog input:checked+.tog-track{background:rgba(240,165,0,.15);border-color:var(--accent)}
+.tog input:checked+.tog-track .tog-thumb{transform:translateX(14px);background:var(--accent)}
+.tog-label{font-size:13px;font-weight:500;color:var(--text2)}
+.tog input:checked~.tog-label{color:var(--accent)}
+.adv-sub{font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin:16px 0 9px;display:flex;align-items:center;justify-content:space-between}
+.adv-note{background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:var(--radius);padding:10px 12px;font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6}
+.adv-note strong{color:var(--text)}
+.adv-warn{background:rgba(240,165,0,.06);border:1px solid rgba(240,165,0,.2);border-radius:var(--radius);padding:10px 12px;font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6;display:none}
+.adv-warn.show{display:block}
+.adv-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+.mini-input-group{display:flex;flex-direction:column;gap:5px}
+.mini-label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase}
+.mini-input{background:var(--card2);border:1px solid var(--border2);border-radius:9px;font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;padding:8px 10px;width:100%;outline:none;transition:border-color .15s}
+.mini-input:focus{border-color:var(--accent)}
+.mini-sub{font-size:11px;color:var(--text3);margin-top:3px}
+.seas-strip{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;margin:8px 0 4px}
+.seas-month{border-radius:4px;padding:5px 2px;text-align:center;font-size:11px;font-weight:700;font-family:'Space Grotesk',sans-serif}
+.seas-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:8px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="/" class="back-link">← Calculator</a>
+  <div style="display:flex;align-items:center">
+    <a href="/" class="brand-name" style="text-decoration:none">Quick<span>Freight</span>Calc</a>
+    <div class="pro-badge">Pro</div>
+  </div>
+  <div style="font-size:13px;font-weight:700;color:var(--text2)">Multi-Stop Builder</div>
+</div>
+
+<div class="page">
+
+  <!-- LEFT: Stop builder -->
+  <div>
+
+    <!-- Stop list -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <span class="card-title">Route Stops</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:11px;color:var(--text3)" id="stop-summary">0 pickups · 0 deliveries</span>
+          <button id="edit-mode-btn" onclick="toggleEditMode()"
+            style="font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:4px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);color:var(--text3);cursor:pointer;transition:all .15s"
+            onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+            onmouseout="if(!editMode){this.style.borderColor='var(--border2)';this.style.color='var(--text3)'}">
+            ✏️ Edit Order
+          </button>
+        </div>
+      </div>
+      <div class="card-body" style="padding:14px">
+        <div class="edit-mode-banner" id="edit-mode-banner">✏️ Drag stops to reorder — click <strong>Done</strong> when finished</div>
+        <div class="stops-list" id="stops-list"></div>
+        <div class="add-stop-row">
+          <button class="add-btn add-btn-pickup" onclick="addStop('pickup')">
+            + Add Pickup
+          </button>
+          <button class="add-btn add-btn-delivery" onclick="addStop('delivery')">
+            + Add Delivery
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Load settings -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Load Settings</span>
+      </div>
+      <div class="card-body">
+        <div class="field-row">
+          <div class="field">
+            <label>Trailer Type</label>
+            <select id="ms-trailer" onchange="onTrailerChange()">
+              <option value="reefer">Reefer</option>
+              <option value="van">Dry Van</option>
+              <option value="flatbed">Flatbed</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Commodity</label>
+            <select id="ms-commodity" onchange="calcTotal()">
+              <option value="food">Food / Perishable</option>
+              <option value="standard">Standard</option>
+              <option value="hazmat">Hazmat</option>
+              <option value="highval">High Value</option>
+              <option value="oversized">Oversized</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Base Rate with regional/national/manual toggle -->
+        <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+            <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">Base Rate ($/mi)</label>
+            <div style="display:flex;gap:5px">
+              <button id="ms-btn-regional" onclick="setMsRateMode('regional')"
+                style="font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:pointer;transition:all .15s">
+                📍 Regional
+              </button>
+              <button id="ms-btn-national" onclick="setMsRateMode('national')"
+                style="font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;border:1px solid var(--border2);background:var(--card);color:var(--text3);cursor:pointer;transition:all .15s">
+                🌐 National
+              </button>
+            </div>
+          </div>
+          <input type="number" id="ms-rate" value="3.15" step="0.01" min="0.01"
+            oninput="msRateManual=true;updateMsRateLabel();calcTotal()"
+            style="background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;padding:8px 11px;outline:none;width:100%;transition:border-color .15s"
+            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'" />
+          <div id="ms-rate-label" style="font-size:10px;color:var(--text3);margin-top:5px">Regional rate — based on first pickup location</div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Margin %</label>
+            <input type="number" id="ms-margin" value="15" min="0" max="100" oninput="calcTotal()" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Stop Fee (each add'l stop)</label>
+            <input type="number" id="ms-stop-fee" value="150" min="0" oninput="calcTotal();renderCharges()" />
+          </div>
+        </div>
+
+        <!-- Extra day charge -->
+        <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-top:4px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">Extra Transit Days</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button onclick="adjustExtraDays(-1)" style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;width:26px;height:26px;border-radius:6px;border:1px solid var(--border2);background:var(--card);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)'">−</button>
+              <span id="ms-extra-days-count" style="font-size:14px;font-weight:700;color:var(--text);min-width:20px;text-align:center">0</span>
+              <button onclick="adjustExtraDays(1)" style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;width:26px;height:26px;border-radius:6px;border:1px solid var(--border2);background:var(--card);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)'">+</button>
+            </div>
+          </div>
+          <div class="field-row" style="margin-bottom:0">
+            <div class="field" style="margin-bottom:0">
+              <label>Per Day Charge ($)</label>
+              <input type="number" id="ms-day-charge" value="200" min="0" step="25" oninput="calcTotal()" />
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label>Total Day Charge</label>
+              <div id="ms-day-charge-total" style="background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--accent);font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;padding:8px 11px">$0</div>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px">Added to quote before margin — use for loads that require overnight layover at a stop</div>
+        </div>
+
+        <!-- Load Notes -->
+        <div style="margin-top:12px">
+          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px">Load Notes <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(appears on PDF quote)</span></label>
+          <textarea id="ms-load-notes" rows="3" placeholder="e.g. Temperature requirements, detention terms, driver instructions, accessorial expectations..."
+            style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;padding:8px 12px;outline:none;resize:vertical;line-height:1.5"
+            onfocus="this.style.borderColor='var(--accent)'"
+            onblur="this.style.borderColor='var(--border2)'"></textarea>
+        </div>
+
+        <!-- Advanced Adjustments -->
+        <div class="adv-toggle" onclick="msToglAdv()">
+          <div class="adv-toggle-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+            Advanced Adjustments
+            <span id="ms-adv-count" style="background:var(--accentbg);color:var(--accent);border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;display:none">0 on</span>
+          </div>
+          <span class="adv-arrow" id="ms-adv-arrow">▾</span>
+        </div>
+        <div class="adv-body" id="ms-adv-body">
+
+          <!-- Diesel -->
+          <div class="adv-sub">
+            <span>Diesel Surcharge</span>
+            <label class="tog" style="margin-bottom:0">
+              <input type="checkbox" id="ms-diesel-enabled" onchange="msToggleDiesel()" />
+              <span class="tog-track"><span class="tog-thumb"></span></span>
+              <span class="tog-label" id="ms-diesel-lbl">Off</span>
+            </label>
+          </div>
+          <div class="adv-note" style="margin-bottom:8px"><strong>DAT spot rates include fuel.</strong> Only enable if quoting off contract rates or adding a manual fuel cushion.</div>
+          <div class="adv-warn" id="ms-diesel-warn"><strong style="color:var(--accent)">Surcharge active.</strong> Best used with contract rates only.</div>
+          <div id="ms-diesel-controls" style="display:none;margin-bottom:4px">
+            <div class="mini-input-group" style="margin-bottom:10px">
+              <div class="mini-label" style="color:var(--red)">Diesel Region</div>
+              <select id="ms-diesel-region" onchange="calcTotal()" style="background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;padding:8px 10px;width:100%;outline:none;cursor:pointer">
+                <option value="R10">East Coast</option>
+                <option value="R20">Midwest</option>
+                <option value="R30">Gulf Coast</option>
+                <option value="R40">Rocky Mountain</option>
+                <option value="R50">West Coast</option>
+                <option value="NUS" selected>National Average</option>
+              </select>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-bottom:6px">
+              <div class="mini-input-group">
+                <div class="mini-label" style="color:var(--red)">Diesel Price ($/gal)</div>
+                <input class="mini-input" type="number" id="ms-diesel-price" value="3.85" step="0.01" min="1" style="color:var(--red);border-color:rgba(239,68,68,.3)" oninput="calcTotal()" />
+              </div>
+              <button onclick="msFetchDiesel()" id="ms-eia-btn" style="height:38px;padding:0 12px;background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--red);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s">⚡ Live</button>
+            </div>
+            <div id="ms-eia-status" style="font-size:11px;color:var(--text3);margin-bottom:4px"></div>
+            <div class="mini-sub">Baseline $3.50/gal · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
+          </div>
+
+          <!-- Capacity -->
+          <div class="adv-sub">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span>Capacity / Load-to-Truck</span>
+              <span style="font-size:10px;color:var(--text3);font-weight:400">Updated: <span id="ms-lt-updated" style="color:var(--text2)">—</span></span>
+            </div>
+            <label class="tog" style="margin-bottom:0">
+              <input type="checkbox" id="ms-cap-enabled" onchange="msToggleCapacity()" />
+              <span class="tog-track"><span class="tog-thumb"></span></span>
+              <span class="tog-label" id="ms-cap-lbl">Off</span>
+            </label>
+          </div>
+          <div class="adv-note" style="margin-bottom:8px"><strong>Current DAT rates reflect this week's capacity.</strong> Enable when your rates are a few days stale or you know your lane is tighter/looser than average.</div>
+          <div id="ms-cap-controls" style="display:none;margin-bottom:4px">
+            <div class="adv-grid3">
+              <div class="mini-input-group">
+                <div class="mini-label" style="color:#60a5fa">Van L:T</div>
+                <input class="mini-input" type="number" id="ms-lt-van" value="8.1" step="0.1" min="0.1" style="color:#60a5fa;border-color:rgba(59,130,246,.3)" oninput="calcTotal()" />
+                <div class="mini-sub">base <span id="ms-lt-van-base">6.0</span> · <span id="ms-lt-van-mult" style="font-weight:600">—</span></div>
+              </div>
+              <div class="mini-input-group">
+                <div class="mini-label" style="color:#4ade80">Reefer L:T</div>
+                <input class="mini-input" type="number" id="ms-lt-reefer" value="14.9" step="0.1" min="0.1" style="color:#4ade80;border-color:rgba(34,197,94,.3)" oninput="calcTotal()" />
+                <div class="mini-sub">base <span id="ms-lt-reefer-base">10.0</span> · <span id="ms-lt-reefer-mult" style="font-weight:600">—</span></div>
+              </div>
+              <div class="mini-input-group">
+                <div class="mini-label" style="color:var(--accent)">Flatbed L:T</div>
+                <input class="mini-input" type="number" id="ms-lt-flatbed" value="25.0" step="0.1" min="0.1" style="color:var(--accent);border-color:rgba(240,165,0,.3)" oninput="calcTotal()" />
+                <div class="mini-sub">base <span id="ms-lt-flatbed-base">25.0</span> · <span id="ms-lt-flatbed-mult" style="font-weight:600">—</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Seasonality -->
+          <div class="adv-sub">
+            <span>Seasonal Adjustment</span>
+            <label class="tog" style="margin-bottom:0">
+              <input type="checkbox" id="ms-seas-enabled" onchange="msToggleSeason()" />
+              <span class="tog-track"><span class="tog-thumb"></span></span>
+              <span class="tog-label" id="ms-seas-lbl">Off</span>
+            </label>
+          </div>
+          <div class="adv-note" style="margin-bottom:10px">Auto-applies from pickup date. Select the origin region that best matches your lane.</div>
+          <div id="ms-seas-controls" style="display:none">
+            <div class="field" style="margin-bottom:10px">
+              <label>Origin Region</label>
+              <select id="ms-seas-region" onchange="msUpdateSeasonCalendar();calcTotal()">
+                <optgroup label="── Produce / Reefer Lanes ──">
+                  <option value="fl">Florida · potatoes, citrus, tomatoes</option>
+                  <option value="se">Southeast · GA, SC, NC peaches, watermelon</option>
+                  <option value="ca">California / San Joaquin · grapes, stone fruit</option>
+                  <option value="pnw">Pacific Northwest · WA/OR/ID apples, potatoes</option>
+                  <option value="tx">Texas / Rio Grande Valley · winter citrus, onions</option>
+                  <option value="az">Arizona / Yuma · winter lettuce, vegetables</option>
+                  <option value="gl">Great Lakes / Michigan · cherries, blueberries, apples</option>
+                  <option value="ne_produce">Northeast fall harvest · NY, NJ, PA apples, potatoes</option>
+                  <option value="storage">Storage season / Northern · ME, WI, MI, NY potatoes</option>
+                </optgroup>
+                <optgroup label="── General Freight Lanes ──">
+                  <option value="mw">Midwest · grain, manufacturing</option>
+                  <option value="ne">Northeast · general freight, retail</option>
+                  <option value="sw">Southwest / Texas · general, oil field</option>
+                  <option value="national" selected>National average · no specific region</option>
+                </optgroup>
+              </select>
+            </div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Monthly multipliers — <span id="ms-seas-label">National</span></div>
+            <div class="seas-strip" id="ms-seas-calendar"></div>
+            <div class="seas-labels"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: Results -->
+  <div class="result-col" style="position:sticky;top:74px">
+    <div class="result-card">
+
+      <div class="result-hero">
+        <div class="result-hero-label">Total Quote to Customer</div>
+        <div class="result-hero-val" id="ms-quote">—</div>
+        <div class="result-hero-sub" id="ms-rpm-sub">Fill in stops to calculate</div>
+      </div>
+
+      <div class="result-rows">
+        <div class="rrow"><span class="rrow-label">Total miles</span><span class="rrow-val" id="ms-total-miles">—</span></div>
+        <div class="rrow"><span class="rrow-label">Total weight</span><span class="rrow-val" id="ms-total-weight">—</span></div>
+        <div class="rrow"><span class="rrow-label">Stops</span><span class="rrow-val" id="ms-stops-count">—</span></div>
+        <div class="rrow" id="ms-transit-row" style="display:none"><span class="rrow-label">Est. drive time</span><span class="rrow-val" id="ms-transit-time">—</span></div>
+        <div class="rrow" id="ms-dates-row" style="display:none"><span class="rrow-label">First pickup → Last delivery</span><span class="rrow-val" style="font-size:11px;text-align:right" id="ms-dates-range">—</span></div>
+        <div class="rrow" id="ms-calendar-days-row" style="display:none"><span class="rrow-label">Calendar days</span><span class="rrow-val" id="ms-calendar-days">—</span></div>
+        <div class="rrow" id="ms-extra-days-warning" style="display:none;background:rgba(248,113,113,.06);border-radius:6px;padding:6px 8px;margin:2px 0"><span style="font-size:11px;color:var(--red)" id="ms-extra-days-warning-text"></span></div>
+        <div class="rrow"><span class="rrow-label">Linehaul</span><span class="rrow-val green" id="ms-linehaul">—</span></div>
+        <div class="rrow"><span class="rrow-label">Stop charges</span><span class="rrow-val accent" id="ms-stop-charges-total">—</span></div>
+        <div class="rrow" id="ms-day-charges-row" style="display:none"><span class="rrow-label">Extra day charges</span><span class="rrow-val accent" id="ms-extra-day-charges">—</span></div>
+        <div class="rrow"><span class="rrow-label">Margin</span><span class="rrow-val" id="ms-margin-amt">—</span></div>
+      </div>
+
+      <!-- Per-stop charge breakdown -->
+      <div class="charges-list" id="charges-list">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Stop Charges (editable)</div>
+        <div id="charges-rows" style="display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+
+      <button class="dl-btn" onclick="generateMultiStopPDF()">📄 Download Quote PDF</button>
+      <button class="dl-btn" onclick="saveMsQuote()" style="border-color:var(--border2);color:var(--text2);margin-top:6px" onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background='var(--accentbg)'">💾 Save to Quote Log</button>
+
+    </div>
+  </div>
+
+  <!-- Multi-stop Quote Log -->
+  <div class="ms-log-card" id="ms-log-card">
+    <div class="ms-log-header">
+      <div style="font-size:13px;font-weight:700;color:var(--text)">Multi-Stop Quote Log</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span id="ms-log-count" style="font-size:11px;color:var(--text3)">0 / 50 saved</span>
+        <button onclick="exportMsCSV()" style="font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">Export CSV</button>
+        <button onclick="clearMsLog()" style="font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;border:1px solid rgba(248,113,113,.3);background:transparent;color:var(--red);cursor:pointer;transition:all .15s">Clear All</button>
+      </div>
+    </div>
+    <div class="ms-log-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Route</th><th>Mi</th><th>Stops</th><th>Commodity</th><th>Margin</th><th>Quote</th><th>RPM</th><th>Notes</th><th></th></tr>
+        </thead>
+        <tbody id="ms-log-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- MS Notes Modal -->
+<div id="ms-notes-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+    <div style="padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:14px;font-weight:700;color:var(--text)">Load Notes</div>
+      <button onclick="closeMsNotesModal()" style="font-size:18px;line-height:1;background:none;border:none;color:var(--text3);cursor:pointer;padding:2px 6px;border-radius:6px">✕</button>
+    </div>
+    <div style="padding:20px 24px">
+      <textarea id="ms-notes-input" rows="6" placeholder="e.g. Temperature requirements, detention terms, driver instructions..." style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;padding:10px 14px;outline:none;resize:vertical;line-height:1.6" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px">
+        <button onclick="closeMsNotesModal()" style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancel</button>
+        <button onclick="saveMsNotesModal()" style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;padding:8px 18px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#000;cursor:pointer">Save Notes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MS Dupe Modal -->
+<div id="ms-dupe-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;max-width:400px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+    <div style="padding:24px 24px 8px;text-align:center">
+      <div style="font-size:22px;margin-bottom:12px">📋</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px">Already Saved</div>
+      <div id="ms-dupe-msg" style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:4px"></div>
+    </div>
+    <div style="padding:16px 24px 24px;display:flex;gap:10px">
+      <button onclick="closeMsDupeModal(false)" style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:10px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancel</button>
+      <button onclick="closeMsDupeModal(true)" style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;padding:10px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#000;cursor:pointer">Save Again</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p style="margin-bottom:8px">Questions? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent)">info@quickfreightcalc.com</a></p>
+  <p>By using QuickFreightCalc you agree to our <a href="/terms.html" target="_blank">Terms of Service</a> and <a href="/privacy.html" target="_blank">Privacy Policy</a>. Rates are estimates only — not guaranteed quotes.</p>
+</footer>
+
+<!-- Floating theme button -->
+<button class="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode">
+  <span class="theme-icon-wrap" id="theme-icon">🌙</span>
+  <span id="theme-label">Dark</span>
+</button>
+
+<script>
+async function formatLocation(input){
+  let val = input.value.trim();
+  if(!val) return;
+
+  // Detect zip code — 5 digits
+  if(/^\d{5}(-\d{4})?$/.test(val)){
+    try {
+      const resp = await fetch(`/.netlify/functions/geocode?address=${encodeURIComponent(val)}`);
+      const data = await resp.json();
+      if(data && data.name && !data.error){
+        input.value = data.name;
+        input.dispatchEvent(new Event('input', {bubbles:true}));
+        return;
+      }
+    } catch(e){}
+    try {
+      const resp = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${val}&count=1&language=en&format=json&countryCode=US`);
+      const data = await resp.json();
+      if(data.results?.[0]){
+        const r = data.results[0];
+        const city = r.name.replace(/\b\w/g, c => c.toUpperCase());
+        const state = r.admin1_code || '';
+        input.value = state ? `${city}, ${state.toUpperCase()}` : city;
+        input.dispatchEvent(new Event('input', {bubbles:true}));
+        return;
+      }
+    } catch(e){}
+    return;
+  }
+
+  // Standard city/state formatting
+  val = val.replace(/\s*,\s*/g, ', ');
+  val = val.replace(/,?\s+([A-Za-z]{2})\s*$/, (m, st) => ', ' + st.toUpperCase());
+  val = val.replace(/^([^,]+)/, city =>
+    city.trim().replace(/\b\w/g, c => c.toUpperCase())
+  );
+  input.value = val;
+}
+
+// ── Regional rate logic ────────────────────────────────────────────────────
+let msRateMode = 'regional'; // 'regional' | 'national'
+let msRateManual = false;
+let msRegionalRates = null;
+
+const MS_STATE_TO_REGION = {};
+const MS_STATE_ABBR = {
+  'Alabama':'AL','Alaska':'AK','Arizona':'AZ','Arkansas':'AR','California':'CA',
+  'Colorado':'CO','Connecticut':'CT','Delaware':'DE','Florida':'FL','Georgia':'GA',
+  'Hawaii':'HI','Idaho':'ID','Illinois':'IL','Indiana':'IN','Iowa':'IA','Kansas':'KS',
+  'Kentucky':'KY','Louisiana':'LA','Maine':'ME','Maryland':'MD','Massachusetts':'MA',
+  'Michigan':'MI','Minnesota':'MN','Mississippi':'MS','Missouri':'MO','Montana':'MT',
+  'Nebraska':'NE','Nevada':'NV','New Hampshire':'NH','New Jersey':'NJ','New Mexico':'NM',
+  'New York':'NY','North Carolina':'NC','North Dakota':'ND','Ohio':'OH','Oklahoma':'OK',
+  'Oregon':'OR','Pennsylvania':'PA','Rhode Island':'RI','South Carolina':'SC',
+  'South Dakota':'SD','Tennessee':'TN','Texas':'TX','Utah':'UT','Vermont':'VT',
+  'Virginia':'VA','Washington':'WA','West Virginia':'WV','Wisconsin':'WI','Wyoming':'WY',
+  'Ontario':'ON','Quebec':'QC','Alberta':'AB','British Columbia':'BC',
+};
+
+async function loadMsRates(){
+  try {
+    const resp = await fetch('/rates.json');
+    if(!resp.ok) return;
+    const data = await resp.json();
+    if(data.regions){
+      msRegionalRates = {};
+      Object.entries(data.regions).forEach(([region, rdata]) => {
+        msRegionalRates[region] = { van: rdata.van, reefer: rdata.reefer, flatbed: rdata.flatbed };
+        (rdata.states||[]).forEach(s => MS_STATE_TO_REGION[s] = region);
+      });
+    }
+    // Load L:T ratios from rates.json — same source as main calculator
+    if(data.loadToTruck){
+      const lt = data.loadToTruck;
+      if(lt.van?.current)     { const el = document.getElementById('ms-lt-van');     if(el) el.value = lt.van.current; }
+      if(lt.reefer?.current)  { const el = document.getElementById('ms-lt-reefer');  if(el) el.value = lt.reefer.current; }
+      if(lt.flatbed?.current) { const el = document.getElementById('ms-lt-flatbed'); if(el) el.value = lt.flatbed.current; }
+      // Update base values and baseline constant
+      if(lt.van?.base)     { MS_LT_BASELINE.van     = lt.van.base;     const el = document.getElementById('ms-lt-van-base');     if(el) el.textContent = lt.van.base; }
+      if(lt.reefer?.base)  { MS_LT_BASELINE.reefer  = lt.reefer.base;  const el = document.getElementById('ms-lt-reefer-base');  if(el) el.textContent = lt.reefer.base; }
+      if(lt.flatbed?.base) { MS_LT_BASELINE.flatbed = lt.flatbed.base; const el = document.getElementById('ms-lt-flatbed-base'); if(el) el.textContent = lt.flatbed.base; }
+      // Show updated date
+      if(lt.updated){
+        const el = document.getElementById('ms-lt-updated');
+        if(el) el.textContent = lt.updated;
+      }
+    }
+    applyMsRate();
+  } catch(e){}
+}
+
+function getFirstPickupState(){
+  const firstPickup = stops.find(s => s.type === 'pickup');
+  if(!firstPickup?.location) return null;
+  const match = firstPickup.location.trim().match(/[\s,]+([A-Za-z]{2})\s*(?:,\s*USA?)?$/i);
+  return match ? match[1].toUpperCase() : null;
+}
+
+function getMsRateForRegion(state){
+  if(!msRegionalRates) return null;
+  const region = MS_STATE_TO_REGION[state] || 'national';
+  const rates = msRegionalRates[region] || msRegionalRates['national'];
+  if(!rates) return null;
+  const trailer = document.getElementById('ms-trailer')?.value || 'reefer';
+  return rates[trailer];
+}
+
+function applyMsRate(){
+  if(msRateManual) return;
+  const state = msRateMode === 'regional' ? getFirstPickupState() : null;
+  const rate = state
+    ? getMsRateForRegion(state)
+    : (msRegionalRates?.national?.[document.getElementById('ms-trailer')?.value||'reefer'] || 3.15);
+
+  if(rate){
+    document.getElementById('ms-rate').value = rate;
+    updateMsRateLabel();
+    calcTotal();
+  }
+}
+
+function updateMsRateLabel(){
+  const label = document.getElementById('ms-rate-label');
+  if(!label) return;
+  if(msRateManual){
+    label.textContent = '✏️ Rate entered manually';
+    label.style.color = 'var(--accent)';
+  } else if(msRateMode === 'regional'){
+    const state = getFirstPickupState();
+    const region = state ? (MS_STATE_TO_REGION[state] || 'National') : null;
+    const regionLabel = region ? region.charAt(0).toUpperCase() + region.slice(1) : null;
+    label.textContent = state
+      ? `📍 Auto-applied: ${regionLabel} region (${state}) · Based on first pickup`
+      : 'Enter first pickup location to apply regional rate';
+    label.style.color = state ? 'var(--green)' : 'var(--text3)';
+  } else {
+    label.textContent = '🌐 Using national US average rate';
+    label.style.color = 'var(--blue)';
+  }
+}
+
+function setMsRateMode(mode){
+  msRateMode = mode;
+  msRateManual = false;
+  const btnReg = document.getElementById('ms-btn-regional');
+  const btnNat = document.getElementById('ms-btn-national');
+  if(btnReg){
+    btnReg.style.background   = mode==='regional' ? 'var(--accentbg)' : 'var(--card)';
+    btnReg.style.borderColor  = mode==='regional' ? 'var(--accent)'   : 'var(--border2)';
+    btnReg.style.color        = mode==='regional' ? 'var(--accent)'   : 'var(--text3)';
+  }
+  if(btnNat){
+    btnNat.style.background   = mode==='national' ? 'rgba(96,165,250,.12)' : 'var(--card)';
+    btnNat.style.borderColor  = mode==='national' ? 'var(--blue)'          : 'var(--border2)';
+    btnNat.style.color        = mode==='national' ? 'var(--blue)'          : 'var(--text3)';
+  }
+  applyMsRate();
+}
+
+function onTrailerChange(){
+  if(!msRateManual) applyMsRate();
+  msUpdateSeasonCalendar();
+  calcTotal();
+}
+let stops = [];
+let stopIdCounter = 0;
+let legMiles = {}; // legMiles[stopId] = miles from this stop to next
+let extraDays = 0;
+
+function adjustExtraDays(delta){
+  extraDays = Math.max(0, extraDays + delta);
+  document.getElementById('ms-extra-days-count').textContent = extraDays;
+  const dayCharge = parseFloat(document.getElementById('ms-day-charge').value) || 200;
+  const total = extraDays * dayCharge;
+  document.getElementById('ms-day-charge-total').textContent = '$' + total.toLocaleString();
+  calcTotal();
+}
+let legTimers = {};
+let GMAPS_KEY = null;
+let stopChargeOverrides = {}; // stopId → { amount, type } where type is 'flat' or 'permile'
+
+const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
+
+const CMULT = {standard:1.0,food:1.08,hazmat:1.20,highval:1.12,oversized:1.25};
+
+// ── Load Google Maps key ───────────────────────────────────────────────────
+async function loadGMapsKey(){
+  try {
+    const resp = await fetch('/.netlify/functions/gmaps-key');
+    if(!resp.ok) throw new Error();
+    const data = await resp.json();
+    GMAPS_KEY = data.key || null;
+  } catch(e){ GMAPS_KEY = null; }
+}
+
+// ── Stop management ────────────────────────────────────────────────────────
+// ── Edit mode ─────────────────────────────────────────────────────────────
+let editMode = false;
+let dragSrcId = null;
+
+function toggleEditMode(){
+  editMode = !editMode;
+  const btn = document.getElementById('edit-mode-btn');
+  const banner = document.getElementById('edit-mode-banner');
+  const list = document.getElementById('stops-list');
+  if(editMode){
+    btn.textContent = '✓ Done';
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.color = 'var(--accent)';
+    btn.style.background = 'var(--accentbg)';
+    banner.classList.add('show');
+    list.classList.add('edit-mode');
+  } else {
+    btn.textContent = '✏️ Edit Order';
+    btn.style.borderColor = 'var(--border2)';
+    btn.style.color = 'var(--text3)';
+    btn.style.background = 'var(--card2)';
+    banner.classList.remove('show');
+    list.classList.remove('edit-mode');
+  }
+  renderStops();
+}
+
+// ── Stop management ────────────────────────────────────────────────────────
+function addStop(type){
+  const id = ++stopIdCounter;
+  // Insert after last stop of same type, or at end
+  const lastOfType = [...stops].reverse().findIndex(s => s.type === type);
+  if(lastOfType >= 0){
+    const insertAt = stops.length - lastOfType;
+    stops.splice(insertAt, 0, { id, type, location:'', miles:0, weight:'' });
+  } else {
+    stops.push({ id, type, location:'', miles:0, weight:'' });
+  }
+  renderStops();
+  recalcAllLegs();
+  calcTotal();
+  // Focus new stop input
+  setTimeout(() => {
+    const input = document.querySelector(`#stop-card-${id} input[type="text"]`);
+    if(input) input.focus();
+  }, 50);
+}
+
+function removeStop(id){
+  if(stops.length <= 2){
+    alert('A multi-stop load needs at least 2 stops.');
+    return;
+  }
+  stops = stops.filter(s => s.id !== id);
+  delete legMiles[id];
+  delete stopChargeOverrides[id];
+  renderStops();
+  recalcAllLegs();
+  calcTotal();
+}
+
+function setStopType(id, type){
+  const s = stops.find(s => s.id === id);
+  if(s){ s.type = type; renderStops(); calcTotal(); }
+}
+
+function renderStops(){
+  const list = document.getElementById('stops-list');
+  if(editMode) list.classList.add('edit-mode');
+  else list.classList.remove('edit-mode');
+  list.innerHTML = '';
+
+  stops.forEach((stop, idx) => {
+    const div = document.createElement('div');
+    div.className = 'stop-card';
+    div.id = `stop-card-${stop.id}`;
+    div.setAttribute('data-id', stop.id);
+
+    if(editMode){
+      div.draggable = true;
+      div.addEventListener('dragstart', onDragStart);
+      div.addEventListener('dragover',  onDragOver);
+      div.addEventListener('drop',      onDrop);
+      div.addEventListener('dragend',   onDragEnd);
+      div.addEventListener('dragleave', onDragLeave);
+    }
+
+    const isPickup = stop.type === 'pickup';
+    const numClass = isPickup ? 'pickup' : 'delivery';
+    const weightRow = isPickup
+      ? `<div class="stop-weight-row">
+           <span class="stop-weight-label">Weight (lbs):</span>
+           <input class="stop-input" style="width:120px;font-size:12px;padding:5px 8px" type="number" min="0"
+             placeholder="e.g. 22000" value="${stop.weight||''}"
+             onchange="updateStopWeight(${stop.id}, this.value)" />
+         </div>` : '';
+
+    const dragHandle = `<span class="drag-handle" title="Drag to reorder">⠿</span>`;
+    const removeBtn = stops.length > 2
+      ? `<button class="stop-remove" onclick="removeStop(${stop.id})" title="Remove stop">✕</button>` : '';
+
+    div.innerHTML = `
+      <div class="stop-header">
+        ${dragHandle}
+        <div class="stop-number ${numClass}">${idx+1}</div>
+        <div class="stop-type-toggle">
+          <button class="stop-type-btn pickup ${isPickup?'active':''}" onclick="setStopType(${stop.id},'pickup')">📍 Pickup</button>
+          <button class="stop-type-btn delivery ${!isPickup?'active':''}" onclick="setStopType(${stop.id},'delivery')">🏁 Delivery</button>
+        </div>
+        ${removeBtn}
+      </div>
+      <div class="stop-body" style="display:block;padding:12px 14px">
+        <div class="stop-location-row">
+          <input class="stop-input" type="text" placeholder="City, ST — e.g. Hastings, FL"
+            value="${stop.location||''}"
+            onblur="formatLocation(this);updateStopLocation(${stop.id}, this.value)"
+            oninput="updateStopLocation(${stop.id}, this.value)" />
+          <div class="stop-date-wrap">
+            <span style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">${isPickup?'Pickup':'Delivery'} Date</span>
+            <input type="date" class="stop-input stop-date-input"
+              value="${stop.date||''}"
+              onchange="updateStopDate(${stop.id}, this.value)" />
+          </div>
+        </div>
+        ${weightRow}
+        <div class="miles-status" id="leg-status-${stop.id}"></div>
+      </div>`;
+
+    list.appendChild(div);
+
+    // Leg connector
+    if(idx < stops.length - 1){
+      const conn = document.createElement('div');
+      conn.className = 'leg-connector';
+      conn.id = `leg-connector-${stop.id}`;
+      const mi = legMiles[stop.id];
+      conn.innerHTML = `
+        <div class="leg-line"></div>
+        <div class="leg-miles-badge ${mi?'loaded':''}" id="leg-badge-${stop.id}">${mi ? mi.toLocaleString()+' mi' : '— mi'}</div>
+        <div class="leg-line"></div>`;
+      list.appendChild(conn);
+    }
+  });
+
+  const pickups    = stops.filter(s => s.type==='pickup').length;
+  const deliveries = stops.filter(s => s.type==='delivery').length;
+  document.getElementById('stop-summary').textContent = `${pickups} pickup${pickups!==1?'s':''} · ${deliveries} deliver${deliveries!==1?'ies':'y'}`;
+}
+
+// ── Drag and drop ─────────────────────────────────────────────────────────
+function onDragStart(e){
+  dragSrcId = parseInt(this.getAttribute('data-id'));
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function onDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  this.classList.add('drag-over');
+}
+
+function onDragLeave(){
+  this.classList.remove('drag-over');
+}
+
+function onDrop(e){
+  e.preventDefault();
+  this.classList.remove('drag-over');
+  const targetId = parseInt(this.getAttribute('data-id'));
+  if(dragSrcId === targetId) return;
+
+  const srcIdx = stops.findIndex(s => s.id === dragSrcId);
+  const tgtIdx = stops.findIndex(s => s.id === targetId);
+  if(srcIdx < 0 || tgtIdx < 0) return;
+
+  // Reorder
+  const [moved] = stops.splice(srcIdx, 1);
+  stops.splice(tgtIdx, 0, moved);
+
+  // Clear all leg miles since order changed
+  legMiles = {};
+  renderStops();
+  recalcAllLegs();
+  calcTotal();
+}
+
+function onDragEnd(){
+  this.classList.remove('dragging');
+  document.querySelectorAll('.stop-card').forEach(c => c.classList.remove('drag-over'));
+}
+
+function updateStopLocation(id, val){
+  const s = stops.find(s => s.id === id);
+  if(!s) return;
+  s.location = val;
+  // Re-apply regional rate if this is the first pickup
+  const firstPickup = stops.find(s => s.type === 'pickup');
+  if(firstPickup?.id === id && !msRateManual) applyMsRate();
+  // Debounce mileage lookup for this leg
+  clearTimeout(legTimers[id]);
+  legTimers[id] = setTimeout(() => lookupLegMiles(id), 900);
+  // Also trigger the previous stop's leg (this stop is its destination)
+  const idx = stops.findIndex(s => s.id === id);
+  if(idx > 0){
+    const prevId = stops[idx-1].id;
+    clearTimeout(legTimers[prevId]);
+    legTimers[prevId] = setTimeout(() => lookupLegMiles(prevId), 900);
+  }
+}
+
+function updateStopDate(id, val){
+  const s = stops.find(s => s.id === id);
+  if(s){ s.date = val; calcTransitSummary(); }
+}
+
+function calcTransitSummary(){
+  // Get all stops with dates
+  const datedStops = stops.filter(s => s.date);
+  const firstPickup   = stops.find(s => s.type==='pickup' && s.date);
+  const lastDelivery  = [...stops].reverse().find(s => s.type==='delivery' && s.date);
+
+  // Estimated drive time from total miles
+  const totalMiles = Object.values(legMiles).reduce((a,b)=>a+b,0);
+  const transitRow = document.getElementById('ms-transit-row');
+  const datesRow   = document.getElementById('ms-dates-row');
+  const calDaysRow = document.getElementById('ms-calendar-days-row');
+  const warningRow = document.getElementById('ms-extra-days-warning');
+
+  // Drive time estimate — 500 miles/day standard
+  if(totalMiles > 0){
+    const driveDays = Math.ceil(totalMiles / 500);
+    const driveHrs  = Math.round(totalMiles / 55); // ~55 mph avg
+    const driveText = driveHrs >= 24
+      ? `~${driveDays} driving day${driveDays>1?'s':''} (${driveHrs} hrs)`
+      : `~${driveHrs} hrs`;
+    document.getElementById('ms-transit-time').textContent = driveText;
+    transitRow.style.display = '';
+  } else {
+    transitRow.style.display = 'none';
+  }
+
+  // Date range
+  if(firstPickup && lastDelivery){
+    const fmt = d => new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    document.getElementById('ms-dates-range').textContent = `${fmt(firstPickup.date)} → ${fmt(lastDelivery.date)}`;
+    datesRow.style.display = '';
+    // Update season calendar to reflect pickup date month
+    msUpdateSeasonCalendar();
+
+    // Calendar days between first pickup and last delivery
+    const d1 = new Date(firstPickup.date+'T12:00:00');
+    const d2 = new Date(lastDelivery.date+'T12:00:00');
+    const calDays = Math.round((d2 - d1) / (1000*60*60*24));
+    document.getElementById('ms-calendar-days').textContent = `${calDays} day${calDays!==1?'s':''}`;
+    calDaysRow.style.display = '';
+
+    // Compare calendar days to estimated drive days
+    const estDays = totalMiles > 0 ? Math.ceil(totalMiles / 500) : 0;
+    if(estDays > 0 && calDays > estDays){
+      const extraCalDays = calDays - estDays;
+      document.getElementById('ms-extra-days-warning-text').textContent =
+        `⚠ ${extraCalDays} extra day${extraCalDays>1?'s':''} beyond estimated drive time — consider adding extra day charges`;
+      warningRow.style.display = '';
+      // Always sync extra days to match the date-calculated value
+      extraDays = extraCalDays;
+      document.getElementById('ms-extra-days-count').textContent = extraCalDays;
+      calcTotal();
+    } else {
+      warningRow.style.display = 'none';
+      // Reset extra days if dates no longer warrant them
+      if(extraDays > 0){
+        extraDays = 0;
+        document.getElementById('ms-extra-days-count').textContent = '0';
+        calcTotal();
+      }
+    }
+  } else {
+    datesRow.style.display = 'none';
+    calDaysRow.style.display = 'none';
+    warningRow.style.display = 'none';
+  }
+}
+
+function updateStopWeight(id, val){
+  const s = stops.find(s => s.id === id);
+  if(s){ s.weight = val; calcTotal(); }
+}
+
+// ── Mileage lookups ────────────────────────────────────────────────────────
+async function lookupLegMiles(id){
+  const idx = stops.findIndex(s => s.id === id);
+  if(idx < 0 || idx >= stops.length - 1) return;
+
+  const from = stops[idx].location?.trim();
+  const to   = stops[idx+1].location?.trim();
+  if(!from || !to) return;
+
+  const badge = document.getElementById(`leg-badge-${id}`);
+  const status = document.getElementById(`leg-status-${id}`);
+  if(badge){ badge.className = 'leg-miles-badge loading'; badge.textContent = 'Looking up...'; }
+  if(status){ status.className = 'miles-status loading'; status.textContent = 'Calculating miles...'; }
+
+  try {
+    if(!GMAPS_KEY) await loadGMapsKey();
+    if(!GMAPS_KEY) throw new Error('No key');
+
+    const resp = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': GMAPS_KEY,
+        'X-Goog-FieldMask': 'routes.distanceMeters'
+      },
+      body: JSON.stringify({
+        origin:      { address: from + ', USA' },
+        destination: { address: to   + ', USA' },
+        travelMode: 'DRIVE',
+        routingPreference: 'TRAFFIC_UNAWARE',
+        units: 'IMPERIAL'
+      })
+    });
+    const data = await resp.json();
+    const meters = data?.routes?.[0]?.distanceMeters;
+    if(!meters) throw new Error('No route');
+
+    const miles = Math.round(meters / 1609.34);
+    legMiles[id] = miles;
+    stops[idx].miles = miles;
+
+    if(badge){ badge.className = 'leg-miles-badge loaded'; badge.textContent = `${miles.toLocaleString()} mi`; }
+    if(status){ status.className = 'miles-status ok'; status.textContent = `✅ ${miles.toLocaleString()} mi to next stop`; }
+    calcTotal();
+  } catch(e){
+    if(badge){ badge.className = 'leg-miles-badge'; badge.textContent = '— mi'; }
+    if(status){ status.className = 'miles-status err'; status.textContent = `⚠ ${e.message === 'No key' ? 'Could not load Maps key' : 'Could not look up miles'} — enter manually`; }
+  }
+}
+
+function recalcAllLegs(){
+  stops.forEach((s, idx) => {
+    if(idx < stops.length - 1 && s.location && stops[idx+1].location){
+      lookupLegMiles(s.id);
+    }
+  });
+}
+
+// ── Advanced Adjustments (independent of main calculator) ─────────────────
+const MS_LT_BASELINE = {van:6.0, reefer:10.0, flatbed:25.0};
+const MS_SEASON_PROFILES = {
+  fl:{label:'Florida produce',reefer:[0.94,0.95,1.00,1.06,1.12,1.10,0.97,0.95,0.97,1.04,1.06,0.97],van:[0.95,0.96,0.99,1.03,1.06,1.05,0.98,0.97,0.99,1.02,1.03,0.97],flatbed:[0.97,0.97,1.00,1.02,1.03,1.02,0.99,0.98,1.00,1.01,1.01,0.98]},
+  se:{label:'Southeast spring/summer',reefer:[0.95,0.96,1.02,1.07,1.10,1.08,0.98,0.96,0.98,1.02,1.03,0.96],van:[0.96,0.97,1.01,1.04,1.06,1.05,0.98,0.97,0.99,1.01,1.02,0.97],flatbed:[0.97,0.98,1.01,1.03,1.05,1.04,1.00,0.99,1.01,1.02,1.01,0.97]},
+  ca:{label:'California / San Joaquin Valley',reefer:[0.95,0.96,0.98,1.02,1.06,1.10,1.12,1.10,1.07,1.03,0.98,0.95],van:[0.96,0.96,0.99,1.01,1.04,1.07,1.08,1.07,1.05,1.02,0.99,0.96],flatbed:[0.96,0.97,1.00,1.02,1.04,1.06,1.07,1.06,1.04,1.02,0.99,0.96]},
+  pnw:{label:'Pacific Northwest harvest',reefer:[0.95,0.95,0.97,0.99,1.01,1.03,1.06,1.10,1.13,1.10,1.02,0.96],van:[0.95,0.96,0.98,1.00,1.02,1.03,1.05,1.08,1.10,1.08,1.01,0.96],flatbed:[0.95,0.96,0.99,1.02,1.05,1.06,1.07,1.08,1.08,1.05,1.00,0.95]},
+  tx:{label:'Texas / Rio Grande Valley',reefer:[1.07,1.09,1.06,1.02,0.99,0.97,0.96,0.97,1.00,1.02,1.04,1.06],van:[1.04,1.05,1.03,1.01,0.99,0.98,0.97,0.98,1.00,1.01,1.02,1.03],flatbed:[1.02,1.03,1.04,1.05,1.06,1.04,1.01,1.00,1.02,1.03,1.02,1.00]},
+  az:{label:'Arizona / Yuma winter',reefer:[1.08,1.10,1.07,1.02,0.97,0.95,0.94,0.95,0.98,1.02,1.05,1.07],van:[1.04,1.05,1.03,1.01,0.98,0.97,0.96,0.97,0.99,1.01,1.02,1.03],flatbed:[1.01,1.02,1.02,1.02,1.01,0.99,0.98,0.99,1.01,1.02,1.01,1.00]},
+  gl:{label:'Great Lakes / Michigan',reefer:[0.95,0.96,0.98,1.01,1.04,1.06,1.09,1.11,1.08,1.04,0.99,0.96],van:[0.95,0.96,0.98,1.01,1.03,1.04,1.07,1.08,1.06,1.03,0.99,0.96],flatbed:[0.95,0.96,1.00,1.03,1.06,1.07,1.07,1.06,1.05,1.03,0.99,0.95]},
+  ne_produce:{label:'Northeast fall harvest',reefer:[0.97,0.97,0.98,0.99,1.01,1.02,1.04,1.06,1.10,1.12,1.07,1.01],van:[0.97,0.97,0.98,1.00,1.01,1.02,1.03,1.05,1.08,1.10,1.06,1.01],flatbed:[0.96,0.96,0.99,1.02,1.04,1.05,1.05,1.05,1.06,1.06,1.02,0.97]},
+  storage:{label:'Storage season / Northern',reefer:[1.06,1.05,1.03,1.00,0.97,0.96,0.96,0.97,0.99,1.03,1.07,1.08],van:[1.04,1.03,1.02,1.00,0.98,0.97,0.97,0.98,1.00,1.02,1.04,1.05],flatbed:[1.02,1.01,1.01,1.01,1.01,1.00,1.00,1.00,1.01,1.02,1.02,1.02]},
+  mw:{label:'Midwest general',reefer:[0.96,0.96,0.99,1.02,1.04,1.03,1.01,1.02,1.04,1.05,1.03,0.97],van:[0.95,0.96,1.00,1.02,1.03,1.02,1.01,1.02,1.04,1.06,1.04,0.97],flatbed:[0.94,0.95,1.01,1.05,1.08,1.07,1.04,1.03,1.05,1.04,1.00,0.95]},
+  ne:{label:'Northeast general',reefer:[0.96,0.97,1.00,1.02,1.04,1.03,1.00,0.99,1.01,1.05,1.06,1.01],van:[0.96,0.97,1.00,1.01,1.03,1.02,1.00,0.99,1.01,1.05,1.07,1.02],flatbed:[0.95,0.96,1.02,1.05,1.07,1.06,1.02,1.01,1.03,1.03,1.00,0.95]},
+  sw:{label:'Southwest / Texas general',reefer:[0.97,0.97,1.00,1.02,1.03,1.02,0.99,0.99,1.01,1.02,1.02,0.98],van:[0.97,0.97,1.00,1.02,1.03,1.02,0.99,0.99,1.01,1.02,1.02,0.98],flatbed:[0.97,0.98,1.01,1.04,1.06,1.05,1.01,1.00,1.02,1.02,1.00,0.96]},
+  national:{label:'National average',reefer:[0.95,0.96,0.99,1.02,1.05,1.04,1.00,0.99,1.01,1.03,1.04,0.98],van:[0.95,0.96,0.99,1.02,1.04,1.03,1.00,0.99,1.01,1.03,1.05,0.99],flatbed:[0.95,0.96,1.01,1.04,1.06,1.05,1.02,1.01,1.03,1.03,1.01,0.96]}
+};
+
+let msAdvOpen = false;
+
+function msToglAdv(){
+  msAdvOpen = !msAdvOpen;
+  document.getElementById('ms-adv-body').classList.toggle('open', msAdvOpen);
+  document.getElementById('ms-adv-arrow').classList.toggle('open', msAdvOpen);
+}
+
+function msUpdateAdvCount(){
+  const on = [
+    document.getElementById('ms-diesel-enabled').checked,
+    document.getElementById('ms-cap-enabled').checked,
+    document.getElementById('ms-seas-enabled').checked
+  ].filter(Boolean).length;
+  const el = document.getElementById('ms-adv-count');
+  el.textContent = on + ' on';
+  el.style.display = on > 0 ? 'inline' : 'none';
+}
+
+// ── Diesel ────────────────────────────────────────────────────────────────
+function msToggleDiesel(){
+  const on = document.getElementById('ms-diesel-enabled').checked;
+  document.getElementById('ms-diesel-controls').style.display = on ? 'block' : 'none';
+  document.getElementById('ms-diesel-warn').classList.toggle('show', on);
+  document.getElementById('ms-diesel-lbl').textContent = on ? 'On' : 'Off';
+  document.getElementById('ms-diesel-lbl').style.color = on ? 'var(--accent)' : '';
+  msUpdateAdvCount(); calcTotal();
+}
+
+function msGetDieselMult(){
+  if(!document.getElementById('ms-diesel-enabled').checked) return 1.0;
+  return 1 + ((parseFloat(document.getElementById('ms-diesel-price').value)||3.85) - 3.50) / 3.50 * 0.35;
+}
+
+const MS_EIA_REGIONS = {R10:'East Coast',R20:'Midwest',R30:'Gulf Coast',R40:'Rocky Mountain',R50:'West Coast',NUS:'National Avg'};
+
+async function msFetchDiesel(){
+  const btn = document.getElementById('ms-eia-btn');
+  const status = document.getElementById('ms-eia-status');
+  const region = document.getElementById('ms-diesel-region').value;
+  btn.textContent = '...'; btn.disabled = true;
+  status.textContent = 'Fetching from EIA...'; status.style.color = 'var(--text3)';
+  try {
+    // Check shared cache first
+    let price, period;
+    const cached = (() => { try{ const c=JSON.parse(sessionStorage.getItem('qfc_diesel_cache')||'{}'); if(c.price&&c.ts&&(Date.now()-c.ts)<1800000) return c; }catch(e){} return null; })();
+    if(cached && region === 'NUS'){
+      price = cached.price; period = cached.period;
+    } else {
+      const resp = await fetch(`/.netlify/functions/diesel-price?region=${region}`);
+      if(!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      if(data.error) throw new Error(data.error);
+      price = parseFloat(data.price); period = data.period;
+      if(isNaN(price)) throw new Error('Invalid price');
+      if(region === 'NUS') try{ sessionStorage.setItem('qfc_diesel_cache', JSON.stringify({price, period, ts:Date.now()})); }catch(e){}
+    }
+    document.getElementById('ms-diesel-price').value = price.toFixed(2);
+    const clean = (period||'').replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+    const dateStr = new Date(clean+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    status.textContent = `✓ $${price.toFixed(2)}/gal · ${MS_EIA_REGIONS[region]} · Week of ${dateStr}`;
+    status.style.color = 'var(--green)';
+    calcTotal();
+  } catch(e){
+    status.textContent = '⚠ Could not fetch — enter price manually';
+    status.style.color = 'var(--red)';
+  } finally {
+    btn.textContent = '⚡ Live'; btn.disabled = false;
+  }
+}
+
+// ── Capacity ──────────────────────────────────────────────────────────────
+function msToggleCapacity(){
+  const on = document.getElementById('ms-cap-enabled').checked;
+  document.getElementById('ms-cap-controls').style.display = on ? 'block' : 'none';
+  document.getElementById('ms-cap-lbl').textContent = on ? 'On' : 'Off';
+  document.getElementById('ms-cap-lbl').style.color = on ? 'var(--accent)' : '';
+  msUpdateCapMults(); msUpdateAdvCount(); calcTotal();
+}
+
+function msGetCapacityMult(trailer){
+  if(!document.getElementById('ms-cap-enabled').checked) return 1.0;
+  const ids = {van:'ms-lt-van', reefer:'ms-lt-reefer', flatbed:'ms-lt-flatbed'};
+  const lt = parseFloat(document.getElementById(ids[trailer])?.value) || MS_LT_BASELINE[trailer];
+  return 1 + Math.min(0.12, Math.max(-0.12, ((lt - MS_LT_BASELINE[trailer]) / MS_LT_BASELINE[trailer]) * 0.15));
+}
+
+function msUpdateCapMults(){
+  ['van','reefer','flatbed'].forEach(t => {
+    const ids = {van:'ms-lt-van', reefer:'ms-lt-reefer', flatbed:'ms-lt-flatbed'};
+    const lt = parseFloat(document.getElementById(ids[t])?.value) || MS_LT_BASELINE[t];
+    const m = 1 + Math.min(0.12, Math.max(-0.12, ((lt - MS_LT_BASELINE[t]) / MS_LT_BASELINE[t]) * 0.15));
+    const el = document.getElementById('ms-lt-'+t+'-mult');
+    if(el){ el.textContent = m.toFixed(3)+'×'; el.style.color = m>1?'#f87171':m<1?'#4ade80':'var(--text3)'; }
+  });
+}
+
+// ── Seasonality ───────────────────────────────────────────────────────────
+function msToggleSeason(){
+  const on = document.getElementById('ms-seas-enabled').checked;
+  document.getElementById('ms-seas-controls').style.display = on ? 'block' : 'none';
+  document.getElementById('ms-seas-lbl').textContent = on ? 'On' : 'Off';
+  document.getElementById('ms-seas-lbl').style.color = on ? 'var(--accent)' : '';
+  msUpdateSeasonCalendar(); msUpdateAdvCount(); calcTotal();
+}
+
+function msGetSeasonMult(trailer){
+  if(!document.getElementById('ms-seas-enabled').checked) return 1.0;
+  const region = document.getElementById('ms-seas-region').value;
+  const profile = MS_SEASON_PROFILES[region];
+  if(!profile) return 1.0;
+  // Use first pickup date if available, otherwise today
+  const firstPickup = stops.find(s => s.type==='pickup' && s.date);
+  const month = firstPickup ? new Date(firstPickup.date+'T12:00:00').getMonth() : new Date().getMonth();
+  return (profile[trailer] || profile.van)[month];
+}
+
+function msUpdateSeasonCalendar(){
+  if(!document.getElementById('ms-seas-enabled').checked) return;
+  const region = document.getElementById('ms-seas-region').value;
+  const profile = MS_SEASON_PROFILES[region];
+  if(!profile) return;
+  const trailer = document.getElementById('ms-trailer')?.value || 'reefer';
+  // Use first pickup date if available, otherwise today
+  const firstPickup = stops.find(s => s.type==='pickup' && s.date);
+  const month = firstPickup ? new Date(firstPickup.date+'T12:00:00').getMonth() : new Date().getMonth();
+  const curve = profile[trailer] || profile.van;
+  document.getElementById('ms-seas-label').textContent = profile.label;
+  const cal = document.getElementById('ms-seas-calendar');
+  if(cal) cal.innerHTML = curve.map((v,i) => {
+    const active = i === month;
+    const bg = v>1.05?'rgba(239,68,68,.18)':v>1.02?'rgba(240,165,0,.15)':v<0.97?'rgba(34,197,94,.15)':'rgba(255,255,255,.04)';
+    const tc = v>1.05?'#f87171':v>1.02?'var(--accent)':v<0.97?'#4ade80':'var(--text3)';
+    const border = active ? `2px solid ${tc}` : '1px solid transparent';
+    return `<div class="seas-month" style="background:${bg};border:${border};color:${tc}">${v.toFixed(2)}</div>`;
+  }).join('');
+}
+
+// ── Calculation ────────────────────────────────────────────────────────────
+function calcTotal(){
+  const baseRate   = parseFloat(document.getElementById('ms-rate').value) || 3.15;
+  const marginPct  = (parseFloat(document.getElementById('ms-margin').value) || 15) / 100;
+  const stopFee    = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
+  const commodity  = document.getElementById('ms-commodity').value;
+  const cm         = CMULT[commodity] || 1.0;
+
+  // Total miles
+  const totalMiles = Object.values(legMiles).reduce((a,b) => a+b, 0);
+
+  // Total weight (sum of all pickup weights)
+  const totalWeight = stops
+    .filter(s => s.type === 'pickup')
+    .reduce((sum, s) => sum + (parseFloat(s.weight)||0), 0);
+
+  // Additional stops = everything beyond the first pickup + first delivery pair
+  const firstPickupIdx   = stops.findIndex(s => s.type === 'pickup');
+  const firstDeliveryIdx = stops.findIndex(s => s.type === 'delivery');
+  const freeStopIds = new Set([
+    firstPickupIdx  >= 0 ? stops[firstPickupIdx].id  : null,
+    firstDeliveryIdx >= 0 ? stops[firstDeliveryIdx].id : null,
+  ]);
+  freeStopIds.delete(null);
+  const extraStops = stops.filter(s => !freeStopIds.has(s.id));
+  const addlStops  = extraStops.length;
+
+  // Linehaul — apply advanced multipliers
+  const dieselMult   = msGetDieselMult();
+  const capacityMult = msGetCapacityMult(document.getElementById('ms-trailer')?.value || 'reefer');
+  const seasonMult   = msGetSeasonMult(document.getElementById('ms-trailer')?.value || 'reefer');
+  const linehaul = totalMiles > 0 ? baseRate * cm * dieselMult * capacityMult * seasonMult * totalMiles : 0;
+  msUpdateCapMults();
+
+  // Stop charges — use per-stop overrides if set, handle flat vs per-mile
+  const stopChargesTotal = addlStops > 0
+    ? extraStops.map(stop => {
+        const stopId  = stop?.id;
+        if(!stopId) return stopFee;
+        const override = stopChargeOverrides[stopId];
+        if(!override) return stopFee;
+        if(override.type === 'permile'){
+          const prevIdx  = stops.indexOf(stop) - 1;
+          const prevStop = prevIdx >= 0 ? stops[prevIdx] : null;
+          const miles    = legMiles[prevStop?.id] || 0;
+          return miles * (override.amount || 0);
+        }
+        return override.amount !== undefined ? override.amount : stopFee;
+      }).reduce((a,b) => a+b, 0)
+    : 0;
+
+  // Extra day charges
+  const dayCharge     = parseFloat(document.getElementById('ms-day-charge').value) || 200;
+  const extraDayTotal = extraDays * dayCharge;
+  // Update day charge total display
+  document.getElementById('ms-day-charge-total').textContent = '$' + extraDayTotal.toLocaleString();
+
+  const preMargin = linehaul + stopChargesTotal + extraDayTotal;
+  const marginAmt = preMargin * marginPct;
+  const total     = preMargin * (1 + marginPct);
+  const rpm       = totalMiles > 0 ? total / totalMiles : 0;
+
+  // Update result card
+  const fmt = n => '$' + Math.round(n).toLocaleString();
+  const fmtD = n => '$' + n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  document.getElementById('ms-quote').textContent          = totalMiles > 0 ? fmt(total) : '—';
+  document.getElementById('ms-rpm-sub').textContent        = totalMiles > 0 ? `${fmtD(rpm)} per loaded mile` : 'Fill in stops to calculate';
+  document.getElementById('ms-total-miles').textContent    = totalMiles > 0 ? totalMiles.toLocaleString() + ' mi' : '—';
+  document.getElementById('ms-total-weight').textContent   = totalWeight > 0 ? totalWeight.toLocaleString() + ' lbs' : '—';
+  document.getElementById('ms-stops-count').textContent    = `${stops.length} stops (${stops.filter(s=>s.type==='pickup').length} pickups, ${stops.filter(s=>s.type==='delivery').length} deliveries${addlStops > 0 ? ' · '+addlStops+' extra' : ''})`;
+  document.getElementById('ms-linehaul').textContent       = totalMiles > 0 ? fmt(linehaul) : '—';
+  document.getElementById('ms-stop-charges-total').textContent = addlStops > 0 ? fmt(stopChargesTotal) : '$0';
+  document.getElementById('ms-day-charges-row').style.display = extraDays > 0 ? '' : 'none';
+  document.getElementById('ms-extra-day-charges').textContent = extraDays > 0 ? `${extraDays} day${extraDays>1?'s':''} × ${fmt(dayCharge)} = ${fmt(extraDayTotal)}` : '—';
+  document.getElementById('ms-margin-amt').textContent     = totalMiles > 0 ? `${(marginPct*100).toFixed(0)}% (${fmt(marginAmt)})` : '—';
+
+  renderCharges();
+  calcTransitSummary();
+}
+
+function renderCharges(){
+  const stopFee  = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
+  const rows = document.getElementById('charges-rows');
+  if(!rows) return;
+
+  // Only charge for stops beyond the first pickup + first delivery pair
+  const firstPickupIdx   = stops.findIndex(s => s.type === 'pickup');
+  const firstDeliveryIdx = stops.findIndex(s => s.type === 'delivery');
+  const freeIds = new Set([
+    firstPickupIdx  >= 0 ? stops[firstPickupIdx].id  : null,
+    firstDeliveryIdx >= 0 ? stops[firstDeliveryIdx].id : null,
+  ]);
+  freeIds.delete(null);
+  const extraStops = stops.filter(s => !freeIds.has(s.id));
+
+  if(!extraStops.length){
+    rows.innerHTML = '<div style="font-size:12px;color:var(--text3)">Add extra stops to see charges</div>';
+    return;
+  }
+
+  rows.innerHTML = extraStops.map((s, i) => {
+    const override   = stopChargeOverrides[s.id];
+    const chargeType = override?.type || 'flat';
+    const chargeVal  = override?.amount !== undefined ? override.amount : (chargeType === 'flat' ? stopFee : 0);
+    const prevIdx    = stops.indexOf(s) - 1;
+    const legMi      = prevIdx >= 0 ? (legMiles[stops[prevIdx]?.id] || 0) : 0;
+    const stopNum    = stops.indexOf(s) + 1;
+    const label      = `Stop ${stopNum} — ${s.type === 'pickup' ? '📍 Pickup' : '🏁 Delivery'}${s.location ? ': ' + s.location : ''}`;
+    const perMileCalc = chargeType === 'permile' && legMi > 0
+      ? `<div style="font-size:10px;color:var(--text3);margin-top:3px;padding-left:2px">${legMi.toLocaleString()} mi × $${chargeVal}/mi = $${Math.round(legMi * chargeVal).toLocaleString()}</div>`
+      : '';
+    return `<div class="charge-row" style="flex-wrap:wrap;gap:6px">
+      <span class="charge-label" style="flex:1;min-width:120px">${label}</span>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <select style="background:var(--card2);border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:11px;padding:4px 6px;outline:none;cursor:pointer"
+          onchange="setStopChargeType(${s.id}, this.value)">
+          <option value="flat" ${chargeType==='flat'?'selected':''}>Flat fee</option>
+          <option value="permile" ${chargeType==='permile'?'selected':''}>Per mile</option>
+        </select>
+        <input class="charge-input" type="number" value="${chargeVal}" min="0" step="${chargeType==='permile'?'0.01':'25'}"
+          onchange="setStopChargeOverride(${s.id}, this.value)"
+          title="${chargeType==='permile'?'Rate per mile for this leg':'Flat stop charge'}" />
+        <span style="font-size:11px;color:var(--text3)">${chargeType==='permile'?'/mi':'flat'}</span>
+      </div>
+      ${perMileCalc}
+    </div>`;
+  }).join('');
+}
+
+function setStopChargeOverride(id, val){
+  if(!stopChargeOverrides[id]) stopChargeOverrides[id] = { type: 'flat', amount: 0 };
+  stopChargeOverrides[id].amount = parseFloat(val) || 0;
+  calcTotal();
+  renderCharges();
+}
+
+function setStopChargeType(id, type){
+  if(!stopChargeOverrides[id]){
+    const stopFee = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
+    stopChargeOverrides[id] = { type, amount: type === 'permile' ? 0 : stopFee };
+  } else {
+    stopChargeOverrides[id].type = type;
+    if(type === 'permile' && stopChargeOverrides[id].amount > 50){
+      // Likely was a flat fee — reset to a reasonable per-mile default
+      stopChargeOverrides[id].amount = 0;
+    }
+  }
+  calcTotal();
+  renderCharges();
+}
+
+// ── PDF Generation ─────────────────────────────────────────────────────────
+function generateMultiStopPDF(){
+  const total = document.getElementById('ms-quote').textContent;
+  if(total === '—'){ alert('Complete the route before downloading.'); return; }
+
+  let profile = {};
+  try { profile = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}'); } catch(e){}
+
+  const SCHEMES = {
+    midnight:{header:'#1a1f2e',accent:'#f0a500',bar:'linear-gradient(to right,#f0a500,#f0c040,#f0a500)'},
+    slate:   {header:'#1e2535',accent:'#60a5fa',bar:'linear-gradient(to right,#3b82f6,#60a5fa,#3b82f6)'},
+    forest:  {header:'#14281d',accent:'#86efac',bar:'linear-gradient(to right,#22c55e,#86efac,#22c55e)'},
+    steel:   {header:'#1c2228',accent:'#fb923c',bar:'linear-gradient(to right,#ea580c,#fb923c,#ea580c)'},
+    executive:{header:'#0d0d0d',accent:'#e2e8f0',bar:'linear-gradient(to right,#94a3b8,#e2e8f0,#94a3b8)'},
+    crimson: {header:'#1f0d0d',accent:'#fca5a5',bar:'linear-gradient(to right,#dc2626,#fca5a5,#dc2626)'},
+    ocean:   {header:'#0c1f2e',accent:'#67e8f9',bar:'linear-gradient(to right,#0891b2,#67e8f9,#0891b2)'},
+    carbon:  {header:'#111111',accent:'#4ade80',bar:'linear-gradient(to right,#16a34a,#4ade80,#16a34a)'},
+  };
+  const scheme = SCHEMES[profile.colorScheme] || SCHEMES.midnight;
+  const stopFee = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
+
+  const notes = document.getElementById('ms-load-notes')?.value.trim() || '';
+  const notesHTML = notes
+    ? `<div style="margin-bottom:24px">
+        <div style="font-size:10px;font-weight:700;color:#b0c4d8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e4e8ef">Load Notes &amp; Requirements</div>
+        <div style="background:#fffbf0;border:1px solid #f0d080;border-radius:10px;padding:16px 20px">
+          <div style="font-size:13px;color:#4a3800;line-height:1.6">${notes.replace(/\n/g,'<br>')}</div>
+        </div>
+      </div>`
+    : '';
+
+  const logoHTML = (!profile.hideLogo && profile.logoBase64)
+    ? `<img src="${profile.logoBase64}" style="max-height:40px;max-width:130px;object-fit:contain">`
+    : `<span style="font-size:28px">🚛</span>`;
+  const companyHTML = profile.companyName
+    ? `<div style="font-size:16px;font-weight:700;color:#fff">${profile.companyName}</div>
+       <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">${profile.footerText || 'Licensed Freight Broker'}</div>`
+    : `<div style="font-size:16px;font-weight:700;color:#b0c4d8">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
+       <div style="font-size:10px;color:#6b7f94;text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Freight Rate Calculator</div>`;
+
+  const hasContact = profile.contactName || profile.phone || profile.email || profile.mcNumber;
+  const contactItems = [profile.contactName, profile.phone, profile.email,
+    profile.mcNumber?`MC# ${profile.mcNumber}`:'', profile.dotNumber?`DOT# ${profile.dotNumber}`:''].filter(Boolean);
+  const contactStrip = hasContact
+    ? `<div style="background:#f4f6f9;border-bottom:1px solid #e4e8ef;padding:7px 36px;font-size:11px;color:#6b7f94">
+        ${contactItems.join(' &nbsp;·&nbsp; ')}
+       </div>` : '';
+
+  const now = new Date();
+  const prefix = (profile.quotePrefix||'QFC').toUpperCase();
+  const qNum = `${prefix}-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-MS${Math.floor(Math.random()*9000)+1000}`;
+  const issuedDate = now.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+
+  const pdfFreeIds = new Set([
+    stops.find(s => s.type==='pickup')?.id,
+    stops.find(s => s.type==='delivery')?.id,
+  ]);
+  pdfFreeIds.delete(undefined);
+
+  const stopsHTML = stops.map((s, idx) => {
+    const isLast = idx === stops.length - 1;
+    const typeLabel = s.type === 'pickup' ? '📍 Pickup' : '🏁 Delivery';
+    const weightNote = s.type === 'pickup' && s.weight ? `<div style="font-size:11px;color:#b0c4d8;margin-top:2px">${parseInt(s.weight).toLocaleString()} lbs</div>` : '';
+    const legMi = legMiles[s.id];
+    const legLine = !isLast ? `<div style="text-align:center;padding:6px 0;color:#b0c4d8;font-size:11px">↓ ${legMi ? legMi.toLocaleString()+' mi' : '— mi'}</div>` : '';
+    const overrideData = stopChargeOverrides[s.id];
+    let chargeNote = '';
+    if(!pdfFreeIds.has(s.id)){
+      if(overrideData?.type === 'permile'){
+        const prevStop = stops[idx-1];
+        const mi = legMiles[prevStop?.id] || 0;
+        const charge = mi * (overrideData.amount || 0);
+        chargeNote = charge > 0 ? `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+$${Math.round(charge).toLocaleString()} (${mi.toLocaleString()} mi × $${overrideData.amount}/mi)</span>` : '';
+      } else {
+        const charge = overrideData?.amount !== undefined ? overrideData.amount : stopFee;
+        chargeNote = `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+$${charge} stop fee</span>`;
+      }
+    }
+
+    return `<div style="padding:10px 16px;background:#fff;border-radius:8px;margin-bottom:2px;border:1px solid #e4e8ef">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;font-weight:700;color:#b0c4d8;text-transform:uppercase;letter-spacing:.08em">Stop ${idx+1} · ${typeLabel}</span>
+        ${chargeNote}
+      </div>
+      <div style="font-size:15px;font-weight:700;color:#1a1f2e;margin-top:3px">${s.location || '—'}</div>
+      ${weightNote}
+    </div>${legLine}`;
+  }).join('');
+
+  const totalMiles = Object.values(legMiles).reduce((a,b)=>a+b,0);
+  const totalWeight = stops.filter(s=>s.type==='pickup').reduce((sum,s)=>sum+(parseFloat(s.weight)||0),0);
+
+  // Gather load detail values for the PDF
+  const trailerEl   = document.getElementById('ms-trailer');
+  const trailerText = trailerEl ? trailerEl.options[trailerEl.selectedIndex].text : '—';
+  const commodityKey = document.getElementById('ms-commodity')?.value || 'standard';
+  const CLABELS_PDF  = {standard:'Standard',food:'Food / Perishable',hazmat:'Hazmat',highval:'High Value',oversized:'Oversized'};
+  const commodityText = CLABELS_PDF[commodityKey] || commodityKey;
+  const marginPctPDF  = parseFloat(document.getElementById('ms-margin')?.value) || 15;
+  const baseRatePDF   = parseFloat(document.getElementById('ms-rate')?.value) || 3.15;
+  const linehaulAmt   = document.getElementById('ms-linehaul')?.textContent || '—';
+  const stopChgAmt    = document.getElementById('ms-stop-charges-total')?.textContent || '$0';
+  const extraDayRow   = document.getElementById('ms-day-charges-row');
+  const extraDayAmt   = (extraDayRow && extraDayRow.style.display !== 'none') ? document.getElementById('ms-extra-day-charges')?.textContent : null;
+  const marginAmt     = document.getElementById('ms-margin-amt')?.textContent || '—';
+  const rpm           = totalMiles > 0 ? (parseInt(total.replace(/[^0-9]/g,'')) / totalMiles).toFixed(2) : '—';
+  const firstPickup   = stops.find(s => s.type==='pickup');
+  const lastDelivery  = [...stops].reverse().find(s => s.type==='delivery');
+
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<title>Multi-Stop Quote ${qNum}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-height:100vh}
+.page-wrap{max-width:720px;margin:0 auto}
+.screen-controls{display:flex;gap:12px;margin-bottom:20px;align-items:center}
+.btn-print{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:10px 22px;border-radius:8px;border:none;background:${scheme.header};color:${scheme.accent};cursor:pointer}
+.screen-note{font-size:12px;color:#6b7a8d}
+.doc{background:#fff;border-radius:4px;box-shadow:0 4px 40px rgba(0,0,0,.12);overflow:hidden}
+.doc-header{background:${scheme.header};padding:24px 36px;display:flex;align-items:center;justify-content:space-between;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.accent-bar{height:4px;background:${scheme.bar};-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.doc-body{padding:28px 36px}
+.doc-footer{background:#f8f9fc;border-top:1px solid #e4e8ef;padding:14px 36px;display:flex;align-items:center;justify-content:space-between;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.section-header{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #e4e8ef}
+.route-section,.details-section,.notes-section,.signature-section,.stops-section{margin-bottom:24px}
+.quote-hero{background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.trailer-badge{display:inline-block;background:#fff8e6;border:1px solid ${scheme.accent};color:#c07800;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;text-transform:uppercase}
+.details-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:#e4e8ef;border:1px solid #e4e8ef;border-radius:10px;overflow:hidden}
+.charges-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#e4e8ef;border:1px solid #e4e8ef;border-radius:10px;overflow:hidden;margin-top:10px}
+.detail-cell{background:#fff;padding:13px 16px}
+.detail-cell-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.detail-cell-value{font-size:13px;font-weight:600;color:#1a1f2e}
+.notes-box{background:#fffbf0;border:1px solid #f0d080;border-radius:10px;padding:16px 20px;min-height:60px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.notes-text{font-size:13px;color:#4a3800;line-height:1.6}
+.notes-empty{font-size:12px;color:#c8a840;font-style:italic}
+.signature-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.signature-block{border:1px solid #e4e8ef;border-radius:10px;padding:16px 20px}
+.sig-title{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
+.sig-line{border-bottom:1px solid #1a1f2e;margin-bottom:6px;height:32px}
+.sig-label{font-size:10px;color:#8fa3b8;margin-bottom:10px}
+.sig-name{border-bottom:1px solid #d0d8e4;margin-bottom:6px;height:28px}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  body{background:white;padding:0}.screen-controls{display:none!important}
+  .page-wrap{max-width:100%}.doc{box-shadow:none;border-radius:0}
+  .route-section,.details-section,.notes-section,.stops-section,.signature-section{page-break-inside:avoid;break-inside:avoid}
+  @page{size:letter portrait;margin:0}
+}
+</style></head><body>
+<div class="page-wrap">
+  <div class="screen-controls">
+    <button class="btn-print" onclick="window.print()">🖨 Print / Save as PDF</button>
+    <span class="screen-note">Use Print dialog → Save as PDF</span>
+  </div>
+  <div class="doc">
+    <div class="doc-header">
+      <div style="display:flex;align-items:center;gap:10px">${logoHTML}<div>${companyHTML}</div></div>
+      <div style="text-align:right">
+        <div style="font-size:20px;font-weight:700;color:#fff">Multi-Stop Rate Confirmation</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.35);margin-top:3px">Quote #${qNum}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.35)">Issued: ${issuedDate}</div>
+      </div>
+    </div>
+    <div class="accent-bar"></div>
+    ${contactStrip}
+    <div class="doc-body">
+
+      <div class="quote-hero">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:#b0c4d8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Total Quote to Customer</div>
+          <div style="font-size:38px;font-weight:700;color:#1a1f2e;letter-spacing:-.03em;line-height:1">${total}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;color:#b0c4d8;margin-bottom:4px">${totalMiles.toLocaleString()} total miles</div>
+          ${totalWeight > 0 ? `<div style="font-size:12px;color:#b0c4d8;margin-bottom:6px">${totalWeight.toLocaleString()} lbs total</div>` : ''}
+          <div class="trailer-badge">${trailerText}</div>
+        </div>
+      </div>
+
+      <div class="route-section">
+        <div class="section-header">Route Summary</div>
+        <div style="background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;overflow:hidden">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px">
+            <div>
+              <div style="font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">📍 First Pickup</div>
+              <div style="font-size:15px;font-weight:700;color:#1a1f2e">${firstPickup?.location || '—'}</div>
+            </div>
+            <div style="font-size:20px;color:#b0c4d8">→</div>
+            <div style="text-align:right">
+              <div style="font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">🏁 Last Delivery</div>
+              <div style="font-size:15px;font-weight:700;color:#1a1f2e">${lastDelivery?.location || '—'}</div>
+            </div>
+          </div>
+          <div style="background:#f0f3f8;border-top:1px solid #e4e8ef;padding:8px 20px;font-size:11px;color:#8fa3b8">
+            ${stops.length} stops &nbsp;·&nbsp; ${stops.filter(s=>s.type==='pickup').length} pickups &nbsp;·&nbsp; ${stops.filter(s=>s.type==='delivery').length} deliveries &nbsp;·&nbsp; ${totalMiles.toLocaleString()} mi total
+          </div>
+        </div>
+      </div>
+
+      <div class="stops-section">
+        <div class="section-header">Stop Details</div>
+        ${stopsHTML}
+      </div>
+
+      <div class="details-section">
+        <div class="section-header">Load Details</div>
+        <div class="details-grid">
+          <div class="detail-cell"><div class="detail-cell-label">Trailer Type</div><div class="detail-cell-value">${trailerText}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Total Weight</div><div class="detail-cell-value">${totalWeight > 0 ? totalWeight.toLocaleString() + ' lbs' : '—'}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Commodity</div><div class="detail-cell-value">${commodityText}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Base Rate</div><div class="detail-cell-value">$${baseRatePDF.toFixed(2)}/mi</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Margin</div><div class="detail-cell-value">${marginPctPDF}% &nbsp;(${marginAmt})</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Rate per Mile</div><div class="detail-cell-value">$${rpm}/mi</div></div>
+        </div>
+        <div class="charges-grid">
+          <div class="detail-cell"><div class="detail-cell-label">Linehaul</div><div class="detail-cell-value">${linehaulAmt}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Stop Charges</div><div class="detail-cell-value">${stopChgAmt}</div></div>
+          ${extraDayAmt ? `<div class="detail-cell" style="grid-column:1/-1"><div class="detail-cell-label">Extra Day Charges</div><div class="detail-cell-value">${extraDayAmt}</div></div>` : ''}
+        </div>
+      </div>
+
+      <div class="notes-section">
+        <div class="section-header">Load Notes &amp; Requirements</div>
+        <div class="notes-box">
+          ${notes ? `<div class="notes-text">${notes.replace(/\n/g,'<br>')}</div>` : `<div class="notes-empty">No notes provided.</div>`}
+        </div>
+      </div>
+
+      <div class="signature-section">
+        <div class="section-header">Acceptance &amp; Authorization</div>
+        <div class="signature-grid">
+          <div class="signature-block">
+            <div class="sig-title">Carrier / Driver Acceptance</div>
+            <div class="sig-line"></div><div class="sig-label">Signature</div>
+            <div class="sig-name"></div><div class="sig-label">Printed Name &amp; Date</div>
+          </div>
+          <div class="signature-block">
+            <div class="sig-title">Broker / Shipper Authorization</div>
+            <div class="sig-line"></div><div class="sig-label">Signature</div>
+            <div class="sig-name"></div><div class="sig-label">Printed Name &amp; Date</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="doc-footer">
+      <div style="font-size:11px;color:#b0c4d8">${profile.companyName||'🚛 QuickFreightCalc'} · ${profile.companyName?'Powered by QuickFreightCalc':'quickfreightcalc.com'}</div>
+      <div style="font-size:10px;color:#aab8c8">Rates subject to change · Valid 24 hours from issue</div>
+    </div>
+  </div>
+</div></body></html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  const tab  = window.open(url, '_blank');
+  if(tab){
+    tab.addEventListener('load', () => URL.revokeObjectURL(url), { once: true });
+  } else {
+    URL.revokeObjectURL(url);
+    alert('Pop-up blocked — please allow pop-ups for this site to download quotes.');
+  }
+}
+
+// ── Theme ──────────────────────────────────────────────────────────────────
+function applyTheme(theme){
+  const r = document.documentElement;
+  if(theme==='light'){
+    r.style.setProperty('--bg','#ffffff');r.style.setProperty('--panel','#ffffff');
+    r.style.setProperty('--card','#f8fafc');r.style.setProperty('--card2','#eef2f7');
+    r.style.setProperty('--border','#dde3ed');r.style.setProperty('--border2','#c8d4e0');
+    r.style.setProperty('--text','#0f172a');r.style.setProperty('--text2','#334155');
+    r.style.setProperty('--text3','#64748b');
+    document.getElementById('theme-icon').textContent='☀️';
+    document.getElementById('theme-label').textContent='Light';
+  } else {
+    r.style.setProperty('--bg','#1a1d24');r.style.setProperty('--panel','#1f2330');
+    r.style.setProperty('--card','#22262f');r.style.setProperty('--card2','#272c38');
+    r.style.setProperty('--border','#1e2a38');r.style.setProperty('--border2','#243040');
+    r.style.setProperty('--text','#e2e8f0');r.style.setProperty('--text2','#9aafc4');
+    r.style.setProperty('--text3','#8896a8');
+    document.getElementById('theme-icon').textContent='🌙';
+    document.getElementById('theme-label').textContent='Dark';
+  }
+}
+function toggleTheme(){
+  const next = (localStorage.getItem('qfc_theme')||'dark')==='dark'?'light':'dark';
+  localStorage.setItem('qfc_theme',next); applyTheme(next);
+}
+applyTheme(localStorage.getItem('qfc_theme')||'dark');
+
+// ── Pro gate — server-side verification ───────────────────────────────────
+async function verifyProAccess(){
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key)||'{}');
+      if(!val?.access_token) continue;
+      const userId = val.user?.id || val.user?.sub;
+      if(!userId) continue;
+
+      const resp = await fetch('/.netlify/functions/verify-pro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, accessToken: val.access_token })
+      });
+      if(!resp.ok) return clientSideProCheck(); // function not deployed yet — fallback
+      const data = await resp.json();
+      if(data.active) return true;
+      break;
+    }
+  } catch(e){
+    // Network error — fall back to client-side check rather than locking out user
+    return clientSideProCheck();
+  }
+  return false;
+}
+
+function clientSideProCheck(){
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key)||'{}');
+      if(!val?.access_token) continue;
+      const userId = val.user?.id || val.user?.sub;
+      if(!userId) continue;
+      const cached = JSON.parse(localStorage.getItem('qfc_pro_status')||'{}');
+      if(cached.isActive && cached.userId === userId) return true;
+    }
+  } catch(e){}
+  return false;
+}
+
+async function initWithProCheck(){
+  const isPro = await verifyProAccess();
+  if(!isPro){
+    window.location.href = '/signup.html?reason=pro-required';
+    return;
+  }
+  // User is verified Pro — load the page
+  loadGMapsKey();
+  loadMsRates();
+  addStop('pickup');
+  addStop('delivery');
+  loadMsLogFromSupabase();
+}
+
+// ── Multi-Stop Quote Log ──────────────────────────────────────────────────
+const MS_LOG_KEY = 'qfc_ms_quote_log';
+const MS_MAX = 50;
+const CMULT_MS  = {standard:1.0,food:1.08,hazmat:1.20,highval:1.12,oversized:1.25};
+const CLABEL_MS = {standard:'Standard',food:'Food/Perishable',hazmat:'Hazmat',highval:'High Value',oversized:'Oversized'};
+
+function getMsLog(){ try{ return JSON.parse(localStorage.getItem(MS_LOG_KEY)||'[]'); }catch(e){ return []; } }
+function saveMsLog(log){ try{ localStorage.setItem(MS_LOG_KEY, JSON.stringify(log)); }catch(e){} }
+
+function getMsSession(){
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key)||'{}');
+      if(val?.access_token) return val;
+    }
+  } catch(e){}
+  return null;
+}
+
+function setMsLogStatus(msg){
+  const el = document.getElementById('ms-log-count');
+  const log = getMsLog();
+  if(el) el.textContent = msg || `${log.length} / ${MS_MAX} saved`;
+}
+
+async function loadMsLogFromSupabase(){
+  const session = getMsSession();
+  if(!session) return;
+  const userId = session.user?.id || session.user?.sub;
+  try {
+    setMsLogStatus('Syncing...');
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/ms_quote_log?user_id=eq.${userId}&order=created_at.desc&limit=50`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` } }
+    );
+    const rows = await resp.json();
+    if(Array.isArray(rows) && rows.length){
+      const log = rows.map(r => ({
+        id:          r.id,
+        date:        r.date,
+        route:       r.route,
+        miles:       r.miles,
+        stopsCount:  r.stops_count,
+        commodity:   r.commodity,
+        margin:      r.margin,
+        quote:       r.quote,
+        rpm:         r.rpm,
+        notes:       r.notes || '',
+        stopData:    r.stop_data || [],
+        trailer:     r.trailer || '',
+        commodityKey:r.commodity_key || '',
+        marginVal:   r.margin_val || 15,
+        baseRate:    r.base_rate || 3.15
+      }));
+      saveMsLog(log);
+      renderMsLog();
+      setMsLogStatus(`✓ ${rows.length} quotes synced`);
+    } else {
+      setMsLogStatus('No quotes yet');
+    }
+  } catch(e){ setMsLogStatus(''); }
+}
+
+function renderMsLog(){
+  const log = getMsLog();
+  const tbody = document.getElementById('ms-log-body');
+  const count = document.getElementById('ms-log-count');
+  if(count) count.textContent = `${log.length} / ${MS_MAX} saved`;
+  if(!tbody) return;
+  if(!log.length){
+    tbody.innerHTML = '<tr><td colspan="10" class="ms-empty-log">No multi-stop quotes saved yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = log.map(q => `<tr>
+    <td class="dim">${q.date}</td>
+    <td style="font-size:11px;max-width:160px;white-space:normal">${q.route||'—'}</td>
+    <td>${Number(q.miles||0).toLocaleString()}</td>
+    <td class="dim">${q.stopsCount||'—'}</td>
+    <td class="dim">${q.commodity||'—'}</td>
+    <td class="dim">${q.margin||'—'}</td>
+    <td class="money">$${Number(q.quote||0).toLocaleString()}</td>
+    <td class="dim">$${q.rpm||'—'}</td>
+    <td>
+      <button onclick="openMsNotesModal(${q.id})"
+        style="font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:600;
+        padding:3px 8px;border-radius:6px;border:1px solid var(--border2);
+        background:${q.notes?'var(--accentbg)':'transparent'};
+        color:${q.notes?'var(--accent)':'var(--text3)'};cursor:pointer;white-space:nowrap"
+        onmouseover="this.style.borderColor='var(--accent)'"
+        onmouseout="this.style.borderColor='var(--border2)'">
+        ${q.notes?'📝 Notes':'+ Notes'}
+      </button>
+    </td>
+    <td style="white-space:nowrap">
+      <button onclick="loadMsQuote(${q.id})" title="Load into calculator"
+        style="font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:600;
+        padding:3px 8px;border-radius:6px;border:1px solid var(--border2);
+        background:transparent;color:var(--text3);cursor:pointer;margin-right:4px;transition:all .15s"
+        onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+        onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">⬆ Load</button>
+      <button class="ms-del-btn" onclick="deleteMsQuote(${q.id})">✕</button>
+    </td>
+  </tr>`).join('');
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────
+let _msDupeResolve = null;
+
+function showMsDupeModal(msg){
+  document.getElementById('ms-dupe-msg').innerHTML = msg;
+  document.getElementById('ms-dupe-modal').style.display = 'flex';
+  return new Promise(r => { _msDupeResolve = r; });
+}
+function closeMsDupeModal(confirmed){
+  document.getElementById('ms-dupe-modal').style.display = 'none';
+  if(_msDupeResolve){ _msDupeResolve(confirmed); _msDupeResolve = null; }
+}
+
+async function saveMsQuote(){
+  const totalMilesEl = document.getElementById('ms-total-miles');
+  const quoteEl      = document.getElementById('ms-quote');
+  const miles = parseInt((totalMilesEl?.textContent||'').replace(/[^\d]/g,''))||0;
+  const quoteVal = parseInt((quoteEl?.textContent||'').replace(/[^\d]/g,''))||0;
+  if(!miles || !quoteVal){ alert('Fill in stop locations to calculate before saving.'); return; }
+
+  const log = getMsLog();
+  if(log.length >= MS_MAX){
+    alert(`Quote log is full (${MS_MAX} max). Delete old quotes to save new ones.`);
+    return;
+  }
+
+  const pickups    = stops.filter(s => s.type==='pickup').map(s => s.location).filter(Boolean);
+  const deliveries = stops.filter(s => s.type==='delivery').map(s => s.location).filter(Boolean);
+  const route = pickups.length && deliveries.length
+    ? `${pickups[0]} → ${deliveries[deliveries.length-1]}${stops.length>2?' ('+(stops.length-2)+' stops)':''}`
+    : `${stops.length} stops`;
+
+  const rpm        = parseFloat((document.getElementById('ms-rpm-sub')?.textContent||'').replace(/[^0-9.]/g,''))||0;
+  const marginPct  = parseFloat(document.getElementById('ms-margin')?.value)||15;
+  const commodity  = document.getElementById('ms-commodity')?.value || 'standard';
+  const stopsCount = `${stops.filter(s=>s.type==='pickup').length}P / ${stops.filter(s=>s.type==='delivery').length}D`;
+  const dateStr    = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
+
+  const dupe = log.find(q => q.route === route && q.miles === miles);
+  if(dupe){
+    const ok = await showMsDupeModal(`A quote for this load was already saved on ${dupe.date}.<br>${route}`);
+    if(!ok) return;
+  }
+
+  const entry = {
+    id: Date.now(), date: dateStr, route, miles, stopsCount,
+    commodity: CLABEL_MS[commodity]||commodity,
+    margin: marginPct.toFixed(0)+'%',
+    quote: quoteVal,
+    rpm: rpm.toFixed(2),
+    notes: document.getElementById('ms-load-notes')?.value.trim() || '',
+    stopData: stops.map(s => ({ type: s.type, location: s.location, weight: s.weight || '' })),
+    trailer: document.getElementById('ms-trailer')?.value || '',
+    commodityKey: commodity,
+    marginVal: marginPct,
+    baseRate: parseFloat(document.getElementById('ms-rate')?.value) || 3.15
+  };
+
+  log.unshift(entry);
+  saveMsLog(log);
+  renderMsLog();
+  showMsToast('💾 Quote saved');
+
+  // Sync to Supabase
+  const session = getMsSession();
+  if(session){
+    const userId = session.user?.id || session.user?.sub;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          id:           entry.id,
+          user_id:      userId,
+          date:         entry.date,
+          route:        entry.route,
+          miles:        entry.miles,
+          stops_count:  entry.stopsCount,
+          commodity:    entry.commodity,
+          margin:       entry.margin,
+          quote:        entry.quote,
+          rpm:          entry.rpm,
+          notes:        entry.notes,
+          stop_data:    entry.stopData,
+          trailer:      entry.trailer,
+          commodity_key: entry.commodityKey,
+          margin_val:   entry.marginVal,
+          base_rate:    entry.baseRate
+        })
+      });
+      setMsLogStatus(`✓ Synced`);
+    } catch(e){ setMsLogStatus('Saved locally'); }
+  }
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────
+async function deleteMsQuote(id){
+  const log = getMsLog().filter(q => q.id !== id);
+  saveMsLog(log);
+  renderMsLog();
+  const session = getMsSession();
+  if(!session) return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` }
+    });
+  } catch(e){}
+}
+
+// ── Clear All ─────────────────────────────────────────────────────────────
+async function clearMsLog(){
+  if(!getMsLog().length) return;
+  if(!confirm('Clear all saved multi-stop quotes? This cannot be undone.')) return;
+  saveMsLog([]);
+  renderMsLog();
+  const session = getMsSession();
+  if(!session) return;
+  const userId = session.user?.id || session.user?.sub;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log?user_id=eq.${userId}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` }
+    });
+    setMsLogStatus('Cleared');
+  } catch(e){}
+}
+
+// ── Load saved quote into calculator ─────────────────────────────────────
+function loadMsQuote(id){
+  const log = getMsLog();
+  const q = log.find(q => q.id === id);
+  if(!q) return;
+
+  // Rebuild stops from saved data
+  if(q.stopData && q.stopData.length){
+    // Clear existing stops
+    stops = [];
+    legMiles = {};
+    stopChargeOverrides = {};
+    extraDays = 0;
+    document.getElementById('ms-extra-days-count').textContent = '0';
+    document.getElementById('stops-list').innerHTML = '';
+
+    // Add each stop then populate location/weight
+    q.stopData.forEach(s => {
+      const id = ++stopIdCounter;
+      stops.push({ id, type: s.type, location: s.location || '', miles: 0, weight: s.weight || '' });
+    });
+    renderStops();
+
+    // Fill in location inputs after render
+    stops.forEach((s, i) => {
+      const card = document.getElementById(`stop-card-${s.id}`);
+      if(!card) return;
+      const locInput = card.querySelector('input[type="text"]');
+      if(locInput && s.location){ locInput.value = s.location; locInput.dispatchEvent(new Event('input')); }
+      const wtInput = card.querySelector('input[type="number"]');
+      if(wtInput && s.weight){ wtInput.value = s.weight; }
+    });
+
+    recalcAllLegs();
+  }
+
+  // Restore settings
+  if(q.trailer){ const el = document.getElementById('ms-trailer'); if(el) el.value = q.trailer; }
+  if(q.commodityKey){ const el = document.getElementById('ms-commodity'); if(el) el.value = q.commodityKey; }
+  if(q.marginVal !== undefined){ const el = document.getElementById('ms-margin'); if(el) el.value = q.marginVal; }
+  if(q.baseRate){ const el = document.getElementById('ms-rate'); if(el) el.value = q.baseRate.toFixed(2); }
+  if(q.notes){ const el = document.getElementById('ms-load-notes'); if(el) el.value = q.notes; }
+
+  calcTotal();
+  document.getElementById('stops-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showMsToast('✓ Quote loaded into calculator');
+}
+
+// ── Notes modal ───────────────────────────────────────────────────────────
+let _msNotesId = null;
+
+function openMsNotesModal(id){
+  const log = getMsLog();
+  const q = log.find(q => q.id === id);
+  if(!q) return;
+  _msNotesId = id;
+  document.getElementById('ms-notes-input').value = q.notes || '';
+  document.getElementById('ms-notes-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('ms-notes-input').focus(), 50);
+}
+function closeMsNotesModal(){
+  document.getElementById('ms-notes-modal').style.display = 'none';
+  _msNotesId = null;
+}
+function saveMsNotesModal(){
+  if(!_msNotesId) return;
+  const log = getMsLog();
+  const q = log.find(q => q.id === _msNotesId);
+  const notes = document.getElementById('ms-notes-input').value.trim();
+  if(q){
+    q.notes = notes;
+    saveMsLog(log);
+    renderMsLog();
+    // Sync to Supabase
+    const session = getMsSession();
+    if(session){
+      fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log?id=eq.${_msNotesId}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ notes })
+      }).catch(()=>{});
+    }
+  }
+  closeMsNotesModal();
+  showMsToast('💾 Notes saved');
+}
+document.getElementById('ms-notes-modal').addEventListener('click', function(e){ if(e.target===this) closeMsNotesModal(); });
+document.getElementById('ms-dupe-modal').addEventListener('click', function(e){ if(e.target===this) closeMsDupeModal(false); });
+
+// ── Export CSV ────────────────────────────────────────────────────────────
+function exportMsCSV(){
+  const log = getMsLog();
+  if(!log.length){ showMsToast('⚠ No quotes to export'); return; }
+  const hdr = 'Date,Route,Miles,Stops,Commodity,Margin,Quote,RPM,Notes\n';
+  const rows = log.map(q => [
+    q.date, `"${q.route}"`, q.miles, q.stopsCount,
+    q.commodity, q.margin, q.quote, q.rpm,
+    `"${(q.notes||'').replace(/"/g,'""')}"`
+  ].join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(hdr + rows);
+  a.download = 'ms_quotes_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function showMsToast(msg){
+  let t = document.getElementById('ms-toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'ms-toast';
+    t.style.cssText = 'position:fixed;bottom:28px;right:28px;z-index:9999;background:#22c55e;color:#fff;font-family:Space Grotesk,sans-serif;font-size:13px;font-weight:600;padding:12px 20px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.3);opacity:0;transition:opacity .3s;pointer-events:none';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.style.opacity = '0', 2500);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+initWithProCheck();
+</script>
+</body>
+</html>

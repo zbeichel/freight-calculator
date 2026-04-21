@@ -5,6 +5,9 @@
 [build.environment]
   NODE_VERSION = "18"
 
+[functions]
+  directory = "netlify/functions"
+
 # Redirect www to non-www (301 permanent — Google will update its index)
 [[redirects]]
   from = "https://www.quickfreightcalc.com/*"
