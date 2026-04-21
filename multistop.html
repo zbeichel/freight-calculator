@@ -236,6 +236,35 @@ footer a:hover{color:var(--accent)}
 }
 .theme-btn-float:hover{border-color:var(--accent);color:var(--text)}
 .theme-icon-wrap{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)}
+/* ── Advanced Adjustments ── */
+.adv-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:14px 0;border-top:1px solid var(--border);user-select:none;margin-top:8px}
+.adv-toggle-left{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--text2)}
+.adv-arrow{transition:transform .2s;font-size:12px}
+.adv-arrow.open{transform:rotate(180deg)}
+.adv-body{display:none}
+.adv-body.open{display:block}
+.tog{display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:12px}
+.tog input[type=checkbox]{display:none}
+.tog-track{width:34px;height:20px;background:var(--card2);border:1px solid var(--border2);border-radius:10px;position:relative;transition:background .2s,border-color .2s;flex-shrink:0}
+.tog-thumb{position:absolute;top:3px;left:3px;width:12px;height:12px;background:var(--text3);border-radius:50%;transition:transform .2s,background .2s}
+.tog input:checked+.tog-track{background:rgba(240,165,0,.15);border-color:var(--accent)}
+.tog input:checked+.tog-track .tog-thumb{transform:translateX(14px);background:var(--accent)}
+.tog-label{font-size:13px;font-weight:500;color:var(--text2)}
+.tog input:checked~.tog-label{color:var(--accent)}
+.adv-sub{font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin:16px 0 9px;display:flex;align-items:center;justify-content:space-between}
+.adv-note{background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:var(--radius);padding:10px 12px;font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6}
+.adv-note strong{color:var(--text)}
+.adv-warn{background:rgba(240,165,0,.06);border:1px solid rgba(240,165,0,.2);border-radius:var(--radius);padding:10px 12px;font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6;display:none}
+.adv-warn.show{display:block}
+.adv-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+.mini-input-group{display:flex;flex-direction:column;gap:5px}
+.mini-label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase}
+.mini-input{background:var(--card2);border:1px solid var(--border2);border-radius:9px;font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;padding:8px 10px;width:100%;outline:none;transition:border-color .15s}
+.mini-input:focus{border-color:var(--accent)}
+.mini-sub{font-size:11px;color:var(--text3);margin-top:3px}
+.seas-strip{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;margin:8px 0 4px}
+.seas-month{border-radius:4px;padding:5px 2px;text-align:center;font-size:11px;font-weight:700;font-family:'Space Grotesk',sans-serif}
+.seas-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -373,6 +402,121 @@ footer a:hover{color:var(--accent)}
             style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;padding:8px 12px;outline:none;resize:vertical;line-height:1.5"
             onfocus="this.style.borderColor='var(--accent)'"
             onblur="this.style.borderColor='var(--border2)'"></textarea>
+        </div>
+
+        <!-- Advanced Adjustments -->
+        <div class="adv-toggle" onclick="msToglAdv()">
+          <div class="adv-toggle-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+            Advanced Adjustments
+            <span id="ms-adv-count" style="background:var(--accentbg);color:var(--accent);border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;display:none">0 on</span>
+          </div>
+          <span class="adv-arrow" id="ms-adv-arrow">▾</span>
+        </div>
+        <div class="adv-body" id="ms-adv-body">
+
+          <!-- Diesel -->
+          <div class="adv-sub">
+            <span>Diesel Surcharge</span>
+            <label class="tog" style="margin-bottom:0">
+              <input type="checkbox" id="ms-diesel-enabled" onchange="msToggleDiesel()" />
+              <span class="tog-track"><span class="tog-thumb"></span></span>
+              <span class="tog-label" id="ms-diesel-lbl">Off</span>
+            </label>
+          </div>
+          <div class="adv-note" style="margin-bottom:8px"><strong>DAT spot rates include fuel.</strong> Only enable if quoting off contract rates or adding a manual fuel cushion.</div>
+          <div class="adv-warn" id="ms-diesel-warn"><strong style="color:var(--accent)">Surcharge active.</strong> Best used with contract rates only.</div>
+          <div id="ms-diesel-controls" style="display:none;margin-bottom:4px">
+            <div class="mini-input-group" style="margin-bottom:10px">
+              <div class="mini-label" style="color:var(--red)">Diesel Region</div>
+              <select id="ms-diesel-region" onchange="calcTotal()" style="background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;padding:8px 10px;width:100%;outline:none;cursor:pointer">
+                <option value="R10">East Coast</option>
+                <option value="R20">Midwest</option>
+                <option value="R30">Gulf Coast</option>
+                <option value="R40">Rocky Mountain</option>
+                <option value="R50">West Coast</option>
+                <option value="NUS" selected>National Average</option>
+              </select>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-bottom:6px">
+              <div class="mini-input-group">
+                <div class="mini-label" style="color:var(--red)">Diesel Price ($/gal)</div>
+                <input class="mini-input" type="number" id="ms-diesel-price" value="3.85" step="0.01" min="1" style="color:var(--red);border-color:rgba(239,68,68,.3)" oninput="calcTotal()" />
+              </div>
+              <button onclick="msFetchDiesel()" id="ms-eia-btn" style="height:38px;padding:0 12px;background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--red);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s">⚡ Live</button>
+            </div>
+            <div id="ms-eia-status" style="font-size:11px;color:var(--text3);margin-bottom:4px"></div>
+            <div class="mini-sub">Baseline $3.50/gal · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
+          </div>
+
+          <!-- Capacity -->
+          <div class="adv-sub">
+            <span>Capacity / Load-to-Truck</span>
+            <label class="tog" style="margin-bottom:0">
+              <input type="checkbox" id="ms-cap-enabled" onchange="msToggleCapacity()" />
+              <span class="tog-track"><span class="tog-thumb"></span></span>
+              <span class="tog-label" id="ms-cap-lbl">Off</span>
+            </label>
+          </div>
+          <div class="adv-note" style="margin-bottom:8px"><strong>Current DAT rates reflect this week's capacity.</strong> Enable when your rates are a few days stale or you know your lane is tighter/looser than average.</div>
+          <div id="ms-cap-controls" style="display:none;margin-bottom:4px">
+            <div class="adv-grid3">
+              <div class="mini-input-group">
+                <div class="mini-label" style="color:#60a5fa">Van L:T</div>
+                <input class="mini-input" type="number" id="ms-lt-van" value="8.1" step="0.1" min="0.1" style="color:#60a5fa;border-color:rgba(59,130,246,.3)" oninput="calcTotal()" />
+                <div class="mini-sub">base 6.0 · <span id="ms-lt-van-mult" style="font-weight:600">—</span></div>
+              </div>
+              <div class="mini-input-group">
+                <div class="mini-label" style="color:#4ade80">Reefer L:T</div>
+                <input class="mini-input" type="number" id="ms-lt-reefer" value="14.9" step="0.1" min="0.1" style="color:#4ade80;border-color:rgba(34,197,94,.3)" oninput="calcTotal()" />
+                <div class="mini-sub">base 10.0 · <span id="ms-lt-reefer-mult" style="font-weight:600">—</span></div>
+              </div>
+              <div class="mini-input-group">
+                <div class="mini-label" style="color:var(--accent)">Flatbed L:T</div>
+                <input class="mini-input" type="number" id="ms-lt-flatbed" value="25.0" step="0.1" min="0.1" style="color:var(--accent);border-color:rgba(240,165,0,.3)" oninput="calcTotal()" />
+                <div class="mini-sub">base 25.0 · <span id="ms-lt-flatbed-mult" style="font-weight:600">—</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Seasonality -->
+          <div class="adv-sub">
+            <span>Seasonal Adjustment</span>
+            <label class="tog" style="margin-bottom:0">
+              <input type="checkbox" id="ms-seas-enabled" onchange="msToggleSeason()" />
+              <span class="tog-track"><span class="tog-thumb"></span></span>
+              <span class="tog-label" id="ms-seas-lbl">Off</span>
+            </label>
+          </div>
+          <div class="adv-note" style="margin-bottom:10px">Auto-applies from pickup date. Select the origin region that best matches your lane.</div>
+          <div id="ms-seas-controls" style="display:none">
+            <div class="field" style="margin-bottom:10px">
+              <label>Origin Region</label>
+              <select id="ms-seas-region" onchange="calcTotal()">
+                <optgroup label="── Produce / Reefer Lanes ──">
+                  <option value="fl">Florida · potatoes, citrus, tomatoes</option>
+                  <option value="se">Southeast · GA, SC, NC peaches, watermelon</option>
+                  <option value="ca">California / San Joaquin · grapes, stone fruit</option>
+                  <option value="pnw">Pacific Northwest · WA/OR/ID apples, potatoes</option>
+                  <option value="tx">Texas / Rio Grande Valley · winter citrus, onions</option>
+                  <option value="az">Arizona / Yuma · winter lettuce, vegetables</option>
+                  <option value="gl">Great Lakes / Michigan · cherries, blueberries, apples</option>
+                  <option value="ne_produce">Northeast fall harvest · NY, NJ, PA apples, potatoes</option>
+                  <option value="storage">Storage season / Northern · ME, WI, MI, NY potatoes</option>
+                </optgroup>
+                <optgroup label="── General Freight Lanes ──">
+                  <option value="mw">Midwest · grain, manufacturing</option>
+                  <option value="ne">Northeast · general freight, retail</option>
+                  <option value="sw">Southwest / Texas · general, oil field</option>
+                  <option value="national" selected>National average · no specific region</option>
+                </optgroup>
+              </select>
+            </div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Monthly multipliers — <span id="ms-seas-label">National</span></div>
+            <div class="seas-strip" id="ms-seas-calendar"></div>
+            <div class="seas-labels"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span></div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -1002,6 +1146,158 @@ function recalcAllLegs(){
   });
 }
 
+// ── Advanced Adjustments (independent of main calculator) ─────────────────
+const MS_LT_BASELINE = {van:6.0, reefer:10.0, flatbed:25.0};
+const MS_SEASON_PROFILES = {
+  fl:{label:'Florida produce',reefer:[0.94,0.95,1.00,1.06,1.12,1.10,0.97,0.95,0.97,1.04,1.06,0.97],van:[0.95,0.96,0.99,1.03,1.06,1.05,0.98,0.97,0.99,1.02,1.03,0.97],flatbed:[0.97,0.97,1.00,1.02,1.03,1.02,0.99,0.98,1.00,1.01,1.01,0.98]},
+  se:{label:'Southeast spring/summer',reefer:[0.95,0.96,1.02,1.07,1.10,1.08,0.98,0.96,0.98,1.02,1.03,0.96],van:[0.96,0.97,1.01,1.04,1.06,1.05,0.98,0.97,0.99,1.01,1.02,0.97],flatbed:[0.97,0.98,1.01,1.03,1.05,1.04,1.00,0.99,1.01,1.02,1.01,0.97]},
+  ca:{label:'California / San Joaquin Valley',reefer:[0.95,0.96,0.98,1.02,1.06,1.10,1.12,1.10,1.07,1.03,0.98,0.95],van:[0.96,0.96,0.99,1.01,1.04,1.07,1.08,1.07,1.05,1.02,0.99,0.96],flatbed:[0.96,0.97,1.00,1.02,1.04,1.06,1.07,1.06,1.04,1.02,0.99,0.96]},
+  pnw:{label:'Pacific Northwest harvest',reefer:[0.95,0.95,0.97,0.99,1.01,1.03,1.06,1.10,1.13,1.10,1.02,0.96],van:[0.95,0.96,0.98,1.00,1.02,1.03,1.05,1.08,1.10,1.08,1.01,0.96],flatbed:[0.95,0.96,0.99,1.02,1.05,1.06,1.07,1.08,1.08,1.05,1.00,0.95]},
+  tx:{label:'Texas / Rio Grande Valley',reefer:[1.07,1.09,1.06,1.02,0.99,0.97,0.96,0.97,1.00,1.02,1.04,1.06],van:[1.04,1.05,1.03,1.01,0.99,0.98,0.97,0.98,1.00,1.01,1.02,1.03],flatbed:[1.02,1.03,1.04,1.05,1.06,1.04,1.01,1.00,1.02,1.03,1.02,1.00]},
+  az:{label:'Arizona / Yuma winter',reefer:[1.08,1.10,1.07,1.02,0.97,0.95,0.94,0.95,0.98,1.02,1.05,1.07],van:[1.04,1.05,1.03,1.01,0.98,0.97,0.96,0.97,0.99,1.01,1.02,1.03],flatbed:[1.01,1.02,1.02,1.02,1.01,0.99,0.98,0.99,1.01,1.02,1.01,1.00]},
+  gl:{label:'Great Lakes / Michigan',reefer:[0.95,0.96,0.98,1.01,1.04,1.06,1.09,1.11,1.08,1.04,0.99,0.96],van:[0.95,0.96,0.98,1.01,1.03,1.04,1.07,1.08,1.06,1.03,0.99,0.96],flatbed:[0.95,0.96,1.00,1.03,1.06,1.07,1.07,1.06,1.05,1.03,0.99,0.95]},
+  ne_produce:{label:'Northeast fall harvest',reefer:[0.97,0.97,0.98,0.99,1.01,1.02,1.04,1.06,1.10,1.12,1.07,1.01],van:[0.97,0.97,0.98,1.00,1.01,1.02,1.03,1.05,1.08,1.10,1.06,1.01],flatbed:[0.96,0.96,0.99,1.02,1.04,1.05,1.05,1.05,1.06,1.06,1.02,0.97]},
+  storage:{label:'Storage season / Northern',reefer:[1.06,1.05,1.03,1.00,0.97,0.96,0.96,0.97,0.99,1.03,1.07,1.08],van:[1.04,1.03,1.02,1.00,0.98,0.97,0.97,0.98,1.00,1.02,1.04,1.05],flatbed:[1.02,1.01,1.01,1.01,1.01,1.00,1.00,1.00,1.01,1.02,1.02,1.02]},
+  mw:{label:'Midwest general',reefer:[0.96,0.96,0.99,1.02,1.04,1.03,1.01,1.02,1.04,1.05,1.03,0.97],van:[0.95,0.96,1.00,1.02,1.03,1.02,1.01,1.02,1.04,1.06,1.04,0.97],flatbed:[0.94,0.95,1.01,1.05,1.08,1.07,1.04,1.03,1.05,1.04,1.00,0.95]},
+  ne:{label:'Northeast general',reefer:[0.96,0.97,1.00,1.02,1.04,1.03,1.00,0.99,1.01,1.05,1.06,1.01],van:[0.96,0.97,1.00,1.01,1.03,1.02,1.00,0.99,1.01,1.05,1.07,1.02],flatbed:[0.95,0.96,1.02,1.05,1.07,1.06,1.02,1.01,1.03,1.03,1.00,0.95]},
+  sw:{label:'Southwest / Texas general',reefer:[0.97,0.97,1.00,1.02,1.03,1.02,0.99,0.99,1.01,1.02,1.02,0.98],van:[0.97,0.97,1.00,1.02,1.03,1.02,0.99,0.99,1.01,1.02,1.02,0.98],flatbed:[0.97,0.98,1.01,1.04,1.06,1.05,1.01,1.00,1.02,1.02,1.00,0.96]},
+  national:{label:'National average',reefer:[0.95,0.96,0.99,1.02,1.05,1.04,1.00,0.99,1.01,1.03,1.04,0.98],van:[0.95,0.96,0.99,1.02,1.04,1.03,1.00,0.99,1.01,1.03,1.05,0.99],flatbed:[0.95,0.96,1.01,1.04,1.06,1.05,1.02,1.01,1.03,1.03,1.01,0.96]}
+};
+
+let msAdvOpen = false;
+
+function msToglAdv(){
+  msAdvOpen = !msAdvOpen;
+  document.getElementById('ms-adv-body').classList.toggle('open', msAdvOpen);
+  document.getElementById('ms-adv-arrow').classList.toggle('open', msAdvOpen);
+}
+
+function msUpdateAdvCount(){
+  const on = [
+    document.getElementById('ms-diesel-enabled').checked,
+    document.getElementById('ms-cap-enabled').checked,
+    document.getElementById('ms-seas-enabled').checked
+  ].filter(Boolean).length;
+  const el = document.getElementById('ms-adv-count');
+  el.textContent = on + ' on';
+  el.style.display = on > 0 ? 'inline' : 'none';
+}
+
+// ── Diesel ────────────────────────────────────────────────────────────────
+function msToggleDiesel(){
+  const on = document.getElementById('ms-diesel-enabled').checked;
+  document.getElementById('ms-diesel-controls').style.display = on ? 'block' : 'none';
+  document.getElementById('ms-diesel-warn').classList.toggle('show', on);
+  document.getElementById('ms-diesel-lbl').textContent = on ? 'On' : 'Off';
+  document.getElementById('ms-diesel-lbl').style.color = on ? 'var(--accent)' : '';
+  msUpdateAdvCount(); calcTotal();
+}
+
+function msGetDieselMult(){
+  if(!document.getElementById('ms-diesel-enabled').checked) return 1.0;
+  return 1 + ((parseFloat(document.getElementById('ms-diesel-price').value)||3.85) - 3.50) / 3.50 * 0.35;
+}
+
+const MS_EIA_REGIONS = {R10:'East Coast',R20:'Midwest',R30:'Gulf Coast',R40:'Rocky Mountain',R50:'West Coast',NUS:'National Avg'};
+
+async function msFetchDiesel(){
+  const btn = document.getElementById('ms-eia-btn');
+  const status = document.getElementById('ms-eia-status');
+  const region = document.getElementById('ms-diesel-region').value;
+  btn.textContent = '...'; btn.disabled = true;
+  status.textContent = 'Fetching from EIA...'; status.style.color = 'var(--text3)';
+  try {
+    // Check shared cache first
+    let price, period;
+    const cached = (() => { try{ const c=JSON.parse(sessionStorage.getItem('qfc_diesel_cache')||'{}'); if(c.price&&c.ts&&(Date.now()-c.ts)<1800000) return c; }catch(e){} return null; })();
+    if(cached && region === 'NUS'){
+      price = cached.price; period = cached.period;
+    } else {
+      const resp = await fetch(`/.netlify/functions/diesel-price?region=${region}`);
+      if(!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      if(data.error) throw new Error(data.error);
+      price = parseFloat(data.price); period = data.period;
+      if(isNaN(price)) throw new Error('Invalid price');
+      if(region === 'NUS') try{ sessionStorage.setItem('qfc_diesel_cache', JSON.stringify({price, period, ts:Date.now()})); }catch(e){}
+    }
+    document.getElementById('ms-diesel-price').value = price.toFixed(2);
+    const clean = (period||'').replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+    const dateStr = new Date(clean+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    status.textContent = `✓ $${price.toFixed(2)}/gal · ${MS_EIA_REGIONS[region]} · Week of ${dateStr}`;
+    status.style.color = 'var(--green)';
+    calcTotal();
+  } catch(e){
+    status.textContent = '⚠ Could not fetch — enter price manually';
+    status.style.color = 'var(--red)';
+  } finally {
+    btn.textContent = '⚡ Live'; btn.disabled = false;
+  }
+}
+
+// ── Capacity ──────────────────────────────────────────────────────────────
+function msToggleCapacity(){
+  const on = document.getElementById('ms-cap-enabled').checked;
+  document.getElementById('ms-cap-controls').style.display = on ? 'block' : 'none';
+  document.getElementById('ms-cap-lbl').textContent = on ? 'On' : 'Off';
+  document.getElementById('ms-cap-lbl').style.color = on ? 'var(--accent)' : '';
+  msUpdateCapMults(); msUpdateAdvCount(); calcTotal();
+}
+
+function msGetCapacityMult(trailer){
+  if(!document.getElementById('ms-cap-enabled').checked) return 1.0;
+  const ids = {van:'ms-lt-van', reefer:'ms-lt-reefer', flatbed:'ms-lt-flatbed'};
+  const lt = parseFloat(document.getElementById(ids[trailer])?.value) || MS_LT_BASELINE[trailer];
+  return 1 + Math.min(0.12, Math.max(-0.12, ((lt - MS_LT_BASELINE[trailer]) / MS_LT_BASELINE[trailer]) * 0.15));
+}
+
+function msUpdateCapMults(){
+  ['van','reefer','flatbed'].forEach(t => {
+    const ids = {van:'ms-lt-van', reefer:'ms-lt-reefer', flatbed:'ms-lt-flatbed'};
+    const lt = parseFloat(document.getElementById(ids[t])?.value) || MS_LT_BASELINE[t];
+    const m = 1 + Math.min(0.12, Math.max(-0.12, ((lt - MS_LT_BASELINE[t]) / MS_LT_BASELINE[t]) * 0.15));
+    const el = document.getElementById('ms-lt-'+t+'-mult');
+    if(el){ el.textContent = m.toFixed(3)+'×'; el.style.color = m>1?'#f87171':m<1?'#4ade80':'var(--text3)'; }
+  });
+}
+
+// ── Seasonality ───────────────────────────────────────────────────────────
+function msToggleSeason(){
+  const on = document.getElementById('ms-seas-enabled').checked;
+  document.getElementById('ms-seas-controls').style.display = on ? 'block' : 'none';
+  document.getElementById('ms-seas-lbl').textContent = on ? 'On' : 'Off';
+  document.getElementById('ms-seas-lbl').style.color = on ? 'var(--accent)' : '';
+  msUpdateSeasonCalendar(); msUpdateAdvCount(); calcTotal();
+}
+
+function msGetSeasonMult(trailer){
+  if(!document.getElementById('ms-seas-enabled').checked) return 1.0;
+  const region = document.getElementById('ms-seas-region').value;
+  const profile = MS_SEASON_PROFILES[region];
+  if(!profile) return 1.0;
+  const month = new Date().getMonth();
+  return (profile[trailer] || profile.van)[month];
+}
+
+function msUpdateSeasonCalendar(){
+  if(!document.getElementById('ms-seas-enabled').checked) return;
+  const region = document.getElementById('ms-seas-region').value;
+  const profile = MS_SEASON_PROFILES[region];
+  if(!profile) return;
+  const trailer = document.getElementById('ms-trailer')?.value || 'reefer';
+  const month = new Date().getMonth();
+  const curve = profile[trailer] || profile.van;
+  document.getElementById('ms-seas-label').textContent = profile.label;
+  const cal = document.getElementById('ms-seas-calendar');
+  if(cal) cal.innerHTML = curve.map((v,i) => {
+    const active = i === month;
+    const bg = v>1.05?'rgba(239,68,68,.18)':v>1.02?'rgba(240,165,0,.15)':v<0.97?'rgba(34,197,94,.15)':'rgba(255,255,255,.04)';
+    const tc = v>1.05?'#f87171':v>1.02?'var(--accent)':v<0.97?'#4ade80':'var(--text3)';
+    const border = active ? `2px solid ${tc}` : '1px solid transparent';
+    return `<div class="seas-month" style="background:${bg};border:${border};color:${tc}">${v.toFixed(2)}</div>`;
+  }).join('');
+}
+
 // ── Calculation ────────────────────────────────────────────────────────────
 function calcTotal(){
   const baseRate   = parseFloat(document.getElementById('ms-rate').value) || 3.15;
@@ -1029,8 +1325,12 @@ function calcTotal(){
   const extraStops = stops.filter(s => !freeStopIds.has(s.id));
   const addlStops  = extraStops.length;
 
-  // Linehaul
-  const linehaul = totalMiles > 0 ? baseRate * cm * totalMiles : 0;
+  // Linehaul — apply advanced multipliers
+  const dieselMult   = msGetDieselMult();
+  const capacityMult = msGetCapacityMult(document.getElementById('ms-trailer')?.value || 'reefer');
+  const seasonMult   = msGetSeasonMult(document.getElementById('ms-trailer')?.value || 'reefer');
+  const linehaul = totalMiles > 0 ? baseRate * cm * dieselMult * capacityMult * seasonMult * totalMiles : 0;
+  msUpdateCapMults();
 
   // Stop charges — use per-stop overrides if set, handle flat vs per-mile
   const stopChargesTotal = addlStops > 0
