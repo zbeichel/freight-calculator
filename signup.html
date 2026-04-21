@@ -277,35 +277,20 @@ function hideMessages(){
 }
 
 // ── Google OAuth ───────────────────────────────────────────────────────────
-async function handleGoogleAuth(){
-  try {
-    // Store which tab they were on so we know signup vs login after redirect
-    const isSignup = document.getElementById('tab-signup').classList.contains('active');
-    if(isSignup){
-      if(!document.getElementById('su-agree').checked){
-        showError('Please agree to the Terms of Service and Privacy Policy to continue.');
-        return;
-      }
-      localStorage.setItem('qfc_google_intent', 'signup');
-    } else {
-      localStorage.setItem('qfc_google_intent', 'login');
+function handleGoogleAuth(){
+  const isSignup = document.getElementById('tab-signup').classList.contains('active');
+  if(isSignup){
+    if(!document.getElementById('su-agree').checked){
+      showError('Please agree to the Terms of Service and Privacy Policy to continue.');
+      return;
     }
-
-    const resp = await fetch(`${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(window.location.origin + '/signup.html?google=return')}`, {
-      method: 'GET',
-      headers: { 'apikey': SUPABASE_KEY }
-    });
-
-    // Supabase returns the Google OAuth URL — redirect to it
-    if(resp.url && resp.url.includes('accounts.google.com')){
-      window.location.href = resp.url;
-    } else {
-      // Standard Supabase OAuth redirect
-      window.location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(window.location.origin + '/signup.html?google=return')}`;
-    }
-  } catch(e){
-    showError('Could not connect to Google. Please try again.');
+    localStorage.setItem('qfc_google_intent', 'signup');
+  } else {
+    localStorage.setItem('qfc_google_intent', 'login');
   }
+  // Navigate directly — do not fetch(), Supabase OAuth is a redirect not an API call
+  const redirectTo = encodeURIComponent(window.location.origin + '/signup.html?google=return');
+  window.location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${redirectTo}`;
 }
 
 // ── Handle Google OAuth return ─────────────────────────────────────────────
