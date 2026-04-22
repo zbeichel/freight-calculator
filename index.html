@@ -2270,6 +2270,8 @@ function updateProAccountBtn(){
       btn.href = '/signup.html';
       btn.classList.remove('logged-in');
     }
+    // Re-apply theme button styling in case it got reset
+    updateThemeBtn();
   } catch(e){}
 }
 
@@ -2312,6 +2314,8 @@ function updateProUI(){
   if(lanesTag) lanesTag.style.display = isProUser ? 'none' : '';
   updateQuoteLogGate();
   if(isProUser) loadQuoteLogFromSupabase();
+  // Re-apply theme button styling in case Pro UI update reset it
+  updateThemeBtn();
 }
 
 // ── LTL class rates ($/CWT) — industry standard national averages ─────────
