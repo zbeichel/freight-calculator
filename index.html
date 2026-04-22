@@ -1047,6 +1047,14 @@ html.light .hos-day-header{background:var(--card2)}
               <input type="number" id="p-hours" min="0.5" step="0.5" placeholder="e.g. 11" oninput="calcProfit()" />
             </div>
             <div class="field">
+              <label>Pickup wait <span style="font-size:9px;color:var(--text3);font-weight:400">(hrs)</span></label>
+              <input type="number" id="p-wait-pickup" min="0" step="0.5" value="0" placeholder="e.g. 2" oninput="calcProfit()" />
+            </div>
+            <div class="field">
+              <label>Delivery wait <span style="font-size:9px;color:var(--text3);font-weight:400">(hrs)</span></label>
+              <input type="number" id="p-wait-delivery" min="0" step="0.5" value="0" placeholder="e.g. 1" oninput="calcProfit()" />
+            </div>
+            <div class="field">
               <label>Pickup Date</label>
               <input type="date" id="p-pickup" onchange="calcProfTransit();calcProfit()" />
             </div>
@@ -1165,6 +1173,8 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="grid2" id="route-grid">
           <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" onblur="formatLocation(this)" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';if(!ratesManualOverride)applyRegionalRates();clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
           <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" onblur="formatLocation(this)" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Origin ZIP <span style="font-size:9px;color:var(--text3);font-weight:400">required</span></label><input type="text" id="origin-zip" placeholder="e.g. 32110" maxlength="5" autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'');lastLookedUpOrig='';lastLookedUpDest='';clearTimeout(lookupTimer);if(this.value.length===5)lookupTimer=setTimeout(tryLookupMiles,400)" /></div>
+          <div class="field"><label>Destination ZIP <span style="font-size:9px;color:var(--text3);font-weight:400">required</span></label><input type="text" id="dest-zip" placeholder="e.g. 28201" maxlength="5" autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'');lastLookedUpOrig='';lastLookedUpDest='';clearTimeout(lookupTimer);if(this.value.length===5)lookupTimer=setTimeout(tryLookupMiles,400)" /></div>
         </div>
 
         <!-- Miles status row -->
@@ -1804,7 +1814,7 @@ html.light .hos-day-header{background:var(--card2)}
           <div class="prof-metric" id="pm-pph">
             <div class="prof-metric-label">Profit/hour</div>
             <div class="prof-metric-val" id="pv-pph">—</div>
-            <div class="prof-metric-sub">drive time</div>
+            <div class="prof-metric-sub" id="pv-pph-sub">drive + wait time</div>
           </div>
           <div class="prof-metric" id="pm-cost">
             <div class="prof-metric-label">Total cost</div>
@@ -2511,6 +2521,8 @@ function clearCalculator(){
   document.getElementById('weight').value = '';
   document.getElementById('pickup').valueAsDate = new Date();
   document.getElementById('delivery').value = '';
+  const ozEl = document.getElementById('origin-zip'); if(ozEl) ozEl.value = '';
+  const dzEl = document.getElementById('dest-zip');   if(dzEl) dzEl.value = '';
 
   // Reset state
   lastLookedUpOrig = ''; lastLookedUpDest = '';
@@ -3881,14 +3893,17 @@ async function tryProfLookup(){
 }
 
 function calcProfit(){
-  const rate   = parseFloat(document.getElementById('p-rate').value)||0;
-  const miles  = parseFloat(document.getElementById('p-miles').value)||0;
-  const empty  = parseFloat(document.getElementById('p-empty').value)||0;
-  const hours  = parseFloat(document.getElementById('p-hours').value)||0;
-  const fuel   = parseFloat(document.getElementById('p-fuel').value)||0;
-  const driver = parseFloat(document.getElementById('p-driver').value)||0;
-  const fixed  = parseFloat(document.getElementById('p-fixed').value)||0;
-  const other  = parseFloat(document.getElementById('p-other').value)||0;
+  const rate        = parseFloat(document.getElementById('p-rate').value)||0;
+  const miles       = parseFloat(document.getElementById('p-miles').value)||0;
+  const empty       = parseFloat(document.getElementById('p-empty').value)||0;
+  const driveHours  = parseFloat(document.getElementById('p-hours').value)||0;
+  const waitPickup  = parseFloat(document.getElementById('p-wait-pickup').value)||0;
+  const waitDelivery= parseFloat(document.getElementById('p-wait-delivery').value)||0;
+  const hours       = driveHours + waitPickup + waitDelivery;
+  const fuel        = parseFloat(document.getElementById('p-fuel').value)||0;
+  const driver      = parseFloat(document.getElementById('p-driver').value)||0;
+  const fixed       = parseFloat(document.getElementById('p-fixed').value)||0;
+  const other       = parseFloat(document.getElementById('p-other').value)||0;
 
   if(!rate || !miles){ return; }
 
@@ -3932,6 +3947,19 @@ function calcProfit(){
   document.getElementById('pv-rpm').textContent = fmtC(rpm);
   document.getElementById('pv-cpm').textContent = fmtC(cpm);
   document.getElementById('pv-pph').textContent = hours>0 ? (pph>=0?'':'-')+fmtD(pph) : '—';
+  // Show hours breakdown in sub-label
+  const pphSub = document.getElementById('pv-pph-sub');
+  if(pphSub){
+    if(hours > 0){
+      let parts = [];
+      if(driveHours > 0) parts.push(driveHours + 'h drive');
+      if(waitPickup > 0) parts.push(waitPickup + 'h pickup wait');
+      if(waitDelivery > 0) parts.push(waitDelivery + 'h delivery wait');
+      pphSub.textContent = parts.length > 1 ? parts.join(' + ') : (parts[0] || 'total hours');
+    } else {
+      pphSub.textContent = 'enter hours above';
+    }
+  }
   document.getElementById('pv-cost').textContent = fmtD(totalCost);
 
   // Bar
@@ -4714,7 +4742,10 @@ async function saveQuote(){
   const entry = {
     id: Date.now(),
     date: dateStr,
-    orig, dest, miles, trailer,
+    orig, dest,
+    origZip: document.getElementById('origin-zip')?.value.trim() || '',
+    destZip:  document.getElementById('dest-zip')?.value.trim()  || '',
+    miles, trailer,
     commodityKey: commodity,
     commodity: CLABEL[commodity],
     margin: (marginPct*100).toFixed(0)+'%',
@@ -4860,6 +4891,8 @@ function loadQuoteIntoCalc(id){
   // Route
   if(q.orig) document.getElementById('origin').value = q.orig;
   if(q.dest) document.getElementById('dest').value   = q.dest;
+  if(q.origZip){ const el = document.getElementById('origin-zip'); if(el) el.value = q.origZip; }
+  if(q.destZip){ const el = document.getElementById('dest-zip');   if(el) el.value = q.destZip; }
 
   // Miles — set manually so Google API doesn't override it
   if(q.miles){
@@ -5286,17 +5319,30 @@ function routeCacheKey(a, b){ return a.toLowerCase().trim() + '||' + b.toLowerCa
 
 async function tryLookupMiles(){
   if(manualMiles) return;
-  const orig = document.getElementById('origin').value.trim();
-  const dest  = document.getElementById('dest').value.trim();
+  const orig    = document.getElementById('origin').value.trim();
+  const dest    = document.getElementById('dest').value.trim();
+  const origZip = document.getElementById('origin-zip').value.trim();
+  const destZip = document.getElementById('dest-zip').value.trim();
+
   if(!orig || !dest || orig.length < 3 || dest.length < 3) return;
 
-  // Skip if this exact pair was already looked up — cursor movement won't re-fire
-  const origKey = orig.toLowerCase();
-  const destKey  = dest.toLowerCase();
+  // Require valid 5-digit zips before firing API call
+  if(origZip.length !== 5 || destZip.length !== 5){
+    showMilesStatus('📬', 'Enter origin and destination ZIP codes to calculate miles', 'var(--text3)');
+    return;
+  }
+
+  // Build precise addresses using zip — prevents bad city names from returning wrong routes
+  const origAddr = `${orig} ${origZip}, USA`;
+  const destAddr = `${dest} ${destZip}, USA`;
+
+  // Skip if this exact pair was already looked up
+  const origKey = origAddr.toLowerCase();
+  const destKey = destAddr.toLowerCase();
   if(origKey === lastLookedUpOrig && destKey === lastLookedUpDest) return;
 
   // Check route cache first
-  const cKey = routeCacheKey(orig, dest);
+  const cKey = routeCacheKey(origAddr, destAddr);
   if(ROUTE_CACHE[cKey]){
     const cached = ROUTE_CACHE[cKey];
     lastLookedUpOrig = origKey; lastLookedUpDest = destKey;
@@ -5334,8 +5380,8 @@ async function tryLookupMiles(){
           'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.legs.startLocation,routes.legs.endLocation'
         },
         body: JSON.stringify({
-          origin: { address: orig + ', USA' },
-          destination: { address: dest + ', USA' },
+          origin: { address: origAddr },
+          destination: { address: destAddr },
           travelMode: 'DRIVE',
           routingPreference: 'TRAFFIC_UNAWARE', // Essentials tier — no traffic = stays in free cap
           units: 'IMPERIAL'
@@ -5374,12 +5420,12 @@ async function tryLookupMiles(){
     setMilesSource('google');
     showMilesStatus('✅', `${miles.toLocaleString()} miles · ${driveText} drive (Google Routes)`, 'var(--green)');
     // Cache so repeat cursor movements don't re-fire the API call
-    lastLookedUpOrig = orig.toLowerCase();
-    lastLookedUpDest = dest.toLowerCase();
+    lastLookedUpOrig = origAddr.toLowerCase();
+    lastLookedUpDest = destAddr.toLowerCase();
     lastDriveSecs    = driveSecs;
     lastDriveText    = driveText;
     // Store in route cache so same pair never fires again this session
-    ROUTE_CACHE[routeCacheKey(orig, dest)] = { miles, driveSecs, driveText, origCoords, destCoords };
+    ROUTE_CACHE[routeCacheKey(origAddr, destAddr)] = { miles, driveSecs, driveText, origCoords, destCoords };
     calcHOS(driveSecs, driveText,
       document.getElementById('origin').value.trim(),
       document.getElementById('dest').value.trim());
