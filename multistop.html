@@ -844,10 +844,12 @@ function initMsPlacesAutocomplete(){
 }
 
 function onMsGMapsLoaded(){
-  // Attach to any existing stop inputs
-  document.querySelectorAll('.stop-input[type="text"]').forEach(input => {
-    if(!input.dataset.acAttached) attachMsAutocomplete(input);
-  });
+  // Small delay to ensure renderStops has completed
+  setTimeout(() => {
+    document.querySelectorAll('.stop-input[type="text"], input.stop-input:not([type="date"]):not([type="number"])').forEach(input => {
+      if(!input.dataset.acAttached) attachMsAutocomplete(input);
+    });
+  }, 300);
 }
 
 function attachMsAutocomplete(input){
@@ -1002,9 +1004,12 @@ function renderStops(){
 
     list.appendChild(div);
 
-    // Attach Places Autocomplete to the location input if Maps is loaded
-    const locInput = div.querySelector('.stop-input[type="text"]');
-    if(locInput) attachMsAutocomplete(locInput);
+    // Attach Places Autocomplete — retry after delay if Maps not loaded yet
+    const locInput = div.querySelector('input.stop-input:not([type="date"]):not([type="number"])');
+    if(locInput){
+      if(window.google?.maps?.places) attachMsAutocomplete(locInput);
+      else setTimeout(() => attachMsAutocomplete(locInput), 1500);
+    }
 
     // Leg connector
     if(idx < stops.length - 1){
@@ -1166,6 +1171,10 @@ function updateStopWeight(id, val){
 }
 
 // ── Mileage lookups ────────────────────────────────────────────────────────
+// ── Route cache — avoids re-calling Routes API for same leg pairs ──────────
+const MS_ROUTE_CACHE = {};
+function msRouteCacheKey(a, b){ return a.toLowerCase().trim() + '||' + b.toLowerCase().trim(); }
+
 async function lookupLegMiles(id){
   const idx = stops.findIndex(s => s.id === id);
   if(idx < 0 || idx >= stops.length - 1) return;
@@ -1173,6 +1182,19 @@ async function lookupLegMiles(id){
   const from = stops[idx].location?.trim();
   const to   = stops[idx+1].location?.trim();
   if(!from || !to) return;
+
+  // Check cache first — skip API call if already looked up this session
+  const cKey = msRouteCacheKey(from, to);
+  if(MS_ROUTE_CACHE[cKey]){
+    const miles = MS_ROUTE_CACHE[cKey];
+    legMiles[id] = miles; stops[idx].miles = miles;
+    const badge = document.getElementById(`leg-badge-${id}`);
+    const status = document.getElementById(`leg-status-${id}`);
+    if(badge){ badge.className = 'leg-miles-badge loaded'; badge.textContent = `${miles.toLocaleString()} mi`; }
+    if(status){ status.className = 'miles-status ok'; status.textContent = `✅ ${miles.toLocaleString()} mi to next stop`; }
+    calcTotal();
+    return;
+  }
 
   const badge = document.getElementById(`leg-badge-${id}`);
   const status = document.getElementById(`leg-status-${id}`);
@@ -1205,6 +1227,8 @@ async function lookupLegMiles(id){
     const miles = Math.round(meters / 1609.34);
     legMiles[id] = miles;
     stops[idx].miles = miles;
+    // Cache for this session so same leg pair never fires again
+    MS_ROUTE_CACHE[msRouteCacheKey(from, to)] = miles;
 
     if(badge){ badge.className = 'leg-miles-badge loaded'; badge.textContent = `${miles.toLocaleString()} mi`; }
     if(status){ status.className = 'miles-status ok'; status.textContent = `✅ ${miles.toLocaleString()} mi to next stop`; }
@@ -1218,9 +1242,19 @@ async function lookupLegMiles(id){
 function recalcAllLegs(){
   stops.forEach((s, idx) => {
     if(idx < stops.length - 1 && s.location && stops[idx+1].location){
-      lookupLegMiles(s.id);
+      // Skip if this leg pair is already cached — no API call needed
+      const cKey = msRouteCacheKey(s.location, stops[idx+1].location);
+      if(MS_ROUTE_CACHE[cKey]){
+        const miles = MS_ROUTE_CACHE[cKey];
+        legMiles[s.id] = miles; s.miles = miles;
+        const badge = document.getElementById(`leg-badge-${s.id}`);
+        if(badge){ badge.className = 'leg-miles-badge loaded'; badge.textContent = `${miles.toLocaleString()} mi`; }
+      } else {
+        lookupLegMiles(s.id);
+      }
     }
   });
+  calcTotal();
 }
 
 // ── Advanced Adjustments (independent of main calculator) ─────────────────

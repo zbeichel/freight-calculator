@@ -5271,6 +5271,10 @@ function fmtDuration(seconds){
   return h + ' hr ' + m + ' min';
 }
 
+// ── Route cache — avoids re-calling Routes API for same city pairs ─────────
+const ROUTE_CACHE = {};
+function routeCacheKey(a, b){ return a.toLowerCase().trim() + '||' + b.toLowerCase().trim(); }
+
 async function tryLookupMiles(){
   if(manualMiles) return;
   const orig = document.getElementById('origin').value.trim();
@@ -5281,6 +5285,20 @@ async function tryLookupMiles(){
   const origKey = orig.toLowerCase();
   const destKey  = dest.toLowerCase();
   if(origKey === lastLookedUpOrig && destKey === lastLookedUpDest) return;
+
+  // Check route cache first
+  const cKey = routeCacheKey(orig, dest);
+  if(ROUTE_CACHE[cKey]){
+    const cached = ROUTE_CACHE[cKey];
+    lastLookedUpOrig = origKey; lastLookedUpDest = destKey;
+    document.getElementById('miles').value = cached.miles;
+    setMilesSource('google');
+    showMilesStatus('✅', `${cached.miles.toLocaleString()} miles · ${cached.driveText} drive (Google Maps)`, 'var(--green)');
+    origCoords = cached.origCoords; destCoords = cached.destCoords;
+    lastDriveSecs = cached.driveSecs; lastDriveText = cached.driveText;
+    calc(); updateHOS(); captureLaneRate(); triggerWeatherUpdate();
+    return;
+  }
 
   // Load key if not yet fetched
   if(!GMAPS_KEY) {
@@ -5351,6 +5369,8 @@ async function tryLookupMiles(){
     lastLookedUpDest = dest.toLowerCase();
     lastDriveSecs    = driveSecs;
     lastDriveText    = driveText;
+    // Store in route cache so same pair never fires again this session
+    ROUTE_CACHE[routeCacheKey(orig, dest)] = { miles, driveSecs, driveText, origCoords, destCoords };
     calcHOS(driveSecs, driveText,
       document.getElementById('origin').value.trim(),
       document.getElementById('dest').value.trim());
