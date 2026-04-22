@@ -1531,10 +1531,10 @@ html.light .hos-day-header{background:var(--card2)}
           </label>
         </div>
         <div class="adv-note" style="margin-bottom:8px">
-          <strong>DAT spot rates include fuel.</strong> Only enable if quoting off contract rates or adding a manual fuel cushion. Enabling with a current DAT spot rate will double-count fuel.
+          <strong>Adds a per-mile surcharge using the DAT RateView FSC formula</strong> (EIA price − $1.25 baseline) ÷ 6.5 MPG. DAT spot rates already include fuel — enable when quoting off contract rates or when your carrier requires a separate FSC.
         </div>
         <div class="adv-warn" id="diesel-warn">
-          <strong style="color:var(--accent)">Surcharge active.</strong> Best used with contract rates only — not current DAT spot rates.
+          <strong style="color:var(--accent)">FSC active</strong> — DAT RateView formula. Best used with contract rates; enabling on DAT spot rates may double-count fuel.
         </div>
         <div id="diesel-controls" style="display:none;margin-bottom:4px">
           <!-- Region selector -->
@@ -1563,7 +1563,7 @@ html.light .hos-day-header{background:var(--card2)}
             </button>
           </div>
           <div id="eia-status" style="font-size:11px;color:var(--text3);margin-bottom:4px"></div>
-          <div class="mini-sub">Baseline $3.50/gal · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
+          <div id="diesel-fsc-display" style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:4px"></div><div class="mini-sub">DAT RateView formula: (EIA price − $1.25) ÷ 6.5 MPG · <a href="https://iq.support.dat.com/1-rateview-d8f11ff2/fuel-surcharge-calculation-in-rateview-81e5c885" target="_blank" style="color:var(--blue);text-decoration:none">DAT source ↗</a> · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
         </div>
 
         <!-- Capacity -->
@@ -4314,13 +4314,30 @@ const rateDateEl = document.getElementById('rate-date');
 if(rateDateEl) rateDateEl.addEventListener('input',saveRates);
 
 // ── Diesel ────────────────────────────────────────────────────────────────
+function updateDieselFSCDisplay(){
+  const el = document.getElementById('diesel-fsc-display');
+  if(!el) return;
+  const fsc = getDieselFSC();
+  const on = document.getElementById('diesel-enabled').checked;
+  const price = parseFloat(document.getElementById('diesel-price').value) || 3.85;
+  if(on && fsc > 0){
+    el.textContent = `+$${fsc.toFixed(2)}/mile FSC at $${price.toFixed(2)}/gal`;
+  } else if(on && fsc === 0){
+    el.textContent = `Diesel price below table minimum — no surcharge`;
+    el.style.color = 'var(--text3)';
+  } else {
+    el.textContent = '';
+  }
+  if(on && fsc > 0) el.style.color = 'var(--accent)';
+}
+
 function toggleDiesel(){
   const on=document.getElementById('diesel-enabled').checked;
   document.getElementById('diesel-controls').style.display=on?'block':'none';
   document.getElementById('diesel-warn').classList.toggle('show',on);
   document.getElementById('diesel-tog-lbl').textContent=on?'On':'Off';
   document.getElementById('diesel-tog-lbl').style.color=on?'var(--accent)':'';
-  saveDiesel(); updateAdvCount(); calc();
+  saveDiesel(); updateAdvCount(); updateDieselFSCDisplay(); calc();
 }
 function saveDiesel(){
   try{localStorage.setItem('frc_diesel',JSON.stringify({
@@ -4328,6 +4345,7 @@ function saveDiesel(){
     region:document.getElementById('diesel-region').value,
     enabled:document.getElementById('diesel-enabled').checked
   }));}catch(e){}
+  updateDieselFSCDisplay();
 }
 
 // ── EIA Live Diesel Fetch ─────────────────────────────────────────────────
@@ -4434,10 +4452,20 @@ async function fetchLTLDiesel(){
     btn.disabled = false;
   }
 }
-function getDieselMult(){
-  if(!document.getElementById('diesel-enabled').checked)return 1.0;
-  return 1+((parseFloat(document.getElementById('diesel-price').value)||3.85)-3.50)/3.50*0.35;
+// ── DOE FSC Formula (industry standard: 6.5 MPG / $1.20/gal base) ───────
+// Source: FreightWaves, OOIDA, DOE 190-N methodology
+// Formula: (current price - baseline) ÷ MPG
+const DOE_FSC_MPG      = 6.5;
+const DOE_FSC_BASELINE = 1.25; // DAT RateView standard baseline
+
+function getDieselFSC(){
+  if(!document.getElementById('diesel-enabled').checked) return 0;
+  const price = parseFloat(document.getElementById('diesel-price').value) || 3.85;
+  if(price <= DOE_FSC_BASELINE) return 0; // no surcharge below baseline
+  return Math.round(((price - DOE_FSC_BASELINE) / DOE_FSC_MPG) * 100) / 100;
 }
+
+function getDieselMult(){ return 1.0; } // legacy shim — kept for LTL path
 
 // ── Capacity ──────────────────────────────────────────────────────────────
 function toggleCapacity(){
@@ -4539,8 +4567,9 @@ function calc(){
   updateCapMults();
   updateSeasonCalendar(trailer,pickup);
 
-  const adjRpm=base*wt.m*dm.m*cm*dieselM*capM*seasM;
-  const cost=miles?adjRpm*miles:0;
+  const adjRpm = base*wt.m*dm.m*cm*capM*seasM;
+  const fscPerMile = getDieselFSC();
+  const cost = miles ? (adjRpm + fscPerMile) * miles : 0;
   const marginAmt=cost*marginPct;
   const transitAdj = transitChargeAdded ? transitChargeAmount : 0;
   const quote=(cost+transitAdj)*(1+marginPct);
@@ -4638,8 +4667,8 @@ async function saveQuote(){
   const base=BASE[trailer];
   const wt=weight?wTier(weight):{m:1.0};
   const dm=dMult(miles);
-  const adjRpm=base*wt.m*dm.m*CMULT[commodity]*getDieselMult()*getCapacityMult(trailer)*getSeasonMult(trailer,pickup);
-  const cost=adjRpm*miles;
+  const adjRpm=base*wt.m*dm.m*CMULT[commodity]*getCapacityMult(trailer)*getSeasonMult(trailer,pickup);
+  const cost=(adjRpm + getDieselFSC())*miles;
   const quote=cost*(1+marginPct);
   const qRpm=quote/miles;
   const dateStr=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});

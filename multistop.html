@@ -425,7 +425,7 @@ footer a:hover{color:var(--accent)}
               <span class="tog-label" id="ms-diesel-lbl">Off</span>
             </label>
           </div>
-          <div class="adv-note" style="margin-bottom:8px"><strong>DAT spot rates include fuel.</strong> Only enable if quoting off contract rates or adding a manual fuel cushion.</div>
+          <div class="adv-note" style="margin-bottom:8px"><strong>Adds a per-mile surcharge using the DAT RateView FSC formula</strong> (EIA price − $1.25 baseline) ÷ 6.5 MPG. Enable when quoting off contract rates or when your carrier requires a separate FSC.</div>
           <div class="adv-warn" id="ms-diesel-warn"><strong style="color:var(--accent)">Surcharge active.</strong> Best used with contract rates only.</div>
           <div id="ms-diesel-controls" style="display:none;margin-bottom:4px">
             <div class="mini-input-group" style="margin-bottom:10px">
@@ -447,7 +447,7 @@ footer a:hover{color:var(--accent)}
               <button onclick="msFetchDiesel()" id="ms-eia-btn" style="height:38px;padding:0 12px;background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--red);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s">⚡ Live</button>
             </div>
             <div id="ms-eia-status" style="font-size:11px;color:var(--text3);margin-bottom:4px"></div>
-            <div class="mini-sub">Baseline $3.50/gal · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
+            <div class="mini-sub">DAT RateView formula: (EIA price − $1.25) ÷ 6.5 MPG · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
           </div>
 
           <!-- Capacity -->
@@ -1220,10 +1220,13 @@ function msToggleDiesel(){
   msUpdateAdvCount(); calcTotal();
 }
 
-function msGetDieselMult(){
-  if(!document.getElementById('ms-diesel-enabled').checked) return 1.0;
-  return 1 + ((parseFloat(document.getElementById('ms-diesel-price').value)||3.85) - 3.50) / 3.50 * 0.35;
+function msGetDieselFSC(){
+  if(!document.getElementById('ms-diesel-enabled').checked) return 0;
+  const price = parseFloat(document.getElementById('ms-diesel-price').value) || 3.85;
+  if(price <= 1.25) return 0;
+  return Math.round(((price - 1.25) / 6.5) * 100) / 100;
 }
+function msGetDieselMult(){ return 1.0; } // legacy shim
 
 const MS_EIA_REGIONS = {R10:'East Coast',R20:'Midwest',R30:'Gulf Coast',R40:'Rocky Mountain',R50:'West Coast',NUS:'National Avg'};
 
@@ -1357,10 +1360,10 @@ function calcTotal(){
   const addlStops  = extraStops.length;
 
   // Linehaul — apply advanced multipliers
-  const dieselMult   = msGetDieselMult();
+  const fscPerMile   = msGetDieselFSC();
   const capacityMult = msGetCapacityMult(document.getElementById('ms-trailer')?.value || 'reefer');
   const seasonMult   = msGetSeasonMult(document.getElementById('ms-trailer')?.value || 'reefer');
-  const linehaul = totalMiles > 0 ? baseRate * cm * dieselMult * capacityMult * seasonMult * totalMiles : 0;
+  const linehaul = totalMiles > 0 ? (baseRate * cm * capacityMult * seasonMult + fscPerMile) * totalMiles : 0;
   msUpdateCapMults();
 
   // Stop charges — use per-stop overrides if set, handle flat vs per-mile
