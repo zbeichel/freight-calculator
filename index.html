@@ -477,13 +477,6 @@ header .pro-account-btn{ justify-self:end; }
 .seas-month{border-radius:4px;padding:5px 2px;text-align:center;font-size:11px;font-weight:700;font-family:'Space Grotesk',sans-serif}
 .seas-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:8px}
 
-/* Google Places Autocomplete dropdown theming */
-.pac-container{background:var(--card);border:1px solid var(--border2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.4);font-family:'Space Grotesk',sans-serif;margin-top:2px}
-.pac-item{padding:8px 12px;font-size:13px;color:var(--text2);cursor:pointer;border-top:1px solid var(--border)}
-.pac-item:hover,.pac-item-selected{background:var(--card2)}
-.pac-item-query{font-size:13px;color:var(--text);font-weight:600}
-.pac-matched{color:var(--accent)}
-.pac-icon{display:none}
 
 /* ── Results card ── */
 .result-card{
@@ -935,8 +928,8 @@ html.light .hos-day-header{background:var(--card2)}
 
 <!-- ── Floating theme button ── -->
 <button class="theme-btn-float" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">
-  <span class="theme-icon" id="theme-icon">🌙</span>
-  <span class="theme-label" id="theme-label">Dark</span>
+  <span class="theme-icon" id="theme-icon">☀️</span>
+  <span class="theme-label" id="theme-label">Light Mode</span>
 </button>
 
 <!-- ── Hero ── -->
@@ -954,6 +947,7 @@ html.light .hos-day-header{background:var(--card2)}
     <div class="card">
       <div class="card-header">
         <span class="card-title">Load Details</span>
+        <button onclick="clearCalculator()" style="font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;color:var(--text3);background:none;border:1px solid var(--border2);border-radius:20px;padding:4px 12px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">✕ Clear</button>
       </div>
       <div class="card-body">
 
@@ -2508,6 +2502,42 @@ const ACC = {
   appt: {label:'Appointment',          type:'flat', val:35   },
   haz:  {label:'Hazmat Fee',           type:'flat', val:175  },
 };
+
+function clearCalculator(){
+  // Inputs
+  document.getElementById('origin').value = '';
+  document.getElementById('dest').value   = '';
+  document.getElementById('miles').value  = '';
+  document.getElementById('weight').value = '';
+  document.getElementById('pickup').valueAsDate = new Date();
+  document.getElementById('delivery').value = '';
+
+  // Reset state
+  lastLookedUpOrig = ''; lastLookedUpDest = '';
+  origCoords = null; destCoords = null;
+  manualMiles = false;
+  ratesManualOverride = false;
+  transitChargeAdded = false;
+  setMilesSource('none');
+  showMilesStatus('', '', '');
+
+  // Reset selects to defaults
+  document.getElementById('trailer').value   = 'van';
+  document.getElementById('commodity').value = 'standard';
+  const marginEl = document.getElementById('margin');
+  if(marginEl) marginEl.value = '15';
+
+  // Reset ship type to FTL
+  setShipType('ftl');
+
+  // Hide load notes / extra fields
+  const notesEl = document.getElementById('load-notes-field');
+  if(notesEl) notesEl.value = '';
+
+  // Recalc
+  applyRegionalRates();
+  calc();
+}
 
 function setShipType(t){
   shipType=t;
@@ -5066,11 +5096,31 @@ function renderLog(){
 }
 
 // ── Theme toggle ─────────────────────────────────────────────────────────
+function updateThemeBtn(){
+  const btn = document.getElementById('theme-btn');
+  const isLight = document.documentElement.classList.contains('light');
+  if(!btn) return;
+  if(isLight){
+    // In light mode — show "Dark Mode" button with dark styling
+    btn.style.setProperty('background', '#1a1d24', 'important');
+    btn.style.setProperty('border-color', '#1a1d24', 'important');
+    btn.style.setProperty('color', '#e2e8f0', 'important');
+    btn.style.setProperty('box-shadow', '0 4px 16px rgba(0,0,0,.5)', 'important');
+  } else {
+    // In dark mode — show "Light Mode" button with cream styling
+    btn.style.setProperty('background', '#f0ede8', 'important');
+    btn.style.setProperty('border-color', '#c8c4bc', 'important');
+    btn.style.setProperty('color', '#1a1d24', 'important');
+    btn.style.setProperty('box-shadow', '0 4px 12px rgba(0,0,0,.15)', 'important');
+  }
+}
+
 function toggleTheme(){
   const isLight=document.documentElement.classList.toggle('light');
-  document.getElementById('theme-icon').textContent=isLight?'☀️':'🌙';
-  document.getElementById('theme-label').textContent=isLight?'Light':'Dark';
+  document.getElementById('theme-icon').textContent=isLight?'🌙':'☀️';
+  document.getElementById('theme-label').textContent=isLight?'Dark Mode':'Light Mode';
   try{localStorage.setItem('qfc_theme',isLight?'light':'dark');}catch(e){}
+  updateThemeBtn();
 }
 function loadTheme(){
   try{
@@ -5079,10 +5129,11 @@ function loadTheme(){
     const useLight=saved?saved==='light':preferLight;
     if(useLight){
       document.documentElement.classList.add('light');
-      document.getElementById('theme-icon').textContent='☀️';
-      document.getElementById('theme-label').textContent='Light';
+      document.getElementById('theme-icon').textContent='🌙';
+      document.getElementById('theme-label').textContent='Dark Mode';
     }
   }catch(e){}
+  updateThemeBtn();
 }
 
 // ── Load saved state ──────────────────────────────────────────────────────
@@ -5165,51 +5216,9 @@ async function loadGMapsKey(){
     if(!resp.ok) throw new Error('Could not load key');
     const data = await resp.json();
     GMAPS_KEY = data.key || null;
-    if(GMAPS_KEY) initPlacesAutocomplete();
   } catch(e) {
     GMAPS_KEY = null;
   }
-}
-
-function initPlacesAutocomplete(){
-  if(!window.google?.maps?.places) {
-    // Load the Google Maps JS library with Places
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}&libraries=places&callback=onGMapsLoaded`;
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-  } else {
-    onGMapsLoaded();
-  }
-}
-
-function onGMapsLoaded(){
-  attachAutocomplete('origin');
-  attachAutocomplete('dest');
-}
-
-function attachAutocomplete(inputId){
-  const input = document.getElementById(inputId);
-  if(!input || !window.google?.maps?.places) return;
-  const ac = new google.maps.places.Autocomplete(input, {
-    types: ['(cities)'],
-    componentRestrictions: { country: 'us' },
-    fields: ['formatted_address', 'geometry', 'address_components']
-  });
-  ac.addListener('place_changed', () => {
-    const place = ac.getPlace();
-    if(!place.address_components) return;
-    // Format as "City, ST"
-    const city  = place.address_components.find(c => c.types.includes('locality'))?.short_name || '';
-    const state = place.address_components.find(c => c.types.includes('administrative_area_level_1'))?.short_name || '';
-    if(city && state) input.value = `${city}, ${state}`;
-    // Trigger mile lookup
-    lastLookedUpOrig = ''; lastLookedUpDest = '';
-    origCoords = null; destCoords = null;
-    clearTimeout(lookupTimer);
-    tryLookupMiles();
-  });
 }
 let lookupTimer = null;
 let manualMiles = false;

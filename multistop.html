@@ -266,12 +266,6 @@ footer a:hover{color:var(--accent)}
 .seas-strip{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;margin:8px 0 4px}
 .seas-month{border-radius:4px;padding:5px 2px;text-align:center;font-size:11px;font-weight:700;font-family:'Space Grotesk',sans-serif}
 .seas-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:8px}
-.pac-container{background:var(--card);border:1px solid var(--border2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.4);font-family:'Space Grotesk',sans-serif;margin-top:2px}
-.pac-item{padding:8px 12px;font-size:13px;color:var(--text2);cursor:pointer;border-top:1px solid var(--border)}
-.pac-item:hover,.pac-item-selected{background:var(--card2)}
-.pac-item-query{font-size:13px;color:var(--text);font-weight:600}
-.pac-matched{color:var(--accent)}
-.pac-icon{display:none}
 </style>
 </head>
 <body>
@@ -629,8 +623,8 @@ footer a:hover{color:var(--accent)}
 </footer>
 
 <!-- Floating theme button -->
-<button class="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode">
-  <span class="theme-icon-wrap" id="theme-icon">🌙</span>
+<button id="theme-btn" class="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode">
+  <span class="theme-icon-wrap" id="theme-icon">☀️</span>
   <span id="theme-label">Dark</span>
 </button>
 
@@ -828,49 +822,7 @@ async function loadGMapsKey(){
     if(!resp.ok) throw new Error();
     const data = await resp.json();
     GMAPS_KEY = data.key || null;
-    if(GMAPS_KEY) initMsPlacesAutocomplete();
   } catch(e){ GMAPS_KEY = null; }
-}
-
-function initMsPlacesAutocomplete(){
-  if(!window.google?.maps?.places){
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}&libraries=places&callback=onMsGMapsLoaded`;
-    script.async = true; script.defer = true;
-    document.head.appendChild(script);
-  } else {
-    onMsGMapsLoaded();
-  }
-}
-
-function onMsGMapsLoaded(){
-  // Small delay to ensure renderStops has completed
-  setTimeout(() => {
-    document.querySelectorAll('.stop-input[type="text"], input.stop-input:not([type="date"]):not([type="number"])').forEach(input => {
-      if(!input.dataset.acAttached) attachMsAutocomplete(input);
-    });
-  }, 300);
-}
-
-function attachMsAutocomplete(input){
-  if(!input || !window.google?.maps?.places || input.dataset.acAttached) return;
-  input.dataset.acAttached = '1';
-  const ac = new google.maps.places.Autocomplete(input, {
-    types: ['(cities)'],
-    componentRestrictions: { country: 'us' },
-    fields: ['address_components']
-  });
-  ac.addListener('place_changed', () => {
-    const place = ac.getPlace();
-    if(!place.address_components) return;
-    const city  = place.address_components.find(c => c.types.includes('locality'))?.short_name || '';
-    const state = place.address_components.find(c => c.types.includes('administrative_area_level_1'))?.short_name || '';
-    if(city && state){
-      input.value = `${city}, ${state}`;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.dispatchEvent(new Event('blur', { bubbles: true }));
-    }
-  });
 }
 
 // ── Stop management ────────────────────────────────────────────────────────
@@ -1003,13 +955,6 @@ function renderStops(){
       </div>`;
 
     list.appendChild(div);
-
-    // Attach Places Autocomplete — retry after delay if Maps not loaded yet
-    const locInput = div.querySelector('input.stop-input:not([type="date"]):not([type="number"])');
-    if(locInput){
-      if(window.google?.maps?.places) attachMsAutocomplete(locInput);
-      else setTimeout(() => attachMsAutocomplete(locInput), 1500);
-    }
 
     // Leg connector
     if(idx < stops.length - 1){
@@ -1841,18 +1786,38 @@ function applyTheme(theme){
     r.style.setProperty('--border','#dde3ed');r.style.setProperty('--border2','#c8d4e0');
     r.style.setProperty('--text','#0f172a');r.style.setProperty('--text2','#334155');
     r.style.setProperty('--text3','#64748b');
-    document.getElementById('theme-icon').textContent='☀️';
-    document.getElementById('theme-label').textContent='Light';
+    document.getElementById('theme-icon').textContent='🌙';
+    document.getElementById('theme-label').textContent='Dark Mode';
   } else {
     r.style.setProperty('--bg','#1a1d24');r.style.setProperty('--panel','#1f2330');
     r.style.setProperty('--card','#22262f');r.style.setProperty('--card2','#272c38');
     r.style.setProperty('--border','#1e2a38');r.style.setProperty('--border2','#243040');
     r.style.setProperty('--text','#e2e8f0');r.style.setProperty('--text2','#9aafc4');
     r.style.setProperty('--text3','#8896a8');
-    document.getElementById('theme-icon').textContent='🌙';
-    document.getElementById('theme-label').textContent='Dark';
+    document.getElementById('theme-icon').textContent='☀️';
+    document.getElementById('theme-label').textContent='Light Mode';
+  }
+  updateThemeBtn(theme);
+}
+function updateThemeBtn(theme){
+  const btn = document.getElementById('theme-btn');
+  if(!btn) return;
+  const isLight = theme ? theme === 'light' : document.documentElement.classList.contains('light');
+  if(isLight){
+    // In light mode — show "Dark Mode" button with dark styling
+    btn.style.setProperty('background', '#1a1d24', 'important');
+    btn.style.setProperty('border-color', '#1a1d24', 'important');
+    btn.style.setProperty('color', '#e2e8f0', 'important');
+    btn.style.setProperty('box-shadow', '0 4px 16px rgba(0,0,0,.5)', 'important');
+  } else {
+    // In dark mode — show "Light Mode" button with cream styling
+    btn.style.setProperty('background', '#f0ede8', 'important');
+    btn.style.setProperty('border-color', '#c8c4bc', 'important');
+    btn.style.setProperty('color', '#1a1d24', 'important');
+    btn.style.setProperty('box-shadow', '0 4px 12px rgba(0,0,0,.15)', 'important');
   }
 }
+
 function toggleTheme(){
   const next = (localStorage.getItem('qfc_theme')||'dark')==='dark'?'light':'dark';
   localStorage.setItem('qfc_theme',next); applyTheme(next);
