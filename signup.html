@@ -234,6 +234,8 @@ const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
 async function checkSession(){
   if(window.location.search.includes('reason=checkout-complete')) return;
   if(window.location.search.includes('reason=pro-required')) return;
+  if(window.location.search.includes('google=return')) return;
+  if(window.location.hash.includes('access_token')) return;
   const session = getSession();
   if(session){
     window.location.href = '/profile.html';
@@ -600,7 +602,7 @@ if(window.location.search.includes('google=return') || window.location.hash.incl
 }
 </script>
 <!-- Floating theme button -->
-<button id="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode" style="
+<button id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode" style="
   position:fixed;bottom:24px;right:24px;z-index:999;
   display:flex;align-items:center;gap:7px;
   background:var(--card);border:1px solid var(--border2);border-radius:20px;
@@ -608,12 +610,27 @@ if(window.location.search.includes('google=return') || window.location.hash.incl
   font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:var(--text2);
   transition:border-color .15s,color .15s,box-shadow .15s;
   box-shadow:0 4px 16px rgba(0,0,0,.3);">
-  <span id="theme-icon" style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)">🌙</span>
-  <span id="theme-label">Dark</span>
+  <span id="theme-icon" style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)">☀️</span>
+  <span id="theme-label">Light Mode</span>
 </button>
 
 <script>
-// ── Theme sync with main calculator ───────────────────────────────────────
+function updateThemeBtn(theme){
+  const btn = document.getElementById('theme-btn');
+  if(!btn) return;
+  const isLight = theme ? theme === 'light' : document.documentElement.classList.contains('light');
+  if(isLight){
+    btn.style.setProperty('background', '#1a1d24', 'important');
+    btn.style.setProperty('border-color', '#1a1d24', 'important');
+    btn.style.setProperty('color', '#e2e8f0', 'important');
+    btn.style.setProperty('box-shadow', '0 4px 16px rgba(0,0,0,.5)', 'important');
+  } else {
+    btn.style.setProperty('background', '#f0ede8', 'important');
+    btn.style.setProperty('border-color', '#c8c4bc', 'important');
+    btn.style.setProperty('color', '#1a1d24', 'important');
+    btn.style.setProperty('box-shadow', '0 4px 12px rgba(0,0,0,.15)', 'important');
+  }
+}
 function applyTheme(theme){
   const root = document.documentElement;
   if(theme === 'light'){
@@ -626,8 +643,8 @@ function applyTheme(theme){
     root.style.setProperty('--text','#0f172a');
     root.style.setProperty('--text2','#334155');
     root.style.setProperty('--text3','#64748b');
-    document.getElementById('theme-icon').textContent = '☀️';
-    document.getElementById('theme-label').textContent = 'Light';
+    document.getElementById('theme-icon').textContent = '🌙';
+    document.getElementById('theme-label').textContent = 'Dark Mode';
   } else {
     root.style.setProperty('--bg','#1a1d24');
     root.style.setProperty('--panel','#1f2330');
@@ -638,9 +655,10 @@ function applyTheme(theme){
     root.style.setProperty('--text','#e2e8f0');
     root.style.setProperty('--text2','#9aafc4');
     root.style.setProperty('--text3','#8896a8');
-    document.getElementById('theme-icon').textContent = '🌙';
-    document.getElementById('theme-label').textContent = 'Dark';
+    document.getElementById('theme-icon').textContent = '☀️';
+    document.getElementById('theme-label').textContent = 'Light Mode';
   }
+  updateThemeBtn(theme);
 }
 function toggleTheme(){
   const current = localStorage.getItem('qfc_theme') || 'dark';
@@ -648,7 +666,6 @@ function toggleTheme(){
   localStorage.setItem('qfc_theme', next);
   applyTheme(next);
 }
-// Apply saved theme on load
 applyTheme(localStorage.getItem('qfc_theme') || 'dark');
 </script>
 </body>
