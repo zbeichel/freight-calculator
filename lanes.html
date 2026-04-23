@@ -158,8 +158,8 @@ footer a:hover{color:var(--accent)}
 </footer>
 
 <!-- Floating theme button -->
-<button class="theme-btn-float" onclick="toggleTheme()">
-  <span class="theme-icon-wrap" id="theme-icon">🌙</span>
+<button id="theme-btn" class="theme-btn-float" onclick="toggleTheme()">
+  <span class="theme-icon-wrap" id="theme-icon">☀️</span>
   <span id="theme-label">Dark</span>
 </button>
 
@@ -511,20 +511,40 @@ function applyTheme(theme){
     r.style.setProperty('--border','#dde3ed');r.style.setProperty('--border2','#c8d4e0');
     r.style.setProperty('--text','#0f172a');r.style.setProperty('--text2','#334155');
     r.style.setProperty('--text3','#64748b');
-    document.getElementById('theme-icon').textContent='☀️';
-    document.getElementById('theme-label').textContent='Light';
+    document.getElementById('theme-icon').textContent='🌙';
+    document.getElementById('theme-label').textContent='Dark Mode';
   } else {
     r.style.setProperty('--bg','#1a1d24');r.style.setProperty('--panel','#1f2330');
     r.style.setProperty('--card','#22262f');r.style.setProperty('--card2','#272c38');
     r.style.setProperty('--border','#1e2a38');r.style.setProperty('--border2','#243040');
     r.style.setProperty('--text','#e2e8f0');r.style.setProperty('--text2','#9aafc4');
     r.style.setProperty('--text3','#8896a8');
-    document.getElementById('theme-icon').textContent='🌙';
-    document.getElementById('theme-label').textContent='Dark';
+    document.getElementById('theme-icon').textContent='☀️';
+    document.getElementById('theme-label').textContent='Light Mode';
   }
   // Re-render chart with new colors
   if(selectedIdx !== null) renderDetail();
+  updateThemeBtn(theme);
 }
+function updateThemeBtn(theme){
+  const btn = document.getElementById('theme-btn');
+  if(!btn) return;
+  const isLight = theme ? theme === 'light' : document.documentElement.classList.contains('light');
+  if(isLight){
+    // In light mode — show "Dark Mode" button with dark styling
+    btn.style.setProperty('background', '#1a1d24', 'important');
+    btn.style.setProperty('border-color', '#1a1d24', 'important');
+    btn.style.setProperty('color', '#e2e8f0', 'important');
+    btn.style.setProperty('box-shadow', '0 4px 16px rgba(0,0,0,.5)', 'important');
+  } else {
+    // In dark mode — show "Light Mode" button with cream styling
+    btn.style.setProperty('background', '#f0ede8', 'important');
+    btn.style.setProperty('border-color', '#c8c4bc', 'important');
+    btn.style.setProperty('color', '#1a1d24', 'important');
+    btn.style.setProperty('box-shadow', '0 4px 12px rgba(0,0,0,.15)', 'important');
+  }
+}
+
 function toggleTheme(){
   const next = (localStorage.getItem('qfc_theme')||'dark')==='dark'?'light':'dark';
   localStorage.setItem('qfc_theme',next);applyTheme(next);

@@ -425,7 +425,7 @@ footer a:hover{color:var(--accent)}
               <span class="tog-label" id="ms-diesel-lbl">Off</span>
             </label>
           </div>
-          <div class="adv-note" style="margin-bottom:8px"><strong>DAT spot rates include fuel.</strong> Only enable if quoting off contract rates or adding a manual fuel cushion.</div>
+          <div class="adv-note" style="margin-bottom:8px"><strong>Adds a per-mile surcharge using the DAT RateView FSC formula</strong> (EIA price − $1.25 baseline) ÷ 6.5 MPG. Enable when quoting off contract rates or when your carrier requires a separate FSC.</div>
           <div class="adv-warn" id="ms-diesel-warn"><strong style="color:var(--accent)">Surcharge active.</strong> Best used with contract rates only.</div>
           <div id="ms-diesel-controls" style="display:none;margin-bottom:4px">
             <div class="mini-input-group" style="margin-bottom:10px">
@@ -447,7 +447,7 @@ footer a:hover{color:var(--accent)}
               <button onclick="msFetchDiesel()" id="ms-eia-btn" style="height:38px;padding:0 12px;background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--red);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s">⚡ Live</button>
             </div>
             <div id="ms-eia-status" style="font-size:11px;color:var(--text3);margin-bottom:4px"></div>
-            <div class="mini-sub">Baseline $3.50/gal · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
+            <div class="mini-sub">DAT RateView formula: (EIA price − $1.25) ÷ 6.5 MPG · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
           </div>
 
           <!-- Capacity -->
@@ -623,8 +623,8 @@ footer a:hover{color:var(--accent)}
 </footer>
 
 <!-- Floating theme button -->
-<button class="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode">
-  <span class="theme-icon-wrap" id="theme-icon">🌙</span>
+<button id="theme-btn" class="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode">
+  <span class="theme-icon-wrap" id="theme-icon">☀️</span>
   <span id="theme-label">Dark</span>
 </button>
 
@@ -1116,6 +1116,10 @@ function updateStopWeight(id, val){
 }
 
 // ── Mileage lookups ────────────────────────────────────────────────────────
+// ── Route cache — avoids re-calling Routes API for same leg pairs ──────────
+const MS_ROUTE_CACHE = {};
+function msRouteCacheKey(a, b){ return a.toLowerCase().trim() + '||' + b.toLowerCase().trim(); }
+
 async function lookupLegMiles(id){
   const idx = stops.findIndex(s => s.id === id);
   if(idx < 0 || idx >= stops.length - 1) return;
@@ -1123,6 +1127,19 @@ async function lookupLegMiles(id){
   const from = stops[idx].location?.trim();
   const to   = stops[idx+1].location?.trim();
   if(!from || !to) return;
+
+  // Check cache first — skip API call if already looked up this session
+  const cKey = msRouteCacheKey(from, to);
+  if(MS_ROUTE_CACHE[cKey]){
+    const miles = MS_ROUTE_CACHE[cKey];
+    legMiles[id] = miles; stops[idx].miles = miles;
+    const badge = document.getElementById(`leg-badge-${id}`);
+    const status = document.getElementById(`leg-status-${id}`);
+    if(badge){ badge.className = 'leg-miles-badge loaded'; badge.textContent = `${miles.toLocaleString()} mi`; }
+    if(status){ status.className = 'miles-status ok'; status.textContent = `✅ ${miles.toLocaleString()} mi to next stop`; }
+    calcTotal();
+    return;
+  }
 
   const badge = document.getElementById(`leg-badge-${id}`);
   const status = document.getElementById(`leg-status-${id}`);
@@ -1155,6 +1172,8 @@ async function lookupLegMiles(id){
     const miles = Math.round(meters / 1609.34);
     legMiles[id] = miles;
     stops[idx].miles = miles;
+    // Cache for this session so same leg pair never fires again
+    MS_ROUTE_CACHE[msRouteCacheKey(from, to)] = miles;
 
     if(badge){ badge.className = 'leg-miles-badge loaded'; badge.textContent = `${miles.toLocaleString()} mi`; }
     if(status){ status.className = 'miles-status ok'; status.textContent = `✅ ${miles.toLocaleString()} mi to next stop`; }
@@ -1168,9 +1187,19 @@ async function lookupLegMiles(id){
 function recalcAllLegs(){
   stops.forEach((s, idx) => {
     if(idx < stops.length - 1 && s.location && stops[idx+1].location){
-      lookupLegMiles(s.id);
+      // Skip if this leg pair is already cached — no API call needed
+      const cKey = msRouteCacheKey(s.location, stops[idx+1].location);
+      if(MS_ROUTE_CACHE[cKey]){
+        const miles = MS_ROUTE_CACHE[cKey];
+        legMiles[s.id] = miles; s.miles = miles;
+        const badge = document.getElementById(`leg-badge-${s.id}`);
+        if(badge){ badge.className = 'leg-miles-badge loaded'; badge.textContent = `${miles.toLocaleString()} mi`; }
+      } else {
+        lookupLegMiles(s.id);
+      }
     }
   });
+  calcTotal();
 }
 
 // ── Advanced Adjustments (independent of main calculator) ─────────────────
@@ -1220,10 +1249,13 @@ function msToggleDiesel(){
   msUpdateAdvCount(); calcTotal();
 }
 
-function msGetDieselMult(){
-  if(!document.getElementById('ms-diesel-enabled').checked) return 1.0;
-  return 1 + ((parseFloat(document.getElementById('ms-diesel-price').value)||3.85) - 3.50) / 3.50 * 0.35;
+function msGetDieselFSC(){
+  if(!document.getElementById('ms-diesel-enabled').checked) return 0;
+  const price = parseFloat(document.getElementById('ms-diesel-price').value) || 3.85;
+  if(price <= 1.25) return 0;
+  return Math.round(((price - 1.25) / 6.5) * 100) / 100;
 }
+function msGetDieselMult(){ return 1.0; } // legacy shim
 
 const MS_EIA_REGIONS = {R10:'East Coast',R20:'Midwest',R30:'Gulf Coast',R40:'Rocky Mountain',R50:'West Coast',NUS:'National Avg'};
 
@@ -1332,7 +1364,7 @@ function msUpdateSeasonCalendar(){
 // ── Calculation ────────────────────────────────────────────────────────────
 function calcTotal(){
   const baseRate   = parseFloat(document.getElementById('ms-rate').value) || 3.15;
-  const marginPct  = (parseFloat(document.getElementById('ms-margin').value) || 15) / 100;
+  const marginPct  = (document.getElementById('ms-margin').value !== '' ? parseFloat(document.getElementById('ms-margin').value) : 15) / 100;
   const stopFee    = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
   const commodity  = document.getElementById('ms-commodity').value;
   const cm         = CMULT[commodity] || 1.0;
@@ -1357,10 +1389,10 @@ function calcTotal(){
   const addlStops  = extraStops.length;
 
   // Linehaul — apply advanced multipliers
-  const dieselMult   = msGetDieselMult();
+  const fscPerMile   = msGetDieselFSC();
   const capacityMult = msGetCapacityMult(document.getElementById('ms-trailer')?.value || 'reefer');
   const seasonMult   = msGetSeasonMult(document.getElementById('ms-trailer')?.value || 'reefer');
-  const linehaul = totalMiles > 0 ? baseRate * cm * dieselMult * capacityMult * seasonMult * totalMiles : 0;
+  const linehaul = totalMiles > 0 ? (baseRate * cm * capacityMult * seasonMult + fscPerMile) * totalMiles : 0;
   msUpdateCapMults();
 
   // Stop charges — use per-stop overrides if set, handle flat vs per-mile
@@ -1579,7 +1611,7 @@ function generateMultiStopPDF(){
   const commodityKey = document.getElementById('ms-commodity')?.value || 'standard';
   const CLABELS_PDF  = {standard:'Standard',food:'Food / Perishable',hazmat:'Hazmat',highval:'High Value',oversized:'Oversized'};
   const commodityText = CLABELS_PDF[commodityKey] || commodityKey;
-  const marginPctPDF  = parseFloat(document.getElementById('ms-margin')?.value) || 15;
+  const marginPctPDF  = document.getElementById('ms-margin')?.value !== '' ? parseFloat(document.getElementById('ms-margin')?.value) : 15;
   const baseRatePDF   = parseFloat(document.getElementById('ms-rate')?.value) || 3.15;
   const linehaulAmt   = document.getElementById('ms-linehaul')?.textContent || '—';
   const stopChgAmt    = document.getElementById('ms-stop-charges-total')?.textContent || '$0';
@@ -1754,18 +1786,38 @@ function applyTheme(theme){
     r.style.setProperty('--border','#dde3ed');r.style.setProperty('--border2','#c8d4e0');
     r.style.setProperty('--text','#0f172a');r.style.setProperty('--text2','#334155');
     r.style.setProperty('--text3','#64748b');
-    document.getElementById('theme-icon').textContent='☀️';
-    document.getElementById('theme-label').textContent='Light';
+    document.getElementById('theme-icon').textContent='🌙';
+    document.getElementById('theme-label').textContent='Dark Mode';
   } else {
     r.style.setProperty('--bg','#1a1d24');r.style.setProperty('--panel','#1f2330');
     r.style.setProperty('--card','#22262f');r.style.setProperty('--card2','#272c38');
     r.style.setProperty('--border','#1e2a38');r.style.setProperty('--border2','#243040');
     r.style.setProperty('--text','#e2e8f0');r.style.setProperty('--text2','#9aafc4');
     r.style.setProperty('--text3','#8896a8');
-    document.getElementById('theme-icon').textContent='🌙';
-    document.getElementById('theme-label').textContent='Dark';
+    document.getElementById('theme-icon').textContent='☀️';
+    document.getElementById('theme-label').textContent='Light Mode';
+  }
+  updateThemeBtn(theme);
+}
+function updateThemeBtn(theme){
+  const btn = document.getElementById('theme-btn');
+  if(!btn) return;
+  const isLight = theme ? theme === 'light' : document.documentElement.classList.contains('light');
+  if(isLight){
+    // In light mode — show "Dark Mode" button with dark styling
+    btn.style.setProperty('background', '#1a1d24', 'important');
+    btn.style.setProperty('border-color', '#1a1d24', 'important');
+    btn.style.setProperty('color', '#e2e8f0', 'important');
+    btn.style.setProperty('box-shadow', '0 4px 16px rgba(0,0,0,.5)', 'important');
+  } else {
+    // In dark mode — show "Light Mode" button with cream styling
+    btn.style.setProperty('background', '#f0ede8', 'important');
+    btn.style.setProperty('border-color', '#c8c4bc', 'important');
+    btn.style.setProperty('color', '#1a1d24', 'important');
+    btn.style.setProperty('box-shadow', '0 4px 12px rgba(0,0,0,.15)', 'important');
   }
 }
+
 function toggleTheme(){
   const next = (localStorage.getItem('qfc_theme')||'dark')==='dark'?'light':'dark';
   localStorage.setItem('qfc_theme',next); applyTheme(next);
@@ -1967,7 +2019,7 @@ async function saveMsQuote(){
     : `${stops.length} stops`;
 
   const rpm        = parseFloat((document.getElementById('ms-rpm-sub')?.textContent||'').replace(/[^0-9.]/g,''))||0;
-  const marginPct  = parseFloat(document.getElementById('ms-margin')?.value)||15;
+  const marginPct  = document.getElementById('ms-margin')?.value !== '' ? parseFloat(document.getElementById('ms-margin')?.value) : 15;
   const commodity  = document.getElementById('ms-commodity')?.value || 'standard';
   const stopsCount = `${stops.filter(s=>s.type==='pickup').length}P / ${stops.filter(s=>s.type==='delivery').length}D`;
   const dateStr    = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});

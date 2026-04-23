@@ -234,6 +234,8 @@ const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
 async function checkSession(){
   if(window.location.search.includes('reason=checkout-complete')) return;
   if(window.location.search.includes('reason=pro-required')) return;
+  if(window.location.search.includes('google=return')) return;
+  if(window.location.hash.includes('access_token')) return;
   const session = getSession();
   if(session){
     window.location.href = '/profile.html';
@@ -406,10 +408,7 @@ async function handleSignup(){
         btn.textContent = 'Sign Up for Pro →';
       }
     } else {
-      // No access_token means email confirmation is required OR email already exists.
-      // Supabase doesn't distinguish these when email confirmation is off —
-      // check if this looks like a duplicate by attempting a password signin.
-      // If the signin returns a valid session, the email already exists.
+      // No access_token — email may already exist
       try {
         const checkResp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
           method: 'POST',
@@ -418,8 +417,31 @@ async function handleSignup(){
         });
         const checkData = await checkResp.json();
         if(checkData.access_token){
-          // Email already exists with this password — tell them to sign in
-          showError('An account with this email already exists. Please sign in instead.');
+          // Account exists with this password — check if they need to complete checkout
+          storeSession(checkData);
+          const userId = checkData.user?.id;
+          const proResp = await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${userId}&select=is_active,stripe_subscription_id`, {
+            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${checkData.access_token}` }
+          });
+          const proRows = await proResp.json();
+          const proRow = proRows?.[0];
+          if(proRow && !proRow.is_active && !proRow.stripe_subscription_id){
+            // They signed up but never paid — send to checkout
+            showSuccess('Account found! Completing your Pro signup...');
+            const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId, email })
+            });
+            const checkoutData = await checkoutResp.json();
+            if(checkoutData.url){
+              localStorage.setItem('qfc_pending_checkout', JSON.stringify({ userId, email, ts: Date.now() }));
+              window.location.href = checkoutData.url;
+              return;
+            }
+          } else {
+            showError('An account with this email already exists. Please sign in instead.');
+          }
         } else {
           showError('An account with this email already exists. Please sign in or use a different email.');
         }
@@ -465,6 +487,32 @@ async function handleLogin(){
     }
 
     storeSession(data);
+
+    // Check if this user signed up but never completed checkout
+    try {
+      const userId = data.user?.id;
+      const proResp = await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${userId}&select=is_active,stripe_subscription_id`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${data.access_token}` }
+      });
+      const proRows = await proResp.json();
+      const proRow = proRows?.[0];
+      // If they have a pro_users row but never paid (no subscription ID and not active)
+      if(proRow && !proRow.is_active && !proRow.stripe_subscription_id){
+        showSuccess('Welcome back! Completing your Pro signup...');
+        const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, email })
+        });
+        const checkoutData = await checkoutResp.json();
+        if(checkoutData.url){
+          localStorage.setItem('qfc_pending_checkout', JSON.stringify({ userId, email, ts: Date.now() }));
+          window.location.href = checkoutData.url;
+          return;
+        }
+      }
+    } catch(e){}
+
     showSuccess('Signed in! Redirecting...');
     const dest = localStorage.getItem('qfc_pending_checkout') ? '/?from=login' : '/profile.html';
     setTimeout(() => window.location.href = dest, 800);
@@ -530,6 +578,11 @@ if(window.location.search.includes('google=return') || window.location.hash.incl
   handleGoogleReturn();
 } else {
   if(window.location.search.includes('login')){ switchTab('login'); }
+  if(window.location.search.includes('checkout=cancelled')){
+    try { localStorage.removeItem('qfc_pending_checkout'); } catch(e){}
+    showError('Checkout cancelled. You can complete your Pro signup anytime.');
+    switchTab('login');
+  }
   if(window.location.search.includes('reason=pro-required')){
     showError('That page requires a Pro subscription. Sign up or log in to continue.');
     switchTab('login');
@@ -549,7 +602,7 @@ if(window.location.search.includes('google=return') || window.location.hash.incl
 }
 </script>
 <!-- Floating theme button -->
-<button id="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode" style="
+<button id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode" style="
   position:fixed;bottom:24px;right:24px;z-index:999;
   display:flex;align-items:center;gap:7px;
   background:var(--card);border:1px solid var(--border2);border-radius:20px;
@@ -557,12 +610,27 @@ if(window.location.search.includes('google=return') || window.location.hash.incl
   font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:var(--text2);
   transition:border-color .15s,color .15s,box-shadow .15s;
   box-shadow:0 4px 16px rgba(0,0,0,.3);">
-  <span id="theme-icon" style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)">🌙</span>
-  <span id="theme-label">Dark</span>
+  <span id="theme-icon" style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)">☀️</span>
+  <span id="theme-label">Light Mode</span>
 </button>
 
 <script>
-// ── Theme sync with main calculator ───────────────────────────────────────
+function updateThemeBtn(theme){
+  const btn = document.getElementById('theme-btn');
+  if(!btn) return;
+  const isLight = theme ? theme === 'light' : document.documentElement.classList.contains('light');
+  if(isLight){
+    btn.style.setProperty('background', '#1a1d24', 'important');
+    btn.style.setProperty('border-color', '#1a1d24', 'important');
+    btn.style.setProperty('color', '#e2e8f0', 'important');
+    btn.style.setProperty('box-shadow', '0 4px 16px rgba(0,0,0,.5)', 'important');
+  } else {
+    btn.style.setProperty('background', '#f0ede8', 'important');
+    btn.style.setProperty('border-color', '#c8c4bc', 'important');
+    btn.style.setProperty('color', '#1a1d24', 'important');
+    btn.style.setProperty('box-shadow', '0 4px 12px rgba(0,0,0,.15)', 'important');
+  }
+}
 function applyTheme(theme){
   const root = document.documentElement;
   if(theme === 'light'){
@@ -575,8 +643,8 @@ function applyTheme(theme){
     root.style.setProperty('--text','#0f172a');
     root.style.setProperty('--text2','#334155');
     root.style.setProperty('--text3','#64748b');
-    document.getElementById('theme-icon').textContent = '☀️';
-    document.getElementById('theme-label').textContent = 'Light';
+    document.getElementById('theme-icon').textContent = '🌙';
+    document.getElementById('theme-label').textContent = 'Dark Mode';
   } else {
     root.style.setProperty('--bg','#1a1d24');
     root.style.setProperty('--panel','#1f2330');
@@ -587,9 +655,10 @@ function applyTheme(theme){
     root.style.setProperty('--text','#e2e8f0');
     root.style.setProperty('--text2','#9aafc4');
     root.style.setProperty('--text3','#8896a8');
-    document.getElementById('theme-icon').textContent = '🌙';
-    document.getElementById('theme-label').textContent = 'Dark';
+    document.getElementById('theme-icon').textContent = '☀️';
+    document.getElementById('theme-label').textContent = 'Light Mode';
   }
+  updateThemeBtn(theme);
 }
 function toggleTheme(){
   const current = localStorage.getItem('qfc_theme') || 'dark';
@@ -597,7 +666,6 @@ function toggleTheme(){
   localStorage.setItem('qfc_theme', next);
   applyTheme(next);
 }
-// Apply saved theme on load
 applyTheme(localStorage.getItem('qfc_theme') || 'dark');
 </script>
 </body>
