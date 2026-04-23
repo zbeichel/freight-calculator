@@ -4183,6 +4183,7 @@ async function formatLocation(input){
   );
   input.value = val;
 }
+function wTier(w){return WTIERS.find(t=>w<=t.max)||WTIERS[3]}
 function dMult(mi){return DMULTS.find(t=>mi<=t.max)||DMULTS[4]}
 
 // ── Advanced panel ────────────────────────────────────────────────────────
