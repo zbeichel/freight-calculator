@@ -1171,8 +1171,8 @@ html.light .hos-day-header{background:var(--card2)}
         </div>
 
         <div class="grid2" id="route-grid">
-          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" onblur="formatLocation(this)" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';if(!ratesManualOverride)applyRegionalRates();clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
-          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" onblur="formatLocation(this)" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" onblur="formatLocation(this);autoFillZip('origin','origin-zip')" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';if(!ratesManualOverride)applyRegionalRates();clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" onblur="formatLocation(this);autoFillZip('dest','dest-zip')" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
           <div class="field"><label>Origin ZIP <span style="font-size:9px;color:var(--text3);font-weight:400">required</span></label><input type="text" id="origin-zip" placeholder="e.g. 32110" maxlength="5" autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'');lastLookedUpOrig='';lastLookedUpDest='';clearTimeout(lookupTimer);if(this.value.length===5)lookupTimer=setTimeout(tryLookupMiles,400)" /></div>
           <div class="field"><label>Destination ZIP <span style="font-size:9px;color:var(--text3);font-weight:400">required</span></label><input type="text" id="dest-zip" placeholder="e.g. 28201" maxlength="5" autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'');lastLookedUpOrig='';lastLookedUpDest='';clearTimeout(lookupTimer);if(this.value.length===5)lookupTimer=setTimeout(tryLookupMiles,400)" /></div>
         </div>
@@ -4223,7 +4223,36 @@ async function formatLocation(input){
   );
   input.value = val;
 }
-function wTier(w){return WTIERS.find(t=>w<=t.max)||WTIERS[3]}
+async function autoFillZip(cityInputId, zipInputId){
+  const cityEl = document.getElementById(cityInputId);
+  const zipEl  = document.getElementById(zipInputId);
+  if(!cityEl || !zipEl) return;
+  const city = cityEl.value.trim();
+  if(!city || city.length < 3) return;
+  // Don't overwrite if user already entered a valid zip
+  if(zipEl.value.length === 5) return;
+
+  try {
+    if(!GMAPS_KEY) await loadGMapsKey();
+    if(!GMAPS_KEY) return;
+
+    const resp = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(city + ', USA')}&key=${GMAPS_KEY}`
+    );
+    const data = await resp.json();
+    if(data.status !== 'OK' || !data.results?.[0]) return;
+
+    const result = data.results[0];
+    // Extract postal_code from address components
+    const postalComp = result.address_components.find(c => c.types.includes('postal_code'));
+    if(postalComp?.short_name){
+      zipEl.value = postalComp.short_name;
+      // Trigger mile lookup now that zip is filled
+      clearTimeout(lookupTimer);
+      lookupTimer = setTimeout(tryLookupMiles, 400);
+    }
+  } catch(e){}
+}
 function dMult(mi){return DMULTS.find(t=>mi<=t.max)||DMULTS[4]}
 
 // ── Advanced panel ────────────────────────────────────────────────────────
