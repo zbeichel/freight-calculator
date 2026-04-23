@@ -1171,8 +1171,8 @@ html.light .hos-day-header{background:var(--card2)}
         </div>
 
         <div class="grid2" id="route-grid">
-          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" onblur="formatLocation(this);autoFillZip('origin','origin-zip')" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';document.getElementById('origin-zip').value='';if(!ratesManualOverride)applyRegionalRates();clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
-          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" onblur="formatLocation(this);autoFillZip('dest','dest-zip')" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';document.getElementById('dest-zip').value='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" onblur="formatLocation(this).then(()=>autoFillZip('origin','origin-zip'))" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';document.getElementById('origin-zip').value='';if(!ratesManualOverride)applyRegionalRates();clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" onblur="formatLocation(this).then(()=>autoFillZip('dest','dest-zip'))" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';document.getElementById('dest-zip').value='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
           <div class="field"><label>Origin ZIP <span style="font-size:9px;color:var(--text3);font-weight:400">required</span></label><input type="text" id="origin-zip" placeholder="e.g. 32110" maxlength="5" autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'');lastLookedUpOrig='';lastLookedUpDest='';clearTimeout(lookupTimer);if(this.value.length===5)lookupTimer=setTimeout(tryLookupMiles,400)" /></div>
           <div class="field"><label>Destination ZIP <span style="font-size:9px;color:var(--text3);font-weight:400">required</span></label><input type="text" id="dest-zip" placeholder="e.g. 28201" maxlength="5" autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'');lastLookedUpOrig='';lastLookedUpDest='';clearTimeout(lookupTimer);if(this.value.length===5)lookupTimer=setTimeout(tryLookupMiles,400)" /></div>
         </div>
@@ -4234,16 +4234,33 @@ async function autoFillZip(cityInputId, zipInputId){
     if(!GMAPS_KEY) await loadGMapsKey();
     if(!GMAPS_KEY) return;
 
-    const resp = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(city + ', USA')}&key=${GMAPS_KEY}`
+    // Step 1: Geocode city to get coordinates
+    const geoResp = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(city)}&components=country:US&key=${GMAPS_KEY}`
     );
-    const data = await resp.json();
-    if(data.status !== 'OK' || !data.results?.[0]) return;
+    const geoData = await geoResp.json();
+    if(geoData.status !== 'OK' || !geoData.results?.[0]) return;
 
-    const result = data.results[0];
-    const postalComp = result.address_components.find(c => c.types.includes('postal_code'));
-    if(postalComp?.short_name){
-      zipEl.value = postalComp.short_name;
+    const result = geoData.results[0];
+
+    // First try: get postal_code directly from geocode result
+    let zip = result.address_components.find(c => c.types.includes('postal_code'))?.short_name;
+
+    // Second try: reverse geocode the city center coordinates
+    if(!zip){
+      const lat = result.geometry.location.lat;
+      const lng = result.geometry.location.lng;
+      const revResp = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&result_type=postal_code&key=${GMAPS_KEY}`
+      );
+      const revData = await revResp.json();
+      if(revData.status === 'OK' && revData.results?.[0]){
+        zip = revData.results[0].address_components.find(c => c.types.includes('postal_code'))?.short_name;
+      }
+    }
+
+    if(zip){
+      zipEl.value = zip;
       clearTimeout(lookupTimer);
       lookupTimer = setTimeout(tryLookupMiles, 400);
     }
