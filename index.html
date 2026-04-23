@@ -2178,7 +2178,10 @@ async function checkProAuth(){
 
 async function _verifyProAuthBackground(){
   try {
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    const sbKeys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    // Also check qfc_session backup
+    if(localStorage.getItem('qfc_session')) sbKeys.push('qfc_session');
+    const keys = [...new Set(sbKeys)];
     for(const key of keys){
       let val;
       try { val = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e){ continue; }
@@ -2254,10 +2257,7 @@ function updateProAccountBtn(){
     const nameLabel = document.getElementById('pro-name-label');
     const icon = document.getElementById('pro-btn-icon');
     if(!btn) return;
-    const loggedIn = Object.keys(localStorage).some(k => {
-      if(!k.startsWith('sb-')) return false;
-      try { const v = JSON.parse(localStorage.getItem(k)||'{}'); return !!v?.access_token; } catch(e){ return false; }
-    });
+    const loggedIn = getProSession() !== null;
     const name = profile.contactName || profile.companyName || '';
     if(loggedIn){
       nameLabel.textContent = name ? name.split(' ')[0] : 'Account';
@@ -4697,6 +4697,7 @@ function updateQuoteLogGate(){
 }
 
 function getProSession(){
+  // Try sb- prefixed keys first
   const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
   for(const key of keys){
     try {
@@ -4704,6 +4705,11 @@ function getProSession(){
       if(val?.access_token) return val;
     } catch(e){}
   }
+  // Fallback to qfc_session backup key
+  try {
+    const val = JSON.parse(localStorage.getItem('qfc_session')||'{}');
+    if(val?.access_token) return val;
+  } catch(e){}
   return null;
 }
 
