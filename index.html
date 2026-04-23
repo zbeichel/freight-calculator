@@ -187,8 +187,9 @@ body::before{
 
 /* ── Header ── */
 header{
-  position:relative;
-  z-index:10;
+  position:sticky;
+  top:0;
+  z-index:100;
   border-bottom:1px solid var(--border);
   padding:0 40px;
   display:grid;
@@ -196,8 +197,7 @@ header{
   align-items:center;
   gap:16px;
   height:64px;
-  background:rgba(26,29,36,0.92);
-  backdrop-filter:blur(12px);
+  background:var(--panel);
 }
 header .brand{ justify-self:start; }
 header .header-center{ justify-self:center;display:flex;align-items:center; }
