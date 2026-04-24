@@ -1613,15 +1613,23 @@ function generateMultiStopPDF(){
   let profile = {};
   try { profile = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}'); } catch(e){}
 
+  // Scheme config — mirrors profile.html. headerText/Soft/Faint define text
+  // colors for the dark header so light-header schemes remain legible.
+  const DARK_TEXT  = { headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)', headerTextFaint:'rgba(255,255,255,.35)' };
   const SCHEMES = {
-    midnight:{header:'#1a1f2e',accent:'#f0a500',bar:'linear-gradient(to right,#f0a500,#f0c040,#f0a500)'},
-    slate:   {header:'#1e2535',accent:'#60a5fa',bar:'linear-gradient(to right,#3b82f6,#60a5fa,#3b82f6)'},
-    forest:  {header:'#14281d',accent:'#86efac',bar:'linear-gradient(to right,#22c55e,#86efac,#22c55e)'},
-    steel:   {header:'#1c2228',accent:'#fb923c',bar:'linear-gradient(to right,#ea580c,#fb923c,#ea580c)'},
-    executive:{header:'#0d0d0d',accent:'#e2e8f0',bar:'linear-gradient(to right,#94a3b8,#e2e8f0,#94a3b8)'},
-    crimson: {header:'#1f0d0d',accent:'#fca5a5',bar:'linear-gradient(to right,#dc2626,#fca5a5,#dc2626)'},
-    ocean:   {header:'#0c1f2e',accent:'#67e8f9',bar:'linear-gradient(to right,#0891b2,#67e8f9,#0891b2)'},
-    carbon:  {header:'#111111',accent:'#4ade80',bar:'linear-gradient(to right,#16a34a,#4ade80,#16a34a)'},
+    midnight: {...DARK_TEXT, header:'#1a1f2e', accent:'#f0a500', bar:'linear-gradient(to right,#f0a500,#f0c040,#f0a500)'},
+    slate:    {...DARK_TEXT, header:'#1e2535', accent:'#60a5fa', bar:'linear-gradient(to right,#3b82f6,#60a5fa,#3b82f6)'},
+    forest:   {...DARK_TEXT, header:'#14281d', accent:'#86efac', bar:'linear-gradient(to right,#22c55e,#86efac,#22c55e)'},
+    steel:    {...DARK_TEXT, header:'#1c2228', accent:'#fb923c', bar:'linear-gradient(to right,#ea580c,#fb923c,#ea580c)'},
+    executive:{...DARK_TEXT, header:'#0d0d0d', accent:'#e2e8f0', bar:'linear-gradient(to right,#94a3b8,#e2e8f0,#94a3b8)'},
+    crimson:  {...DARK_TEXT, header:'#1f0d0d', accent:'#fca5a5', bar:'linear-gradient(to right,#dc2626,#fca5a5,#dc2626)'},
+    ocean:    {...DARK_TEXT, header:'#0c1f2e', accent:'#67e8f9', bar:'linear-gradient(to right,#0891b2,#67e8f9,#0891b2)'},
+    carbon:   {...DARK_TEXT, header:'#111111', accent:'#4ade80', bar:'linear-gradient(to right,#16a34a,#4ade80,#16a34a)'},
+    // Light headers — dark text for readability; logos designed for letterhead sit well here.
+    paper:    {header:'#f4f1ea', accent:'#8a6a1a', headerText:'#1a2540', headerTextSoft:'rgba(26,37,64,.58)', headerTextFaint:'rgba(26,37,64,.48)', bar:'linear-gradient(to right,#8a6a1a,#c89a2a,#8a6a1a)'},
+    mist:     {header:'#e6edf2', accent:'#2d3748', headerText:'#1a202c', headerTextSoft:'rgba(26,32,44,.58)', headerTextFaint:'rgba(26,32,44,.48)', bar:'linear-gradient(to right,#2d3748,#4a5568,#2d3748)'},
+    sand:     {header:'#ece3d3', accent:'#8b3a1f', headerText:'#4a2412', headerTextSoft:'rgba(74,36,18,.62)', headerTextFaint:'rgba(74,36,18,.5)',  bar:'linear-gradient(to right,#8b3a1f,#c26236,#8b3a1f)'},
+    arctic:   {header:'#eef3f8', accent:'#0f3d4c', headerText:'#0b2d38', headerTextSoft:'rgba(11,45,56,.6)',  headerTextFaint:'rgba(11,45,56,.48)', bar:'linear-gradient(to right,#0f3d4c,#2a6b7f,#0f3d4c)'},
   };
   const scheme = SCHEMES[profile.colorScheme] || SCHEMES.midnight;
   const stopFee = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
@@ -1649,10 +1657,10 @@ function generateMultiStopPDF(){
     ? `<img src="${profile.logoBase64}" style="max-height:40px;max-width:130px;object-fit:contain">`
     : `<span style="font-size:28px">🚛</span>`;
   const companyHTML = profile.companyName
-    ? `<div style="font-size:16px;font-weight:700;color:#fff">${profile.companyName}</div>
-       <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">${profile.footerText || 'Licensed Freight Broker'}</div>`
-    : `<div style="font-size:16px;font-weight:700;color:#b0c4d8">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
-       <div style="font-size:10px;color:#6b7f94;text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Freight Rate Calculator</div>`;
+    ? `<div style="font-size:16px;font-weight:700;color:${scheme.headerText}">${profile.companyName}</div>
+       <div style="font-size:10px;color:${scheme.headerTextSoft};text-transform:uppercase;letter-spacing:.06em;margin-top:2px">${profile.footerText || 'Licensed Freight Broker'}</div>`
+    : `<div style="font-size:16px;font-weight:700;color:${scheme.headerText}">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
+       <div style="font-size:10px;color:${scheme.headerTextSoft};text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Freight Rate Calculator</div>`;
 
   const hasContact = profile.contactName || profile.phone || profile.email || profile.mcNumber;
   const contactItems = [profile.contactName, profile.phone, profile.email,
@@ -1771,9 +1779,9 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
     <div class="doc-header">
       <div style="display:flex;align-items:center;gap:10px">${logoHTML}<div>${companyHTML}</div></div>
       <div style="text-align:right">
-        <div style="font-size:20px;font-weight:700;color:#fff">Multi-Stop Rate Confirmation</div>
-        <div style="font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.35);margin-top:3px">Quote #${qNum}</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.35)">Issued: ${issuedDate}</div>
+        <div style="font-size:20px;font-weight:700;color:${scheme.headerText}">Multi-Stop Rate Confirmation</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:${scheme.headerTextFaint};margin-top:3px">Quote #${qNum}</div>
+        <div style="font-size:11px;color:${scheme.headerTextFaint}">Issued: ${issuedDate}</div>
       </div>
     </div>
     <div class="accent-bar"></div>

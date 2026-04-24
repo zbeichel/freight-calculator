@@ -213,7 +213,14 @@ a.brand-name:hover span{opacity:.8}
 .cropper-btn.primary:hover{background:var(--accent);color:#000}
 
 /* ── Color schemes ── */
-.scheme-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.scheme-grid{display:flex;flex-direction:column;gap:18px}
+.scheme-grid-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.scheme-group-label{
+  font-size:11px;font-weight:700;color:var(--text3);
+  text-transform:uppercase;letter-spacing:.08em;
+  margin-bottom:-6px; /* pull the row up a bit so label sits close to cards */
+}
+.scheme-group-hint{font-weight:500;color:var(--text3);text-transform:none;letter-spacing:0;opacity:.85}
 .scheme-card{
   border-radius:10px;border:2px solid var(--border2);overflow:hidden;
   cursor:pointer;transition:all .2s;
@@ -222,7 +229,7 @@ a.brand-name:hover span{opacity:.8}
 .scheme-card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .scheme-preview-header{height:44px;display:flex;align-items:center;padding:0 12px;gap:8px}
 .scheme-preview-emoji{font-size:14px}
-.scheme-preview-text{font-size:10px;font-weight:700;color:rgba(255,255,255,.7)}
+.scheme-preview-text{font-size:10px;font-weight:700}
 .scheme-preview-bar{height:4px;width:100%}
 .scheme-preview-body{background:#ffffff;padding:8px 12px}
 .scheme-preview-line{height:5px;border-radius:2px;margin-bottom:4px}
@@ -253,7 +260,9 @@ a.brand-name:hover span{opacity:.8}
 .pdf-mini-brand-emoji{font-size:18px}
 .pdf-mini-brand-name{font-size:11px;font-weight:700;color:#b0c4d8}
 .pdf-mini-brand-name span{transition:color .3s}
-.pdf-mini-title{font-size:13px;font-weight:700;color:#fff}
+.pdf-mini-brand-sub{font-size:9px;margin-top:1px;transition:color .3s}
+.pdf-mini-title{font-size:13px;font-weight:700;color:#fff;transition:color .3s}
+.pdf-mini-quote-num{font-size:9px;margin-top:2px;transition:color .3s}
 .pdf-mini-bar{height:3px;transition:background .3s}
 .pdf-mini-body{background:#ffffff;padding:14px 20px}
 .pdf-mini-amount{font-size:20px;font-weight:700;color:#1a1f2e;margin-bottom:8px}
@@ -286,7 +295,7 @@ a.brand-name:hover span{opacity:.8}
 
 @media(max-width:700px){
   .field-grid,.field-grid-3{grid-template-columns:1fr}
-  .scheme-grid{grid-template-columns:repeat(2,1fr)}
+  .scheme-grid-row{grid-template-columns:repeat(2,1fr)}
   .logo-upload-wrap{flex-direction:column}
   .save-btn-header{display:none}
   #header-user-label{display:none}
@@ -430,13 +439,13 @@ footer a:hover{color:var(--accent)}
                   <span class="pdf-mini-brand-emoji" id="preview-emoji">🚛</span>
                 </div>
                 <div>
-                  <div class="pdf-mini-brand-name">Quick<span id="preview-accent-text" style="color:#f0a500">Freight</span>Calc</div>
-                  <div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:1px">Freight Rate Calculator</div>
+                  <div class="pdf-mini-brand-name" id="preview-brand-name">Quick<span id="preview-accent-text" style="color:#f0a500">Freight</span>Calc</div>
+                  <div class="pdf-mini-brand-sub" id="preview-brand-sub">Freight Rate Calculator</div>
                 </div>
               </div>
               <div>
-                <div class="pdf-mini-title">Rate Confirmation</div>
-                <div style="font-size:9px;color:rgba(255,255,255,.35);margin-top:2px">Quote #QFC-20260415-0042</div>
+                <div class="pdf-mini-title" id="preview-title">Rate Confirmation</div>
+                <div class="pdf-mini-quote-num" id="preview-quote-num">Quote #QFC-20260415-0042</div>
               </div>
             </div>
             <div class="pdf-mini-bar" id="preview-bar"></div>
@@ -535,15 +544,53 @@ footer a:hover{color:var(--accent)}
 
 <script>
 // ── Color schemes ─────────────────────────────────────────────────────────
+// Each scheme defines a PDF header background + text colors. The text colors
+// are explicit rather than implied so light-header schemes can specify dark
+// text without the PDF templates needing to branch on background luminance.
+//   headerText       → primary (company name, document title)
+//   headerTextSoft   → secondary (footer tagline)
+//   headerTextFaint  → tertiary (quote number, issued date)
 const SCHEMES = [
-  { id:'midnight', name:'Midnight',  header:'#1a1f2e', accent:'#f0a500', bar:'linear-gradient(to right,#f0a500,#f0c040,#f0a500)' },
-  { id:'slate',    name:'Slate',     header:'#1e2535', accent:'#60a5fa', bar:'linear-gradient(to right,#3b82f6,#60a5fa,#3b82f6)' },
-  { id:'forest',   name:'Forest',    header:'#14281d', accent:'#86efac', bar:'linear-gradient(to right,#22c55e,#86efac,#22c55e)' },
-  { id:'steel',    name:'Steel',     header:'#1c2228', accent:'#fb923c', bar:'linear-gradient(to right,#ea580c,#fb923c,#ea580c)' },
-  { id:'executive',name:'Executive', header:'#0d0d0d', accent:'#e2e8f0', bar:'linear-gradient(to right,#94a3b8,#e2e8f0,#94a3b8)' },
-  { id:'crimson',  name:'Crimson',   header:'#1f0d0d', accent:'#fca5a5', bar:'linear-gradient(to right,#dc2626,#fca5a5,#dc2626)' },
-  { id:'ocean',    name:'Ocean',     header:'#0c1f2e', accent:'#67e8f9', bar:'linear-gradient(to right,#0891b2,#67e8f9,#0891b2)' },
-  { id:'carbon',   name:'Carbon',    header:'#111111', accent:'#4ade80', bar:'linear-gradient(to right,#16a34a,#4ade80,#16a34a)' },
+  // ── Dark headers ────────────────────────────────────────────────────────
+  { id:'midnight', name:'Midnight',  tone:'dark',  header:'#1a1f2e', accent:'#f0a500',
+    headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)',  headerTextFaint:'rgba(255,255,255,.35)',
+    bar:'linear-gradient(to right,#f0a500,#f0c040,#f0a500)' },
+  { id:'slate',    name:'Slate',     tone:'dark',  header:'#1e2535', accent:'#60a5fa',
+    headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)',  headerTextFaint:'rgba(255,255,255,.35)',
+    bar:'linear-gradient(to right,#3b82f6,#60a5fa,#3b82f6)' },
+  { id:'forest',   name:'Forest',    tone:'dark',  header:'#14281d', accent:'#86efac',
+    headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)',  headerTextFaint:'rgba(255,255,255,.35)',
+    bar:'linear-gradient(to right,#22c55e,#86efac,#22c55e)' },
+  { id:'steel',    name:'Steel',     tone:'dark',  header:'#1c2228', accent:'#fb923c',
+    headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)',  headerTextFaint:'rgba(255,255,255,.35)',
+    bar:'linear-gradient(to right,#ea580c,#fb923c,#ea580c)' },
+  { id:'executive',name:'Executive', tone:'dark',  header:'#0d0d0d', accent:'#e2e8f0',
+    headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)',  headerTextFaint:'rgba(255,255,255,.35)',
+    bar:'linear-gradient(to right,#94a3b8,#e2e8f0,#94a3b8)' },
+  { id:'crimson',  name:'Crimson',   tone:'dark',  header:'#1f0d0d', accent:'#fca5a5',
+    headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)',  headerTextFaint:'rgba(255,255,255,.35)',
+    bar:'linear-gradient(to right,#dc2626,#fca5a5,#dc2626)' },
+  { id:'ocean',    name:'Ocean',     tone:'dark',  header:'#0c1f2e', accent:'#67e8f9',
+    headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)',  headerTextFaint:'rgba(255,255,255,.35)',
+    bar:'linear-gradient(to right,#0891b2,#67e8f9,#0891b2)' },
+  { id:'carbon',   name:'Carbon',    tone:'dark',  header:'#111111', accent:'#4ade80',
+    headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)',  headerTextFaint:'rgba(255,255,255,.35)',
+    bar:'linear-gradient(to right,#16a34a,#4ade80,#16a34a)' },
+
+  // ── Light headers ───────────────────────────────────────────────────────
+  // For logos designed for light backgrounds (letterhead, business-card style)
+  { id:'paper',    name:'Paper',     tone:'light', header:'#f4f1ea', accent:'#8a6a1a',
+    headerText:'#1a2540', headerTextSoft:'rgba(26,37,64,.58)', headerTextFaint:'rgba(26,37,64,.48)',
+    bar:'linear-gradient(to right,#8a6a1a,#c89a2a,#8a6a1a)' },
+  { id:'mist',     name:'Mist',      tone:'light', header:'#e6edf2', accent:'#2d3748',
+    headerText:'#1a202c', headerTextSoft:'rgba(26,32,44,.58)', headerTextFaint:'rgba(26,32,44,.48)',
+    bar:'linear-gradient(to right,#2d3748,#4a5568,#2d3748)' },
+  { id:'sand',     name:'Sand',      tone:'light', header:'#ece3d3', accent:'#8b3a1f',
+    headerText:'#4a2412', headerTextSoft:'rgba(74,36,18,.62)', headerTextFaint:'rgba(74,36,18,.5)',
+    bar:'linear-gradient(to right,#8b3a1f,#c26236,#8b3a1f)' },
+  { id:'arctic',   name:'Arctic',    tone:'light', header:'#eef3f8', accent:'#0f3d4c',
+    headerText:'#0b2d38', headerTextSoft:'rgba(11,45,56,.6)',  headerTextFaint:'rgba(11,45,56,.48)',
+    bar:'linear-gradient(to right,#0f3d4c,#2a6b7f,#0f3d4c)' },
 ];
 
 let currentScheme = 'midnight';
@@ -552,11 +599,12 @@ let quoteCounter = 1001;
 
 function renderSchemes(){
   const grid = document.getElementById('scheme-grid');
-  grid.innerHTML = SCHEMES.map(s => `
+
+  const cardHTML = s => `
     <div class="scheme-card ${s.id===currentScheme?'active':''}" onclick="selectScheme('${s.id}')" id="scheme-${s.id}">
       <div class="scheme-preview-header" style="background:${s.header}">
         <span class="scheme-preview-emoji">🚛</span>
-        <span class="scheme-preview-text">QuickFreightCalc</span>
+        <span class="scheme-preview-text" style="color:${s.headerTextSoft}">QuickFreightCalc</span>
       </div>
       <div class="scheme-preview-bar" style="background:${s.bar}"></div>
       <div class="scheme-preview-body">
@@ -565,8 +613,19 @@ function renderSchemes(){
         <div class="scheme-preview-line-short" style="background:#e4e8ef;width:40%;margin-top:3px"></div>
       </div>
       <div class="scheme-name">${s.name}</div>
-    </div>
-  `).join('');
+    </div>`;
+
+  // Split into dark-header and light-header groups with a subtle label between.
+  // Light-header schemes work better for logos designed for letterhead/business cards.
+  const darkCards  = SCHEMES.filter(s => s.tone !== 'light').map(cardHTML).join('');
+  const lightCards = SCHEMES.filter(s => s.tone === 'light').map(cardHTML).join('');
+
+  grid.innerHTML = `
+    <div class="scheme-group-label">Dark headers</div>
+    <div class="scheme-grid-row">${darkCards}</div>
+    <div class="scheme-group-label">Light headers <span class="scheme-group-hint">— best for dark logos</span></div>
+    <div class="scheme-grid-row">${lightCards}</div>
+  `;
 }
 
 function selectScheme(id){
@@ -581,8 +640,19 @@ function updatePreview(){
   document.getElementById('preview-header').style.background = s.header;
   document.getElementById('preview-bar').style.background = s.bar;
   document.getElementById('preview-accent-text').style.color = s.accent;
+
+  // Header text colors — driven by the scheme so light-header schemes stay legible.
+  // These mirror the three tones used in the final PDF generators.
+  const brandName = document.getElementById('preview-brand-name');
+  const brandSub  = document.getElementById('preview-brand-sub');
+  const title     = document.getElementById('preview-title');
+  const quoteNum  = document.getElementById('preview-quote-num');
+  if(brandName) brandName.style.color = s.headerText;
+  if(brandSub)  brandSub.style.color  = s.headerTextSoft;
+  if(title)     title.style.color     = s.headerText;
+  if(quoteNum)  quoteNum.style.color  = s.headerTextFaint;
+
   // Logo in preview
-  const emojiEl = document.getElementById('preview-emoji');
   const logoArea = document.getElementById('preview-logo-area');
   if(logoBase64){
     logoArea.innerHTML = `<img src="${logoBase64}" style="height:28px;max-width:80px;object-fit:contain" />`;

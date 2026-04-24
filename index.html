@@ -2883,16 +2883,23 @@ function generateQuotePDF(){
   let profile = {};
   try { profile = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}'); } catch(e){}
 
-  // Color scheme lookup
+  // Color scheme lookup — mirrors profile.html. headerText/Soft/Faint define
+  // text colors for the header so light-header schemes remain legible.
+  const DARK_TEXT = { headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)', headerTextFaint:'rgba(255,255,255,.35)' };
   const SCHEMES = {
-    midnight: { header:'#1a1f2e', accent:'#f0a500', bar:'linear-gradient(to right,#f0a500,#f0c040,#f0a500)' },
-    slate:    { header:'#1e2535', accent:'#60a5fa', bar:'linear-gradient(to right,#3b82f6,#60a5fa,#3b82f6)' },
-    forest:   { header:'#14281d', accent:'#86efac', bar:'linear-gradient(to right,#22c55e,#86efac,#22c55e)' },
-    steel:    { header:'#1c2228', accent:'#fb923c', bar:'linear-gradient(to right,#ea580c,#fb923c,#ea580c)' },
-    executive:{ header:'#0d0d0d', accent:'#e2e8f0', bar:'linear-gradient(to right,#94a3b8,#e2e8f0,#94a3b8)' },
-    crimson:  { header:'#1f0d0d', accent:'#fca5a5', bar:'linear-gradient(to right,#dc2626,#fca5a5,#dc2626)' },
-    ocean:    { header:'#0c1f2e', accent:'#67e8f9', bar:'linear-gradient(to right,#0891b2,#67e8f9,#0891b2)' },
-    carbon:   { header:'#111111', accent:'#4ade80', bar:'linear-gradient(to right,#16a34a,#4ade80,#16a34a)' },
+    midnight: {...DARK_TEXT, header:'#1a1f2e', accent:'#f0a500', bar:'linear-gradient(to right,#f0a500,#f0c040,#f0a500)'},
+    slate:    {...DARK_TEXT, header:'#1e2535', accent:'#60a5fa', bar:'linear-gradient(to right,#3b82f6,#60a5fa,#3b82f6)'},
+    forest:   {...DARK_TEXT, header:'#14281d', accent:'#86efac', bar:'linear-gradient(to right,#22c55e,#86efac,#22c55e)'},
+    steel:    {...DARK_TEXT, header:'#1c2228', accent:'#fb923c', bar:'linear-gradient(to right,#ea580c,#fb923c,#ea580c)'},
+    executive:{...DARK_TEXT, header:'#0d0d0d', accent:'#e2e8f0', bar:'linear-gradient(to right,#94a3b8,#e2e8f0,#94a3b8)'},
+    crimson:  {...DARK_TEXT, header:'#1f0d0d', accent:'#fca5a5', bar:'linear-gradient(to right,#dc2626,#fca5a5,#dc2626)'},
+    ocean:    {...DARK_TEXT, header:'#0c1f2e', accent:'#67e8f9', bar:'linear-gradient(to right,#0891b2,#67e8f9,#0891b2)'},
+    carbon:   {...DARK_TEXT, header:'#111111', accent:'#4ade80', bar:'linear-gradient(to right,#16a34a,#4ade80,#16a34a)'},
+    // Light headers — dark text for readability; logos designed for letterhead sit well here.
+    paper:    {header:'#f4f1ea', accent:'#8a6a1a', headerText:'#1a2540', headerTextSoft:'rgba(26,37,64,.58)', headerTextFaint:'rgba(26,37,64,.48)', bar:'linear-gradient(to right,#8a6a1a,#c89a2a,#8a6a1a)'},
+    mist:     {header:'#e6edf2', accent:'#2d3748', headerText:'#1a202c', headerTextSoft:'rgba(26,32,44,.58)', headerTextFaint:'rgba(26,32,44,.48)', bar:'linear-gradient(to right,#2d3748,#4a5568,#2d3748)'},
+    sand:     {header:'#ece3d3', accent:'#8b3a1f', headerText:'#4a2412', headerTextSoft:'rgba(74,36,18,.62)', headerTextFaint:'rgba(74,36,18,.5)',  bar:'linear-gradient(to right,#8b3a1f,#c26236,#8b3a1f)'},
+    arctic:   {header:'#eef3f8', accent:'#0f3d4c', headerText:'#0b2d38', headerTextSoft:'rgba(11,45,56,.6)',  headerTextFaint:'rgba(11,45,56,.48)', bar:'linear-gradient(to right,#0f3d4c,#2a6b7f,#0f3d4c)'},
   };
   const scheme = SCHEMES[profile.colorScheme] || SCHEMES.midnight;
 
@@ -2926,10 +2933,10 @@ function generateQuotePDF(){
 
   // Company name — use profile or fallback to QFC
   const companyHTML = profile.companyName
-    ? `<div style="font-size:18px;font-weight:700;color:#ffffff;letter-spacing:-.02em">${profile.companyName}</div>
-       <div style="font-size:10px;color:rgba(255,255,255,.4);font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${profile.footerText || 'Licensed Freight Broker'}</div>`
-    : `<div style="font-size:18px;font-weight:700;color:#8fa3b8;letter-spacing:-.02em">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
-       <div style="font-size:10px;color:#4a6070;font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Freight Rate Calculator</div>`;
+    ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${profile.companyName}</div>
+       <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${profile.footerText || 'Licensed Freight Broker'}</div>`
+    : `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
+       <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Freight Rate Calculator</div>`;
 
   // Contact strip — only if profile has contact info
   const hasContact = profile.contactName || profile.phone || profile.email || profile.mcNumber || profile.dotNumber;
@@ -2977,9 +2984,9 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 .doc-body-flex{flex:1}
 .doc-header{background:${scheme.header};padding:28px 40px;display:flex;align-items:center;justify-content:space-between;gap:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-meta{text-align:right}
-.doc-title{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.02em;margin-bottom:4px}
-.doc-number{font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.35);margin-bottom:2px}
-.doc-date{font-size:11px;color:rgba(255,255,255,.35)}
+.doc-title{font-size:22px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em;margin-bottom:4px}
+.doc-number{font-family:'DM Mono',monospace;font-size:11px;color:${scheme.headerTextFaint};margin-bottom:2px}
+.doc-date{font-size:11px;color:${scheme.headerTextFaint}}
 .accent-bar{height:4px;background:${scheme.bar};-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-body{padding:36px 40px;flex:1}
 .quote-hero{background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -3160,15 +3167,23 @@ function generateQuotePDFFromLog(id){
   let profile = {};
   try { profile = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}'); } catch(e){}
 
+  // Scheme config — mirrors profile.html. headerText/Soft/Faint define text
+  // colors for the header so light-header schemes remain legible.
+  const DARK_TEXT = { headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)', headerTextFaint:'rgba(255,255,255,.35)' };
   const SCHEMES = {
-    midnight: { header:'#1a1f2e', accent:'#f0a500', bar:'linear-gradient(to right,#f0a500,#f0c040,#f0a500)' },
-    slate:    { header:'#1e2535', accent:'#60a5fa', bar:'linear-gradient(to right,#3b82f6,#60a5fa,#3b82f6)' },
-    forest:   { header:'#14281d', accent:'#86efac', bar:'linear-gradient(to right,#22c55e,#86efac,#22c55e)' },
-    steel:    { header:'#1c2228', accent:'#fb923c', bar:'linear-gradient(to right,#ea580c,#fb923c,#ea580c)' },
-    executive:{ header:'#0d0d0d', accent:'#e2e8f0', bar:'linear-gradient(to right,#94a3b8,#e2e8f0,#94a3b8)' },
-    crimson:  { header:'#1f0d0d', accent:'#fca5a5', bar:'linear-gradient(to right,#dc2626,#fca5a5,#dc2626)' },
-    ocean:    { header:'#0c1f2e', accent:'#67e8f9', bar:'linear-gradient(to right,#0891b2,#67e8f9,#0891b2)' },
-    carbon:   { header:'#111111', accent:'#4ade80', bar:'linear-gradient(to right,#16a34a,#4ade80,#16a34a)' },
+    midnight: {...DARK_TEXT, header:'#1a1f2e', accent:'#f0a500', bar:'linear-gradient(to right,#f0a500,#f0c040,#f0a500)'},
+    slate:    {...DARK_TEXT, header:'#1e2535', accent:'#60a5fa', bar:'linear-gradient(to right,#3b82f6,#60a5fa,#3b82f6)'},
+    forest:   {...DARK_TEXT, header:'#14281d', accent:'#86efac', bar:'linear-gradient(to right,#22c55e,#86efac,#22c55e)'},
+    steel:    {...DARK_TEXT, header:'#1c2228', accent:'#fb923c', bar:'linear-gradient(to right,#ea580c,#fb923c,#ea580c)'},
+    executive:{...DARK_TEXT, header:'#0d0d0d', accent:'#e2e8f0', bar:'linear-gradient(to right,#94a3b8,#e2e8f0,#94a3b8)'},
+    crimson:  {...DARK_TEXT, header:'#1f0d0d', accent:'#fca5a5', bar:'linear-gradient(to right,#dc2626,#fca5a5,#dc2626)'},
+    ocean:    {...DARK_TEXT, header:'#0c1f2e', accent:'#67e8f9', bar:'linear-gradient(to right,#0891b2,#67e8f9,#0891b2)'},
+    carbon:   {...DARK_TEXT, header:'#111111', accent:'#4ade80', bar:'linear-gradient(to right,#16a34a,#4ade80,#16a34a)'},
+    // Light headers — dark text for readability; logos designed for letterhead sit well here.
+    paper:    {header:'#f4f1ea', accent:'#8a6a1a', headerText:'#1a2540', headerTextSoft:'rgba(26,37,64,.58)', headerTextFaint:'rgba(26,37,64,.48)', bar:'linear-gradient(to right,#8a6a1a,#c89a2a,#8a6a1a)'},
+    mist:     {header:'#e6edf2', accent:'#2d3748', headerText:'#1a202c', headerTextSoft:'rgba(26,32,44,.58)', headerTextFaint:'rgba(26,32,44,.48)', bar:'linear-gradient(to right,#2d3748,#4a5568,#2d3748)'},
+    sand:     {header:'#ece3d3', accent:'#8b3a1f', headerText:'#4a2412', headerTextSoft:'rgba(74,36,18,.62)', headerTextFaint:'rgba(74,36,18,.5)',  bar:'linear-gradient(to right,#8b3a1f,#c26236,#8b3a1f)'},
+    arctic:   {header:'#eef3f8', accent:'#0f3d4c', headerText:'#0b2d38', headerTextSoft:'rgba(11,45,56,.6)',  headerTextFaint:'rgba(11,45,56,.48)', bar:'linear-gradient(to right,#0f3d4c,#2a6b7f,#0f3d4c)'},
   };
   const scheme = SCHEMES[profile.colorScheme] || SCHEMES.midnight;
 
@@ -3193,10 +3208,10 @@ function generateQuotePDFFromLog(id){
     : `<span style="font-size:32px;line-height:1">🚛</span>`;
 
   const companyHTML = profile.companyName
-    ? `<div style="font-size:18px;font-weight:700;color:#ffffff;letter-spacing:-.02em">${profile.companyName}</div>
-       <div style="font-size:10px;color:rgba(255,255,255,.4);font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${profile.footerText || 'Licensed Freight Broker'}</div>`
-    : `<div style="font-size:18px;font-weight:700;color:#8fa3b8;letter-spacing:-.02em">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
-       <div style="font-size:10px;color:#4a6070;font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Freight Rate Calculator</div>`;
+    ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${profile.companyName}</div>
+       <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${profile.footerText || 'Licensed Freight Broker'}</div>`
+    : `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
+       <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Freight Rate Calculator</div>`;
 
   const hasContact = profile.contactName || profile.phone || profile.email || profile.mcNumber || profile.dotNumber;
   const contactItems = [
@@ -3242,9 +3257,9 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 .doc{background:#fff;border-radius:4px;box-shadow:0 4px 40px rgba(0,0,0,.12);overflow:hidden;display:flex;flex-direction:column;min-height:1050px}
 .doc-header{background:${scheme.header};padding:28px 40px;display:flex;align-items:center;justify-content:space-between;gap:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-meta{text-align:right}
-.doc-title{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.02em;margin-bottom:4px}
-.doc-number{font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.35);margin-bottom:2px}
-.doc-date{font-size:11px;color:rgba(255,255,255,.35)}
+.doc-title{font-size:22px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em;margin-bottom:4px}
+.doc-number{font-family:'DM Mono',monospace;font-size:11px;color:${scheme.headerTextFaint};margin-bottom:2px}
+.doc-date{font-size:11px;color:${scheme.headerTextFaint}}
 .accent-bar{height:4px;background:${scheme.bar};-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-body{padding:36px 40px;flex:1}
 .quote-hero{background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:20px}
