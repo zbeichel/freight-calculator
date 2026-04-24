@@ -3308,8 +3308,10 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
         <div class="details-grid">
           <div class="detail-cell"><div class="detail-cell-label">Trailer Type</div><div class="detail-cell-value">${trailerDisplay}</div></div>
           <div class="detail-cell"><div class="detail-cell-label">Commodity</div><div class="detail-cell-value">${q.commodity||'—'}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Weight</div><div class="detail-cell-value">${q.weight ? parseInt(q.weight).toLocaleString()+' lbs' : '—'}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Pickup Date</div><div class="detail-cell-value">${q.pickup||'—'}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Delivery Date</div><div class="detail-cell-value">${q.delivery||'—'}</div></div>
           <div class="detail-cell"><div class="detail-cell-label">Quote RPM</div><div class="detail-cell-value">$${q.rpm||'—'}</div></div>
-          <div class="detail-cell"><div class="detail-cell-label">Saved</div><div class="detail-cell-value">${q.date||'—'}</div></div>
         </div>
       </div>
       <div class="notes-section">
@@ -4750,6 +4752,9 @@ async function saveQuote(){
     date: dateStr,
     orig, dest,
     miles, trailer,
+    weight: document.getElementById('weight').value.trim() || '',
+    pickup: document.getElementById('pickup').value || '',
+    delivery: document.getElementById('delivery').value || '',
     commodityKey: commodity,
     commodity: CLABEL[commodity],
     margin: (marginPct*100).toFixed(0)+'%',
@@ -4895,6 +4900,9 @@ function loadQuoteIntoCalc(id){
   // Route
   if(q.orig) document.getElementById('origin').value = q.orig;
   if(q.dest) document.getElementById('dest').value   = q.dest;
+  if(q.weight)   document.getElementById('weight').value   = q.weight;
+  if(q.pickup)   document.getElementById('pickup').value   = q.pickup;
+  if(q.delivery) document.getElementById('delivery').value = q.delivery;
 
   // Miles — set manually so Google API doesn't override it
   if(q.miles){
