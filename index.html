@@ -3445,12 +3445,12 @@ function refineRegion(state, lat, lon){
 // e.g. "Hastings FL" or "hastings fl" also works
 function parseLocationText(text){
   if(!text) return { city:'', state:'', region:'Unknown' };
-  // Normalize: trim, remove extra spaces
+  // Normalize: trim, collapse whitespace
   const clean = text.trim().replace(/\s+/g,' ');
-  // Match "City, ST" or "City ST" patterns
-  const match = clean.match(/^(.+?)[\s,]+([A-Za-z]{2})\s*(?:,\s*USA?)?$/i);
+  // Match "City, ST", "City ST", "City, ST ZIP", or "City, ST, USA"
+  const match = clean.match(/^(.+?)[\s,]+([A-Za-z]{2})\b(?:\s+\d{5}(?:-\d{4})?)?(?:\s*,\s*USA?)?\s*$/i);
   if(match){
-    const city  = match[1].trim();
+    const city  = match[1].trim().replace(/,\s*$/, '');
     const state = match[2].toUpperCase();
     // Try to get lat/lon from cached coords for multi-region states
     const lat = arguments[1]||0;
@@ -4444,11 +4444,15 @@ function getRatesForRegion(region){
   return regionalRates[region] || regionalRates['national'] || null;
 }
 
-// Detect origin state from typed text — e.g. "Hastings, FL" → "FL"
+// Detect origin state from typed text. Accepts any of:
+//   "Hastings, FL"                  (user just typed)
+//   "Hastings, FL 32145"            (post-validation with ZIP)
+//   "Hastings, FL, USA"             (legacy from older lookups)
+// Returns the 2-letter state code, or null if nothing matches.
 function detectOriginState(){
   const orig = document.getElementById('origin').value.trim();
   if(!orig) return null;
-  const match = orig.match(/[\s,]+([A-Za-z]{2})\s*(?:,\s*USA?)?$/i);
+  const match = orig.match(/[\s,]+([A-Za-z]{2})\b(?:\s+\d{5}(?:-\d{4})?)?(?:\s*,\s*USA?)?\s*$/i);
   return match ? match[1].toUpperCase() : null;
 }
 
