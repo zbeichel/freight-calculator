@@ -4789,6 +4789,9 @@ async function saveQuote(){
           destination: entry.dest,
           miles: entry.miles,
           trailer: entry.trailer,
+          weight: entry.weight || null,
+          pickup_date: entry.pickup || null,
+          delivery_date: entry.delivery || null,
           commodity: entry.commodity,
           commodity_key: entry.commodityKey,
           margin: entry.margin,
@@ -4829,6 +4832,9 @@ async function loadQuoteLogFromSupabase(){
         dest: r.destination,
         miles: r.miles,
         trailer: r.trailer,
+        weight: r.weight || '',
+        pickup: r.pickup_date || '',
+        delivery: r.delivery_date || '',
         commodityKey: r.commodity_key || '',
         commodity: r.commodity,
         margin: r.margin,
@@ -4836,7 +4842,7 @@ async function loadQuoteLogFromSupabase(){
         quote: r.quote,
         rpm: r.rpm,
         notes: r.notes || '',
-        tracked: r.tracked !== false  // default true if not set
+        tracked: r.tracked !== false
       }));
       renderLog();
       setQuoteLogStatus(`✓ ${rows.length} quotes synced`);
