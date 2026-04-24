@@ -100,8 +100,117 @@ a.brand-name:hover span{opacity:.8}
   display:none;margin-left:8px;
 }
 .logo-remove-btn:hover{background:rgba(248,113,113,.1)}
+.logo-adjust-btn{
+  font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;
+  padding:6px 12px;border-radius:8px;border:1px solid var(--border2);
+  background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;
+  display:none;margin-left:8px;
+}
+.logo-adjust-btn:hover{border-color:var(--accent);color:var(--accent)}
 #logo-file-input{display:none}
 .logo-note{font-size:10px;color:var(--text3);line-height:1.6;margin-top:8px}
+
+/* ── Logo cropper modal ── */
+.cropper-overlay{
+  position:fixed;inset:0;background:rgba(5,8,12,.75);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;z-index:200;padding:20px;
+}
+.cropper-overlay.open{display:flex}
+.cropper-modal{
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  width:100%;max-width:560px;max-height:calc(100vh - 40px);overflow:auto;
+  display:flex;flex-direction:column;
+}
+.cropper-header{
+  padding:18px 24px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.cropper-title{font-size:15px;font-weight:700;color:var(--text)}
+.cropper-close{
+  background:transparent;border:none;color:var(--text3);cursor:pointer;
+  font-size:20px;line-height:1;padding:4px 8px;border-radius:6px;transition:color .15s;
+}
+.cropper-close:hover{color:var(--text)}
+.cropper-body{padding:20px 24px;display:flex;flex-direction:column;gap:16px}
+
+/* Frame: stage that holds the draggable image + the crop rectangle overlay */
+.cropper-stage{
+  position:relative;background:
+    repeating-conic-gradient(var(--card2) 0% 25%, var(--card) 0% 50%) 50%/20px 20px;
+  border:1px solid var(--border2);border-radius:8px;overflow:hidden;
+  width:100%;aspect-ratio:3/1;min-height:120px;
+  cursor:grab;user-select:none;touch-action:none;
+}
+.cropper-stage.ratio-2{aspect-ratio:2/1}
+.cropper-stage.dragging{cursor:grabbing}
+.cropper-stage img{
+  position:absolute;top:50%;left:50%;transform-origin:center;
+  transform:translate(-50%,-50%) scale(1);
+  max-width:none;max-height:none;
+  pointer-events:none;-webkit-user-drag:none;
+}
+
+/* Controls row: zoom slider + ratio toggle */
+.cropper-controls{display:flex;flex-direction:column;gap:12px}
+.cropper-row{display:flex;align-items:center;gap:12px}
+.cropper-row label{
+  font-size:11px;font-weight:700;color:var(--text3);
+  text-transform:uppercase;letter-spacing:.06em;min-width:46px;
+}
+.cropper-range{
+  flex:1;-webkit-appearance:none;appearance:none;height:4px;
+  background:var(--card2);border-radius:2px;outline:none;cursor:pointer;
+}
+.cropper-range::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:16px;height:16px;
+  background:var(--accent);border-radius:50%;cursor:pointer;border:none;
+}
+.cropper-range::-moz-range-thumb{
+  width:16px;height:16px;background:var(--accent);border-radius:50%;
+  cursor:pointer;border:none;
+}
+.cropper-zoom-val{font-size:11px;color:var(--text2);min-width:40px;text-align:right;font-variant-numeric:tabular-nums}
+.cropper-ratio-toggle{display:flex;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:2px;gap:2px}
+.cropper-ratio-btn{
+  font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;
+  padding:5px 12px;border-radius:6px;border:none;background:transparent;
+  color:var(--text2);cursor:pointer;transition:all .15s;
+}
+.cropper-ratio-btn.active{background:var(--accent);color:#000}
+
+/* Preview: shows exactly how the logo will appear in the PDF header */
+.cropper-preview-label{
+  font-size:10px;font-weight:700;color:var(--text3);
+  text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;
+}
+.cropper-preview-frame{
+  background:#1a1f2e;border-radius:6px;padding:12px 16px;
+  display:flex;align-items:center;gap:10px;
+}
+.cropper-preview-frame img{height:32px;max-width:104px;object-fit:contain}
+.cropper-preview-caption{
+  font-size:11px;color:rgba(255,255,255,.6);
+  font-weight:600;letter-spacing:.04em;
+}
+.cropper-error{
+  font-size:11px;color:var(--red);padding:8px 12px;
+  background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);
+  border-radius:6px;display:none;
+}
+.cropper-error.show{display:block}
+
+.cropper-footer{
+  padding:14px 24px;border-top:1px solid var(--border);
+  display:flex;justify-content:flex-end;gap:10px;
+}
+.cropper-btn{
+  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
+  padding:8px 16px;border-radius:8px;border:1px solid var(--border2);
+  background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;
+}
+.cropper-btn:hover{border-color:var(--text2);color:var(--text)}
+.cropper-btn.primary{border-color:var(--accent);background:var(--accentbg);color:var(--accent)}
+.cropper-btn.primary:hover{background:var(--accent);color:#000}
 
 /* ── Color schemes ── */
 .scheme-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
@@ -280,7 +389,8 @@ footer a:hover{color:var(--accent)}
           <div class="logo-upload-controls">
             <div>
               <label class="logo-upload-btn" for="logo-file-input">📁 Choose File</label>
-              <button class="logo-remove-btn" id="logo-remove-btn" onclick="removeLogo()">✕ Remove</button>
+              <button type="button" class="logo-adjust-btn" id="logo-adjust-btn" onclick="LogoCropper.openForCurrent()">✂ Adjust crop</button>
+              <button type="button" class="logo-remove-btn" id="logo-remove-btn" onclick="removeLogo()">✕ Remove</button>
             </div>
             <div class="logo-note">
               Recommended: PNG with transparent background, landscape orientation.<br>
@@ -487,19 +597,39 @@ function handleLogoUpload(input){
   if(!file) return;
   if(file.size > 2 * 1024 * 1024){
     alert('File too large — max 2MB');
+    input.value = '';
     return;
   }
+
   const reader = new FileReader();
   reader.onload = e => {
-    logoBase64 = e.target.result;
-    document.getElementById('logo-placeholder').style.display = 'none';
-    const img = document.getElementById('logo-preview-img');
-    img.src = logoBase64;
-    img.style.display = 'block';
-    document.getElementById('logo-remove-btn').style.display = 'inline-block';
-    updatePreview();
+    const dataUrl = e.target.result;
+    // SVG uploads bypass the cropper entirely — canvas-cropping would raster
+    // them and lose vector fidelity, which looks worse on the PDF, not better.
+    if(file.type === 'image/svg+xml'){
+      applyLogo(dataUrl);
+      return;
+    }
+    // Everything else opens the cropper. On cancel, nothing is applied and
+    // the previous logo (if any) stays untouched.
+    LogoCropper.openForSource(dataUrl);
   };
   reader.readAsDataURL(file);
+  // Clear the file input so re-selecting the same file still fires change
+  input.value = '';
+}
+
+// Applies a logo data URL to the on-page preview and the PDF preview card.
+// Used by both the straight-through SVG path and the cropper save path.
+function applyLogo(dataUrl){
+  logoBase64 = dataUrl;
+  document.getElementById('logo-placeholder').style.display = 'none';
+  const img = document.getElementById('logo-preview-img');
+  img.src = logoBase64;
+  img.style.display = 'block';
+  document.getElementById('logo-remove-btn').style.display = 'inline-block';
+  document.getElementById('logo-adjust-btn').style.display = 'inline-block';
+  updatePreview();
 }
 
 function removeLogo(){
@@ -509,9 +639,265 @@ function removeLogo(){
   img.src = '';
   img.style.display = 'none';
   document.getElementById('logo-remove-btn').style.display = 'none';
+  document.getElementById('logo-adjust-btn').style.display = 'none';
   document.getElementById('logo-file-input').value = '';
   updatePreview();
 }
+
+// ── Logo cropper ──────────────────────────────────────────────────────────
+// Modal that lets the user zoom/pan an uploaded image inside a landscape
+// crop frame (3:1 or 2:1), then saves the cropped region as a PNG data URL.
+// The final canvas is sized to a fixed output width so logos look consistent
+// regardless of the source image's resolution.
+const LogoCropper = (() => {
+  const OUTPUT_WIDTH   = 600;          // final PNG width in pixels (height = width / ratio)
+  const MAX_OUTPUT_B64 = 2 * 1024 * 1024; // keep the output under the 2MB storage cap
+
+  const state = {
+    sourceUrl: null,  // data URL of the image being cropped
+    sourceImg: null,  // HTMLImageElement loaded from sourceUrl
+    ratio:     3,     // 3 = 3:1, 2 = 2:1
+    zoom:      1,     // multiplier applied on top of the "fit shortest side" baseline
+    offsetX:   0,     // pan offset in screen pixels relative to the stage center
+    offsetY:   0,
+    baseScale: 1,     // screen-pixels-per-source-pixel at zoom=1 (recomputed per stage size)
+    dragging:  false,
+    lastPointer: null,
+  };
+
+  // DOM references — cached on first use
+  let els = null;
+  function dom(){
+    if(els) return els;
+    els = {
+      overlay:  document.getElementById('cropper-overlay'),
+      stage:    document.getElementById('cropper-stage'),
+      image:    document.getElementById('cropper-image'),
+      zoom:     document.getElementById('cropper-zoom'),
+      zoomVal:  document.getElementById('cropper-zoom-val'),
+      preview:  document.getElementById('cropper-preview-img'),
+      error:    document.getElementById('cropper-error'),
+      ratioBtns: document.querySelectorAll('.cropper-ratio-btn'),
+    };
+    return els;
+  }
+
+  // Computes the baseline scale at which zoom=1 renders the whole image
+  // inside the stage (letterboxing if aspect ratios differ). The user can
+  // zoom up from there to fill the frame with a tighter region.
+  function computeBaseScale(){
+    const { stage } = dom();
+    const stageRect = stage.getBoundingClientRect();
+    const sW = state.sourceImg.naturalWidth;
+    const sH = state.sourceImg.naturalHeight;
+    if(!sW || !sH || !stageRect.width || !stageRect.height){
+      state.baseScale = 1;
+      return;
+    }
+    // Fit-inside: the longer side hits the stage edge; the other axis letterboxes.
+    state.baseScale = Math.min(stageRect.width / sW, stageRect.height / sH);
+  }
+
+  function render(){
+    const { image, zoom, zoomVal } = dom();
+    const sW = state.sourceImg.naturalWidth;
+    const sH = state.sourceImg.naturalHeight;
+    const scale = state.baseScale * state.zoom;
+    image.style.width  = (sW * scale) + 'px';
+    image.style.height = (sH * scale) + 'px';
+    image.style.transform = `translate(calc(-50% + ${state.offsetX}px), calc(-50% + ${state.offsetY}px))`;
+    zoom.value = state.zoom;
+    zoomVal.textContent = state.zoom.toFixed(2).replace(/\.?0+$/, '') + '×';
+    renderPreview();
+  }
+
+  // Renders the live PDF-header preview by cropping to a small canvas
+  function renderPreview(){
+    const canvas = document.createElement('canvas');
+    const outputH = Math.round(OUTPUT_WIDTH / state.ratio);
+    canvas.width  = OUTPUT_WIDTH;
+    canvas.height = outputH;
+    drawCropToCanvas(canvas);
+    dom().preview.src = canvas.toDataURL('image/png');
+  }
+
+  // Core crop math: given the current stage size and transform, figure out
+  // the source-image rectangle that falls inside the stage, then draw it.
+  function drawCropToCanvas(canvas){
+    const { stage } = dom();
+    const stageRect = stage.getBoundingClientRect();
+    const scale     = state.baseScale * state.zoom;
+    const sW        = state.sourceImg.naturalWidth;
+    const sH        = state.sourceImg.naturalHeight;
+
+    // The image is centered at the stage's center, then translated by the pan
+    // offsets. In source-pixel space, the stage covers a rectangle of:
+    //   width  = stageRect.width  / scale
+    //   height = stageRect.height / scale
+    // centered on (sW/2 - offsetX/scale, sH/2 - offsetY/scale).
+    const visW = stageRect.width  / scale;
+    const visH = stageRect.height / scale;
+    const cx   = sW / 2 - state.offsetX / scale;
+    const cy   = sH / 2 - state.offsetY / scale;
+    const sx   = cx - visW / 2;
+    const sy   = cy - visH / 2;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Let the browser handle any partial out-of-bounds region as transparent
+    ctx.drawImage(state.sourceImg, sx, sy, visW, visH, 0, 0, canvas.width, canvas.height);
+  }
+
+  // ── Pointer handling ────────────────────────────────────────────────────
+  function onPointerDown(e){
+    state.dragging = true;
+    state.lastPointer = { x: e.clientX, y: e.clientY };
+    dom().stage.classList.add('dragging');
+    dom().stage.setPointerCapture(e.pointerId);
+  }
+  function onPointerMove(e){
+    if(!state.dragging) return;
+    const dx = e.clientX - state.lastPointer.x;
+    const dy = e.clientY - state.lastPointer.y;
+    state.lastPointer = { x: e.clientX, y: e.clientY };
+    state.offsetX += dx;
+    state.offsetY += dy;
+    render();
+  }
+  function onPointerUp(e){
+    state.dragging = false;
+    dom().stage.classList.remove('dragging');
+    if(dom().stage.hasPointerCapture(e.pointerId)){
+      dom().stage.releasePointerCapture(e.pointerId);
+    }
+  }
+
+  function onZoomChange(e){
+    state.zoom = parseFloat(e.target.value) || 1;
+    render();
+  }
+
+  function attachListeners(){
+    const { stage, zoom, overlay } = dom();
+    stage.addEventListener('pointerdown', onPointerDown);
+    stage.addEventListener('pointermove', onPointerMove);
+    stage.addEventListener('pointerup',   onPointerUp);
+    stage.addEventListener('pointercancel', onPointerUp);
+    zoom.addEventListener('input', onZoomChange);
+    // Close on backdrop click (but not when clicking inside the modal itself)
+    overlay.addEventListener('click', (e) => {
+      if(e.target === overlay) closeModal();
+    });
+    // Close on Escape — only when the modal is actually open
+    document.addEventListener('keydown', (e) => {
+      if(e.key === 'Escape' && overlay.classList.contains('open')) closeModal();
+    });
+  }
+  let listenersAttached = false;
+
+  // ── Ratio toggle ────────────────────────────────────────────────────────
+  function applyRatioClass(){
+    const { stage, ratioBtns } = dom();
+    stage.classList.toggle('ratio-2', state.ratio === 2);
+    ratioBtns.forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.ratio, 10) === state.ratio);
+    });
+  }
+
+  // ── Public API ──────────────────────────────────────────────────────────
+  function openWithSource(dataUrl){
+    state.sourceUrl = dataUrl;
+    state.zoom      = 1;
+    state.offsetX   = 0;
+    state.offsetY   = 0;
+    hideError();
+
+    if(!listenersAttached){
+      attachListeners();
+      listenersAttached = true;
+    }
+
+    dom().image.src = dataUrl;
+    dom().overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    // Wait for image to load and stage to have measurable dimensions, then
+    // compute baseline scale and do the first render.
+    const img = new Image();
+    img.onload = () => {
+      state.sourceImg = img;
+      applyRatioClass();
+      // rAF so the stage's aspect-ratio CSS has applied before we measure
+      requestAnimationFrame(() => {
+        computeBaseScale();
+        render();
+      });
+    };
+    img.onerror = () => {
+      showError('Could not read the image file. Try a different format.');
+    };
+    img.src = dataUrl;
+  }
+
+  return {
+    // Called by handleLogoUpload with a freshly-read data URL
+    openForSource(dataUrl){
+      openWithSource(dataUrl);
+    },
+    // Called by the "Adjust crop" button — re-opens the cropper using the
+    // currently-saved logo as the source. Useful if the first crop wasn't
+    // quite right.
+    openForCurrent(){
+      if(!logoBase64) return;
+      openWithSource(logoBase64);
+    },
+    setRatio(r){
+      state.ratio = (r === 2) ? 2 : 3;
+      applyRatioClass();
+      // Ratio change alters stage dimensions, so baseline scale must recompute
+      requestAnimationFrame(() => {
+        computeBaseScale();
+        render();
+      });
+    },
+    cancel(){
+      closeModal();
+    },
+    save(){
+      const canvas = document.createElement('canvas');
+      const outputH = Math.round(OUTPUT_WIDTH / state.ratio);
+      canvas.width  = OUTPUT_WIDTH;
+      canvas.height = outputH;
+      drawCropToCanvas(canvas);
+      const dataUrl = canvas.toDataURL('image/png');
+      // Rough size check — base64 is ~4/3 the binary size; this catches
+      // pathological cases before we push it into localStorage/Supabase.
+      if(dataUrl.length > MAX_OUTPUT_B64 * 1.4){
+        showError('Cropped image is too large. Try zooming out or using a simpler image.');
+        return;
+      }
+      applyLogo(dataUrl);
+      closeModal();
+    },
+  };
+
+  function closeModal(){
+    dom().overlay.classList.remove('open');
+    document.body.style.overflow = '';
+    // Release the image to free memory; listeners stay attached for reuse
+    state.sourceImg = null;
+    dom().image.src = '';
+  }
+
+  function showError(msg){
+    const el = dom().error;
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+  function hideError(){
+    dom().error.classList.remove('show');
+  }
+})();
 
 // ── Quote number preview ───────────────────────────────────────────────────
 function updateQuotePreview(){
@@ -729,12 +1115,9 @@ function populateForm(p){
   if(p.colorScheme) currentScheme = p.colorScheme;
   if(p.hideLogo) document.getElementById('hide-logo').checked = true;
   if(p.logoBase64){
-    logoBase64 = p.logoBase64;
-    document.getElementById('logo-placeholder').style.display = 'none';
-    const img = document.getElementById('logo-preview-img');
-    img.src = logoBase64;
-    img.style.display = 'block';
-    document.getElementById('logo-remove-btn').style.display = 'inline-block';
+    // Reuse applyLogo so the preview state (remove + adjust buttons) stays in
+    // sync with the upload path — no duplicated show/hide logic.
+    applyLogo(p.logoBase64);
   }
 }
 
@@ -845,6 +1228,50 @@ applyTheme(localStorage.getItem('qfc_theme') || 'dark');
   <p style="margin-bottom:8px">Questions? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent)">info@quickfreightcalc.com</a></p>
   <p>By using QuickFreightCalc you agree to our <a href="/terms.html" target="_blank">Terms of Service</a> and <a href="/privacy.html" target="_blank">Privacy Policy</a>.</p>
 </footer>
+
+<!-- ── Logo cropper modal ── -->
+<div class="cropper-overlay" id="cropper-overlay" role="dialog" aria-modal="true" aria-labelledby="cropper-title">
+  <div class="cropper-modal">
+    <div class="cropper-header">
+      <div class="cropper-title" id="cropper-title">Adjust Logo</div>
+      <button type="button" class="cropper-close" aria-label="Close" onclick="LogoCropper.cancel()">✕</button>
+    </div>
+    <div class="cropper-body">
+      <div class="cropper-stage" id="cropper-stage">
+        <img id="cropper-image" alt="" draggable="false" />
+      </div>
+
+      <div class="cropper-controls">
+        <div class="cropper-row">
+          <label for="cropper-zoom">Zoom</label>
+          <input type="range" id="cropper-zoom" class="cropper-range" min="0.2" max="4" step="0.01" value="1" />
+          <span class="cropper-zoom-val" id="cropper-zoom-val">1.0×</span>
+        </div>
+        <div class="cropper-row">
+          <label>Shape</label>
+          <div class="cropper-ratio-toggle" role="tablist">
+            <button type="button" class="cropper-ratio-btn active" data-ratio="3" onclick="LogoCropper.setRatio(3)">3:1 wide</button>
+            <button type="button" class="cropper-ratio-btn" data-ratio="2" onclick="LogoCropper.setRatio(2)">2:1</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="cropper-preview-label">PDF header preview</div>
+        <div class="cropper-preview-frame">
+          <img id="cropper-preview-img" alt="" />
+          <span class="cropper-preview-caption">Your Company Name</span>
+        </div>
+      </div>
+
+      <div class="cropper-error" id="cropper-error"></div>
+    </div>
+    <div class="cropper-footer">
+      <button type="button" class="cropper-btn" onclick="LogoCropper.cancel()">Cancel</button>
+      <button type="button" class="cropper-btn primary" onclick="LogoCropper.save()">Use This Crop</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
