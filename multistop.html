@@ -653,6 +653,19 @@ function isAcceptableGeocodeResult(data, userTypedZip){
   return true;
 }
 
+// Cleans up common input variations before sending to the geocoder so Google
+// doesn't flag valid input (e.g. "hastings fl") as a partial match.
+function normalizeLocationInput(raw){
+  if(/^\d{5}(-\d{4})?$/.test(raw)) return raw;
+  let val = raw.replace(/\s+/g, ' ').trim();
+  val = val.replace(/\s*,\s*/g, ', ');
+  val = val.replace(/,?\s+([A-Za-z]{2})\s*$/, (m, st) => ', ' + st.toUpperCase());
+  val = val.replace(/^([^,]+)/, city =>
+    city.trim().replace(/\b\w/g, c => c.toUpperCase())
+  );
+  return val;
+}
+
 function setLocationError(input, stopId, message){
   const stop = stops.find(s => s.id === stopId);
   if(stop){
@@ -694,14 +707,20 @@ async function validateLocation(input, stopId){
     return;
   }
 
+  const normalized = normalizeLocationInput(raw);
+  if(normalized !== input.value){
+    input.value = normalized;
+    updateStopLocation(stopId, normalized);
+  }
+
   const requestId = Symbol('geocode');
   MS_VALIDATION_IN_FLIGHT.set(input, requestId);
 
-  const userTypedZip = /^\d{5}(-\d{4})?$/.test(raw);
+  const userTypedZip = /^\d{5}(-\d{4})?$/.test(normalized);
 
   let data;
   try {
-    const resp = await fetch(`/.netlify/functions/geocode?address=${encodeURIComponent(raw)}`);
+    const resp = await fetch(`/.netlify/functions/geocode?address=${encodeURIComponent(normalized)}`);
     data = await resp.json();
   } catch(e){
     // Network/proxy failure — don't punish the user. Leave value as typed.
