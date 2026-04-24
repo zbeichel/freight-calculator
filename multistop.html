@@ -89,6 +89,12 @@ a.brand-name:hover span{opacity:.8}
   padding:8px 11px;outline:none;transition:border-color .15s;width:100%;
 }
 .stop-input:focus{border-color:var(--accent)}
+.stop-input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(248,113,113,.08)}
+.stop-location-error{
+  display:none;margin:4px 0 6px;font-size:10px;font-weight:500;
+  color:var(--red);line-height:1.4;
+}
+.stop-location-error.show{display:block}
 .stop-input.weight-input{width:130px}
 .stop-weight-row{display:flex;align-items:center;gap:6px;margin-top:4px}
 .stop-weight-label{font-size:10px;color:var(--text3);white-space:nowrap}
@@ -160,6 +166,9 @@ a.brand-name:hover span{opacity:.8}
   padding:8px 11px;outline:none;transition:border-color .15s;width:100%;
 }
 .field input:focus,.field select:focus{border-color:var(--accent)}
+.field.invalid input{border-color:var(--red);box-shadow:0 0 0 3px rgba(248,113,113,.08)}
+.field-error{display:none;margin-top:4px;font-size:10px;font-weight:500;color:var(--red);line-height:1.4}
+.field.invalid .field-error{display:block}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
 /* ── Result card ── */
@@ -629,43 +638,101 @@ footer a:hover{color:var(--accent)}
 </button>
 
 <script>
-async function formatLocation(input){
-  let val = input.value.trim();
-  if(!val) return;
+// ── Location validation & normalization ───────────────────────────────────
+// On blur, resolve the typed value through our Geocoding proxy and either
+// rewrite it to the canonical "City, ST ZIP" form or flag the stop invalid.
+// Invalid state lives on the stop object (stop.invalid / stop.invalidMsg) so
+// it survives re-renders. lookupLegMiles is gated on this state.
 
-  // Detect zip code — 5 digits
-  if(/^\d{5}(-\d{4})?$/.test(val)){
-    try {
-      const resp = await fetch(`/.netlify/functions/geocode?address=${encodeURIComponent(val)}`);
-      const data = await resp.json();
-      if(data && data.name && !data.error){
-        input.value = data.name;
-        input.dispatchEvent(new Event('input', {bubbles:true}));
-        return;
-      }
-    } catch(e){}
-    try {
-      const resp = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${val}&count=1&language=en&format=json&countryCode=US`);
-      const data = await resp.json();
-      if(data.results?.[0]){
-        const r = data.results[0];
-        const city = r.name.replace(/\b\w/g, c => c.toUpperCase());
-        const state = r.admin1_code || '';
-        input.value = state ? `${city}, ${state.toUpperCase()}` : city;
-        input.dispatchEvent(new Event('input', {bubbles:true}));
-        return;
-      }
-    } catch(e){}
+const MS_VALIDATION_IN_FLIGHT = new WeakMap(); // input element → request id
+
+function isAcceptableGeocodeResult(data, userTypedZip){
+  if(!data || data.error) return false;
+  if(!data.city || !data.state) return false;
+  if(data.partialMatch && !userTypedZip) return false;
+  return true;
+}
+
+function setLocationError(input, stopId, message){
+  const stop = stops.find(s => s.id === stopId);
+  if(stop){
+    stop.invalid = true;
+    stop.invalidMsg = message || '';
+  }
+  input.classList.add('invalid');
+  input.setAttribute('aria-invalid', 'true');
+  const errEl = document.getElementById(`stop-error-${stopId}`);
+  if(errEl){
+    if(message) errEl.textContent = message;
+    errEl.classList.add('show');
+  }
+}
+
+function clearLocationError(input, stopId){
+  const stop = stops.find(s => s.id === stopId);
+  if(stop){
+    stop.invalid = false;
+    stop.invalidMsg = '';
+  }
+  input.classList.remove('invalid');
+  input.removeAttribute('aria-invalid');
+  const errEl = document.getElementById(`stop-error-${stopId}`);
+  if(errEl) errEl.classList.remove('show');
+}
+
+function isStopValid(stopId){
+  const stop = stops.find(s => s.id === stopId);
+  if(!stop) return true;
+  if(!stop.location?.trim()) return true; // empty = not yet validated, not invalid
+  return !stop.invalid;
+}
+
+async function validateLocation(input, stopId){
+  const raw = input.value.trim();
+  if(!raw){
+    clearLocationError(input, stopId);
     return;
   }
 
-  // Standard city/state formatting
-  val = val.replace(/\s*,\s*/g, ', ');
-  val = val.replace(/,?\s+([A-Za-z]{2})\s*$/, (m, st) => ', ' + st.toUpperCase());
-  val = val.replace(/^([^,]+)/, city =>
-    city.trim().replace(/\b\w/g, c => c.toUpperCase())
-  );
-  input.value = val;
+  const requestId = Symbol('geocode');
+  MS_VALIDATION_IN_FLIGHT.set(input, requestId);
+
+  const userTypedZip = /^\d{5}(-\d{4})?$/.test(raw);
+
+  let data;
+  try {
+    const resp = await fetch(`/.netlify/functions/geocode?address=${encodeURIComponent(raw)}`);
+    data = await resp.json();
+  } catch(e){
+    // Network/proxy failure — don't punish the user. Leave value as typed.
+    if(MS_VALIDATION_IN_FLIGHT.get(input) === requestId){
+      clearLocationError(input, stopId);
+    }
+    return;
+  }
+
+  if(MS_VALIDATION_IN_FLIGHT.get(input) !== requestId) return;
+
+  if(!isAcceptableGeocodeResult(data, userTypedZip)){
+    setLocationError(
+      input,
+      stopId,
+      userTypedZip
+        ? 'ZIP code not recognized. Please double-check it.'
+        : "Couldn't verify this location. Try \"City, ST\" or a 5-digit ZIP code."
+    );
+    return;
+  }
+
+  clearLocationError(input, stopId);
+
+  const canonical = data.name;
+  if(canonical && canonical !== input.value){
+    input.value = canonical;
+    // Sync the state object and fire the normal update path so leg miles,
+    // regional rates, and transit all recompute against the canonical value.
+    updateStopLocation(stopId, canonical);
+  }
 }
 
 // ── Regional rate logic ────────────────────────────────────────────────────
@@ -939,10 +1006,10 @@ function renderStops(){
       </div>
       <div class="stop-body" style="display:block;padding:12px 14px">
         <div class="stop-location-row">
-          <input class="stop-input" type="text" placeholder="City, ST — e.g. Hastings, FL"
+          <input class="stop-input${stop.invalid ? ' invalid' : ''}" type="text" placeholder="City, ST or ZIP — e.g. Hastings, FL or 32145"
             value="${stop.location||''}"
-            onblur="formatLocation(this);updateStopLocation(${stop.id}, this.value)"
-            oninput="updateStopLocation(${stop.id}, this.value)" />
+            onblur="validateLocation(this, ${stop.id});updateStopLocation(${stop.id}, this.value)"
+            oninput="clearLocationError(this, ${stop.id});updateStopLocation(${stop.id}, this.value)" />
           <div class="stop-date-wrap">
             <span style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">${isPickup?'Pickup':'Delivery'} Date</span>
             <input type="date" class="stop-input stop-date-input"
@@ -950,6 +1017,7 @@ function renderStops(){
               onchange="updateStopDate(${stop.id}, this.value)" />
           </div>
         </div>
+        <div class="stop-location-error${stop.invalid ? ' show' : ''}" id="stop-error-${stop.id}">${stop.invalidMsg || "Couldn't verify this location. Try \"City, ST\" or a 5-digit ZIP code."}</div>
         ${weightRow}
         <div class="miles-status" id="leg-status-${stop.id}"></div>
       </div>`;
@@ -1123,6 +1191,10 @@ function msRouteCacheKey(a, b){ return a.toLowerCase().trim() + '||' + b.toLower
 async function lookupLegMiles(id){
   const idx = stops.findIndex(s => s.id === id);
   if(idx < 0 || idx >= stops.length - 1) return;
+
+  // Skip if either end of this leg failed location validation — prevents the
+  // Routes API from silently returning miles for garbage input like "alan".
+  if(!isStopValid(stops[idx].id) || !isStopValid(stops[idx+1].id)) return;
 
   const from = stops[idx].location?.trim();
   const to   = stops[idx+1].location?.trim();

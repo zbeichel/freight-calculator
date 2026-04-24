@@ -370,6 +370,19 @@ header .pro-account-btn{ justify-self:end; }
   border-color:var(--accent);
   box-shadow:0 0 0 3px rgba(240,165,0,.1);
 }
+.field.invalid input{
+  border-color:var(--red);
+  box-shadow:0 0 0 3px rgba(239,68,68,.08);
+}
+.field-error{
+  display:none;
+  margin-top:6px;
+  font-size:11px;
+  font-weight:500;
+  color:var(--red);
+  line-height:1.4;
+}
+.field.invalid .field-error{display:block}
 .field select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
 .field select option{background:var(--card2)}
 
@@ -1004,17 +1017,19 @@ html.light .hos-day-header{background:var(--card2)}
           <div class="prof-section-label" style="margin-top:4px">Route &amp; mileage</div>
           <!-- Origin / Destination first -->
           <div class="grid2" style="margin-bottom:8px">
-            <div class="field">
+            <div class="field" id="p-origin-field">
               <label>Origin</label>
-              <input type="text" id="p-origin" placeholder="e.g. Hastings, FL" autocomplete="off"
-                onblur="formatLocation(this)"
-                oninput="clearTimeout(pLookupTimer);pLookupTimer=setTimeout(tryProfLookup,900)" />
+              <input type="text" id="p-origin" placeholder="e.g. Hastings, FL or 32145" autocomplete="off"
+                onblur="validateLocation(this)"
+                oninput="clearLocationError(this);clearTimeout(pLookupTimer);pLookupTimer=setTimeout(tryProfLookup,900)" />
+              <div class="field-error" id="p-origin-error">Couldn't verify this location. Try "City, ST" or a 5-digit ZIP code.</div>
             </div>
-            <div class="field">
+            <div class="field" id="p-dest-field">
               <label>Destination</label>
-              <input type="text" id="p-dest" placeholder="e.g. Charlotte, NC" autocomplete="off"
-                onblur="formatLocation(this)"
-                oninput="clearTimeout(pLookupTimer);pLookupTimer=setTimeout(tryProfLookup,900)" />
+              <input type="text" id="p-dest" placeholder="e.g. Charlotte, NC or 28202" autocomplete="off"
+                onblur="validateLocation(this)"
+                oninput="clearLocationError(this);clearTimeout(pLookupTimer);pLookupTimer=setTimeout(tryProfLookup,900)" />
+              <div class="field-error" id="p-dest-error">Couldn't verify this location. Try "City, ST" or a 5-digit ZIP code.</div>
             </div>
           </div>
           <!-- Miles status pill -->
@@ -1171,8 +1186,20 @@ html.light .hos-day-header{background:var(--card2)}
         </div>
 
         <div class="grid2" id="route-grid">
-          <div class="field"><label>Origin</label><input type="text" id="origin" placeholder="e.g. Hastings, FL" autocomplete="off" onblur="formatLocation(this)" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';if(!ratesManualOverride)applyRegionalRates();clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
-          <div class="field"><label>Destination</label><input type="text" id="dest" placeholder="e.g. Charlotte, NC" autocomplete="off" onblur="formatLocation(this)" oninput="lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" /></div>
+          <div class="field" id="origin-field">
+            <label>Origin</label>
+            <input type="text" id="origin" placeholder="e.g. Hastings, FL or 32145" autocomplete="off"
+              onblur="validateLocation(this)"
+              oninput="clearLocationError(this);lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';if(!ratesManualOverride)applyRegionalRates();clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" />
+            <div class="field-error" id="origin-error">Couldn't verify this location. Try "City, ST" or a 5-digit ZIP code.</div>
+          </div>
+          <div class="field" id="dest-field">
+            <label>Destination</label>
+            <input type="text" id="dest" placeholder="e.g. Charlotte, NC or 28202" autocomplete="off"
+              onblur="validateLocation(this)"
+              oninput="clearLocationError(this);lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" />
+            <div class="field-error" id="dest-error">Couldn't verify this location. Try "City, ST" or a 5-digit ZIP code.</div>
+          </div>
         </div>
 
         <!-- Miles status row -->
@@ -3791,6 +3818,7 @@ function applyFixedCPM(){
 }
 
 async function tryProfLookup(){
+  if(!isLocationFieldValid('p-origin') || !isLocationFieldValid('p-dest')) return;
   const orig = document.getElementById('p-origin').value.trim();
   const dest  = document.getElementById('p-dest').value.trim();
   if(!orig || !dest || orig.length < 3 || dest.length < 3) return;
@@ -4143,46 +4171,105 @@ function calcLTL(){
 function fmt(n){return'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function fmtInt(n){return'$'+Math.round(n).toLocaleString('en-US')}
 
-async function formatLocation(input){
-  let val = input.value.trim();
-  if(!val) return;
+// ── Location validation & normalization ───────────────────────────────────
+// On blur, resolve the typed value through our Geocoding proxy and either:
+//   (a) rewrite it to the canonical "City, ST ZIP" form Google confirms, or
+//   (b) mark the field invalid so the Routes API is never called with garbage
+//       (e.g. "alan" silently matching some tiny rural locality).
+//
+// A result is considered a valid freight location if it has both a city-like
+// component and a 2-letter state, and isn't flagged as a partial match for
+// non-ZIP input. Small unincorporated places (neighborhoods, townships) are
+// accepted — they're legitimate freight destinations.
 
-  // Detect zip code — 5 digits, optionally with -4 extension
-  if(/^\d{5}(-\d{4})?$/.test(val)){
-    // Look up via our existing geocode proxy
-    try {
-      const resp = await fetch(`/.netlify/functions/geocode?address=${encodeURIComponent(val)}`);
-      const data = await resp.json();
-      if(data && data.name && !data.error){
-        input.value = data.name;
-        // Trigger dependent actions
-        input.dispatchEvent(new Event('input', {bubbles:true}));
-        return;
-      }
-    } catch(e){}
-    // If proxy fails, try Open-Meteo geocoding as fallback
-    try {
-      const resp = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${val}&count=1&language=en&format=json&countryCode=US`);
-      const data = await resp.json();
-      if(data.results?.[0]){
-        const r = data.results[0];
-        const city = r.name.replace(/\b\w/g, c => c.toUpperCase());
-        const state = r.admin1_code || '';
-        input.value = state ? `${city}, ${state.toUpperCase()}` : city;
-        input.dispatchEvent(new Event('input', {bubbles:true}));
-        return;
-      }
-    } catch(e){}
-    return; // leave as-is if lookup fails
+const LOCATION_VALIDATION_IN_FLIGHT = new WeakMap(); // input → latest request id
+
+function setLocationError(input, message){
+  const field = input.closest('.field');
+  if(!field) return;
+  field.classList.add('invalid');
+  if(message){
+    const errEl = field.querySelector('.field-error');
+    if(errEl) errEl.textContent = message;
+  }
+  input.setAttribute('aria-invalid', 'true');
+}
+
+function clearLocationError(input){
+  const field = input.closest('.field');
+  if(!field) return;
+  field.classList.remove('invalid');
+  input.removeAttribute('aria-invalid');
+}
+
+function isLocationFieldValid(inputId){
+  const input = document.getElementById(inputId);
+  if(!input) return true;
+  if(!input.value.trim()) return true; // empty is "not yet validated", not invalid
+  const field = input.closest('.field');
+  return !field?.classList.contains('invalid');
+}
+
+// Rule-of-thumb check: if the geocoder result has a city and state and either
+// wasn't a partial match or the user typed a ZIP, it's a real place.
+function isAcceptableGeocodeResult(data, userTypedZip){
+  if(!data || data.error) return false;
+  if(!data.city || !data.state) return false;
+  // Partial matches for non-ZIP input are the "alan → Alan, WV" trap.
+  if(data.partialMatch && !userTypedZip) return false;
+  return true;
+}
+
+async function validateLocation(input){
+  const raw = input.value.trim();
+  if(!raw){
+    clearLocationError(input);
+    return;
   }
 
-  // Standard city/state formatting
-  val = val.replace(/\s*,\s*/g, ', ');
-  val = val.replace(/,?\s+([A-Za-z]{2})\s*$/, (m, st) => ', ' + st.toUpperCase());
-  val = val.replace(/^([^,]+)/, city =>
-    city.trim().replace(/\b\w/g, c => c.toUpperCase())
-  );
-  input.value = val;
+  // Tag this request so a stale response can't clobber a newer one.
+  const requestId = Symbol('geocode');
+  LOCATION_VALIDATION_IN_FLIGHT.set(input, requestId);
+
+  const userTypedZip = /^\d{5}(-\d{4})?$/.test(raw);
+
+  let data;
+  try {
+    const resp = await fetch(`/.netlify/functions/geocode?address=${encodeURIComponent(raw)}`);
+    data = await resp.json();
+  } catch(e){
+    // Network/proxy failure — don't punish the user. Leave the value as typed
+    // and let tryLookupMiles surface any downstream issue.
+    if(LOCATION_VALIDATION_IN_FLIGHT.get(input) === requestId){
+      clearLocationError(input);
+    }
+    return;
+  }
+
+  // Bail if a newer validation started while we were waiting.
+  if(LOCATION_VALIDATION_IN_FLIGHT.get(input) !== requestId) return;
+
+  if(!isAcceptableGeocodeResult(data, userTypedZip)){
+    setLocationError(
+      input,
+      userTypedZip
+        ? 'ZIP code not recognized. Please double-check it.'
+        : "Couldn't verify this location. Try \"City, ST\" or a 5-digit ZIP code."
+    );
+    // Clear any cached coords tied to this field so weather/route don't reuse stale data.
+    if(input.id === 'origin') origCoords = null;
+    if(input.id === 'dest')   destCoords = null;
+    return;
+  }
+
+  clearLocationError(input);
+
+  const canonical = data.name; // "City, ST ZIP" (ZIP omitted if Google didn't return one)
+  if(canonical && canonical !== input.value){
+    input.value = canonical;
+    // Re-run dependent logic (regional rates, route lookup, weather) with the canonical value.
+    input.dispatchEvent(new Event('input', {bubbles:true}));
+  }
 }
 function clearCalculator(){
   // Clear all inputs
@@ -4192,6 +4279,10 @@ function clearCalculator(){
   document.getElementById('weight').value = '';
   document.getElementById('pickup').valueAsDate = new Date();
   document.getElementById('delivery').value = '';
+
+  // Clear any inline location validation errors
+  clearLocationError(document.getElementById('origin'));
+  clearLocationError(document.getElementById('dest'));
 
   // Reset state variables
   lastLookedUpOrig = ''; lastLookedUpDest = '';
@@ -5335,6 +5426,10 @@ function routeCacheKey(a, b){ return a.toLowerCase().trim() + '||' + b.toLowerCa
 
 async function tryLookupMiles(){
   if(manualMiles) return;
+  // Don't fire against fields that failed validation — prevents garbage like
+  // "alan" from silently matching some obscure locality via the Routes API.
+  if(!isLocationFieldValid('origin') || !isLocationFieldValid('dest')) return;
+
   const orig    = document.getElementById('origin').value.trim();
   const dest    = document.getElementById('dest').value.trim();
   if(!orig || !dest || orig.length < 3 || dest.length < 3) return;
