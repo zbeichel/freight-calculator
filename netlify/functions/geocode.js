@@ -68,7 +68,7 @@ exports.handler = async (event) => {
     return respond(400, { error: 'Missing address parameter' });
   }
 
-  const apiKey = process.env.GOOGLE_MAPS_KEY;
+  const apiKey = process.env.GMAPS_API_KEY;
   if (!apiKey) {
     return respond(500, { error: 'Geocoding not configured' });
   }
