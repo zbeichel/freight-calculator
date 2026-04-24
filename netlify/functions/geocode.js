@@ -4,17 +4,22 @@
 // Returns a structured payload the client can use to validate that a typed
 // origin/destination resolves to a real place (not a random partial match).
 //
+// For bare city inputs like "Charlotte, NC", Google's forward geocoder returns
+// the city centroid without a postal_code. To keep the "City, ST ZIP" display
+// consistent across all inputs, we fall back to a reverse geocode on those
+// coordinates, which returns the ZIP polygon covering the centroid.
+//
 // Response shape:
 //   success: {
-//     name:         "Atlanta, GA 30303"   // canonical display string
-//     city:         "Atlanta"
-//     state:        "GA"                  // 2-letter postal abbreviation
-//     zip:          "30303"               // may be ""
-//     lat:          33.7489924
-//     lon:          -84.3902644
+//     name:         "Charlotte, NC 28202"   // canonical display string
+//     city:         "Charlotte"
+//     state:        "NC"                    // 2-letter postal abbreviation
+//     zip:          "28202"                 // may be "" if even reverse-geocode failed
+//     lat:          35.2270869
+//     lon:          -80.8431267
 //     types:        ["locality", "political"]
 //     partialMatch: false
-//     formatted:    "Atlanta, GA, USA"    // Google's formatted_address
+//     formatted:    "Charlotte, NC, USA"    // Google's formatted_address
 //   }
 //   failure: { error: "message" }   (HTTP 200 — client branches on .error)
 
@@ -62,6 +67,33 @@ function extractCity(components) {
   return '';
 }
 
+// Reverse-geocodes lat/lon to find the ZIP polygon containing that point.
+// Used as a fallback when a forward geocode of a bare city returns no ZIP.
+// Returns "" on any failure — the caller treats this as "no ZIP available".
+async function lookupZipByCoords(lat, lon, apiKey) {
+  const params = new URLSearchParams({
+    latlng:      `${lat},${lon}`,
+    key:         apiKey,
+    result_type: 'postal_code', // narrow the response; Google returns only postal_code results
+  });
+
+  let data;
+  try {
+    const resp = await fetch(`${GOOGLE_ENDPOINT}?${params}`);
+    data = await resp.json();
+  } catch {
+    return '';
+  }
+
+  if (data.status !== 'OK' || !data.results?.length) return '';
+
+  // Prefer a result whose top-level type is postal_code. Fall back to the first
+  // result's address_components if Google doesn't tag it that way.
+  const zipResult =
+    data.results.find(r => r.types?.includes('postal_code')) || data.results[0];
+  return findComponent(zipResult.address_components || [], 'postal_code');
+}
+
 exports.handler = async (event) => {
   const address = (event.queryStringParameters && event.queryStringParameters.address) || '';
   if (!address.trim()) {
@@ -74,8 +106,8 @@ exports.handler = async (event) => {
   }
 
   const params = new URLSearchParams({
-    address: address.trim(),
-    key: apiKey,
+    address:    address.trim(),
+    key:        apiKey,
     components: 'country:US',
   });
 
@@ -83,7 +115,7 @@ exports.handler = async (event) => {
   try {
     const resp = await fetch(`${GOOGLE_ENDPOINT}?${params}`);
     data = await resp.json();
-  } catch (err) {
+  } catch {
     return respond(502, { error: 'Upstream geocoder unreachable' });
   }
 
@@ -96,19 +128,27 @@ exports.handler = async (event) => {
 
   const result     = data.results[0];
   const components = result.address_components || [];
+  const lat        = result.geometry?.location?.lat;
+  const lon        = result.geometry?.location?.lng;
 
   const city  = extractCity(components);
   const state = findComponent(components, 'administrative_area_level_1', true);
-  const zip   = findComponent(components, 'postal_code');
-  const name  = buildDisplayName(city, state, zip);
+  let   zip   = findComponent(components, 'postal_code');
+
+  // Bare-city queries (e.g. "Charlotte, NC") don't return a postal_code at the
+  // city level. Reverse-geocode the centroid to get a representative ZIP so the
+  // display stays consistent across all inputs.
+  if (!zip && typeof lat === 'number' && typeof lon === 'number') {
+    zip = await lookupZipByCoords(lat, lon, apiKey);
+  }
 
   return respond(200, {
-    name,
+    name:         buildDisplayName(city, state, zip),
     city,
     state,
     zip,
-    lat:          result.geometry?.location?.lat,
-    lon:          result.geometry?.location?.lng,
+    lat,
+    lon,
     types:        result.types || [],
     partialMatch: result.partial_match === true,
     formatted:    result.formatted_address || '',
