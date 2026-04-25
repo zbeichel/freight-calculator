@@ -224,7 +224,8 @@ async function loadRateHistory(){
 // ── Get region from origin string ─────────────────────────────────────────
 function getRegionFromOrigin(origin){
   if(!origin) return 'national';
-  const match = origin.trim().match(/,?\s*([A-Za-z]{2})\s*$/);
+  // Accepts "City, ST", "City, ST ZIP", or "City, ST, USA"
+  const match = origin.trim().match(/[\s,]+([A-Za-z]{2})\b(?:\s+\d{5}(?:-\d{4})?)?(?:\s*,\s*USA?)?\s*$/i);
   if(!match) return 'national';
   return STATE_TO_REGION[match[1].toUpperCase()] || 'national';
 }
@@ -241,16 +242,24 @@ function getRateFromHistory(region, trailer, dateStr){
 }
 
 // ── Build chart data for a profile ───────────────────────────────────────
+// Returns rate-per-mile points alongside total-dollars points for the lane.
+// Total = miles × rate, computed per snapshot. If the profile has no miles
+// recorded (older saved lanes), `totals` comes back as null so the caller
+// can skip the secondary line cleanly.
 function buildChartData(profile, trailer){
-  if(!ratesData?.history) return { labels:[], data:[] };
+  if(!ratesData?.history) return { labels:[], data:[], totals:null, region:'national', miles:0 };
   const region = getRegionFromOrigin(profile.origin);
+  const miles  = Number(profile.miles) || 0;
   const entries = [...ratesData.history]
     .filter(h => h.regions?.[region]?.[trailer] > 0)
     .sort((a,b) => a.date.localeCompare(b.date));
+  const data = entries.map(h => h.regions[region][trailer]);
   return {
     labels: entries.map(h => h.label || h.date),
-    data:   entries.map(h => h.regions[region][trailer]),
-    region
+    data,
+    totals: miles > 0 ? data.map(r => r * miles) : null,
+    region,
+    miles,
   };
 }
 
@@ -334,13 +343,21 @@ function renderDetail(){
   if(selectedIdx === null) return;
   const p = profiles[selectedIdx];
   const region = getRegionFromOrigin(p.origin);
-  const { labels, data } = buildChartData(p, activeTrailer);
+  const { labels, data, totals, miles } = buildChartData(p, activeTrailer);
   const currentRate = data[data.length-1];
   const prevRate    = data[data.length-2];
   const firstRate   = data[0];
   const changeMonth = currentRate && prevRate ? ((currentRate-prevRate)/prevRate*100) : null;
   const changeTotal = currentRate && firstRate ? ((currentRate-firstRate)/firstRate*100) : null;
   const trailerLabel = {van:'🚛 Van',reefer:'🧊 Reefer',flatbed:'🏗 Flatbed'}[activeTrailer]||activeTrailer;
+
+  // Lane dollar total at the current rate. Only meaningful if the saved lane
+  // has miles recorded — older profiles may not, in which case we fall back
+  // to just showing the per-mile rate.
+  const currentTotal  = (miles > 0 && currentRate) ? currentRate * miles : null;
+  const totalSubLine  = currentTotal !== null
+    ? `$${Math.round(currentTotal).toLocaleString()} total · ${miles.toLocaleString()} mi`
+    : `per mile · ${trailerLabel}`;
 
   const panel = document.getElementById('right-panel');
   panel.innerHTML = `
@@ -349,7 +366,7 @@ function renderDetail(){
       <div class="stat-card">
         <div class="stat-label">Current Rate</div>
         <div class="stat-val accent">${currentRate ? '$'+currentRate.toFixed(2) : '—'}</div>
-        <div class="stat-sub">per mile · ${trailerLabel}</div>
+        <div class="stat-sub">${totalSubLine}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Month Change</div>
@@ -370,13 +387,13 @@ function renderDetail(){
     <!-- Chart -->
     <div class="chart-wrap">
       <div class="chart-title">${p.name}</div>
-      <div class="chart-sub">${p.origin||'—'} → ${p.dest||'—'} · ${REGION_LABELS[region]||region} region</div>
+      <div class="chart-sub">${p.origin||'—'} → ${p.dest||'—'} · ${REGION_LABELS[region]||region} region${miles > 0 ? ` · ${miles.toLocaleString()} mi` : ''}</div>
       <div class="trailer-toggle">
         <button class="trailer-btn ${activeTrailer==='reefer'?'active':''}" onclick="setTrailer('reefer')">🧊 Reefer</button>
         <button class="trailer-btn ${activeTrailer==='van'?'active':''}" onclick="setTrailer('van')">🚛 Van</button>
         <button class="trailer-btn ${activeTrailer==='flatbed'?'active':''}" onclick="setTrailer('flatbed')">🏗 Flatbed</button>
       </div>
-      <div style="position:relative;height:220px">
+      <div style="position:relative;height:260px">
         <canvas id="rate-chart"></canvas>
       </div>
       <div style="font-size:10px;color:var(--text3);margin-top:10px;text-align:center">
@@ -429,69 +446,123 @@ function renderDetail(){
     </tr>`;
   }).join('');
 
-  renderChart(labels, data);
+  renderChart(labels, data, totals);
 }
 
 // ── Render chart ──────────────────────────────────────────────────────────
-function renderChart(labels, data){
+function renderChart(labels, data, totals){
   if(chartInstance) chartInstance.destroy();
   const ctx = document.getElementById('rate-chart');
   if(!ctx) return;
 
-  const isDark = !document.documentElement.classList.contains('light');
+  const isDark    = !document.documentElement.classList.contains('light');
   const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';
   const textColor = isDark ? '#6b7f94' : '#94a3b8';
 
+  // Primary line: rate per mile (always shown)
+  const datasets = [{
+    label: 'Rate per mile',
+    data,
+    yAxisID: 'y',
+    borderColor: '#f0a500',
+    backgroundColor: 'rgba(240,165,0,.08)',
+    borderWidth: 2.5,
+    pointBackgroundColor: '#f0a500',
+    pointBorderColor: isDark ? '#0f1318' : '#ffffff',
+    pointBorderWidth: 2,
+    pointRadius: 5,
+    pointHoverRadius: 7,
+    fill: true,
+    tension: 0.3,
+  }];
+
+  // Secondary line: total dollars for the lane. Only added when the saved
+  // profile has miles recorded — older lanes without miles get the original
+  // single-line view rather than a misleading flat zero line.
+  const showTotals = Array.isArray(totals) && totals.length > 0;
+  if(showTotals){
+    datasets.push({
+      label: 'Lane total ($)',
+      data: totals,
+      yAxisID: 'y1',
+      borderColor: '#60a5fa',
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      borderDash: [5, 4],
+      pointBackgroundColor: '#60a5fa',
+      pointBorderColor: isDark ? '#0f1318' : '#ffffff',
+      pointBorderWidth: 2,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      fill: false,
+      tension: 0.3,
+    });
+  }
+
+  // Y-axis scales. The right-hand totals axis is hidden when there are no
+  // totals to plot, keeping the chart visually identical to the old version
+  // for lanes without miles.
+  const yScales = {
+    y: {
+      grid:   { color: gridColor },
+      ticks:  { color: textColor, font:{family:'DM Mono',size:11}, callback: v => '$'+v.toFixed(2) },
+      title:  showTotals ? { display:true, text:'Rate / mi', color:'#f0a500', font:{family:'Space Grotesk',size:10,weight:'600'} } : { display:false },
+      suggestedMin: data.length ? Math.min(...data) * 0.97 : 2,
+      suggestedMax: data.length ? Math.max(...data) * 1.03 : 4,
+    }
+  };
+  if(showTotals){
+    yScales.y1 = {
+      position: 'right',
+      grid:   { drawOnChartArea:false }, // share gridlines with left axis
+      ticks:  { color: textColor, font:{family:'DM Mono',size:11}, callback: v => '$'+Math.round(v).toLocaleString() },
+      title:  { display:true, text:'Lane total', color:'#60a5fa', font:{family:'Space Grotesk',size:10,weight:'600'} },
+      suggestedMin: Math.min(...totals) * 0.97,
+      suggestedMax: Math.max(...totals) * 1.03,
+    };
+  }
+
   chartInstance = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels,
-      datasets:[{
-        label: 'Rate ($/mi)',
-        data,
-        borderColor: '#f0a500',
-        backgroundColor: 'rgba(240,165,0,.08)',
-        borderWidth: 2.5,
-        pointBackgroundColor: '#f0a500',
-        pointBorderColor: isDark ? '#0f1318' : '#ffffff',
-        pointBorderWidth: 2,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        fill: true,
-        tension: 0.3,
-      }]
-    },
+    data: { labels, datasets },
     options:{
-      responsive:true,
-      maintainAspectRatio:false,
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode:'index', intersect:false }, // hovering anywhere shows both values for that month
       plugins:{
-        legend:{display:false},
+        legend: showTotals ? {
+          display: true,
+          position: 'top',
+          align: 'end',
+          labels: {
+            color: textColor,
+            font: { family:'Space Grotesk', size:11, weight:'600' },
+            usePointStyle: true,
+            boxWidth: 8,
+            boxHeight: 8,
+            padding: 14,
+          }
+        } : { display:false },
         tooltip:{
           backgroundColor: isDark ? '#151a22' : '#ffffff',
-          borderColor: isDark ? '#1e2a38' : '#e4e8ef',
+          borderColor:     isDark ? '#1e2a38' : '#e4e8ef',
           borderWidth: 1,
-          titleColor: isDark ? '#ffffff' : '#0f172a',
-          bodyColor: '#f0a500',
+          titleColor:  isDark ? '#ffffff' : '#0f172a',
+          bodyColor:   isDark ? '#e4e8ef' : '#334155',
+          padding: 10,
           callbacks:{
-            label: ctx => ` $${ctx.parsed.y.toFixed(2)} per mile`
+            label: ctx => {
+              if(ctx.dataset.yAxisID === 'y1'){
+                return `  Lane total: $${Math.round(ctx.parsed.y).toLocaleString()}`;
+              }
+              return `  Rate: $${ctx.parsed.y.toFixed(2)} / mi`;
+            }
           }
         }
       },
-      scales:{
-        x:{
-          grid:{color:gridColor},
-          ticks:{color:textColor,font:{family:'Space Grotesk',size:11}}
-        },
-        y:{
-          grid:{color:gridColor},
-          ticks:{
-            color:textColor,
-            font:{family:'DM Mono',size:11},
-            callback: v => '$'+v.toFixed(2)
-          },
-          suggestedMin: data.length ? Math.min(...data) * 0.97 : 2,
-          suggestedMax: data.length ? Math.max(...data) * 1.03 : 4,
-        }
+      scales: {
+        x: { grid:{color:gridColor}, ticks:{color:textColor,font:{family:'Space Grotesk',size:11}} },
+        ...yScales,
       }
     }
   });
