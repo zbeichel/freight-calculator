@@ -66,10 +66,50 @@ a.brand-name:hover span{opacity:.8}
 .stat-val.accent{color:var(--accent)}
 
 /* Chart */
-.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;position:relative}
+.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px 18px;margin-bottom:12px;position:relative}
+.chart-header-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px 14px;margin-bottom:12px}
+.chart-section-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
+.chart-section-hint{font-weight:500;color:var(--text3);text-transform:none;letter-spacing:0;margin-left:6px}
+.chart-disclaimer{font-size:10px;color:var(--text3);line-height:1.5;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-style:italic}
 .chart-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px}
-.chart-sub{font-size:11px;color:var(--text3);margin-bottom:16px}
-.trailer-toggle{display:flex;gap:6px;margin-bottom:16px}
+.chart-sub{font-size:11px;color:var(--text3);margin-bottom:14px}
+.trailer-toggle{display:flex;gap:6px}
+
+/* Adjustments card — toggleable multipliers that apply to the lane total chart */
+.adj-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;margin-bottom:12px}
+.adj-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.adj-title{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em}
+.adj-section{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.adj-section:first-of-type{margin-top:14px} /* keep top spacing consistent for now */
+.adj-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.adj-section-name{font-size:12px;font-weight:600;color:var(--text2)}
+.adj-note{font-size:10px;color:var(--text3);line-height:1.5;margin-bottom:10px}
+.adj-controls{display:none}
+.adj-controls.open{display:block}
+.adj-field{margin-bottom:10px}
+.adj-field label{display:block;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.adj-field select{
+  width:100%;font-family:'Space Grotesk',sans-serif;font-size:12px;
+  background:var(--card2);color:var(--text);border:1px solid var(--border2);
+  border-radius:8px;padding:8px 10px;cursor:pointer;
+}
+.adj-field select:focus{outline:none;border-color:var(--accent)}
+
+/* Toggle — copied from index.html so the visual language matches */
+.tog{display:flex;align-items:center;gap:10px;cursor:pointer;margin:0}
+.tog input[type=checkbox]{display:none}
+.tog-track{width:34px;height:20px;background:var(--card2);border:1px solid var(--border2);border-radius:10px;position:relative;transition:background .2s,border-color .2s;flex-shrink:0}
+.tog-thumb{position:absolute;top:3px;left:3px;width:12px;height:12px;background:var(--text3);border-radius:50%;transition:transform .2s,background .2s}
+.tog input:checked+.tog-track{background:rgba(240,165,0,.15);border-color:var(--accent)}
+.tog input:checked+.tog-track .tog-thumb{transform:translateX(14px);background:var(--accent)}
+.tog-label{font-size:12px;font-weight:600;color:var(--text2)}
+.tog input:checked~.tog-label{color:var(--accent)}
+
+/* Seasonal calendar strip — same visuals as index.html */
+.seas-strip{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;margin:6px 0 3px}
+.seas-month{border-radius:4px;padding:5px 2px;text-align:center;font-size:10px;font-weight:700;font-family:'Space Grotesk',sans-serif}
+.seas-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:4px;padding:0 2px}
+.seas-cal-label{font-size:9px;color:var(--text3);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin:8px 0 2px}
 .trailer-btn{
   font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;
   padding:4px 12px;border-radius:20px;border:1px solid var(--border2);
@@ -175,13 +215,95 @@ let ratesData = null;
 let profiles = [];
 let selectedIdx = null;
 let activeTrailer = 'reefer';
-let chartInstance = null;
 
 // ── State → Region map ────────────────────────────────────────────────────
 const REGION_LABELS = {
   northeast:'Northeast', southeast:'Southeast', midwest:'Midwest',
   southwest:'Southwest', west:'West', national:'National'
 };
+
+// ── Seasonal multiplier profiles ──────────────────────────────────────────
+// Each profile is a 12-element array indexed by month (0=Jan ... 11=Dec) per
+// trailer type. Mirrors SEASON_PROFILES in index.html so behavior stays
+// consistent across pages — if these are ever updated, update both copies.
+const SEASON_PROFILES = {
+  fl:{label:'Florida produce',sub:'Reefer · potatoes, citrus, tomatoes',
+    reefer:[0.94,0.95,1.00,1.06,1.12,1.10,0.97,0.95,0.97,1.04,1.06,0.97],
+    van:[0.95,0.96,0.99,1.03,1.06,1.05,0.98,0.97,0.99,1.02,1.03,0.97],
+    flatbed:[0.97,0.97,1.00,1.02,1.03,1.02,0.99,0.98,1.00,1.01,1.01,0.98]},
+  se:{label:'Southeast spring/summer',sub:'GA, SC, NC · peaches, watermelon, sweet potatoes',
+    reefer:[0.95,0.96,1.02,1.07,1.10,1.08,0.98,0.96,0.98,1.02,1.03,0.96],
+    van:[0.96,0.97,1.01,1.04,1.06,1.05,0.98,0.97,0.99,1.01,1.02,0.97],
+    flatbed:[0.97,0.98,1.01,1.03,1.05,1.04,1.00,0.99,1.01,1.02,1.01,0.97]},
+  ca:{label:'California / San Joaquin Valley',sub:'Reefer · grapes, stone fruit, tomatoes, onions',
+    reefer:[0.95,0.96,0.98,1.02,1.06,1.10,1.12,1.10,1.07,1.03,0.98,0.95],
+    van:[0.96,0.96,0.99,1.01,1.04,1.07,1.08,1.07,1.05,1.02,0.99,0.96],
+    flatbed:[0.96,0.97,1.00,1.02,1.04,1.06,1.07,1.06,1.04,1.02,0.99,0.96]},
+  pnw:{label:'Pacific Northwest harvest',sub:'WA, OR, ID · apples, pears, potatoes',
+    reefer:[0.95,0.95,0.97,0.99,1.01,1.03,1.06,1.10,1.13,1.10,1.02,0.96],
+    van:[0.95,0.96,0.98,1.00,1.02,1.03,1.05,1.08,1.10,1.08,1.01,0.96],
+    flatbed:[0.95,0.96,0.99,1.02,1.05,1.06,1.07,1.08,1.08,1.05,1.00,0.95]},
+  tx:{label:'Texas / Rio Grande Valley',sub:'Reefer · winter citrus, onions, cabbage',
+    reefer:[1.07,1.09,1.06,1.02,0.99,0.97,0.96,0.97,1.00,1.02,1.04,1.06],
+    van:[1.04,1.05,1.03,1.01,0.99,0.98,0.97,0.98,1.00,1.01,1.02,1.03],
+    flatbed:[1.02,1.03,1.04,1.05,1.06,1.04,1.01,1.00,1.02,1.03,1.02,1.00]},
+  az:{label:'Arizona / Yuma winter',sub:'Reefer · lettuce, winter vegetables',
+    reefer:[1.08,1.10,1.07,1.02,0.97,0.95,0.94,0.95,0.98,1.02,1.05,1.07],
+    van:[1.04,1.05,1.03,1.01,0.98,0.97,0.96,0.97,0.99,1.01,1.02,1.03],
+    flatbed:[1.01,1.02,1.02,1.02,1.01,0.99,0.98,0.99,1.01,1.02,1.01,1.00]},
+  gl:{label:'Great Lakes / Michigan',sub:'Reefer · blueberries, cherries, apples, asparagus',
+    reefer:[0.95,0.96,0.98,1.01,1.04,1.06,1.09,1.11,1.08,1.04,0.99,0.96],
+    van:[0.95,0.96,0.98,1.01,1.03,1.04,1.07,1.08,1.06,1.03,0.99,0.96],
+    flatbed:[0.95,0.96,1.00,1.03,1.06,1.07,1.07,1.06,1.05,1.03,0.99,0.95]},
+  ne_produce:{label:'Northeast fall harvest',sub:'NY, NJ, PA, NE · apples, cranberries, potatoes',
+    reefer:[0.97,0.97,0.98,0.99,1.01,1.02,1.04,1.06,1.10,1.12,1.07,1.01],
+    van:[0.97,0.97,0.98,1.00,1.01,1.02,1.03,1.05,1.08,1.10,1.06,1.01],
+    flatbed:[0.96,0.96,0.99,1.02,1.04,1.05,1.05,1.05,1.06,1.06,1.02,0.97]},
+  storage:{label:'Storage season / Northern origin',sub:'ME, WI, MI, NY · potatoes, root vegetables',
+    reefer:[1.06,1.05,1.03,1.00,0.97,0.96,0.96,0.97,0.99,1.03,1.07,1.08],
+    van:[1.04,1.03,1.02,1.00,0.98,0.97,0.97,0.98,1.00,1.02,1.04,1.05],
+    flatbed:[1.02,1.01,1.01,1.01,1.01,1.00,1.00,1.00,1.01,1.02,1.02,1.02]},
+  mw:{label:'Midwest general',sub:'Grain, manufacturing',
+    reefer:[0.96,0.96,0.99,1.02,1.04,1.03,1.01,1.02,1.04,1.05,1.03,0.97],
+    van:[0.95,0.96,1.00,1.02,1.03,1.02,1.01,1.02,1.04,1.06,1.04,0.97],
+    flatbed:[0.94,0.95,1.01,1.05,1.08,1.07,1.04,1.03,1.05,1.04,1.00,0.95]},
+  ne:{label:'Northeast general',sub:'General freight, retail',
+    reefer:[0.96,0.97,1.00,1.02,1.04,1.03,1.00,0.99,1.01,1.05,1.06,1.01],
+    van:[0.96,0.97,1.00,1.01,1.03,1.02,1.00,0.99,1.01,1.05,1.07,1.02],
+    flatbed:[0.95,0.96,1.02,1.05,1.07,1.06,1.02,1.01,1.03,1.03,1.00,0.95]},
+  sw:{label:'Southwest / Texas general',sub:'General, oil field, construction',
+    reefer:[0.97,0.97,1.00,1.02,1.03,1.02,0.99,0.99,1.01,1.02,1.02,0.98],
+    van:[0.97,0.97,1.00,1.02,1.03,1.02,0.99,0.99,1.01,1.02,1.02,0.98],
+    flatbed:[0.97,0.98,1.01,1.04,1.06,1.05,1.01,1.00,1.02,1.02,1.00,0.96]},
+  national:{label:'National average',sub:'No specific region',
+    reefer:[0.95,0.96,0.99,1.02,1.05,1.04,1.00,0.99,1.01,1.03,1.04,0.98],
+    van:[0.95,0.96,0.99,1.02,1.04,1.03,1.00,0.99,1.01,1.03,1.05,0.99],
+    flatbed:[0.95,0.96,1.01,1.04,1.06,1.05,1.02,1.01,1.03,1.03,1.01,0.96]},
+};
+
+// ── Adjustment state ──────────────────────────────────────────────────────
+// User-toggleable multipliers that affect the lane total chart only — the
+// rate chart shows raw market data and is intentionally never adjusted.
+// Persisted to localStorage so the user's last setting survives navigation.
+const ADJ_KEY = 'qfc_lane_adjustments';
+const adjustments = loadAdjustments();
+
+function loadAdjustments(){
+  try {
+    const saved = JSON.parse(localStorage.getItem(ADJ_KEY) || '{}');
+    return {
+      seasonal: {
+        enabled: saved.seasonal?.enabled === true,
+        region:  saved.seasonal?.region  || 'fl',
+      },
+    };
+  } catch {
+    return { seasonal: { enabled:false, region:'fl' } };
+  }
+}
+function saveAdjustments(){
+  try { localStorage.setItem(ADJ_KEY, JSON.stringify(adjustments)); } catch {}
+}
 
 // ── Load rates.json (current rates + region map) ──────────────────────────
 async function loadRates(){
@@ -244,15 +366,18 @@ function getRateFromHistory(region, trailer, dateStr){
 }
 
 // ── Build chart data for a profile ───────────────────────────────────────
-// Returns three aligned series for the chart: the lane's regional rate per
-// mile, the national average rate per mile, and the lane's total dollars at
-// the regional rate. All three share the same labels (snapshot dates) so
-// they line up on the x-axis. `national` is omitted when the lane's region
-// already IS national (would draw two stacked-identical lines otherwise).
-// `totals` is omitted when the saved profile has no miles recorded.
+// Returns aligned series for both charts: regional rate per mile, national
+// average rate per mile, and the lane's unadjusted total dollars at the
+// regional rate. Snapshot dates are included so callers can apply
+// month-aware adjustments (like seasonal multipliers). All series share the
+// same labels (snapshot dates) so they line up on the x-axis.
+//
+// `national` is omitted when the lane's region already IS national (avoids
+// drawing two stacked-identical lines). `totals` is omitted when the saved
+// profile has no miles recorded.
 function buildChartData(profile, trailer){
   if(!ratesData?.history) {
-    return { labels:[], data:[], national:null, totals:null, region:'national', miles:0 };
+    return { labels:[], data:[], national:null, totals:null, dates:[], region:'national', miles:0 };
   }
   const region = getRegionFromOrigin(profile.origin);
   const miles  = Number(profile.miles) || 0;
@@ -272,13 +397,44 @@ function buildChartData(profile, trailer){
   }
 
   return {
-    labels:   entries.map(h => h.label || h.date),
+    labels: entries.map(h => h.label || h.date),
+    dates:  entries.map(h => h.date), // raw YYYY-MM-DD for month-aware adjustments
     data,
     national,
-    totals:   miles > 0 ? data.map(r => r * miles) : null,
+    totals: miles > 0 ? data.map(r => r * miles) : null,
     region,
     miles,
   };
+}
+
+// ── Adjustment math ───────────────────────────────────────────────────────
+// Returns the seasonal multiplier for a given snapshot (by date string) under
+// the active seasonal-adjustment settings, or 1.0 if seasonal is off / data
+// is missing. Anchor noon to avoid timezone drift on YYYY-MM-DD strings.
+function getSeasonalMultiplier(dateStr, trailer){
+  if(!adjustments.seasonal.enabled || !dateStr) return 1.0;
+  const profile = SEASON_PROFILES[adjustments.seasonal.region];
+  if(!profile) return 1.0;
+  const month = new Date(dateStr + 'T12:00:00').getMonth();
+  const curve = profile[trailer] || profile.van;
+  return curve[month] ?? 1.0;
+}
+
+// Applies all active adjustments to the lane totals series, returning a new
+// array. Pure function — does not mutate inputs. Today only seasonal exists;
+// future adjustments (capacity, diesel, etc.) compose multiplicatively here.
+function applyAdjustments(totals, dates, trailer){
+  if(!Array.isArray(totals) || !totals.length) return totals;
+  return totals.map((t, i) => {
+    const m = getSeasonalMultiplier(dates[i], trailer);
+    return t * m;
+  });
+}
+
+// Returns true if any adjustment is currently active. Used to decide whether
+// the totals chart's disclaimer should mention "adjusted" output.
+function hasActiveAdjustments(){
+  return adjustments.seasonal.enabled === true;
 }
 
 // ── Load profiles ─────────────────────────────────────────────────────────
@@ -356,12 +512,122 @@ function selectLane(idx){
   renderDetail();
 }
 
+// ── Adjustments UI ────────────────────────────────────────────────────────
+// Renders the toggleable multipliers panel. Today only seasonal exists but
+// the structure is set up so future adjustments (capacity, diesel, etc.)
+// slot in as additional .adj-section blocks below this one.
+function renderAdjustmentsCard(){
+  const seas = adjustments.seasonal;
+  return `
+    <div class="adj-card">
+      <div class="adj-row">
+        <div class="adj-title">Adjustments</div>
+        <div style="font-size:10px;color:var(--text3)">Affects lane total chart only</div>
+      </div>
+
+      <div class="adj-section">
+        <div class="adj-section-head">
+          <span class="adj-section-name">Seasonal Adjustment</span>
+          <label class="tog">
+            <input type="checkbox" id="adj-seas-enabled" ${seas.enabled?'checked':''} onchange="onSeasonToggle()" />
+            <span class="tog-track"><span class="tog-thumb"></span></span>
+            <span class="tog-label" id="adj-seas-tog-lbl">${seas.enabled?'On':'Off'}</span>
+          </label>
+        </div>
+        <div class="adj-note">
+          Layers the calculator's seasonal multipliers into the lane total chart. Each snapshot is multiplied by the multiplier for its month under the selected origin region and the active trailer type.
+        </div>
+        <div class="adj-controls ${seas.enabled?'open':''}" id="adj-seas-controls">
+          <div class="adj-field">
+            <label for="adj-seas-region">Origin Region</label>
+            <select id="adj-seas-region" onchange="onSeasonRegionChange()">
+              <optgroup label="── Produce / Reefer Lanes ──">
+                <option value="fl"          ${seas.region==='fl'?'selected':''}>Florida · potatoes, citrus, tomatoes (May–Jun peak)</option>
+                <option value="se"          ${seas.region==='se'?'selected':''}>Southeast · GA, SC, NC peaches, watermelon (Apr–Jun peak)</option>
+                <option value="ca"          ${seas.region==='ca'?'selected':''}>California / San Joaquin · grapes, stone fruit (Jun–Sep peak)</option>
+                <option value="pnw"         ${seas.region==='pnw'?'selected':''}>Pacific Northwest · WA/OR/ID apples, potatoes (Aug–Oct peak)</option>
+                <option value="tx"          ${seas.region==='tx'?'selected':''}>Texas / Rio Grande Valley · winter citrus, onions (Jan–Feb peak)</option>
+                <option value="az"          ${seas.region==='az'?'selected':''}>Arizona / Yuma · winter lettuce, vegetables (Nov–Mar peak)</option>
+                <option value="gl"          ${seas.region==='gl'?'selected':''}>Great Lakes / Michigan · cherries, blueberries, apples (Jul–Sep peak)</option>
+                <option value="ne_produce"  ${seas.region==='ne_produce'?'selected':''}>Northeast fall harvest · NY, NJ, PA apples, potatoes (Sep–Nov peak)</option>
+                <option value="storage"     ${seas.region==='storage'?'selected':''}>Storage season / Northern · ME, WI, MI, NY potatoes (Oct–Apr peak)</option>
+              </optgroup>
+              <optgroup label="── General Freight Lanes ──">
+                <option value="mw"          ${seas.region==='mw'?'selected':''}>Midwest · grain, manufacturing</option>
+                <option value="ne"          ${seas.region==='ne'?'selected':''}>Northeast · general freight, retail</option>
+                <option value="sw"          ${seas.region==='sw'?'selected':''}>Southwest / Texas · general, oil field</option>
+                <option value="national"    ${seas.region==='national'?'selected':''}>National average · no specific region</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="seas-cal-label">Monthly multipliers — <span id="adj-seas-cal-label"></span></div>
+          <div class="seas-strip" id="adj-seas-calendar"></div>
+          <div class="seas-labels"><span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span><span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Paints the 12-month seasonal calendar strip. Same color logic as index.html
+// so highs and lows are visually consistent across pages.
+function renderSeasonCalendar(){
+  const calEl = document.getElementById('adj-seas-calendar');
+  if(!calEl) return; // not rendered (lane has no miles, or section is collapsed)
+  const profile = SEASON_PROFILES[adjustments.seasonal.region];
+  if(!profile) return;
+  const curve = profile[activeTrailer] || profile.van;
+
+  // Highlight the months that actually appear in the chart so the user can
+  // see which multipliers are currently being applied to the totals chart.
+  const activeMonths = new Set(
+    (ratesData?.history || [])
+      .map(h => h.date)
+      .filter(Boolean)
+      .map(d => new Date(d + 'T12:00:00').getMonth())
+  );
+
+  document.getElementById('adj-seas-cal-label').textContent =
+    profile.label + ' — ' + (activeTrailer==='reefer'?'Reefer':activeTrailer==='van'?'Van':'Flatbed');
+
+  calEl.innerHTML = curve.map((v, i) => {
+    const bg     = v > 1.05 ? 'rgba(239,68,68,.18)'
+                 : v > 1.02 ? 'rgba(240,165,0,.15)'
+                 : v < 0.97 ? 'rgba(34,197,94,.15)'
+                            : 'rgba(255,255,255,.04)';
+    const tc     = v > 1.05 ? '#f87171'
+                 : v > 1.02 ? 'var(--accent)'
+                 : v < 0.97 ? '#4ade80'
+                            : 'var(--text3)';
+    const border = activeMonths.has(i) ? `2px solid ${tc}` : '1px solid transparent';
+    return `<div class="seas-month" style="background:${bg};border:${border};color:${tc}">${v.toFixed(2)}</div>`;
+  }).join('');
+}
+
+// Adjustment event handlers — all paths converge on saveAdjustments() and
+// renderDetail() to keep state and UI perfectly in sync.
+function onSeasonToggle(){
+  adjustments.seasonal.enabled = document.getElementById('adj-seas-enabled').checked;
+  saveAdjustments();
+  renderDetail();
+}
+function onSeasonRegionChange(){
+  adjustments.seasonal.region = document.getElementById('adj-seas-region').value;
+  saveAdjustments();
+  renderDetail();
+}
+
 // ── Render detail panel ───────────────────────────────────────────────────
 function renderDetail(){
   if(selectedIdx === null) return;
   const p = profiles[selectedIdx];
   const region = getRegionFromOrigin(p.origin);
-  const { labels, data, national, totals, miles } = buildChartData(p, activeTrailer);
+  const { labels, dates, data, national, totals: rawTotals, miles } = buildChartData(p, activeTrailer);
+
+  // Apply any active adjustments to lane totals before plotting. Multipliers
+  // are computed per-snapshot using each entry's actual month (so e.g. May
+  // produce loads see the May multiplier, January loads see the January one).
+  const totals = rawTotals ? applyAdjustments(rawTotals, dates, activeTrailer) : null;
+
   const currentRate = data[data.length-1];
   const prevRate    = data[data.length-2];
   const firstRate   = data[0];
@@ -369,10 +635,9 @@ function renderDetail(){
   const changeTotal = currentRate && firstRate ? ((currentRate-firstRate)/firstRate*100) : null;
   const trailerLabel = {van:'🚛 Van',reefer:'🧊 Reefer',flatbed:'🏗 Flatbed'}[activeTrailer]||activeTrailer;
 
-  // Lane dollar total at the current rate. Only meaningful if the saved lane
-  // has miles recorded — older profiles may not, in which case we fall back
-  // to just showing the per-mile rate.
-  const currentTotal  = (miles > 0 && currentRate) ? currentRate * miles : null;
+  // Lane dollar total at the current rate. Reflects the latest snapshot's
+  // multiplier when adjustments are active so the stat tile and chart agree.
+  const currentTotal  = (miles > 0 && totals) ? totals[totals.length-1] : null;
 
   // Gap between the lane's regional rate and the national average for the
   // same trailer/snapshot. Surfaces "are we above or below market" at a glance.
@@ -387,6 +652,12 @@ function renderDetail(){
   if(currentTotal !== null) subPieces.push(`$${Math.round(currentTotal).toLocaleString()} total · ${miles.toLocaleString()} mi`);
   if(natGapText)            subPieces.push(`<span class="${natGapClass}">${natGapText}</span>`);
   const totalSubLine = subPieces.length ? subPieces.join(' &nbsp;·&nbsp; ') : `per mile · ${trailerLabel}`;
+
+  // Disclaimer text changes based on which adjustments are active so the
+  // user always knows what the bottom chart is showing.
+  const disclaimerText = hasActiveAdjustments()
+    ? 'Lane totals shown include the active adjustments above. They still don\u2019t account for fuel surcharges, truck availability, or other market factors.'
+    : 'These lane totals are calculated from the rate per mile only. They don\u2019t account for seasonal adjustments, truck availability, fuel surcharges, or other market factors. Use the adjustments above to layer in seasonality.';
 
   const panel = document.getElementById('right-panel');
   panel.innerHTML = `
@@ -413,8 +684,8 @@ function renderDetail(){
       </div>
     </div>
 
-    <!-- Chart -->
-    <div class="chart-wrap">
+    <!-- Lane header (title, sub-line, trailer toggle — shared across both charts) -->
+    <div class="chart-header-card">
       <div class="chart-title">${p.name}</div>
       <div class="chart-sub">${p.origin||'—'} → ${p.dest||'—'} · ${REGION_LABELS[region]||region} region${miles > 0 ? ` · ${miles.toLocaleString()} mi` : ''}</div>
       <div class="trailer-toggle">
@@ -422,12 +693,31 @@ function renderDetail(){
         <button class="trailer-btn ${activeTrailer==='van'?'active':''}" onclick="setTrailer('van')">🚛 Van</button>
         <button class="trailer-btn ${activeTrailer==='flatbed'?'active':''}" onclick="setTrailer('flatbed')">🏗 Flatbed</button>
       </div>
-      <div style="position:relative;height:260px">
+    </div>
+
+    <!-- Adjustments — only meaningful when the lane has miles to compute totals against -->
+    ${miles > 0 ? renderAdjustmentsCard() : ''}
+
+    <!-- Chart 1: rate per mile (regional vs national) -->
+    <div class="chart-wrap">
+      <div class="chart-section-label">Rate per mile</div>
+      <div style="position:relative;height:200px">
         <canvas id="rate-chart"></canvas>
       </div>
-      <div style="font-size:10px;color:var(--text3);margin-top:10px;text-align:center">
-        Rates sourced from DAT Trendlines · Updated monthly · ${ratesData?.updated||''}
+    </div>
+
+    <!-- Chart 2: lane total dollars — only when the saved lane has miles -->
+    ${miles > 0 ? `
+    <div class="chart-wrap">
+      <div class="chart-section-label">Lane total <span class="chart-section-hint">at ${miles.toLocaleString()} mi${hasActiveAdjustments() ? ' · adjusted' : ''}</span></div>
+      <div style="position:relative;height:200px">
+        <canvas id="total-chart"></canvas>
       </div>
+      <div class="chart-disclaimer">${disclaimerText}</div>
+    </div>` : ''}
+
+    <div style="font-size:10px;color:var(--text3);margin:-4px 0 16px;text-align:center">
+      Rates sourced from DAT Trendlines · Updated monthly · ${ratesData?.updated||''}
     </div>
 
     <!-- History table -->
@@ -450,6 +740,11 @@ function renderDetail(){
         </table>
       </div>
     </div>`;
+
+  // After the panel HTML is in place, paint the seasonal calendar if visible
+  if(miles > 0 && adjustments.seasonal.enabled){
+    renderSeasonCalendar();
+  }
 
   // Build history table
   const histEntries = (ratesData?.history||[])
@@ -475,30 +770,49 @@ function renderDetail(){
     </tr>`;
   }).join('');
 
-  renderChart(labels, data, national, totals);
+  renderRateChart(labels, data, national);
+  if(miles > 0) renderTotalChart(labels, totals);
 }
 
-// ── Render chart ──────────────────────────────────────────────────────────
-function renderChart(labels, data, national, totals){
-  if(chartInstance) chartInstance.destroy();
+// ── Render charts ─────────────────────────────────────────────────────────
+// Two stacked single-purpose charts: one for rates per mile (regional vs.
+// national), one for the lane's total dollars at the regional rate. Each
+// owns its own Chart.js instance so they can be destroyed/redrawn cleanly
+// when the user switches trailers or themes.
+let rateChartInstance  = null;
+let totalChartInstance = null;
+
+// Shared color/styling helpers — pulled out so both charts feel like one
+// design system, and so theme switches stay in one place.
+function chartTheme(){
+  const isDark = !document.documentElement.classList.contains('light');
+  return {
+    isDark,
+    grid:    isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)',
+    text:    isDark ? '#6b7f94' : '#94a3b8',
+    point:   isDark ? '#0f1318' : '#ffffff',
+    tipBg:   isDark ? '#151a22' : '#ffffff',
+    tipBdr:  isDark ? '#1e2a38' : '#e4e8ef',
+    tipBody: isDark ? '#e4e8ef' : '#334155',
+    tipTitle:isDark ? '#ffffff' : '#0f172a',
+  };
+}
+
+function renderRateChart(labels, data, national){
+  if(rateChartInstance) rateChartInstance.destroy();
   const ctx = document.getElementById('rate-chart');
   if(!ctx) return;
+  const t = chartTheme();
+  const natColor = t.isDark ? '#94a3b8' : '#64748b';
 
-  const isDark    = !document.documentElement.classList.contains('light');
-  const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';
-  const textColor = isDark ? '#6b7f94' : '#94a3b8';
-  const natColor  = isDark ? '#94a3b8' : '#64748b'; // muted slate so it reads as background reference
-
-  // Primary line: this lane's regional rate per mile (always shown)
   const datasets = [{
     label: 'Regional rate',
     data,
-    yAxisID: 'y',
     borderColor: '#f0a500',
     backgroundColor: 'rgba(240,165,0,.08)',
     borderWidth: 2.5,
     pointBackgroundColor: '#f0a500',
-    pointBorderColor: isDark ? '#0f1318' : '#ffffff',
+    pointBorderColor: t.point,
     pointBorderWidth: 2,
     pointRadius: 5,
     pointHoverRadius: 7,
@@ -506,19 +820,19 @@ function renderChart(labels, data, national, totals){
     tension: 0.3,
   }];
 
-  // National-average comparison line. Quieter visual weight (thinner, no fill,
-  // smaller points, neutral gray) so the regional line reads as primary.
+  // National-average comparison line. Quieter visual weight so the regional
+  // line reads as primary. Skipped if data is missing or the lane is itself
+  // in the national region (would draw two identical stacked lines).
   const showNational = Array.isArray(national) && national.length > 0;
   if(showNational){
     datasets.push({
       label: 'National average',
       data: national,
-      yAxisID: 'y',
       borderColor: natColor,
       backgroundColor: 'transparent',
       borderWidth: 1.5,
       pointBackgroundColor: natColor,
-      pointBorderColor: isDark ? '#0f1318' : '#ffffff',
+      pointBorderColor: t.point,
       pointBorderWidth: 1.5,
       pointRadius: 3,
       pointHoverRadius: 5,
@@ -527,70 +841,23 @@ function renderChart(labels, data, national, totals){
     });
   }
 
-  // Secondary axis: lane total dollars. Only added when the saved profile has
-  // miles recorded — older lanes without miles get the original view rather
-  // than a misleading flat zero line.
-  const showTotals = Array.isArray(totals) && totals.length > 0;
-  if(showTotals){
-    datasets.push({
-      label: 'Lane total ($)',
-      data: totals,
-      yAxisID: 'y1',
-      borderColor: '#60a5fa',
-      backgroundColor: 'transparent',
-      borderWidth: 2,
-      borderDash: [5, 4],
-      pointBackgroundColor: '#60a5fa',
-      pointBorderColor: isDark ? '#0f1318' : '#ffffff',
-      pointBorderWidth: 2,
-      pointRadius: 4,
-      pointHoverRadius: 6,
-      fill: false,
-      tension: 0.3,
-    });
-  }
+  // Y-range covers both series so neither line clips
+  const allValues = data.concat(showNational ? national : []);
 
-  // Y-axis scales. The left axis covers both regional and national rates so
-  // they're directly comparable. Right axis (totals) is independent.
-  // Compute the left-axis range across all $/mi series so neither line clips.
-  const leftValues = data.concat(showNational ? national : []);
-  const yScales = {
-    y: {
-      grid:   { color: gridColor },
-      ticks:  { color: textColor, font:{family:'DM Mono',size:11}, callback: v => '$'+v.toFixed(2) },
-      title:  showTotals ? { display:true, text:'Rate / mi', color:'#f0a500', font:{family:'Space Grotesk',size:10,weight:'600'} } : { display:false },
-      suggestedMin: leftValues.length ? Math.min(...leftValues) * 0.97 : 2,
-      suggestedMax: leftValues.length ? Math.max(...leftValues) * 1.03 : 4,
-    }
-  };
-  if(showTotals){
-    yScales.y1 = {
-      position: 'right',
-      grid:   { drawOnChartArea:false }, // share gridlines with left axis
-      ticks:  { color: textColor, font:{family:'DM Mono',size:11}, callback: v => '$'+Math.round(v).toLocaleString() },
-      title:  { display:true, text:'Lane total', color:'#60a5fa', font:{family:'Space Grotesk',size:10,weight:'600'} },
-      suggestedMin: Math.min(...totals) * 0.97,
-      suggestedMax: Math.max(...totals) * 1.03,
-    };
-  }
-
-  // Show legend whenever we have more than one dataset on screen.
-  const showLegend = datasets.length > 1;
-
-  chartInstance = new Chart(ctx, {
+  rateChartInstance = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets },
     options:{
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode:'index', intersect:false }, // hovering anywhere shows all values for that month
+      interaction: { mode:'index', intersect:false },
       plugins:{
-        legend: showLegend ? {
+        legend: showNational ? {
           display: true,
           position: 'top',
           align: 'end',
           labels: {
-            color: textColor,
+            color: t.text,
             font: { family:'Space Grotesk', size:11, weight:'600' },
             usePointStyle: true,
             boxWidth: 8,
@@ -599,26 +866,76 @@ function renderChart(labels, data, national, totals){
           }
         } : { display:false },
         tooltip:{
-          backgroundColor: isDark ? '#151a22' : '#ffffff',
-          borderColor:     isDark ? '#1e2a38' : '#e4e8ef',
-          borderWidth: 1,
-          titleColor:  isDark ? '#ffffff' : '#0f172a',
-          bodyColor:   isDark ? '#e4e8ef' : '#334155',
-          padding: 10,
+          backgroundColor: t.tipBg, borderColor: t.tipBdr, borderWidth: 1,
+          titleColor: t.tipTitle, bodyColor: t.tipBody, padding: 10,
           callbacks:{
             label: ctx => {
-              if(ctx.dataset.yAxisID === 'y1'){
-                return `  Lane total: $${Math.round(ctx.parsed.y).toLocaleString()}`;
-              }
               const prefix = ctx.dataset.label === 'National average' ? 'National' : 'Regional';
               return `  ${prefix}: $${ctx.parsed.y.toFixed(2)} / mi`;
             }
           }
         }
       },
-      scales: {
-        x: { grid:{color:gridColor}, ticks:{color:textColor,font:{family:'Space Grotesk',size:11}} },
-        ...yScales,
+      scales:{
+        x:{ grid:{color:t.grid}, ticks:{color:t.text,font:{family:'Space Grotesk',size:11}} },
+        y:{
+          grid:{color:t.grid},
+          ticks:{color:t.text,font:{family:'DM Mono',size:11}, callback: v => '$'+v.toFixed(2)},
+          suggestedMin: allValues.length ? Math.min(...allValues) * 0.97 : 2,
+          suggestedMax: allValues.length ? Math.max(...allValues) * 1.03 : 4,
+        }
+      }
+    }
+  });
+}
+
+function renderTotalChart(labels, totals){
+  if(totalChartInstance) totalChartInstance.destroy();
+  const ctx = document.getElementById('total-chart');
+  if(!ctx || !Array.isArray(totals) || !totals.length) return;
+  const t = chartTheme();
+
+  totalChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets:[{
+        label: 'Lane total ($)',
+        data: totals,
+        borderColor: '#60a5fa',
+        backgroundColor: 'rgba(96,165,250,.08)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#60a5fa',
+        pointBorderColor: t.point,
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        fill: true,
+        tension: 0.3,
+      }]
+    },
+    options:{
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode:'index', intersect:false },
+      plugins:{
+        legend: { display:false },
+        tooltip:{
+          backgroundColor: t.tipBg, borderColor: t.tipBdr, borderWidth: 1,
+          titleColor: t.tipTitle, bodyColor: t.tipBody, padding: 10,
+          callbacks:{
+            label: ctx => `  Lane total: $${Math.round(ctx.parsed.y).toLocaleString()}`
+          }
+        }
+      },
+      scales:{
+        x:{ grid:{color:t.grid}, ticks:{color:t.text,font:{family:'Space Grotesk',size:11}} },
+        y:{
+          grid:{color:t.grid},
+          ticks:{color:t.text,font:{family:'DM Mono',size:11}, callback: v => '$'+Math.round(v).toLocaleString()},
+          suggestedMin: Math.min(...totals) * 0.97,
+          suggestedMax: Math.max(...totals) * 1.03,
+        }
       }
     }
   });
