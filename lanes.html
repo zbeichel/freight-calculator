@@ -293,6 +293,11 @@ const SEASON_PROFILES = {
 const ADJ_KEY = 'qfc_lane_adjustments';
 const adjustments = loadAdjustments();
 
+// Cached chart source for the currently-rendered lane. Used by the surgical
+// adjustment updater so toggling seasonal doesn't require a full panel rebuild
+// (which causes a visible flash and re-animates the unchanged top chart).
+let currentChartSource = null;
+
 function loadAdjustments(){
   try {
     const saved = JSON.parse(localStorage.getItem(ADJ_KEY) || '{}');
@@ -440,6 +445,43 @@ function applyAdjustments(totals, dates, trailer){
 // the totals chart's disclaimer should mention "adjusted" output.
 function hasActiveAdjustments(){
   return adjustments.seasonal.enabled === true;
+}
+
+// Pure helpers below — used by both renderDetail (initial paint) and the
+// surgical adjustment updater so the two paths can never drift apart.
+
+// Disclaimer text under the lane total chart. Wording shifts based on
+// whether any adjustments are currently active.
+function buildDisclaimerText(){
+  return hasActiveAdjustments()
+    ? 'Lane totals shown include the active adjustments above. They still don\u2019t account for fuel surcharges, truck availability, or other market factors.'
+    : 'These lane totals are calculated from the rate per mile only. They don\u2019t account for seasonal adjustments, truck availability, fuel surcharges, or other market factors. Use the adjustments above to layer in seasonality.';
+}
+
+// "at 685 mi" / "at 685 mi · adjusted" — the small grey hint inside the
+// lane total chart's section label.
+function buildTotalSectionHint(miles){
+  return `at ${miles.toLocaleString()} mi${hasActiveAdjustments() ? ' · adjusted' : ''}`;
+}
+
+// Sub-line under the Current Rate stat tile. Composes total dollars (if the
+// lane has miles), national gap, and falls back to "per mile · <trailer>"
+// when neither is computable.
+function buildCurrentRateSubLine({miles, currentRate, currentTotal, currentNationalTotal, currentRateNational, trailerLabel}){
+  let natGapText = '', natGapClass = '';
+  if(currentTotal !== null && currentNationalTotal !== null){
+    const gap = currentTotal - currentNationalTotal;
+    natGapClass = gap >= 0 ? 'green' : 'red';
+    natGapText  = `${gap >= 0 ? '+' : '−'}$${Math.abs(Math.round(gap)).toLocaleString()} vs national`;
+  } else if(currentRate && currentRateNational){
+    const gap = currentRate - currentRateNational;
+    natGapClass = gap >= 0 ? 'green' : 'red';
+    natGapText  = `${gap >= 0 ? '+' : '−'}$${Math.abs(gap).toFixed(2)} vs national`;
+  }
+  const subPieces = [];
+  if(currentTotal !== null) subPieces.push(`$${Math.round(currentTotal).toLocaleString()} total · ${miles.toLocaleString()} mi`);
+  if(natGapText)            subPieces.push(`<span class="${natGapClass}">${natGapText}</span>`);
+  return subPieces.length ? subPieces.join(' &nbsp;·&nbsp; ') : `per mile · ${trailerLabel}`;
 }
 
 // ── Load profiles ─────────────────────────────────────────────────────────
@@ -608,17 +650,75 @@ function renderSeasonCalendar(){
   }).join('');
 }
 
-// Adjustment event handlers — all paths converge on saveAdjustments() and
-// renderDetail() to keep state and UI perfectly in sync.
+// Adjustment event handlers — surgical updates only. We deliberately avoid
+// calling renderDetail() here so the unchanged top chart doesn't re-animate
+// and the panel doesn't visibly flash. State changes flow to the small set
+// of elements that actually depend on it.
 function onSeasonToggle(){
   adjustments.seasonal.enabled = document.getElementById('adj-seas-enabled').checked;
   saveAdjustments();
-  renderDetail();
+
+  // Toggle's own affordances: label text + show/hide the controls block
+  document.getElementById('adj-seas-tog-lbl').textContent = adjustments.seasonal.enabled ? 'On' : 'Off';
+  document.getElementById('adj-seas-controls').classList.toggle('open', adjustments.seasonal.enabled);
+
+  // Calendar repaints when controls open (so the user sees the multipliers).
+  // When closing, we leave the (now-hidden) calendar's stale paint alone —
+  // it'll re-render the next time controls open.
+  if(adjustments.seasonal.enabled) renderSeasonCalendar();
+
+  applyAdjustmentsToView();
 }
+
 function onSeasonRegionChange(){
   adjustments.seasonal.region = document.getElementById('adj-seas-region').value;
   saveAdjustments();
-  renderDetail();
+  renderSeasonCalendar();
+  applyAdjustmentsToView();
+}
+
+// Pushes the current adjustment state into all affected UI: bottom chart
+// data, stat sub-line, the "· adjusted" hint in the section label, and the
+// disclaimer text. Re-derives totals from the cached raw source so we never
+// re-run buildChartData (which would re-sort / re-filter rates history).
+function applyAdjustmentsToView(){
+  if(!currentChartSource) return;
+  const s = currentChartSource;
+
+  // Recompute adjusted series from cached raw data
+  const totals         = s.rawTotals         ? applyAdjustments(s.rawTotals,         s.dates, activeTrailer) : null;
+  const nationalTotals = s.rawNationalTotals ? applyAdjustments(s.rawNationalTotals, s.dates, activeTrailer) : null;
+
+  // Update bottom chart in place — Chart.js animates between old and new
+  // values smoothly, no flash, no re-layout.
+  if(totalChartInstance && totals){
+    totalChartInstance.data.datasets[0].data = totals;
+    if(nationalTotals && totalChartInstance.data.datasets[1]){
+      totalChartInstance.data.datasets[1].data = nationalTotals;
+    }
+    // Re-fit y-axis to the new range so neither line clips after a big shift
+    const allValues = totals.concat(nationalTotals || []);
+    totalChartInstance.options.scales.y.suggestedMin = Math.min(...allValues) * 0.97;
+    totalChartInstance.options.scales.y.suggestedMax = Math.max(...allValues) * 1.03;
+    totalChartInstance.update();
+  }
+
+  // Stat sub-line under "Current Rate"
+  const currentTotal         = (s.miles > 0 && totals) ? totals[totals.length-1] : null;
+  const currentNationalTotal = (s.miles > 0 && nationalTotals) ? nationalTotals[nationalTotals.length-1] : null;
+  const subEl = document.getElementById('current-rate-sub');
+  if(subEl){
+    subEl.innerHTML = buildCurrentRateSubLine({
+      miles: s.miles, currentRate: s.currentRate, currentTotal, currentNationalTotal,
+      currentRateNational: s.currentRateNational, trailerLabel: s.trailerLabel
+    });
+  }
+
+  // Section hint ("at 685 mi · adjusted") and disclaimer
+  const hintEl = document.getElementById('total-section-hint');
+  if(hintEl) hintEl.textContent = buildTotalSectionHint(s.miles);
+  const discEl = document.getElementById('total-disclaimer');
+  if(discEl) discEl.textContent = buildDisclaimerText();
 }
 
 // ── Render detail panel ───────────────────────────────────────────────────
@@ -633,6 +733,13 @@ function renderDetail(){
   // produce loads see the May multiplier, January loads see the January one).
   const totals = rawTotals ? applyAdjustments(rawTotals, dates, activeTrailer) : null;
 
+  // Parallel series valued at the national average rate per mile, for the
+  // same lane and miles. Lets the user see "what would my lane pay at US-
+  // average rates" alongside the regional figure. Same adjustments apply —
+  // both totals are quoting projections, not historical record.
+  const rawNationalTotals = (national && miles > 0) ? national.map(r => r * miles) : null;
+  const nationalTotals    = rawNationalTotals ? applyAdjustments(rawNationalTotals, dates, activeTrailer) : null;
+
   const currentRate = data[data.length-1];
   const prevRate    = data[data.length-2];
   const firstRate   = data[0];
@@ -640,29 +747,12 @@ function renderDetail(){
   const changeTotal = currentRate && firstRate ? ((currentRate-firstRate)/firstRate*100) : null;
   const trailerLabel = {van:'🚛 Van',reefer:'🧊 Reefer',flatbed:'🏗 Flatbed'}[activeTrailer]||activeTrailer;
 
-  // Lane dollar total at the current rate. Reflects the latest snapshot's
-  // multiplier when adjustments are active so the stat tile and chart agree.
-  const currentTotal  = (miles > 0 && totals) ? totals[totals.length-1] : null;
+  const currentTotal         = (miles > 0 && totals) ? totals[totals.length-1] : null;
+  const currentNationalTotal = (miles > 0 && nationalTotals) ? nationalTotals[nationalTotals.length-1] : null;
+  const currentRateNational  = national ? national[national.length-1] : null;
 
-  // Gap between the lane's regional rate and the national average for the
-  // same trailer/snapshot. Surfaces "are we above or below market" at a glance.
-  const currentNational = national ? national[national.length-1] : null;
-  const natGap          = (currentRate && currentNational) ? (currentRate - currentNational) : null;
-  const natGapClass     = natGap === null ? '' : (natGap >= 0 ? 'green' : 'red');
-  const natGapText      = natGap === null ? '' : `${natGap >= 0 ? '+' : '−'}$${Math.abs(natGap).toFixed(2)} vs national`;
-
-  // Compose the sub-line under the current rate: lane total (if known) and
-  // the national gap (if computable), separated by a thin divider.
-  const subPieces = [];
-  if(currentTotal !== null) subPieces.push(`$${Math.round(currentTotal).toLocaleString()} total · ${miles.toLocaleString()} mi`);
-  if(natGapText)            subPieces.push(`<span class="${natGapClass}">${natGapText}</span>`);
-  const totalSubLine = subPieces.length ? subPieces.join(' &nbsp;·&nbsp; ') : `per mile · ${trailerLabel}`;
-
-  // Disclaimer text changes based on which adjustments are active so the
-  // user always knows what the bottom chart is showing.
-  const disclaimerText = hasActiveAdjustments()
-    ? 'Lane totals shown include the active adjustments above. They still don\u2019t account for fuel surcharges, truck availability, or other market factors.'
-    : 'These lane totals are calculated from the rate per mile only. They don\u2019t account for seasonal adjustments, truck availability, fuel surcharges, or other market factors. Use the adjustments above to layer in seasonality.';
+  const totalSubLine   = buildCurrentRateSubLine({miles, currentRate, currentTotal, currentNationalTotal, currentRateNational, trailerLabel});
+  const disclaimerText = buildDisclaimerText();
 
   const panel = document.getElementById('right-panel');
   panel.innerHTML = `
@@ -671,7 +761,7 @@ function renderDetail(){
       <div class="stat-card">
         <div class="stat-label">Current Rate</div>
         <div class="stat-val accent">${currentRate ? '$'+currentRate.toFixed(2) : '—'}</div>
-        <div class="stat-sub">${totalSubLine}</div>
+        <div class="stat-sub" id="current-rate-sub">${totalSubLine}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Month Change</div>
@@ -711,12 +801,12 @@ function renderDetail(){
     <!-- Chart 2: lane total dollars — only when the saved lane has miles -->
     ${miles > 0 ? `
     <div class="chart-wrap">
-      <div class="chart-section-label">Lane total <span class="chart-section-hint">at ${miles.toLocaleString()} mi${hasActiveAdjustments() ? ' · adjusted' : ''}</span></div>
+      <div class="chart-section-label">Lane total <span class="chart-section-hint" id="total-section-hint">${buildTotalSectionHint(miles)}</span></div>
       <div style="position:relative;height:200px">
         <canvas id="total-chart"></canvas>
       </div>
       ${renderAdjustmentsCard()}
-      <div class="chart-disclaimer">${disclaimerText}</div>
+      <div class="chart-disclaimer" id="total-disclaimer">${disclaimerText}</div>
     </div>` : ''}
 
     <div style="font-size:10px;color:var(--text3);margin:-4px 0 16px;text-align:center">
@@ -774,7 +864,18 @@ function renderDetail(){
   }).join('');
 
   renderRateChart(labels, data, national);
-  if(miles > 0) renderTotalChart(labels, totals);
+  if(miles > 0) renderTotalChart(labels, totals, nationalTotals);
+
+  // Cache the unadjusted source data + lane meta so onSeasonToggle and
+  // onSeasonRegionChange can recompute totals without a full panel rebuild.
+  // The unchanged rate chart and surrounding DOM stay put — only the bottom
+  // chart's data, the stat sub-line, the section hint, and the disclaimer
+  // need updating.
+  currentChartSource = {
+    labels, dates, data, national, miles, region, currentRate, trailerLabel,
+    rawTotals, rawNationalTotals,
+    currentRateNational,
+  };
 }
 
 // ── Render charts ─────────────────────────────────────────────────────────
@@ -892,42 +993,83 @@ function renderRateChart(labels, data, national){
   });
 }
 
-function renderTotalChart(labels, totals){
+function renderTotalChart(labels, totals, nationalTotals){
   if(totalChartInstance) totalChartInstance.destroy();
   const ctx = document.getElementById('total-chart');
   if(!ctx || !Array.isArray(totals) || !totals.length) return;
   const t = chartTheme();
+  const natColor = t.isDark ? '#94a3b8' : '#64748b';
+
+  // Primary line: lane total at the regional rate (always shown)
+  const datasets = [{
+    label: 'At regional rate',
+    data: totals,
+    borderColor: '#60a5fa',
+    backgroundColor: 'rgba(96,165,250,.08)',
+    borderWidth: 2.5,
+    pointBackgroundColor: '#60a5fa',
+    pointBorderColor: t.point,
+    pointBorderWidth: 2,
+    pointRadius: 5,
+    pointHoverRadius: 7,
+    fill: true,
+    tension: 0.3,
+  }];
+
+  // Comparison line: same lane valued at the national average rate. Quieter
+  // visual weight (thinner, no fill, smaller points, neutral gray) matching
+  // the rate chart's national line for visual consistency across both charts.
+  // Dropped if the lane's region IS national or data is missing.
+  const showNational = Array.isArray(nationalTotals) && nationalTotals.length > 0;
+  if(showNational){
+    datasets.push({
+      label: 'At national average',
+      data: nationalTotals,
+      borderColor: natColor,
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      pointBackgroundColor: natColor,
+      pointBorderColor: t.point,
+      pointBorderWidth: 1.5,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      fill: false,
+      tension: 0.3,
+    });
+  }
+
+  // Y-axis range covers both series so neither line clips
+  const allValues = totals.concat(showNational ? nationalTotals : []);
 
   totalChartInstance = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels,
-      datasets:[{
-        label: 'Lane total ($)',
-        data: totals,
-        borderColor: '#60a5fa',
-        backgroundColor: 'rgba(96,165,250,.08)',
-        borderWidth: 2.5,
-        pointBackgroundColor: '#60a5fa',
-        pointBorderColor: t.point,
-        pointBorderWidth: 2,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        fill: true,
-        tension: 0.3,
-      }]
-    },
+    data: { labels, datasets },
     options:{
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode:'index', intersect:false },
+      interaction: { mode:'index', intersect:false }, // hovering shows both totals for the same month
       plugins:{
-        legend: { display:false },
+        legend: showNational ? {
+          display: true,
+          position: 'top',
+          align: 'end',
+          labels: {
+            color: t.text,
+            font: { family:'Space Grotesk', size:11, weight:'600' },
+            usePointStyle: true,
+            boxWidth: 8,
+            boxHeight: 8,
+            padding: 14,
+          }
+        } : { display:false },
         tooltip:{
           backgroundColor: t.tipBg, borderColor: t.tipBdr, borderWidth: 1,
           titleColor: t.tipTitle, bodyColor: t.tipBody, padding: 10,
           callbacks:{
-            label: ctx => `  Lane total: $${Math.round(ctx.parsed.y).toLocaleString()}`
+            label: ctx => {
+              const prefix = ctx.dataset.label === 'At national average' ? 'National' : 'Regional';
+              return `  ${prefix}: $${Math.round(ctx.parsed.y).toLocaleString()}`;
+            }
           }
         }
       },
@@ -936,8 +1078,8 @@ function renderTotalChart(labels, totals){
         y:{
           grid:{color:t.grid},
           ticks:{color:t.text,font:{family:'DM Mono',size:11}, callback: v => '$'+Math.round(v).toLocaleString()},
-          suggestedMin: Math.min(...totals) * 0.97,
-          suggestedMax: Math.max(...totals) * 1.03,
+          suggestedMin: Math.min(...allValues) * 0.97,
+          suggestedMax: Math.max(...allValues) * 1.03,
         }
       }
     }
