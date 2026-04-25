@@ -59,6 +59,8 @@ a.brand-name:hover span{opacity:.8}
 .stat-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
 .stat-val{font-family:'DM Mono',monospace;font-size:22px;font-weight:600;color:var(--text);line-height:1}
 .stat-sub{font-size:11px;color:var(--text3);margin-top:4px}
+.stat-sub .green{color:var(--green);font-weight:600}
+.stat-sub .red{color:var(--red);font-weight:600}
 .stat-val.green{color:var(--green)}
 .stat-val.red{color:var(--red)}
 .stat-val.accent{color:var(--accent)}
@@ -242,22 +244,38 @@ function getRateFromHistory(region, trailer, dateStr){
 }
 
 // ── Build chart data for a profile ───────────────────────────────────────
-// Returns rate-per-mile points alongside total-dollars points for the lane.
-// Total = miles × rate, computed per snapshot. If the profile has no miles
-// recorded (older saved lanes), `totals` comes back as null so the caller
-// can skip the secondary line cleanly.
+// Returns three aligned series for the chart: the lane's regional rate per
+// mile, the national average rate per mile, and the lane's total dollars at
+// the regional rate. All three share the same labels (snapshot dates) so
+// they line up on the x-axis. `national` is omitted when the lane's region
+// already IS national (would draw two stacked-identical lines otherwise).
+// `totals` is omitted when the saved profile has no miles recorded.
 function buildChartData(profile, trailer){
-  if(!ratesData?.history) return { labels:[], data:[], totals:null, region:'national', miles:0 };
+  if(!ratesData?.history) {
+    return { labels:[], data:[], national:null, totals:null, region:'national', miles:0 };
+  }
   const region = getRegionFromOrigin(profile.origin);
   const miles  = Number(profile.miles) || 0;
   const entries = [...ratesData.history]
     .filter(h => h.regions?.[region]?.[trailer] > 0)
     .sort((a,b) => a.date.localeCompare(b.date));
   const data = entries.map(h => h.regions[region][trailer]);
+
+  // National series — only meaningful for non-national regions. We guard against
+  // gaps (some old snapshots may not have a national entry) by mapping to null
+  // and dropping the line entirely if any point is missing, so we never draw a
+  // misleading partial comparison.
+  let national = null;
+  if(region !== 'national'){
+    const nat = entries.map(h => h.regions?.national?.[trailer] ?? null);
+    if(nat.length && nat.every(v => typeof v === 'number')) national = nat;
+  }
+
   return {
-    labels: entries.map(h => h.label || h.date),
+    labels:   entries.map(h => h.label || h.date),
     data,
-    totals: miles > 0 ? data.map(r => r * miles) : null,
+    national,
+    totals:   miles > 0 ? data.map(r => r * miles) : null,
     region,
     miles,
   };
@@ -343,7 +361,7 @@ function renderDetail(){
   if(selectedIdx === null) return;
   const p = profiles[selectedIdx];
   const region = getRegionFromOrigin(p.origin);
-  const { labels, data, totals, miles } = buildChartData(p, activeTrailer);
+  const { labels, data, national, totals, miles } = buildChartData(p, activeTrailer);
   const currentRate = data[data.length-1];
   const prevRate    = data[data.length-2];
   const firstRate   = data[0];
@@ -355,9 +373,20 @@ function renderDetail(){
   // has miles recorded — older profiles may not, in which case we fall back
   // to just showing the per-mile rate.
   const currentTotal  = (miles > 0 && currentRate) ? currentRate * miles : null;
-  const totalSubLine  = currentTotal !== null
-    ? `$${Math.round(currentTotal).toLocaleString()} total · ${miles.toLocaleString()} mi`
-    : `per mile · ${trailerLabel}`;
+
+  // Gap between the lane's regional rate and the national average for the
+  // same trailer/snapshot. Surfaces "are we above or below market" at a glance.
+  const currentNational = national ? national[national.length-1] : null;
+  const natGap          = (currentRate && currentNational) ? (currentRate - currentNational) : null;
+  const natGapClass     = natGap === null ? '' : (natGap >= 0 ? 'green' : 'red');
+  const natGapText      = natGap === null ? '' : `${natGap >= 0 ? '+' : '−'}$${Math.abs(natGap).toFixed(2)} vs national`;
+
+  // Compose the sub-line under the current rate: lane total (if known) and
+  // the national gap (if computable), separated by a thin divider.
+  const subPieces = [];
+  if(currentTotal !== null) subPieces.push(`$${Math.round(currentTotal).toLocaleString()} total · ${miles.toLocaleString()} mi`);
+  if(natGapText)            subPieces.push(`<span class="${natGapClass}">${natGapText}</span>`);
+  const totalSubLine = subPieces.length ? subPieces.join(' &nbsp;·&nbsp; ') : `per mile · ${trailerLabel}`;
 
   const panel = document.getElementById('right-panel');
   panel.innerHTML = `
@@ -446,11 +475,11 @@ function renderDetail(){
     </tr>`;
   }).join('');
 
-  renderChart(labels, data, totals);
+  renderChart(labels, data, national, totals);
 }
 
 // ── Render chart ──────────────────────────────────────────────────────────
-function renderChart(labels, data, totals){
+function renderChart(labels, data, national, totals){
   if(chartInstance) chartInstance.destroy();
   const ctx = document.getElementById('rate-chart');
   if(!ctx) return;
@@ -458,10 +487,11 @@ function renderChart(labels, data, totals){
   const isDark    = !document.documentElement.classList.contains('light');
   const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';
   const textColor = isDark ? '#6b7f94' : '#94a3b8';
+  const natColor  = isDark ? '#94a3b8' : '#64748b'; // muted slate so it reads as background reference
 
-  // Primary line: rate per mile (always shown)
+  // Primary line: this lane's regional rate per mile (always shown)
   const datasets = [{
-    label: 'Rate per mile',
+    label: 'Regional rate',
     data,
     yAxisID: 'y',
     borderColor: '#f0a500',
@@ -476,9 +506,30 @@ function renderChart(labels, data, totals){
     tension: 0.3,
   }];
 
-  // Secondary line: total dollars for the lane. Only added when the saved
-  // profile has miles recorded — older lanes without miles get the original
-  // single-line view rather than a misleading flat zero line.
+  // National-average comparison line. Quieter visual weight (thinner, no fill,
+  // smaller points, neutral gray) so the regional line reads as primary.
+  const showNational = Array.isArray(national) && national.length > 0;
+  if(showNational){
+    datasets.push({
+      label: 'National average',
+      data: national,
+      yAxisID: 'y',
+      borderColor: natColor,
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      pointBackgroundColor: natColor,
+      pointBorderColor: isDark ? '#0f1318' : '#ffffff',
+      pointBorderWidth: 1.5,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      fill: false,
+      tension: 0.3,
+    });
+  }
+
+  // Secondary axis: lane total dollars. Only added when the saved profile has
+  // miles recorded — older lanes without miles get the original view rather
+  // than a misleading flat zero line.
   const showTotals = Array.isArray(totals) && totals.length > 0;
   if(showTotals){
     datasets.push({
@@ -499,16 +550,17 @@ function renderChart(labels, data, totals){
     });
   }
 
-  // Y-axis scales. The right-hand totals axis is hidden when there are no
-  // totals to plot, keeping the chart visually identical to the old version
-  // for lanes without miles.
+  // Y-axis scales. The left axis covers both regional and national rates so
+  // they're directly comparable. Right axis (totals) is independent.
+  // Compute the left-axis range across all $/mi series so neither line clips.
+  const leftValues = data.concat(showNational ? national : []);
   const yScales = {
     y: {
       grid:   { color: gridColor },
       ticks:  { color: textColor, font:{family:'DM Mono',size:11}, callback: v => '$'+v.toFixed(2) },
       title:  showTotals ? { display:true, text:'Rate / mi', color:'#f0a500', font:{family:'Space Grotesk',size:10,weight:'600'} } : { display:false },
-      suggestedMin: data.length ? Math.min(...data) * 0.97 : 2,
-      suggestedMax: data.length ? Math.max(...data) * 1.03 : 4,
+      suggestedMin: leftValues.length ? Math.min(...leftValues) * 0.97 : 2,
+      suggestedMax: leftValues.length ? Math.max(...leftValues) * 1.03 : 4,
     }
   };
   if(showTotals){
@@ -522,15 +574,18 @@ function renderChart(labels, data, totals){
     };
   }
 
+  // Show legend whenever we have more than one dataset on screen.
+  const showLegend = datasets.length > 1;
+
   chartInstance = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets },
     options:{
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode:'index', intersect:false }, // hovering anywhere shows both values for that month
+      interaction: { mode:'index', intersect:false }, // hovering anywhere shows all values for that month
       plugins:{
-        legend: showTotals ? {
+        legend: showLegend ? {
           display: true,
           position: 'top',
           align: 'end',
@@ -555,7 +610,8 @@ function renderChart(labels, data, totals){
               if(ctx.dataset.yAxisID === 'y1'){
                 return `  Lane total: $${Math.round(ctx.parsed.y).toLocaleString()}`;
               }
-              return `  Rate: $${ctx.parsed.y.toFixed(2)} / mi`;
+              const prefix = ctx.dataset.label === 'National average' ? 'National' : 'Regional';
+              return `  ${prefix}: $${ctx.parsed.y.toFixed(2)} / mi`;
             }
           }
         }
