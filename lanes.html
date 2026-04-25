@@ -88,6 +88,8 @@ a.brand-name:hover span{opacity:.8}
 .adj-section:first-of-type{margin-top:0;padding-top:0;border-top:none}
 .adj-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
 .adj-section-name{font-size:12px;font-weight:600;color:var(--text2)}
+.adj-section-status{font-size:11px;font-weight:600;color:var(--text3);font-variant-numeric:tabular-nums}
+.adj-section-status.active{color:var(--accent)}
 .adj-note{font-size:10px;color:var(--text3);line-height:1.5;margin-bottom:10px}
 .adj-controls{display:none}
 .adj-controls.open{display:block}
@@ -298,6 +300,17 @@ const adjustments = loadAdjustments();
 // (which causes a visible flash and re-animates the unchanged top chart).
 let currentChartSource = null;
 
+// Commodity multipliers — mirror CMULT/CLABEL in index.html so a load tracked
+// here produces the same lift the calculator would apply. "standard" is the
+// implicit off-state (1.00×); picking it has no effect on the chart.
+const COMMODITY_MULT = {
+  standard:  {label:'Standard general freight',     mult:1.00},
+  food:      {label:'Food / Perishable',            mult:1.08},
+  hazmat:    {label:'Hazmat',                        mult:1.20},
+  highval:   {label:'High Value / Fragile',         mult:1.12},
+  oversized: {label:'Oversized / Overweight',       mult:1.25},
+};
+
 function loadAdjustments(){
   try {
     const saved = JSON.parse(localStorage.getItem(ADJ_KEY) || '{}');
@@ -306,9 +319,10 @@ function loadAdjustments(){
         enabled: saved.seasonal?.enabled === true,
         region:  saved.seasonal?.region  || 'fl',
       },
+      commodity: saved.commodity && COMMODITY_MULT[saved.commodity] ? saved.commodity : 'standard',
     };
   } catch(e){
-    return { seasonal: { enabled:false, region:'fl' } };
+    return { seasonal: { enabled:false, region:'fl' }, commodity:'standard' };
   }
 }
 function saveAdjustments(){
@@ -430,21 +444,29 @@ function getSeasonalMultiplier(dateStr, trailer){
   return curve[month] ?? 1.0;
 }
 
+// Returns the commodity multiplier — a flat lift independent of date or
+// trailer. "standard" is the implicit off-state (1.00×).
+function getCommodityMultiplier(){
+  return COMMODITY_MULT[adjustments.commodity]?.mult ?? 1.0;
+}
+
 // Applies all active adjustments to the lane totals series, returning a new
-// array. Pure function — does not mutate inputs. Today only seasonal exists;
-// future adjustments (capacity, diesel, etc.) compose multiplicatively here.
+// array. Pure function — does not mutate inputs. Adjustments compose
+// multiplicatively: seasonal × commodity × (future factors).
 function applyAdjustments(totals, dates, trailer){
   if(!Array.isArray(totals) || !totals.length) return totals;
+  const commodityMult = getCommodityMultiplier();
   return totals.map((t, i) => {
-    const m = getSeasonalMultiplier(dates[i], trailer);
-    return t * m;
+    const seasonMult = getSeasonalMultiplier(dates[i], trailer);
+    return t * seasonMult * commodityMult;
   });
 }
 
 // Returns true if any adjustment is currently active. Used to decide whether
 // the totals chart's disclaimer should mention "adjusted" output.
 function hasActiveAdjustments(){
-  return adjustments.seasonal.enabled === true;
+  return adjustments.seasonal.enabled === true
+      || adjustments.commodity !== 'standard';
 }
 
 // Pure helpers below — used by both renderDetail (initial paint) and the
@@ -455,7 +477,7 @@ function hasActiveAdjustments(){
 function buildDisclaimerText(){
   return hasActiveAdjustments()
     ? 'Lane totals shown include the active adjustments above. They still don\u2019t account for fuel surcharges, truck availability, or other market factors.'
-    : 'These lane totals are calculated from the rate per mile only. They don\u2019t account for seasonal adjustments, truck availability, fuel surcharges, or other market factors. Use the adjustments above to layer in seasonality.';
+    : 'These lane totals are calculated from the rate per mile only. They don\u2019t account for seasonal lift, commodity premiums, fuel surcharges, truck availability, or other market factors. Use the adjustments above to layer those in.';
 }
 
 // "at 685 mi" / "at 685 mi · adjusted" — the small grey hint inside the
@@ -565,6 +587,11 @@ function selectLane(idx){
 // slot in as additional .adj-section blocks below this one.
 function renderAdjustmentsCard(){
   const seas = adjustments.seasonal;
+  const comm = adjustments.commodity;
+  const commOptions = Object.entries(COMMODITY_MULT).map(([key, info]) => {
+    const liftPct = info.mult === 1 ? '' : `  (+${Math.round((info.mult - 1) * 100)}%)`;
+    return `<option value="${key}" ${comm===key?'selected':''}>${info.label}${liftPct}</option>`;
+  }).join('');
   return `
     <div class="adj-card">
       <div class="adj-row">
@@ -612,7 +639,29 @@ function renderAdjustmentsCard(){
           <div class="seas-labels"><span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span><span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span></div>
         </div>
       </div>
+
+      <div class="adj-section">
+        <div class="adj-section-head">
+          <span class="adj-section-name">Commodity</span>
+          <span class="adj-section-status${comm !== 'standard' ? ' active' : ''}" id="adj-comm-status">${formatCommodityStatus(comm)}</span>
+        </div>
+        <div class="adj-note">
+          Applies the calculator's commodity lift across every snapshot. Standard general freight has no lift; specialty freight (perishable, hazmat, high-value, oversized) commands a premium.
+        </div>
+        <div class="adj-field">
+          <label for="adj-commodity">Load Type</label>
+          <select id="adj-commodity" onchange="onCommodityChange()">${commOptions}</select>
+        </div>
+      </div>
     </div>`;
+}
+
+// Returns the small status text shown next to the Commodity section name.
+// Reads "Off" when standard, or "+8% lift" / "+20% lift" etc. otherwise.
+function formatCommodityStatus(key){
+  const info = COMMODITY_MULT[key];
+  if(!info || info.mult === 1) return 'Off';
+  return `+${Math.round((info.mult - 1) * 100)}% lift`;
 }
 
 // Paints the 12-month seasonal calendar strip. Same color logic as index.html
@@ -674,6 +723,18 @@ function onSeasonRegionChange(){
   adjustments.seasonal.region = document.getElementById('adj-seas-region').value;
   saveAdjustments();
   renderSeasonCalendar();
+  applyAdjustmentsToView();
+}
+
+function onCommodityChange(){
+  adjustments.commodity = document.getElementById('adj-commodity').value;
+  saveAdjustments();
+  // Update the small status badge on the section header
+  const statusEl = document.getElementById('adj-comm-status');
+  if(statusEl){
+    statusEl.textContent = formatCommodityStatus(adjustments.commodity);
+    statusEl.classList.toggle('active', adjustments.commodity !== 'standard');
+  }
   applyAdjustmentsToView();
 }
 
