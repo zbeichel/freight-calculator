@@ -42,9 +42,6 @@ const ALLOWED_FIELDS = [
 ];
 
 const VALID_TRAILERS = new Set(['van', 'reefer', 'flatbed']);
-const VALID_REGIONS  = new Set([
-  'northeast', 'southeast', 'midwest', 'southwest', 'west', 'national',
-]);
 
 // Validates the incoming payload. Returns { ok:true, clean } on success or
 // { ok:false, reason } on failure. The `clean` object is a fresh whitelisted
@@ -63,7 +60,12 @@ function validatePayload(body){
     return { ok:false, reason:'bad-trailer-value' };
   }
 
-  // Optional strings (state codes, regions). If present, must match shape.
+  // Optional strings (state codes, regions). If present, must be a non-empty
+  // string of reasonable length. Region names come from the browser's
+  // marketing-region taxonomy (refineRegion in index.html) which uses
+  // fine-grained values like 'Southeast FL', 'Mid-Atlantic', 'West Texas',
+  // plus an 'Unknown' fallback — too many to enumerate, and not worth
+  // restricting to a fixed set since this is analytics data.
   for(const k of ['origin_state', 'dest_state']){
     if(body[k] !== null && body[k] !== undefined){
       if(typeof body[k] !== 'string' || body[k].length > 4){
@@ -73,7 +75,7 @@ function validatePayload(body){
   }
   for(const k of ['origin_region', 'dest_region']){
     if(body[k] !== null && body[k] !== undefined){
-      if(typeof body[k] !== 'string' || !VALID_REGIONS.has(body[k])){
+      if(typeof body[k] !== 'string' || body[k].length > 60){
         return { ok:false, reason:`bad-${k}` };
       }
     }
