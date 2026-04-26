@@ -4322,7 +4322,18 @@ async function validateLocation(input){
     input.dispatchEvent(new Event('input', {bubbles:true}));
   }
 }
+// Dispatches to the right clear function based on which tab is currently
+// active. The previous version unconditionally called setShipType('ftl')
+// and only cleared FTL/LTL fields, which made the Clear button bounce the
+// user back to FTL when they were on profitability. Each calculator now
+// owns its own clear path.
 function clearCalculator(){
+  if(shipType === 'prof') clearProfitability();
+  else                    clearShipmentForm();
+}
+
+// Clears the FTL/LTL shipment calculator. Does not touch profitability state.
+function clearShipmentForm(){
   // Clear all inputs
   document.getElementById('origin').value = '';
   document.getElementById('dest').value   = '';
@@ -4351,7 +4362,7 @@ function clearCalculator(){
   const marginEl = document.getElementById('margin');
   if(marginEl) marginEl.value = '15';
 
-  // Reset ship type to FTL
+  // Snap back to FTL — the most common starting state for a fresh quote
   setShipType('ftl');
 
   // Clear load notes
@@ -4361,6 +4372,93 @@ function clearCalculator(){
   // Reset rates to auto
   applyRegionalRates();
   calc();
+}
+
+// Clears the profitability calculator. Does not touch FTL/LTL state and
+// stays on the profitability tab — the user wanted to clear the form, not
+// switch calculators.
+function clearProfitability(){
+  // Route inputs
+  document.getElementById('p-origin').value   = '';
+  document.getElementById('p-dest').value     = '';
+  document.getElementById('p-miles').value    = '';
+  document.getElementById('p-empty').value    = '0';
+  document.getElementById('p-pickup').value   = '';
+  document.getElementById('p-delivery').value = '';
+
+  // Load + time inputs
+  document.getElementById('p-rate').value          = '';
+  document.getElementById('p-hours').value         = '';
+  document.getElementById('p-wait-pickup').value   = '0';
+  document.getElementById('p-wait-delivery').value = '0';
+
+  // Cost inputs (per-mile and flat)
+  document.getElementById('p-fuel').value   = '';
+  document.getElementById('p-mpg').value    = '';
+  document.getElementById('p-driver').value = '';
+  document.getElementById('p-fixed').value  = '';
+  document.getElementById('p-other').value  = '0';
+
+  // Reset cost-source flags so calcFuelCPM/calcFixedCPM can repopulate
+  // from auto-fetched values next time the user types something
+  fuelManual  = false;
+  fixedManual = false;
+  document.getElementById('fuel-calc-badge').style.display  = 'none';
+  document.getElementById('fixed-calc-badge').style.display = 'none';
+  const fuelSrc = document.getElementById('p-fuel-src');
+  if(fuelSrc) fuelSrc.textContent = '';
+
+  // Clear inline location validation errors
+  clearLocationError(document.getElementById('p-origin'));
+  clearLocationError(document.getElementById('p-dest'));
+
+  // Hide the route-lookup status pill — without an origin/dest there's
+  // nothing to look up
+  const milesStatus = document.getElementById('p-miles-status-row');
+  if(milesStatus) milesStatus.style.display = 'none';
+  const milesSrc = document.getElementById('p-miles-src');
+  if(milesSrc) milesSrc.textContent = '';
+
+  // Hide the transit callout (it auto-hides when pickup/delivery are
+  // blank, but reset the extra-day input too in case it was customized)
+  document.getElementById('p-transit-callout').style.display = 'none';
+  const extraRate = document.getElementById('p-extra-day-rate');
+  if(extraRate) extraRate.value = '200';
+
+  // calcProfit short-circuits when rate or miles are missing, so the result
+  // hero, verdict pill, and bar would otherwise keep showing the previous
+  // load's numbers. Reset those visual elements directly.
+  const profitVal = document.getElementById('p-profit-val');
+  const marginVal = document.getElementById('p-margin-val');
+  const verdict   = document.getElementById('p-verdict');
+  const barFill   = document.getElementById('p-bar-fill');
+  const barPct    = document.getElementById('p-bar-pct');
+  const barCost   = document.getElementById('p-bar-cost-lbl');
+  const barProfit = document.getElementById('p-bar-profit-lbl');
+  if(profitVal){ profitVal.textContent = '—'; profitVal.style.color = ''; }
+  if(marginVal)  marginVal.textContent = '— profit per mile';
+  if(verdict)    verdict.style.display = 'none';
+  if(barFill)    barFill.style.width   = '0%';
+  if(barPct)     barPct.textContent    = '';
+  if(barCost)    barCost.textContent   = 'Costs: —';
+  if(barProfit)  barProfit.textContent = 'Profit: —';
+
+  // Clear per-metric values that calcProfit normally fills in. Querying by
+  // common id prefix is more robust than listing every one — if a new
+  // metric is added, it just needs to follow the pv- / pm- naming.
+  document.querySelectorAll('[id^="pv-"], [id^="pm-"]').forEach(el => {
+    if(el.tagName === 'INPUT') return; // never blank an input via this loop
+    el.textContent = '—';
+    if(el.classList.contains('prof-metric')){
+      el.classList.remove('good', 'warn', 'bad');
+    }
+  });
+
+  // Reset profitability-specific cached state. The profitability route
+  // lookup (tryProfLookup) is stateless — it doesn't cache coords or last-
+  // lookup keys — so there's nothing else to reset here. profDieselPrice is
+  // the one piece of cached state that survives between lookups.
+  profDieselPrice = 0;
 }
 
 function wTier(w){return WTIERS.find(t=>w<=t.max)||WTIERS[3]}
