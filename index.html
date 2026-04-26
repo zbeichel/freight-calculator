@@ -2264,7 +2264,8 @@ async function _verifyProAuthBackground(){
           colorScheme: p.color_scheme, logoBase64: p.logo_base64,
         }));
         if(p.rate_profiles && Array.isArray(p.rate_profiles)){
-          localStorage.setItem(PROFILES_KEY, JSON.stringify(p.rate_profiles));
+          // Key matches PROFILES_KEY in lanes.html — keep them in sync.
+          localStorage.setItem('qfc_rate_profiles', JSON.stringify(p.rate_profiles));
         }
       } else {
         // Clear cache if no longer active
