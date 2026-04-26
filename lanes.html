@@ -102,6 +102,66 @@ a.brand-name:hover span{opacity:.8}
 }
 .adj-field select:focus{outline:none;border-color:var(--accent)}
 
+/* L:T capacity grid — three trailer cells side by side */
+.lt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
+.lt-cell{
+  background:var(--card2);border:1px solid var(--border2);border-radius:8px;
+  padding:8px 10px;display:flex;flex-direction:column;gap:5px;
+}
+.lt-cell.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.lt-cell-label{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.lt-cell-input{
+  width:100%;font-family:'DM Mono',monospace;font-size:13px;font-weight:700;
+  background:transparent;color:var(--text);border:none;border-bottom:1px solid var(--border2);
+  padding:2px 0;text-align:left;font-variant-numeric:tabular-nums;
+}
+.lt-cell-input:focus{outline:none;border-bottom-color:var(--accent)}
+.lt-cell-meta{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:9px}
+.lt-pill{
+  font-weight:700;font-size:9px;padding:2px 6px;border-radius:8px;letter-spacing:.04em;
+}
+.lt-pill.loose    {background:rgba(74,222,128,.14); color:#4ade80}
+.lt-pill.balanced {background:rgba(148,163,184,.14);color:#94a3b8}
+.lt-pill.tight    {background:rgba(240,165,0,.14); color:var(--accent)}
+.lt-pill.extreme  {background:rgba(248,113,113,.14);color:var(--red)}
+.lt-cell-mult{color:var(--text3);font-family:'DM Mono',monospace;font-variant-numeric:tabular-nums}
+.lt-cell-mult.up  {color:var(--red)}
+.lt-cell-mult.down{color:var(--green)}
+.lt-actions{display:flex;align-items:center;gap:10px;font-size:10px}
+.lt-source{color:var(--text3)}
+.lt-reset-btn{
+  background:transparent;border:none;padding:0;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:600;
+  color:var(--text3);text-decoration:underline;text-underline-offset:2px;
+}
+.lt-reset-btn:hover{color:var(--accent)}
+.lt-reset-btn:disabled{opacity:.4;cursor:not-allowed;text-decoration:none}
+
+/* Broker margin — single-row layout: large percentage input on the left,
+   quick-pick chips for common values on the right */
+.margin-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.margin-input-wrap{
+  position:relative;display:flex;align-items:center;
+  background:var(--card2);border:1px solid var(--border2);border-radius:8px;
+  padding:6px 10px;min-width:110px;
+}
+.margin-input-wrap:focus-within{border-color:var(--accent)}
+.margin-input{
+  width:60px;font-family:'DM Mono',monospace;font-size:18px;font-weight:700;
+  background:transparent;color:var(--text);border:none;outline:none;
+  text-align:right;font-variant-numeric:tabular-nums;
+}
+.margin-input-suffix{font-family:'DM Mono',monospace;font-size:14px;font-weight:600;color:var(--text2);margin-left:4px}
+.margin-chips{display:flex;gap:6px;flex-wrap:wrap}
+.margin-chip{
+  font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;
+  padding:6px 12px;border-radius:14px;cursor:pointer;
+  background:transparent;color:var(--text3);border:1px solid var(--border2);
+  transition:all .12s;
+}
+.margin-chip:hover{border-color:var(--text2);color:var(--text2)}
+.margin-chip.active{background:var(--accent);color:#000;border-color:var(--accent)}
+
 /* Toggle — copied from index.html so the visual language matches */
 .tog{display:flex;align-items:center;gap:10px;cursor:pointer;margin:0}
 .tog input[type=checkbox]{display:none}
@@ -203,7 +263,7 @@ footer a:hover{color:var(--accent)}
 
 <footer>
   <p style="margin-bottom:8px">Questions? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent)">info@quickfreightcalc.com</a></p>
-  <p>By using QuickFreightCalc you agree to our <a href="/terms.html" target="_blank">Terms of Service</a> and <a href="/privacy.html" target="_blank">Privacy Policy</a>. Rates are estimates only — not guaranteed quotes.</p>
+  <p>By using QuickFreightCalc you agree to our <a href="/terms.html" target="_blank" rel="noopener noreferrer">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a>. Rates are estimates only — not guaranteed quotes.</p>
 </footer>
 
 <!-- Floating theme button -->
@@ -213,6 +273,20 @@ footer a:hover{color:var(--accent)}
 </button>
 
 <script>
+// ── HTML escape helper ────────────────────────────────────────────────────
+// Use this on any user-typed string before interpolating into innerHTML or
+// attribute values. Escapes the five characters that change HTML semantics.
+// Number/Date values can be passed through directly — they don't need escaping.
+function escapeHTML(s){
+  if(s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
 const PROFILES_KEY = 'qfc_rate_profiles';
@@ -311,6 +385,12 @@ const COMMODITY_MULT = {
   oversized: {label:'Oversized / Overweight',       mult:1.25},
 };
 
+// L:T (load-to-truck) ratio baselines — same values used by the calculator.
+// The lift is computed from (current - base) / base, scaled by 0.15, and
+// clamped at ±12% so a single tight-or-loose market can't dominate the
+// other adjustments. Values match LT_BASELINE in index.html.
+const LT_BASELINE = { van: 6.0, reefer: 10.0, flatbed: 25.0 };
+
 function loadAdjustments(){
   try {
     const saved = JSON.parse(localStorage.getItem(ADJ_KEY) || '{}');
@@ -320,9 +400,31 @@ function loadAdjustments(){
         region:  saved.seasonal?.region  || 'fl',
       },
       commodity: saved.commodity && COMMODITY_MULT[saved.commodity] ? saved.commodity : 'standard',
+      capacity: {
+        enabled: saved.capacity?.enabled === true,
+        // Manual overrides — null means "use the current value from rates.json".
+        // Stored separately per trailer so a user can override one without
+        // affecting the others.
+        overrides: {
+          van:     typeof saved.capacity?.overrides?.van     === 'number' ? saved.capacity.overrides.van     : null,
+          reefer:  typeof saved.capacity?.overrides?.reefer  === 'number' ? saved.capacity.overrides.reefer  : null,
+          flatbed: typeof saved.capacity?.overrides?.flatbed === 'number' ? saved.capacity.overrides.flatbed : null,
+        },
+      },
+      margin: {
+        enabled: saved.margin?.enabled === true,
+        // Stored as percentage points (15 = 15%). Default mirrors the calculator.
+        pct: typeof saved.margin?.pct === 'number' && saved.margin.pct >= 0 && saved.margin.pct <= 100
+          ? saved.margin.pct : 15,
+      },
     };
   } catch(e){
-    return { seasonal: { enabled:false, region:'fl' }, commodity:'standard' };
+    return {
+      seasonal: { enabled:false, region:'fl' },
+      commodity: 'standard',
+      capacity: { enabled:false, overrides:{van:null, reefer:null, flatbed:null} },
+      margin:   { enabled:false, pct:15 },
+    };
   }
 }
 function saveAdjustments(){
@@ -450,46 +552,115 @@ function getCommodityMultiplier(){
   return COMMODITY_MULT[adjustments.commodity]?.mult ?? 1.0;
 }
 
+// Returns the L:T value to use for a trailer: the user's manual override if
+// they set one, else the "current" value from rates.json, else the baseline
+// (so the math degrades gracefully if rates.json is missing the section).
+function getLtValue(trailer){
+  const override = adjustments.capacity.overrides[trailer];
+  if(typeof override === 'number') return override;
+  const current = ratesData?.loadToTruck?.[trailer]?.current;
+  if(typeof current === 'number') return current;
+  return LT_BASELINE[trailer];
+}
+
+// Returns the L:T-derived multiplier for a trailer, using exactly the same
+// formula as the main calculator: a 0.15 sensitivity scaled difference from
+// baseline, clamped at ±12% so a single hot market can't dominate.
+// Returns 1.0 if the capacity adjustment is disabled.
+function getCapacityMultiplier(trailer){
+  if(!adjustments.capacity.enabled) return 1.0;
+  const lt   = getLtValue(trailer);
+  const base = LT_BASELINE[trailer];
+  if(!base) return 1.0;
+  const raw  = ((lt - base) / base) * 0.15;
+  return 1 + Math.min(0.12, Math.max(-0.12, raw));
+}
+
+// Categorizes an L:T value into a market-tightness band, returning { label,
+// tone } where tone is one of 'loose' | 'balanced' | 'tight' | 'extreme'.
+// Threshold is percent-of-baseline so it works across all trailers (van
+// baseline 6.0, reefer 10.0, flatbed 25.0).
+function classifyLt(trailer, lt){
+  const base = LT_BASELINE[trailer];
+  const pct  = (lt - base) / base; // -1.0 at zero loads, 0 at baseline, positive when tight
+  if(pct <= -0.10) return {label:'Loose',         tone:'loose'};
+  if(pct <   0.20) return {label:'Balanced',      tone:'balanced'};
+  if(pct <   0.80) return {label:'Tight',         tone:'tight'};
+  return                     {label:'Extreme tight', tone:'extreme'};
+}
+
 // Applies all active adjustments to the lane totals series, returning a new
 // array. Pure function — does not mutate inputs. Adjustments compose
-// multiplicatively: seasonal × commodity × (future factors).
+// multiplicatively: seasonal × commodity × capacity × (future factors).
 function applyAdjustments(totals, dates, trailer){
   if(!Array.isArray(totals) || !totals.length) return totals;
   const commodityMult = getCommodityMultiplier();
+  const capacityMult  = getCapacityMultiplier(trailer);
   return totals.map((t, i) => {
     const seasonMult = getSeasonalMultiplier(dates[i], trailer);
-    return t * seasonMult * commodityMult;
+    return t * seasonMult * commodityMult * capacityMult;
   });
+}
+
+// Margin is a business markup on top of the carrier rate, so it sits outside
+// applyAdjustments — semantically those compose carrier rates, this turns
+// carrier totals into customer quotes. Math-wise it could go inline (it
+// commutes with the other multipliers), but keeping it separate makes the
+// distinction clear in the UI labeling later.
+function getMarginMultiplier(){
+  if(!adjustments.margin.enabled) return 1.0;
+  return 1 + (adjustments.margin.pct / 100);
+}
+function applyMargin(totals){
+  if(!Array.isArray(totals) || !totals.length) return totals;
+  const m = getMarginMultiplier();
+  return m === 1 ? totals : totals.map(t => t * m);
 }
 
 // Returns true if any adjustment is currently active. Used to decide whether
 // the totals chart's disclaimer should mention "adjusted" output.
 function hasActiveAdjustments(){
   return adjustments.seasonal.enabled === true
-      || adjustments.commodity !== 'standard';
+      || adjustments.commodity !== 'standard'
+      || adjustments.capacity.enabled === true
+      || adjustments.margin.enabled === true;
 }
 
 // Pure helpers below — used by both renderDetail (initial paint) and the
 // surgical adjustment updater so the two paths can never drift apart.
 
 // Disclaimer text under the lane total chart. Wording shifts based on
-// whether any adjustments are currently active.
+// whether any adjustments are currently active — and specifically calls out
+// when margin is on, since at that point the chart shows customer quotes
+// rather than carrier totals.
 function buildDisclaimerText(){
-  return hasActiveAdjustments()
-    ? 'Lane totals shown include the active adjustments above. They still don\u2019t account for fuel surcharges, truck availability, or other market factors.'
-    : 'These lane totals are calculated from the rate per mile only. They don\u2019t account for seasonal lift, commodity premiums, fuel surcharges, truck availability, or other market factors. Use the adjustments above to layer those in.';
+  if(adjustments.margin.enabled){
+    return 'Chart shows customer quotes — your margin is layered on top of the carrier rate. Doesn\u2019t account for fuel surcharges, accessorials, or other lane-specific costs.';
+  }
+  if(hasActiveAdjustments()){
+    return 'Lane totals shown include the active adjustments above. They still don\u2019t account for fuel surcharges, truck availability, or other market factors.';
+  }
+  return 'These lane totals are calculated from the rate per mile only. They don\u2019t account for seasonal lift, commodity premiums, capacity tightness, broker margin, fuel surcharges, or other market factors. Use the adjustments above to layer those in.';
 }
 
-// "at 685 mi" / "at 685 mi · adjusted" — the small grey hint inside the
-// lane total chart's section label.
+// "at 685 mi" / "at 685 mi · adjusted" / "at 685 mi · customer quote" —
+// the small grey hint inside the lane total chart's section label.
+// "customer quote" wins over "adjusted" when margin is active, since margin
+// fundamentally changes what the chart represents (markup vs. carrier rate).
 function buildTotalSectionHint(miles){
-  return `at ${miles.toLocaleString()} mi${hasActiveAdjustments() ? ' · adjusted' : ''}`;
+  const milesPart = `at ${miles.toLocaleString()} mi`;
+  if(adjustments.margin.enabled) return `${milesPart} · customer quote`;
+  if(hasActiveAdjustments())     return `${milesPart} · adjusted`;
+  return milesPart;
 }
 
 // Sub-line under the Current Rate stat tile. Composes total dollars (if the
 // lane has miles), national gap, and falls back to "per mile · <trailer>"
-// when neither is computable.
+// when neither is computable. When margin is on, labels the dollar amount
+// as a "quote" rather than a "total" so the user knows what they're looking
+// at.
 function buildCurrentRateSubLine({miles, currentRate, currentTotal, currentNationalTotal, currentRateNational, trailerLabel}){
+  const totalLabel = adjustments.margin.enabled ? 'quote' : 'total';
   let natGapText = '', natGapClass = '';
   if(currentTotal !== null && currentNationalTotal !== null){
     const gap = currentTotal - currentNationalTotal;
@@ -501,7 +672,7 @@ function buildCurrentRateSubLine({miles, currentRate, currentTotal, currentNatio
     natGapText  = `${gap >= 0 ? '+' : '−'}$${Math.abs(gap).toFixed(2)} vs national`;
   }
   const subPieces = [];
-  if(currentTotal !== null) subPieces.push(`$${Math.round(currentTotal).toLocaleString()} total · ${miles.toLocaleString()} mi`);
+  if(currentTotal !== null) subPieces.push(`$${Math.round(currentTotal).toLocaleString()} ${totalLabel} · ${miles.toLocaleString()} mi`);
   if(natGapText)            subPieces.push(`<span class="${natGapClass}">${natGapText}</span>`);
   return subPieces.length ? subPieces.join(' &nbsp;·&nbsp; ') : `per mile · ${trailerLabel}`;
 }
@@ -562,7 +733,7 @@ function renderLaneList(){
 
     return `<div class="lane-item ${selectedIdx===i?'active':''}" onclick="selectLane(${i})">
       <div style="min-width:0;flex:1">
-        <div class="lane-name">${p.name}</div>
+        <div class="lane-name">${escapeHTML(p.name)}</div>
         <div class="lane-meta">${REGION_LABELS[region]||region} · ${trailerLabel}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
@@ -588,6 +759,8 @@ function selectLane(idx){
 function renderAdjustmentsCard(){
   const seas = adjustments.seasonal;
   const comm = adjustments.commodity;
+  const cap  = adjustments.capacity;
+  const mar  = adjustments.margin;
   const commOptions = Object.entries(COMMODITY_MULT).map(([key, info]) => {
     const liftPct = info.mult === 1 ? '' : `  (+${Math.round((info.mult - 1) * 100)}%)`;
     return `<option value="${key}" ${comm===key?'selected':''}>${info.label}${liftPct}</option>`;
@@ -653,6 +826,54 @@ function renderAdjustmentsCard(){
           <select id="adj-commodity" onchange="onCommodityChange()">${commOptions}</select>
         </div>
       </div>
+
+      <div class="adj-section">
+        <div class="adj-section-head">
+          <span class="adj-section-name">Capacity (L:T ratio)</span>
+          <label class="tog">
+            <input type="checkbox" id="adj-cap-enabled" ${cap.enabled?'checked':''} onchange="onCapacityToggle()" />
+            <span class="tog-track"><span class="tog-thumb"></span></span>
+            <span class="tog-label" id="adj-cap-tog-lbl">${cap.enabled?'On':'Off'}</span>
+          </label>
+        </div>
+        <div class="adj-note">
+          Reflects how tight or loose the truck market is. Loads-to-trucks above the 5-year baseline lift rates; below the baseline drops them. Capped at ±12% so a single tight market doesn't dominate other adjustments.
+        </div>
+        <div class="adj-controls ${cap.enabled?'open':''}" id="adj-cap-controls">
+          <div class="lt-grid" id="adj-cap-grid"></div>
+          <div class="lt-actions">
+            <span class="lt-source">${escapeHTML(ratesData?.loadToTruck?.source) || 'DAT Trendlines'} · ${escapeHTML(ratesData?.loadToTruck?.updated) || 'current'}</span>
+            <button type="button" class="lt-reset-btn" id="adj-cap-reset" onclick="onCapacityReset()">Reset to current</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="adj-section">
+        <div class="adj-section-head">
+          <span class="adj-section-name">Broker Margin</span>
+          <label class="tog">
+            <input type="checkbox" id="adj-mar-enabled" ${mar.enabled?'checked':''} onchange="onMarginToggle()" />
+            <span class="tog-track"><span class="tog-thumb"></span></span>
+            <span class="tog-label" id="adj-mar-tog-lbl">${mar.enabled?'On':'Off'}</span>
+          </label>
+        </div>
+        <div class="adj-note">
+          Marks the lane total up to your customer quote. Applied as a final percentage on top of all other adjustments. Most brokers run 12–20%.
+        </div>
+        <div class="adj-controls ${mar.enabled?'open':''}" id="adj-mar-controls">
+          <div class="margin-row">
+            <div class="margin-input-wrap">
+              <input type="number" class="margin-input" id="adj-mar-pct"
+                value="${mar.pct}" min="0" max="100" step="0.5"
+                oninput="onMarginInput(this.value)" />
+              <span class="margin-input-suffix">%</span>
+            </div>
+            <div class="margin-chips">
+              ${[10, 15, 20, 25].map(v => `<button type="button" class="margin-chip${mar.pct === v ? ' active' : ''}" data-pct="${v}" onclick="setMarginQuick(${v})">${v}%</button>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>`;
 }
 
@@ -662,6 +883,53 @@ function formatCommodityStatus(key){
   const info = COMMODITY_MULT[key];
   if(!info || info.mult === 1) return 'Off';
   return `+${Math.round((info.mult - 1) * 100)}% lift`;
+}
+
+// Paints the three L:T trailer cells. Re-runs when the user enables capacity,
+// edits an override, switches the active trailer (so the active highlight
+// follows), or resets. The active trailer's cell is what feeds the chart;
+// inactive cells are shown for market context.
+function renderCapacityGrid(){
+  const grid = document.getElementById('adj-cap-grid');
+  if(!grid) return;
+
+  const trailers = [
+    {key:'van',     label:'🚛 Van'},
+    {key:'reefer',  label:'🧊 Reefer'},
+    {key:'flatbed', label:'🏗 Flatbed'},
+  ];
+  grid.innerHTML = trailers.map(({key, label}) => {
+    const lt          = getLtValue(key);
+    const base        = LT_BASELINE[key];
+    const tightness   = classifyLt(key, lt);
+    const isOverride  = typeof adjustments.capacity.overrides[key] === 'number';
+    // Lift the chart would apply right now for this trailer (capped same as
+    // getCapacityMultiplier so the displayed % matches the math).
+    const raw  = ((lt - base) / base) * 0.15;
+    const mult = 1 + Math.min(0.12, Math.max(-0.12, raw));
+    const liftPct = (mult - 1) * 100;
+    const liftClass = liftPct > 0.5 ? 'up' : liftPct < -0.5 ? 'down' : '';
+    const liftText  = `${liftPct >= 0 ? '+' : ''}${liftPct.toFixed(1)}%`;
+
+    return `
+      <div class="lt-cell ${key === activeTrailer ? 'active' : ''}">
+        <div class="lt-cell-label">${label}${isOverride ? ' · custom' : ''}</div>
+        <input type="number" class="lt-cell-input" id="adj-cap-${key}"
+          value="${lt.toFixed(1)}" min="0" step="0.1"
+          oninput="onCapacityInput('${key}', this.value)" />
+        <div class="lt-cell-meta">
+          <span class="lt-pill ${tightness.tone}">${tightness.label}</span>
+          <span class="lt-cell-mult ${liftClass}">${liftText}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Reset button is only meaningful if there's something to reset
+  const resetBtn = document.getElementById('adj-cap-reset');
+  if(resetBtn){
+    const hasOverride = Object.values(adjustments.capacity.overrides).some(v => typeof v === 'number');
+    resetBtn.disabled = !hasOverride;
+  }
 }
 
 // Paints the 12-month seasonal calendar strip. Same color logic as index.html
@@ -738,6 +1006,104 @@ function onCommodityChange(){
   applyAdjustmentsToView();
 }
 
+function onCapacityToggle(){
+  adjustments.capacity.enabled = document.getElementById('adj-cap-enabled').checked;
+  saveAdjustments();
+  document.getElementById('adj-cap-tog-lbl').textContent = adjustments.capacity.enabled ? 'On' : 'Off';
+  document.getElementById('adj-cap-controls').classList.toggle('open', adjustments.capacity.enabled);
+  // Re-paint the grid when opening so values reflect any rates.json updates
+  // since the last open.
+  if(adjustments.capacity.enabled) renderCapacityGrid();
+  applyAdjustmentsToView();
+}
+
+function onCapacityInput(trailer, value){
+  // A blank field clears the override (revert to current rates.json value).
+  // Numeric input becomes the override. We don't repaint the whole grid on
+  // every keystroke (that would steal focus) — just update the chart and the
+  // lift indicator inside this one cell.
+  const num = value === '' ? null : parseFloat(value);
+  adjustments.capacity.overrides[trailer] = (num !== null && !isNaN(num)) ? num : null;
+  saveAdjustments();
+
+  // Refresh just this cell's pill + lift indicator, plus the active class on
+  // its label, without re-rendering the whole grid (focus would jump).
+  const cell = document.getElementById(`adj-cap-${trailer}`)?.closest('.lt-cell');
+  if(cell){
+    const lt   = getLtValue(trailer);
+    const base = LT_BASELINE[trailer];
+    const tightness = classifyLt(trailer, lt);
+    const raw  = ((lt - base) / base) * 0.15;
+    const mult = 1 + Math.min(0.12, Math.max(-0.12, raw));
+    const liftPct = (mult - 1) * 100;
+    const labelEl = cell.querySelector('.lt-cell-label');
+    const pillEl  = cell.querySelector('.lt-pill');
+    const multEl  = cell.querySelector('.lt-cell-mult');
+    const trailerLabel = {van:'🚛 Van',reefer:'🧊 Reefer',flatbed:'🏗 Flatbed'}[trailer] || trailer;
+    if(labelEl) labelEl.textContent = trailerLabel + (adjustments.capacity.overrides[trailer] !== null ? ' · custom' : '');
+    if(pillEl){
+      pillEl.className = 'lt-pill ' + tightness.tone;
+      pillEl.textContent = tightness.label;
+    }
+    if(multEl){
+      multEl.className = 'lt-cell-mult ' + (liftPct > 0.5 ? 'up' : liftPct < -0.5 ? 'down' : '');
+      multEl.textContent = `${liftPct >= 0 ? '+' : ''}${liftPct.toFixed(1)}%`;
+    }
+  }
+  const resetBtn = document.getElementById('adj-cap-reset');
+  if(resetBtn){
+    const hasOverride = Object.values(adjustments.capacity.overrides).some(v => typeof v === 'number');
+    resetBtn.disabled = !hasOverride;
+  }
+
+  applyAdjustmentsToView();
+}
+
+function onCapacityReset(){
+  adjustments.capacity.overrides = {van:null, reefer:null, flatbed:null};
+  saveAdjustments();
+  renderCapacityGrid();
+  applyAdjustmentsToView();
+}
+
+function onMarginToggle(){
+  adjustments.margin.enabled = document.getElementById('adj-mar-enabled').checked;
+  saveAdjustments();
+  document.getElementById('adj-mar-tog-lbl').textContent = adjustments.margin.enabled ? 'On' : 'Off';
+  document.getElementById('adj-mar-controls').classList.toggle('open', adjustments.margin.enabled);
+  applyAdjustmentsToView();
+}
+
+function onMarginInput(value){
+  // Empty / non-numeric input falls back to 0% rather than NaN, so the chart
+  // never breaks. Clamp at 0–100 for sanity (negative margin is a loss, >100%
+  // is a typo).
+  const num = parseFloat(value);
+  const clean = isNaN(num) ? 0 : Math.max(0, Math.min(100, num));
+  adjustments.margin.pct = clean;
+  saveAdjustments();
+  // Update the chip highlights without re-rendering the input (focus would
+  // jump). A chip is "active" only if the input matches it exactly.
+  document.querySelectorAll('.margin-chip').forEach(chip => {
+    const chipPct = parseFloat(chip.dataset.pct);
+    chip.classList.toggle('active', chipPct === clean);
+  });
+  applyAdjustmentsToView();
+}
+
+function setMarginQuick(pct){
+  adjustments.margin.pct = pct;
+  saveAdjustments();
+  // Sync the input field to the chip the user clicked
+  const input = document.getElementById('adj-mar-pct');
+  if(input) input.value = pct;
+  document.querySelectorAll('.margin-chip').forEach(chip => {
+    const chipPct = parseFloat(chip.dataset.pct);
+    chip.classList.toggle('active', chipPct === pct);
+  });
+  applyAdjustmentsToView();
+}
+
 // Pushes the current adjustment state into all affected UI: bottom chart
 // data, stat sub-line, the "· adjusted" hint in the section label, and the
 // disclaimer text. Re-derives totals from the cached raw source so we never
@@ -746,9 +1112,10 @@ function applyAdjustmentsToView(){
   if(!currentChartSource) return;
   const s = currentChartSource;
 
-  // Recompute adjusted series from cached raw data
-  const totals         = s.rawTotals         ? applyAdjustments(s.rawTotals,         s.dates, activeTrailer) : null;
-  const nationalTotals = s.rawNationalTotals ? applyAdjustments(s.rawNationalTotals, s.dates, activeTrailer) : null;
+  // Recompute adjusted series from cached raw data. Margin is applied last
+  // since it's a business markup, not a carrier-rate adjustment.
+  const totals         = s.rawTotals         ? applyMargin(applyAdjustments(s.rawTotals,         s.dates, activeTrailer)) : null;
+  const nationalTotals = s.rawNationalTotals ? applyMargin(applyAdjustments(s.rawNationalTotals, s.dates, activeTrailer)) : null;
 
   // Update bottom chart in place — Chart.js animates between old and new
   // values smoothly, no flash, no re-layout.
@@ -792,14 +1159,16 @@ function renderDetail(){
   // Apply any active adjustments to lane totals before plotting. Multipliers
   // are computed per-snapshot using each entry's actual month (so e.g. May
   // produce loads see the May multiplier, January loads see the January one).
-  const totals = rawTotals ? applyAdjustments(rawTotals, dates, activeTrailer) : null;
+  // Margin is applied last as a final markup since it represents the broker's
+  // customer quote, not a carrier-rate adjustment.
+  const totals = rawTotals ? applyMargin(applyAdjustments(rawTotals, dates, activeTrailer)) : null;
 
   // Parallel series valued at the national average rate per mile, for the
   // same lane and miles. Lets the user see "what would my lane pay at US-
   // average rates" alongside the regional figure. Same adjustments apply —
   // both totals are quoting projections, not historical record.
   const rawNationalTotals = (national && miles > 0) ? national.map(r => r * miles) : null;
-  const nationalTotals    = rawNationalTotals ? applyAdjustments(rawNationalTotals, dates, activeTrailer) : null;
+  const nationalTotals    = rawNationalTotals ? applyMargin(applyAdjustments(rawNationalTotals, dates, activeTrailer)) : null;
 
   const currentRate = data[data.length-1];
   const prevRate    = data[data.length-2];
@@ -842,8 +1211,8 @@ function renderDetail(){
 
     <!-- Lane header (title, sub-line, trailer toggle — shared across both charts) -->
     <div class="chart-header-card">
-      <div class="chart-title">${p.name}</div>
-      <div class="chart-sub">${p.origin||'—'} → ${p.dest||'—'} · ${REGION_LABELS[region]||region} region${miles > 0 ? ` · ${miles.toLocaleString()} mi` : ''}</div>
+      <div class="chart-title">${escapeHTML(p.name)}</div>
+      <div class="chart-sub">${escapeHTML(p.origin)||'—'} → ${escapeHTML(p.dest)||'—'} · ${REGION_LABELS[region]||region} region${miles > 0 ? ` · ${miles.toLocaleString()} mi` : ''}</div>
       <div class="trailer-toggle">
         <button class="trailer-btn ${activeTrailer==='reefer'?'active':''}" onclick="setTrailer('reefer')">🧊 Reefer</button>
         <button class="trailer-btn ${activeTrailer==='van'?'active':''}" onclick="setTrailer('van')">🚛 Van</button>
@@ -871,7 +1240,7 @@ function renderDetail(){
     </div>` : ''}
 
     <div style="font-size:10px;color:var(--text3);margin:-4px 0 16px;text-align:center">
-      Rates sourced from DAT Trendlines · Updated monthly · ${ratesData?.updated||''}
+      Rates sourced from DAT Trendlines · Updated monthly · ${escapeHTML(ratesData?.updated)||''}
     </div>
 
     <!-- History table -->
@@ -899,6 +1268,12 @@ function renderDetail(){
   if(miles > 0 && adjustments.seasonal.enabled){
     renderSeasonCalendar();
   }
+  // Same for the capacity grid — it lives inside the adjustments card and
+  // needs JS to populate the trailer cells (which depend on rates.json data
+  // that wasn't available at template build time).
+  if(miles > 0 && adjustments.capacity.enabled){
+    renderCapacityGrid();
+  }
 
   // Build history table
   const histEntries = (ratesData?.history||[])
@@ -916,7 +1291,7 @@ function renderDetail(){
     const chgText  = chg===null?'—':(chg>0?'+':'')+chg.toFixed(1)+'%';
     if(!r) return '';
     return `<tr>
-      <td>${h.label||h.date}</td>
+      <td>${escapeHTML(h.label)||escapeHTML(h.date)}</td>
       <td class="mono">$${r.toFixed(2)}</td>
       <td class="mono" style="color:var(--text3)">$${rv.toFixed(2)}</td>
       <td class="mono" style="color:var(--text3)">$${rf.toFixed(2)}</td>

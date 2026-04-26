@@ -1452,7 +1452,7 @@ html.light .hos-day-header{background:var(--card2)}
             <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)">Base Rates ($/mi)</div>
             <div style="display:flex;align-items:center;gap:8px">
               <input type="text" id="rate-date" placeholder="Loading rates..." style="background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-family:'Space Grotesk',sans-serif;font-size:10px;padding:3px 8px;outline:none;width:min(160px,100%)" readonly />
-              <a href="https://www.dat.com/trendlines" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none;font-weight:500;white-space:nowrap">DAT ↗</a>
+              <a href="https://www.dat.com/trendlines" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:var(--blue);text-decoration:none;font-weight:500;white-space:nowrap">DAT ↗</a>
             </div>
           </div>
           <!-- Regional / National toggle -->
@@ -1600,7 +1600,7 @@ html.light .hos-day-header{background:var(--card2)}
             </button>
           </div>
           <div id="eia-status" style="font-size:11px;color:var(--text3);margin-bottom:4px"></div>
-          <div id="diesel-fsc-display" style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:4px"></div><div class="mini-sub">DAT RateView formula: (EIA price − $1.25) ÷ 6.5 MPG · <a href="https://iq.support.dat.com/1-rateview-d8f11ff2/fuel-surcharge-calculation-in-rateview-81e5c885" target="_blank" style="color:var(--blue);text-decoration:none">DAT source ↗</a> · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
+          <div id="diesel-fsc-display" style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:4px"></div><div class="mini-sub">DAT RateView formula: (EIA price − $1.25) ÷ 6.5 MPG · <a href="https://iq.support.dat.com/1-rateview-d8f11ff2/fuel-surcharge-calculation-in-rateview-81e5c885" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:none">DAT source ↗</a> · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
         </div>
 
         <!-- Capacity -->
@@ -1951,9 +1951,9 @@ function toggleSeoBlock(){
 </script>
 
 <footer>
-  <p>Rates sourced from <a href="https://www.dat.com/trendlines" target="_blank">DAT Trendlines</a> · Diesel from <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank">EIA Weekly</a> · LTL FSC calibrated to <a href="https://www.odfl.com/us/en/resources/fuel-surcharge.html" target="_blank">ODFL published rates</a> · For informational use — always verify before quoting</p>
+  <p>Rates sourced from <a href="https://www.dat.com/trendlines" target="_blank" rel="noopener noreferrer">DAT Trendlines</a> · Diesel from <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" rel="noopener noreferrer">EIA Weekly</a> · LTL FSC calibrated to <a href="https://www.odfl.com/us/en/resources/fuel-surcharge.html" target="_blank" rel="noopener noreferrer">ODFL published rates</a> · For informational use — always verify before quoting</p>
   <p style="margin-top:10px;font-size:11px;color:var(--text3)">Questions? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent);text-decoration:none">info@quickfreightcalc.com</a></p>
-  <p style="margin-top:10px;font-size:11px;color:var(--text3)">By using QuickFreightCalc you agree to our <a href="/terms.html" style="color:var(--text3);text-decoration:underline" target="_blank">Terms of Service</a> and <a href="/privacy.html" style="color:var(--text3);text-decoration:underline" target="_blank">Privacy Policy</a>. Rates are estimates only — not guaranteed quotes.</p>
+  <p style="margin-top:10px;font-size:11px;color:var(--text3)">By using QuickFreightCalc you agree to our <a href="/terms.html" style="color:var(--text3);text-decoration:underline" target="_blank" rel="noopener noreferrer">Terms of Service</a> and <a href="/privacy.html" style="color:var(--text3);text-decoration:underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a>. Rates are estimates only — not guaranteed quotes.</p>
 </footer>
 
 <!-- Hidden Netlify form — Netlify detects this at deploy time and activates form capture -->
@@ -2059,6 +2059,20 @@ function toggleSeoBlock(){
 </div>
 
 <script>
+// ── HTML escape helper ────────────────────────────────────────────────────
+// Use this on any user-typed string before interpolating into innerHTML or
+// attribute values. Escapes the five characters that change HTML semantics.
+// Number/Date values can be passed through directly — they don't need escaping.
+function escapeHTML(s){
+  if(s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────
 const TLABEL={van:'Dry Van',reefer:'Reefer',flatbed:'Flatbed'};
 const TTAG={van:'tag-van',reefer:'tag-reefer',flatbed:'tag-flat'};
@@ -2526,7 +2540,7 @@ function updateFSCLabel(){
   }
   const rate = getLTLFSCRate(price);
   const el = document.getElementById('fsc-fee-label');
-  if(el) el.innerHTML = `${(rate*100).toFixed(1)}% of linehaul · <a href="https://www.odfl.com/us/en/resources/fuel-surcharge.html" target="_blank" style="color:var(--blue);text-decoration:none;font-size:10px">FSC table ↗</a>`;
+  if(el) el.innerHTML = `${(rate*100).toFixed(1)}% of linehaul · <a href="https://www.odfl.com/us/en/resources/fuel-surcharge.html" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:none;font-size:10px">FSC table ↗</a>`;
   return rate;
 }
 
@@ -2933,8 +2947,8 @@ function generateQuotePDF(){
 
   // Company name — use profile or fallback to QFC
   const companyHTML = profile.companyName
-    ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${profile.companyName}</div>
-       <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${profile.footerText || 'Licensed Freight Broker'}</div>`
+    ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${escapeHTML(profile.companyName)}</div>
+       <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${escapeHTML(profile.footerText) || 'Licensed Freight Broker'}</div>`
     : `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Freight Rate Calculator</div>`;
 
@@ -2950,21 +2964,21 @@ function generateQuotePDF(){
   const contactStripHTML = hasContact ? `
     <div style="background:#f4f6f9;border-bottom:1px solid #e4e8ef;padding:8px 40px;display:flex;align-items:center;gap:0;flex-wrap:wrap">
       ${contactItems.map((item, i) => `
-        <span style="font-size:11px;color:#4a6070;font-weight:500">${item}</span>
+        <span style="font-size:11px;color:#4a6070;font-weight:500">${escapeHTML(item)}</span>
         ${i < contactItems.length-1 ? '<span style="color:#c8d4e0;margin:0 10px;font-size:11px">·</span>' : ''}
       `).join('')}
     </div>` : '';
 
   // Footer text
   const footerLeft = profile.companyName
-    ? `<div style="font-size:11px;color:#8fa3b8">${profile.companyName} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
+    ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName)} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
     : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">🚛 <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
   const footerRight = profile.footerText
-    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${profile.footerText}<br>Rates are subject to change and valid for 24 hours from issue.</div>`
+    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>Rates are subject to change and valid for 24 hours from issue.</div>`
     : `<div style="font-size:10px;color:#aab8c8;text-align:right">Rates are subject to change and valid for 24 hours from issue.</div>`;
 
   const notesHTML = notes
-    ? `<div class="notes-text">${notes.replace(/\n/g,'<br>')}</div>`
+    ? `<div class="notes-text">${escapeHTML(notes).replace(/\n/g,'<br>')}</div>`
     : `<div class="notes-empty">No notes provided.</div>`;
 
   const html = `<!DOCTYPE html>
@@ -3084,8 +3098,8 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
         <div class="route-visual">
           <div class="route-point">
             <div class="route-point-label">📍 Pickup</div>
-            <div class="route-point-city">${orig}</div>
-            <div class="route-point-date">${pickup !== '—' ? pickup : ''}</div>
+            <div class="route-point-city">${escapeHTML(orig)}</div>
+            <div class="route-point-date">${pickup !== '—' ? escapeHTML(pickup) : ''}</div>
           </div>
           <div class="route-divider">
             <div class="route-miles">${miles.replace(' mi','')}</div>
@@ -3094,8 +3108,8 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
           </div>
           <div class="route-point">
             <div class="route-point-label">🏁 Delivery</div>
-            <div class="route-point-city">${dest}</div>
-            <div class="route-point-date">${delivery !== '—' ? delivery : ''}</div>
+            <div class="route-point-city">${escapeHTML(dest)}</div>
+            <div class="route-point-date">${delivery !== '—' ? escapeHTML(delivery) : ''}</div>
           </div>
         </div>
       </div>
@@ -3208,8 +3222,8 @@ function generateQuotePDFFromLog(id){
     : `<span style="font-size:32px;line-height:1">🚛</span>`;
 
   const companyHTML = profile.companyName
-    ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${profile.companyName}</div>
-       <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${profile.footerText || 'Licensed Freight Broker'}</div>`
+    ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${escapeHTML(profile.companyName)}</div>
+       <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${escapeHTML(profile.footerText) || 'Licensed Freight Broker'}</div>`
     : `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Freight Rate Calculator</div>`;
 
@@ -3222,20 +3236,20 @@ function generateQuotePDFFromLog(id){
   const contactStripHTML = hasContact ? `
     <div style="background:#f4f6f9;border-bottom:1px solid #e4e8ef;padding:8px 40px;display:flex;align-items:center;gap:0;flex-wrap:wrap">
       ${contactItems.map((item, i) => `
-        <span style="font-size:11px;color:#4a6070;font-weight:500">${item}</span>
+        <span style="font-size:11px;color:#4a6070;font-weight:500">${escapeHTML(item)}</span>
         ${i < contactItems.length-1 ? '<span style="color:#c8d4e0;margin:0 10px;font-size:11px">·</span>' : ''}
       `).join('')}
     </div>` : '';
 
   const footerLeft = profile.companyName
-    ? `<div style="font-size:11px;color:#8fa3b8">${profile.companyName} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
+    ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName)} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
     : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">🚛 <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
   const footerRight = profile.footerText
-    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${profile.footerText}<br>Rates are subject to change and valid for 24 hours from issue.</div>`
+    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>Rates are subject to change and valid for 24 hours from issue.</div>`
     : `<div style="font-size:10px;color:#aab8c8;text-align:right">Rates are subject to change and valid for 24 hours from issue.</div>`;
 
   const notesHTML = q.notes
-    ? `<div class="notes-text">${q.notes.replace(/\n/g,'<br>')}</div>`
+    ? `<div class="notes-text">${escapeHTML(q.notes).replace(/\n/g,'<br>')}</div>`
     : `<div class="notes-empty">No notes provided.</div>`;
 
   const quoteFormatted = '$' + Number(q.quote).toLocaleString();
@@ -3332,7 +3346,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
         <div class="route-visual">
           <div class="route-point">
             <div class="route-point-label">📍 Pickup</div>
-            <div class="route-point-city">${q.orig||'—'}</div>
+            <div class="route-point-city">${escapeHTML(q.orig)||'—'}</div>
           </div>
           <div class="route-divider">
             <div class="route-miles">${milesFormatted}</div>
@@ -3341,7 +3355,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
           </div>
           <div class="route-point">
             <div class="route-point-label">🏁 Delivery</div>
-            <div class="route-point-city">${q.dest||'—'}</div>
+            <div class="route-point-city">${escapeHTML(q.dest)||'—'}</div>
           </div>
         </div>
       </div>
@@ -3349,11 +3363,11 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
         <div class="section-header">Load Details</div>
         <div class="details-grid">
           <div class="detail-cell"><div class="detail-cell-label">Trailer Type</div><div class="detail-cell-value">${trailerDisplay}</div></div>
-          <div class="detail-cell"><div class="detail-cell-label">Commodity</div><div class="detail-cell-value">${q.commodity||'—'}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Commodity</div><div class="detail-cell-value">${escapeHTML(q.commodity)||'—'}</div></div>
           <div class="detail-cell"><div class="detail-cell-label">Weight</div><div class="detail-cell-value">${q.weight ? parseInt(q.weight).toLocaleString()+' lbs' : '—'}</div></div>
-          <div class="detail-cell"><div class="detail-cell-label">Pickup Date</div><div class="detail-cell-value">${q.pickup||'—'}</div></div>
-          <div class="detail-cell"><div class="detail-cell-label">Delivery Date</div><div class="detail-cell-value">${q.delivery||'—'}</div></div>
-          <div class="detail-cell"><div class="detail-cell-label">Quote RPM</div><div class="detail-cell-value">$${q.rpm||'—'}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Pickup Date</div><div class="detail-cell-value">${escapeHTML(q.pickup)||'—'}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Delivery Date</div><div class="detail-cell-value">${escapeHTML(q.delivery)||'—'}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Quote RPM</div><div class="detail-cell-value">$${escapeHTML(q.rpm)||'—'}</div></div>
         </div>
       </div>
       <div class="notes-section">
@@ -4022,7 +4036,7 @@ function renderCustomAccs(){
         onclick="toggleCustomAcc(${charge.id})"
         style="border-style:dashed;${!charge.checked&&isLast&&idx===0?'border-color:var(--text3)':''}">
         <div>
-          <div class="acc-item-name">${charge.checked&&charge.name ? charge.name : '+ Add Custom Charge'}</div>
+          <div class="acc-item-name">${charge.checked&&charge.name ? escapeHTML(charge.name) : '+ Add Custom Charge'}</div>
           <div class="acc-item-fee" style="color:${charge.checked?'var(--accent)':'var(--text3)'}">
             ${charge.checked ? (charge.amount>0?'+$'+charge.amount:'enter amount') : 'name &amp; amount below'}
           </div>
@@ -4036,7 +4050,7 @@ function renderCustomAccs(){
         style="gap:10px;flex-wrap:wrap;align-items:flex-end">
         <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px">
           <label>Charge Name</label>
-          <input type="text" value="${charge.name}" placeholder="e.g. Pallet Jack" maxlength="40"
+          <input type="text" value="${escapeHTML(charge.name)}" placeholder="e.g. Pallet Jack" maxlength="40"
             style="background:var(--card);border:1px solid var(--accent);border-radius:7px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;padding:4px 8px;outline:none;width:100%"
             oninput="updateCustomCharge(${charge.id},'name',this.value)"
             onclick="event.stopPropagation()" />
@@ -4863,7 +4877,7 @@ async function saveQuote(){
   );
   if(duplicate){
     const confirmed = await showDupeModal(
-      `A quote for this load was already saved on ${duplicate.date}.<br>${orig} → ${dest} · ${miles.toLocaleString()} mi · ${TLABEL[trailer]}`
+      `A quote for this load was already saved on ${escapeHTML(duplicate.date)}.<br>${escapeHTML(orig)} → ${escapeHTML(dest)} · ${miles.toLocaleString()} mi · ${TLABEL[trailer]}`
     );
     if(!confirmed) return;
   }
@@ -5238,17 +5252,17 @@ function renderLog(){
         style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)"
         onchange="toggleTrack(${q.id}, this.checked)" />
     </td>
-    <td class="dim">${q.date}</td>
-    <td style="font-size:11px;max-width:140px;white-space:normal">${q.orig||'—'}${q.dest?' → '+q.dest:''}</td>
+    <td class="dim">${escapeHTML(q.date)}</td>
+    <td style="font-size:11px;max-width:140px;white-space:normal">${escapeHTML(q.orig)||'—'}${q.dest?' → '+escapeHTML(q.dest):''}</td>
     <td>${Number(q.miles).toLocaleString()}</td>
-    <td><span class="tag ${TTAG[q.trailer]||'tag-van'}">${TLABEL[q.trailer]||q.trailer}</span></td>
-    <td class="dim">${q.commodity}</td>
-    <td class="dim">${q.margin}</td>
-    <td class="dim">$${q.baseRpm}</td>
+    <td><span class="tag ${TTAG[q.trailer]||'tag-van'}">${TLABEL[q.trailer]||escapeHTML(q.trailer)}</span></td>
+    <td class="dim">${escapeHTML(q.commodity)}</td>
+    <td class="dim">${escapeHTML(q.margin)}</td>
+    <td class="dim">$${escapeHTML(q.baseRpm)}</td>
     <td class="money">$${Number(q.quote).toLocaleString()}</td>
-    <td class="dim">$${q.rpm}</td>
+    <td class="dim">$${escapeHTML(q.rpm)}</td>
     <td>
-      <button onclick="openNotesModal(${q.id})" title="${(q.notes||'').replace(/"/g,'&quot;')}"
+      <button onclick="openNotesModal(${q.id})" title="${escapeHTML(q.notes||'')}"
         style="font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:600;
         padding:3px 8px;border-radius:6px;border:1px solid var(--border2);
         background:${q.notes ? 'var(--accentbg)' : 'transparent'};
@@ -5944,7 +5958,11 @@ async function handleProModalUpgrade(){
         body: JSON.stringify({ userId, email })
       });
       const data = await resp.json();
-      if(data.url){
+      // Defensive prefix check: even though our create-checkout function
+      // returns Stripe's session.url, we never want to navigate to anything
+      // outside the Stripe checkout domain in case the function or proxy
+      // ever returns something unexpected.
+      if(data.url && /^https:\/\/checkout\.stripe\.com\//.test(data.url)){
         localStorage.setItem('qfc_pending_checkout', JSON.stringify({ userId, email, ts: Date.now() }));
         window.location.href = data.url;
         return;

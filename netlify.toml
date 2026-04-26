@@ -43,3 +43,32 @@
     Cache-Control = "no-cache, no-store, must-revalidate"
     Pragma = "no-cache"
     Expires = "0"
+
+# ── Security headers ──────────────────────────────────────────────────────
+# Applied to every response. These are defense-in-depth — they don't replace
+# safe coding (input escaping, RLS, etc.) but they limit damage if something
+# slips through. Strict-Transport-Security is set automatically by Netlify
+# (max-age=31536000) so we don't need to repeat it here.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Stops browsers from MIME-sniffing responses. Without this, a file
+    # served as text/plain could occasionally be re-interpreted as a script.
+    X-Content-Type-Options = "nosniff"
+
+    # Prevents the site being embedded in an iframe on another domain.
+    # Defends against clickjacking (overlaying our UI inside a malicious
+    # page to trick users into clicking things they didn't mean to).
+    X-Frame-Options = "SAMEORIGIN"
+
+    # Limits how much URL information gets sent when a user clicks a link
+    # from our site to an external one. They learn the origin (the host)
+    # but not the full path or any query parameters.
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+    # Disables browser APIs we don't use, so any future XSS can't abuse
+    # them. Each entry's empty () means "no origin may use this feature".
+    # Keep this list in sync with the actual features the site uses; if
+    # we ever add e.g. geolocation for a "near me" feature, remove it
+    # from the disabled list.
+    Permissions-Policy = "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=()"
