@@ -3577,17 +3577,16 @@ async function captureLaneRate(){
       is_manual,
     };
 
-    const resp = await fetch(`${SUPABASE_URL}/rest/v1/lane_rates`, {
+    // Route through our Netlify function rather than POSTing to Supabase
+    // directly. The function uses the service key to write, so the public
+    // INSERT policy on lane_rates can be removed — and the function adds
+    // origin and payload validation that the anon key path didn't have.
+    const resp = await fetch('/.netlify/functions/capture-lane-rate', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Prefer': 'return=minimal'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    console.log('Supabase response:', resp.status, resp.statusText);
+    console.log('Lane capture response:', resp.status, resp.statusText);
   } catch(e){
     console.error('captureLaneRate error:', e);
   }

@@ -72,3 +72,13 @@
     # we ever add e.g. geolocation for a "near me" feature, remove it
     # from the disabled list.
     Permissions-Policy = "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=()"
+
+# ── Build plugins ─────────────────────────────────────────────────────────
+# Local plugin (lives in netlify/plugins/sync-rate-history/) that runs after
+# a successful deploy. It reads the deployed rates.json and upserts each
+# history snapshot into the Supabase rate_history table using the service
+# key. This means rates.json is the single source of truth — committing a
+# new monthly snapshot to the repo automatically updates the database, and
+# we don't need a public-INSERT RLS policy on rate_history.
+[[plugins]]
+  package = "/netlify/plugins/sync-rate-history"
