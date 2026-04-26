@@ -1,0 +1,7 @@
+{
+  "name": "netlify-plugin-sync-rate-history",
+  "version": "1.0.0",
+  "description": "Sync rates.json history snapshots to Supabase rate_history table after each deploy.",
+  "main": "index.js",
+  "private": true
+}
