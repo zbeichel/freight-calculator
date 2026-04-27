@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bulk Load Calculator — QuickFreightCalc Pro</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#1a1d24;--panel:#1f2330;--card:#22262f;--card2:#272c38;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#ffffff;--text2:#b0c4d8;
+  --text3:#8896a8;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
+  --green:#4ade80;--greenbg:rgba(74,222,128,.10);
+  --red:#f87171;--redbg:rgba(248,113,113,.10);
+  --blue:#60a5fa;--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif}
+
+/* ── Header (matches multistop / lanes pattern) ── */
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:100}
+.brand-name{font-size:17px;font-weight:700;color:var(--text2);letter-spacing:-.02em}
+.brand-name span{color:var(--accent)}
+a.brand-name:hover span{opacity:.8}
+.pro-badge{font-size:10px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);padding:2px 7px;border-radius:10px;letter-spacing:.06em;text-transform:uppercase;margin-left:6px}
+.back-link{font-size:12px;font-weight:600;color:var(--text2);text-decoration:none;display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--card);transition:all .15s;white-space:nowrap}
+.back-link:hover{color:var(--accent);border-color:var(--accent);background:var(--accentbg)}
+
+/* ── Floating theme button ── */
+.theme-btn-float{
+  position:fixed;bottom:24px;right:24px;z-index:999;
+  display:flex;align-items:center;gap:7px;
+  background:var(--card);border:1px solid var(--border2);border-radius:20px;
+  padding:8px 14px 8px 10px;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:var(--text2);
+  transition:all .15s;box-shadow:0 4px 16px rgba(0,0,0,.3);
+}
+.theme-btn-float:hover{border-color:var(--accent);color:var(--text)}
+.theme-icon-wrap{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)}
+
+/* ── Page layout ── */
+.page{max-width:760px;margin:0 auto;padding:24px 20px 100px}
+.page-title{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:0 0 4px}
+.page-sub{font-size:13px;color:var(--text2);margin:0 0 20px}
+
+/* ── Card / section ── */
+.section{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:20px;
+  margin-bottom:14px;
+}
+.section-h{display:flex;align-items:center;gap:12px;margin:0 0 16px}
+.step-num{
+  width:26px;height:26px;border-radius:50%;
+  background:var(--accentbg);color:var(--accent);
+  font-size:13px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.section-title{font-size:15px;font-weight:700;letter-spacing:-.01em;margin:0}
+.section-sub{font-size:12px;color:var(--text3);margin-top:1px;line-height:1.3}
+.section-h-right{margin-left:auto}
+
+/* ── Diesel pill ── */
+.diesel-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--accentbg);border:1px solid var(--accent);
+  border-radius:999px;padding:4px 10px;
+  font-size:11px;color:var(--accent);font-weight:600;
+}
+.diesel-pill .dot{
+  width:6px;height:6px;background:var(--green);border-radius:50%;
+  animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── Form fields ── */
+.field{margin-bottom:12px}
+.field label{
+  display:block;
+  font-size:11px;font-weight:600;color:var(--text2);
+  text-transform:uppercase;letter-spacing:.04em;
+  margin-bottom:5px;
+}
+.field input,.field select{
+  width:100%;
+  background:var(--card2);
+  border:1px solid var(--border2);
+  border-radius:8px;
+  color:var(--text);
+  font-family:inherit;font-size:14px;
+  padding:10px 12px;
+  outline:none;
+  transition:border-color .15s;
+  font-variant-numeric:tabular-nums;
+}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.field-help{font-size:11px;color:var(--text3);margin-top:4px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field-row.three{grid-template-columns:1fr 1fr 1fr}
+@media(max-width:600px){.field-row,.field-row.three{grid-template-columns:1fr}}
+
+/* ── FSC method tabs ── */
+.fsc-tabs{
+  display:flex;
+  background:var(--card2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:3px;
+  margin-bottom:12px;
+}
+.fsc-tab{
+  flex:1;
+  background:transparent;border:none;
+  color:var(--text2);
+  font-family:inherit;font-size:11px;font-weight:600;
+  padding:7px 6px;border-radius:5px;
+  cursor:pointer;
+  text-transform:uppercase;letter-spacing:.04em;
+  transition:all .15s;
+}
+.fsc-tab.on{background:var(--card);color:var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.fsc-method-block{
+  background:var(--card2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:14px;
+}
+.fsc-explainer{
+  font-size:11px;color:var(--text3);
+  font-style:italic;margin-bottom:10px;line-height:1.4;
+}
+
+/* ── Mile-mode toggle ── */
+.mile-mode{
+  margin-top:8px;
+  display:flex;align-items:center;gap:10px;
+  font-size:12px;color:var(--text2);
+  flex-wrap:wrap;
+}
+.mile-mode-pills{
+  display:inline-flex;
+  background:var(--card2);
+  border:1px solid var(--border2);
+  border-radius:7px;
+  padding:2px;
+}
+.mile-mode-pill{
+  background:transparent;border:none;
+  color:var(--text3);
+  font-family:inherit;font-size:11px;font-weight:600;
+  padding:5px 10px;border-radius:5px;
+  cursor:pointer;
+  transition:all .15s;
+}
+.mile-mode-pill.on{background:var(--accent);color:#000}
+
+/* ── Required-rate hero ── */
+.required-rate-box{
+  background:linear-gradient(135deg,var(--accentbg),transparent);
+  border:1px solid var(--accent);
+  border-radius:var(--radius);
+  padding:18px 20px;
+  margin-top:14px;
+  text-align:center;
+}
+.required-rate-label{
+  font-size:11px;color:var(--text2);
+  text-transform:uppercase;letter-spacing:.06em;
+  font-weight:600;margin-bottom:4px;
+}
+.required-rate-val{
+  font-size:38px;font-weight:700;
+  letter-spacing:-.03em;color:var(--accent);
+  font-variant-numeric:tabular-nums;line-height:1.1;
+}
+.required-rate-sub{font-size:12px;color:var(--text3);margin-top:6px}
+
+/* ── Comparison hero (Step 2) ── */
+.comp-result{
+  border-radius:var(--radius);
+  padding:18px 20px;
+  margin-top:14px;
+  border:1px solid var(--border);
+}
+.comp-result.good{background:var(--greenbg);border-color:var(--green)}
+.comp-result.bad{background:var(--redbg);border-color:var(--red)}
+.comp-headline{
+  display:flex;align-items:center;gap:10px;
+  font-size:16px;font-weight:700;
+  margin-bottom:8px;
+}
+.comp-headline.good{color:var(--green)}
+.comp-headline.bad{color:var(--red)}
+.comp-detail{font-size:12px;color:var(--text2);line-height:1.5}
+
+/* ── Result rows table ── */
+.result-rows{
+  display:flex;flex-direction:column;gap:1px;
+  background:var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;
+  border:1px solid var(--border);
+  margin-top:14px;
+}
+.result-row{
+  background:var(--card2);
+  display:flex;justify-content:space-between;align-items:center;
+  padding:11px 14px;font-size:13px;
+}
+.result-row.head{
+  background:var(--card);
+  font-weight:600;color:var(--text2);
+  font-size:11px;
+  text-transform:uppercase;letter-spacing:.06em;
+}
+.result-row.total{background:var(--card);font-weight:700;font-size:14px}
+.result-row .label{color:var(--text2)}
+.result-row .val{font-variant-numeric:tabular-nums;font-weight:600}
+
+/* ── Empty state ── */
+.empty-state{
+  text-align:center;padding:30px 20px;
+  color:var(--text3);font-size:13px;
+  background:var(--card2);
+  border:1px dashed var(--border2);
+  border-radius:var(--radius);
+  margin-top:14px;
+}
+
+/* ── Market reference strip ── */
+.market-strip{
+  background:var(--card2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px 14px;
+  margin-top:12px;
+  font-size:12px;color:var(--text2);
+  display:flex;align-items:center;gap:10px;
+}
+
+/* Background ambient */
+body::before{
+  content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse at top,rgba(240,165,0,.04),transparent 60%);
+  pointer-events:none;z-index:0;
+}
+.page,.header{position:relative;z-index:1}
+</style>
+</head>
+<body>
+
+<!-- ── Header (back link / wordmark+Pro / page name) ── -->
+<div class="header">
+  <a href="/" class="back-link">← Calculator</a>
+  <div style="display:flex;align-items:center">
+    <a href="/" class="brand-name" style="text-decoration:none">Quick<span>Freight</span>Calc</a>
+    <div class="pro-badge">Pro</div>
+  </div>
+  <div style="font-size:13px;font-weight:700;color:var(--text2)">Bulk Calculator</div>
+</div>
+
+<!-- ── Floating theme button ── -->
+<button id="theme-btn" class="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode">
+  <span class="theme-icon-wrap" id="theme-icon">☀️</span>
+  <span id="theme-label">Light Mode</span>
+</button>
+
+<div class="page">
+
+  <h1 class="page-title">Bulk Load Calculator</h1>
+  <p class="page-sub">
+    Per-cwt rate calculator for bulk haulers. Set your target, then compare any offer against it.
+  </p>
+
+  <!-- ── Trip details ── -->
+  <div class="section">
+    <div class="section-h">
+      <div>
+        <div class="section-title">Trip details</div>
+        <div class="section-sub">Origin, destination, weight</div>
+      </div>
+      <div class="section-h-right">
+        <span class="diesel-pill" id="diesel-pill">
+          <span class="dot"></span>
+          <span id="diesel-text">EIA Diesel: $3.85/gal</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Origin</label>
+        <input type="text" id="origin" placeholder="City, ST or ZIP" oninput="onOriginChange()" />
+        <div class="field-help">e.g. Hastings, FL or 32145</div>
+      </div>
+      <div class="field">
+        <label>Destination</label>
+        <input type="text" id="dest" placeholder="City, ST or ZIP" />
+      </div>
+    </div>
+
+    <div class="field-row three">
+      <div class="field">
+        <label>Loaded miles</label>
+        <input type="number" id="loaded-miles" placeholder="950" oninput="calc()" />
+      </div>
+      <div class="field">
+        <label>Deadhead miles</label>
+        <input type="number" id="deadhead-miles" placeholder="0" oninput="calc()" />
+        <div class="field-help">Empty miles to/from load</div>
+      </div>
+      <div class="field">
+        <label>Load weight (cwt)</label>
+        <input type="number" id="cwt" value="500" oninput="calc()" />
+        <div class="field-help">500 cwt = 50,000 lbs</div>
+      </div>
+    </div>
+
+    <div style="margin-top:8px">
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">Fuel surcharge method</label>
+
+      <div class="fsc-tabs">
+        <button class="fsc-tab on" onclick="setFsc('permile')" id="fsc-permile">Per-mile (most common)</button>
+        <button class="fsc-tab" onclick="setFsc('percent')" id="fsc-percent">% of base rate</button>
+      </div>
+
+      <div class="fsc-method-block" id="fsc-permile-block">
+        <div class="fsc-explainer">
+          FSC per mile = (current diesel − baseline) ÷ MPG. Multiplied by loaded miles to get total surcharge.
+        </div>
+        <div class="field-row">
+          <div class="field" style="margin-bottom:0">
+            <label>Baseline diesel ($/gal)</label>
+            <input type="number" step="0.01" value="1.25" oninput="calc()" id="baseline" />
+            <div class="field-help">Industry standard: $1.25</div>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label>MPG assumption</label>
+            <input type="number" step="0.1" value="6.0" oninput="calc()" id="mpg" />
+            <div class="field-help">Loaded truck avg: 6.0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fsc-method-block" id="fsc-percent-block" style="display:none">
+        <div class="fsc-explainer">
+          FSC = a percentage of base revenue, set by your contract. Used by some bulk-ag and LTL carriers.
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>FSC percentage of base rate</label>
+          <input type="number" step="1" value="32" oninput="calc()" id="fsc-pct" />
+          <div class="field-help">e.g. 32% of base. Negotiated with your customer.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Step 1 — Required rate ── -->
+  <div class="section">
+    <div class="section-h">
+      <div class="step-num">1</div>
+      <div>
+        <div class="section-title">What rate do I need?</div>
+        <div class="section-sub">Enter your target $/mile to find the minimum cwt rate</div>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:0">
+      <label>Target $ per mile</label>
+      <input type="number" step="0.01" id="target-rpm" value="2.50" oninput="calc()" />
+      <div class="mile-mode">
+        <span>Apply to:</span>
+        <div class="mile-mode-pills">
+          <button class="mile-mode-pill on" onclick="setMileMode('loaded')" id="mm-loaded">Loaded miles only</button>
+          <button class="mile-mode-pill" onclick="setMileMode('all')" id="mm-all">All miles (incl. deadhead)</button>
+        </div>
+      </div>
+      <div class="field-help" id="mile-mode-help" style="margin-top:8px">
+        Auto-adjusts based on whether you have deadhead miles.
+      </div>
+    </div>
+
+    <div class="required-rate-box">
+      <div class="required-rate-label">You need at least</div>
+      <div class="required-rate-val" id="required-rate">$0.00/cwt</div>
+      <div class="required-rate-sub" id="required-rate-sub">Enter loaded miles to calculate</div>
+    </div>
+
+    <div class="market-strip" id="market-strip" style="display:none">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 14l4-4 4 4 5-5"/></svg>
+      <span id="market-text"></span>
+    </div>
+  </div>
+
+  <!-- ── Step 2 — Compare offer ── -->
+  <div class="section">
+    <div class="section-h">
+      <div class="step-num">2</div>
+      <div>
+        <div class="section-title">Compare to an offer</div>
+        <div class="section-sub">Enter what the customer is offering to see how it stacks up</div>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:0">
+      <label>Offered rate per cwt</label>
+      <input type="number" step="0.01" id="offered-rate" placeholder="e.g. $1.85" oninput="calc()" />
+      <div class="field-help">The base rate per cwt the customer is offering you</div>
+    </div>
+
+    <div class="empty-state" id="empty-state">
+      Enter an offered rate above to see how it compares to your target.
+    </div>
+
+    <div id="compare-output" style="display:none">
+      <div class="comp-result" id="comp-result">
+        <div class="comp-headline" id="comp-headline">
+          <span id="comp-icon">▲</span>
+          <span id="comp-headline-text"></span>
+        </div>
+        <div class="comp-detail" id="comp-detail"></div>
+      </div>
+
+      <div class="result-rows">
+        <div class="result-row head"><span>What this load actually pays</span></div>
+        <div class="result-row">
+          <span class="label">Base × cwt</span>
+          <span class="val" id="r-base">—</span>
+        </div>
+        <div class="result-row">
+          <span class="label" id="r-fsc-label">Fuel surcharge</span>
+          <span class="val" id="r-fsc">—</span>
+        </div>
+        <div class="result-row total">
+          <span class="label">Total revenue</span>
+          <span class="val" id="r-total">—</span>
+        </div>
+        <div class="result-row head"><span>Per-mile economics</span></div>
+        <div class="result-row">
+          <span class="label">$/mi loaded</span>
+          <span class="val" id="r-rpm-loaded">—</span>
+        </div>
+        <div class="result-row" id="r-rpm-total-row" style="display:none">
+          <span class="label" id="r-rpm-total-label">$/mi all miles</span>
+          <span class="val" id="r-rpm-total">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<script>
+// ── HTML escape helper ────────────────────────────────────────────────────
+// Defensive escaping for any user-typed string interpolated into HTML.
+function escapeHTML(s){
+  if(s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── State ─────────────────────────────────────────────────────────────────
+let DIESEL_PRICE = 3.85;          // overwritten if EIA fetch succeeds
+let ratesData = null;             // loaded from rates.json
+const STATE_TO_REGION = {};       // built from rates.json on load
+let fscMethod = 'permile';        // 'permile' or 'percent'
+let mileMode = 'loaded';          // 'loaded' or 'all'
+let mileModeAuto = true;          // true until user manually picks
+
+// ── Theme (matches multistop / lanes) ─────────────────────────────────────
+function applyTheme(theme){
+  const r = document.documentElement;
+  if(theme === 'light'){
+    r.style.setProperty('--bg','#ffffff');r.style.setProperty('--panel','#ffffff');
+    r.style.setProperty('--card','#f8fafc');r.style.setProperty('--card2','#eef2f7');
+    r.style.setProperty('--border','#dde3ed');r.style.setProperty('--border2','#c8d4e0');
+    r.style.setProperty('--text','#0f172a');r.style.setProperty('--text2','#334155');
+    r.style.setProperty('--text3','#64748b');
+    document.getElementById('theme-icon').textContent = '🌙';
+    document.getElementById('theme-label').textContent = 'Dark Mode';
+  } else {
+    r.style.setProperty('--bg','#1a1d24');r.style.setProperty('--panel','#1f2330');
+    r.style.setProperty('--card','#22262f');r.style.setProperty('--card2','#272c38');
+    r.style.setProperty('--border','#1e2a38');r.style.setProperty('--border2','#243040');
+    r.style.setProperty('--text','#e2e8f0');r.style.setProperty('--text2','#9aafc4');
+    r.style.setProperty('--text3','#8896a8');
+    document.getElementById('theme-icon').textContent = '☀️';
+    document.getElementById('theme-label').textContent = 'Light Mode';
+  }
+}
+function toggleTheme(){
+  const next = (localStorage.getItem('qfc_theme')||'dark') === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('qfc_theme', next);
+  applyTheme(next);
+}
+applyTheme(localStorage.getItem('qfc_theme') || 'dark');
+
+// ── Rates.json load + state→region map ────────────────────────────────────
+// Builds STATE_TO_REGION at startup so we can look up regional reefer
+// average for any origin the user types. Mirrors the lanes.html pattern.
+async function loadRates(){
+  try {
+    const resp = await fetch('/rates.json');
+    if(!resp.ok) return;
+    ratesData = await resp.json();
+    if(ratesData?.regions){
+      Object.entries(ratesData.regions).forEach(([region, info]) => {
+        if(Array.isArray(info.states)){
+          info.states.forEach(s => STATE_TO_REGION[s.toUpperCase()] = region);
+        }
+      });
+    }
+    calc(); // re-render with regional data now available
+  } catch(e){
+    console.warn('Could not load rates.json:', e.message);
+  }
+}
+
+// ── Diesel price load ─────────────────────────────────────────────────────
+// Tries the existing /netlify/functions/diesel-price endpoint. Silent-fails
+// to the hardcoded fallback so the calculator stays useful if EIA is down.
+async function loadDieselPrice(){
+  try {
+    const resp = await fetch('/.netlify/functions/diesel-price');
+    if(!resp.ok) return;
+    const data = await resp.json();
+    if(typeof data.price === 'number' && data.price > 0){
+      DIESEL_PRICE = data.price;
+      document.getElementById('diesel-text').textContent =
+        `EIA Diesel: $${DIESEL_PRICE.toFixed(2)}/gal`;
+      calc();
+    }
+  } catch(e){
+    // Silent fail — we keep the hardcoded fallback
+  }
+}
+
+// ── Region lookup for the user's typed origin ─────────────────────────────
+// Extracts a state code from the typed text and maps to a rates.json region.
+// Returns null if no state can be determined.
+function getRegionFromText(text){
+  if(!text) return null;
+  // Match "City, ST" or "City, ST 12345" or trailing ", USA"
+  const m = text.trim().match(/[\s,]+([A-Za-z]{2})\b(?:\s+\d{5}(?:-\d{4})?)?(?:\s*,\s*USA?)?\s*$/i);
+  if(!m) return null;
+  return STATE_TO_REGION[m[1].toUpperCase()] || null;
+}
+
+function getRegionalReeferRpm(){
+  const origin = document.getElementById('origin').value;
+  const region = getRegionFromText(origin);
+  if(region && ratesData?.regions?.[region]){
+    return {
+      region,
+      rpm: ratesData.regions[region].reefer,
+    };
+  }
+  // Fallback to national
+  if(ratesData?.regions?.national){
+    return { region: 'national', rpm: ratesData.regions.national.reefer };
+  }
+  return null;
+}
+
+// Trigger recalc when origin changes (region might change)
+function onOriginChange(){ calc(); }
+
+// ── FSC method picker ─────────────────────────────────────────────────────
+function setFsc(method){
+  fscMethod = method;
+  document.getElementById('fsc-permile').classList.toggle('on', method==='permile');
+  document.getElementById('fsc-percent').classList.toggle('on', method==='percent');
+  document.getElementById('fsc-permile-block').style.display = method==='permile' ? 'block' : 'none';
+  document.getElementById('fsc-percent-block').style.display = method==='percent' ? 'block' : 'none';
+  calc();
+}
+
+// ── Mile-mode picker (manual override of smart default) ──────────────────
+function setMileMode(mode){
+  mileMode = mode;
+  mileModeAuto = false; // user has picked manually — stop auto-adjusting
+  document.getElementById('mm-loaded').classList.toggle('on', mode==='loaded');
+  document.getElementById('mm-all').classList.toggle('on', mode==='all');
+  calc();
+}
+
+// ── Number formatting helper ──────────────────────────────────────────────
+function fmt$(n){
+  return '$' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+// ── Main calc ─────────────────────────────────────────────────────────────
+function calc(){
+  const cwt          = +document.getElementById('cwt').value || 0;
+  const loadedMiles  = +document.getElementById('loaded-miles').value || 0;
+  const deadhead     = +document.getElementById('deadhead-miles').value || 0;
+  const totalMiles   = loadedMiles + deadhead;
+  const targetRpm    = +document.getElementById('target-rpm').value || 0;
+  const offeredRate  = +document.getElementById('offered-rate').value || 0;
+
+  // Smart-default the mile mode while user hasn't manually picked
+  if(mileModeAuto){
+    const newMode = (deadhead > 0) ? 'all' : 'loaded';
+    if(newMode !== mileMode){
+      mileMode = newMode;
+      document.getElementById('mm-loaded').classList.toggle('on', newMode==='loaded');
+      document.getElementById('mm-all').classList.toggle('on', newMode==='all');
+    }
+  }
+
+  // Help text under mile-mode pills
+  const help = document.getElementById('mile-mode-help');
+  if(loadedMiles === 0){
+    help.textContent = 'Auto-adjusts based on whether you have deadhead miles.';
+  } else if(mileMode === 'all'){
+    help.textContent =
+      `Target rate applied across ${totalMiles.toLocaleString()} miles ` +
+      `(${loadedMiles.toLocaleString()} loaded + ${deadhead.toLocaleString()} deadhead).`;
+  } else {
+    help.textContent =
+      `Target rate applied to ${loadedMiles.toLocaleString()} loaded miles only. ` +
+      `Deadhead not factored in.`;
+  }
+
+  // FSC per-mile (constant for the load when method = per-mile)
+  let fscPerMile = 0;
+  if(fscMethod === 'permile'){
+    const baseline = +document.getElementById('baseline').value || 0;
+    const mpg      = +document.getElementById('mpg').value || 6;
+    fscPerMile = Math.max(0, (DIESEL_PRICE - baseline) / mpg);
+  }
+
+  // ── STEP 1 — Required cwt rate to hit target ──
+  if(cwt <= 0 || loadedMiles <= 0){
+    // Not enough info yet
+    document.getElementById('required-rate').textContent = '$0.00/cwt';
+    document.getElementById('required-rate-sub').textContent = 'Enter loaded miles and weight to calculate';
+    document.getElementById('market-strip').style.display = 'none';
+    document.getElementById('empty-state').style.display = 'block';
+    document.getElementById('compare-output').style.display = 'none';
+    return;
+  }
+
+  const targetMiles = (mileMode === 'all') ? totalMiles : loadedMiles;
+  const targetRevenue = targetRpm * targetMiles;
+
+  let requiredCwtRate;
+  if(fscMethod === 'permile'){
+    // FSC is paid per loaded mile regardless of target mode
+    const fscTotal = fscPerMile * loadedMiles;
+    const requiredBase = targetRevenue - fscTotal;
+    requiredCwtRate = requiredBase / cwt;
+  } else {
+    const pct = +document.getElementById('fsc-pct').value || 0;
+    const requiredBase = targetRevenue / (1 + pct/100);
+    requiredCwtRate = requiredBase / cwt;
+  }
+
+  document.getElementById('required-rate').textContent =
+    '$' + Math.max(0, requiredCwtRate).toFixed(2) + '/cwt';
+  document.getElementById('required-rate-sub').textContent =
+    `to hit $${targetRpm.toFixed(2)}/mi ` +
+    (mileMode === 'all'
+      ? `across all ${totalMiles.toLocaleString()} miles`
+      : `on the ${loadedMiles.toLocaleString()} loaded miles`);
+
+  // Market reference strip
+  const reg = getRegionalReeferRpm();
+  const ms = document.getElementById('market-strip');
+  const mt = document.getElementById('market-text');
+  if(reg){
+    ms.style.display = 'flex';
+    const regLabel = reg.region.charAt(0).toUpperCase() + reg.region.slice(1);
+    if(mileMode === 'loaded'){
+      if(targetRpm > reg.rpm){
+        const pct = ((targetRpm - reg.rpm) / reg.rpm) * 100;
+        mt.innerHTML =
+          `Regional reefer average: <strong style="color:var(--text)">$${reg.rpm.toFixed(2)}/mi</strong> ` +
+          `(${escapeHTML(regLabel)} region) — your target is <strong>${pct.toFixed(0)}% above market</strong>.`;
+      } else {
+        const pct = ((reg.rpm - targetRpm) / reg.rpm) * 100;
+        mt.innerHTML =
+          `Regional reefer average: <strong style="color:var(--text)">$${reg.rpm.toFixed(2)}/mi</strong> ` +
+          `(${escapeHTML(regLabel)} region) — your target is ${pct.toFixed(0)}% below market (likely achievable).`;
+      }
+    } else {
+      // All-miles mode — just reference, no comparison verdict
+      mt.innerHTML =
+        `Regional reefer average: <strong style="color:var(--text)">$${reg.rpm.toFixed(2)}/loaded mi</strong> ` +
+        `(${escapeHTML(regLabel)} region) — for reference.`;
+    }
+  } else {
+    ms.style.display = 'none';
+  }
+
+  // ── STEP 2 — Compare to offered rate ──
+  if(offeredRate <= 0){
+    document.getElementById('empty-state').style.display = 'block';
+    document.getElementById('compare-output').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('compare-output').style.display = 'block';
+
+  const offeredBase = offeredRate * cwt;
+  let fscTotal, fscDescription;
+  if(fscMethod === 'permile'){
+    fscTotal = fscPerMile * loadedMiles;
+    fscDescription = `Fuel surcharge ($${fscPerMile.toFixed(2)}/mi × ${loadedMiles.toLocaleString()} mi)`;
+  } else {
+    const pct = +document.getElementById('fsc-pct').value || 0;
+    fscTotal = offeredBase * (pct/100);
+    fscDescription = `Fuel surcharge (${pct}% of base)`;
+  }
+
+  const totalRev = offeredBase + fscTotal;
+  const rpmLoaded = totalRev / loadedMiles;
+  const rpmTotal  = totalMiles > 0 ? totalRev / totalMiles : rpmLoaded;
+  const rateDelta = offeredRate - requiredCwtRate;
+  const dollarDelta = rateDelta * cwt;
+  const meetsTarget = rateDelta >= 0;
+
+  const compResult   = document.getElementById('comp-result');
+  const compHeadline = document.getElementById('comp-headline');
+  const compIcon     = document.getElementById('comp-icon');
+  const compHText    = document.getElementById('comp-headline-text');
+  const compDetail   = document.getElementById('comp-detail');
+
+  if(meetsTarget){
+    compResult.className   = 'comp-result good';
+    compHeadline.className = 'comp-headline good';
+    compIcon.textContent = '▲';
+    compHText.textContent = `$${dollarDelta.toFixed(2)} profit margin over target`;
+    compDetail.innerHTML =
+      `Offered rate of <strong>$${offeredRate.toFixed(2)}/cwt</strong> beats your minimum of ` +
+      `$${requiredCwtRate.toFixed(2)}/cwt by $${rateDelta.toFixed(2)}/cwt. ` +
+      `Effective $/mi loaded: $${rpmLoaded.toFixed(2)}.`;
+  } else {
+    compResult.className   = 'comp-result bad';
+    compHeadline.className = 'comp-headline bad';
+    compIcon.textContent = '▼';
+    compHText.textContent = `$${Math.abs(dollarDelta).toFixed(2)} short of target`;
+    compDetail.innerHTML =
+      `Offered rate of <strong>$${offeredRate.toFixed(2)}/cwt</strong> falls ` +
+      `$${Math.abs(rateDelta).toFixed(2)}/cwt below your minimum of $${requiredCwtRate.toFixed(2)}/cwt. ` +
+      `Effective $/mi loaded: $${rpmLoaded.toFixed(2)}.`;
+  }
+
+  document.getElementById('r-base').textContent =
+    `$${offeredRate.toFixed(2)} × ${cwt} = ${fmt$(offeredBase)}`;
+  document.getElementById('r-fsc-label').textContent = fscDescription;
+  document.getElementById('r-fsc').textContent = fmt$(fscTotal);
+  document.getElementById('r-total').textContent = fmt$(totalRev);
+  document.getElementById('r-rpm-loaded').textContent = `$${rpmLoaded.toFixed(2)}/mi`;
+
+  const totalRow = document.getElementById('r-rpm-total-row');
+  if(deadhead > 0){
+    totalRow.style.display = '';
+    document.getElementById('r-rpm-total-label').textContent =
+      `$/mi all miles (incl. ${deadhead.toLocaleString()} deadhead)`;
+    document.getElementById('r-rpm-total').textContent = `$${rpmTotal.toFixed(2)}/mi`;
+  } else {
+    totalRow.style.display = 'none';
+  }
+}
+
+// ── Pro gate — server-side verification (matches multistop pattern) ───────
+async function verifyProAccess(){
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key)||'{}');
+      if(!val?.access_token) continue;
+      const userId = val.user?.id || val.user?.sub;
+      if(!userId) continue;
+
+      const resp = await fetch('/.netlify/functions/verify-pro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, accessToken: val.access_token })
+      });
+      if(!resp.ok) return clientSideProCheck();
+      const data = await resp.json();
+      if(data.active) return true;
+      break;
+    }
+  } catch(e){
+    return clientSideProCheck();
+  }
+  return false;
+}
+
+function clientSideProCheck(){
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    for(const key of keys){
+      const val = JSON.parse(localStorage.getItem(key)||'{}');
+      if(!val?.access_token) continue;
+      const userId = val.user?.id || val.user?.sub;
+      if(!userId) continue;
+      const cached = JSON.parse(localStorage.getItem('qfc_pro_status')||'{}');
+      if(cached.isActive && cached.userId === userId) return true;
+    }
+  } catch(e){}
+  return false;
+}
+
+async function init(){
+  const isPro = await verifyProAccess();
+  if(!isPro){
+    window.location.href = '/signup.html?reason=pro-required';
+    return;
+  }
+  // Pro confirmed — load rates + diesel and run initial calc
+  loadRates();
+  loadDieselPrice();
+  calc();
+}
+
+init();
+</script>
+
+</body>
+</html>

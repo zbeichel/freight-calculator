@@ -414,16 +414,34 @@ header .pro-account-btn{ justify-self:end; }
   color:#000;
 }
 
-/* ── Advanced section ── */
+/* ── Advanced section ──
+   The toggle is the entry point to optional rate adjustments (diesel,
+   accessorials, custom charges). It's easy to miss when styled as a
+   muted footer-like row, so we give it a distinct band: subtle tinted
+   background, primary text color, modest size bump, and a hover state
+   that reinforces it's interactive. The pulldown mechanic itself is
+   unchanged — only the visual prominence. */
 .adv-toggle{
   display:flex;align-items:center;justify-content:space-between;
   cursor:pointer;
-  padding:14px 22px;
+  padding:13px 22px;
   border-top:1px solid var(--border);
+  background:var(--accentbg);
   user-select:none;
+  transition:background .15s;
 }
-.adv-toggle-left{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--text2)}
-.adv-arrow{transition:transform .2s;font-size:12px}
+.adv-toggle:hover{ filter:brightness(1.08); }
+.adv-toggle-left{
+  display:flex;align-items:center;gap:9px;
+  font-size:13px;font-weight:600;color:var(--text);
+  letter-spacing:.01em;
+}
+.adv-arrow{
+  transition:transform .2s;
+  font-size:14px;
+  color:var(--text2);
+  line-height:1;
+}
 .adv-arrow.open{transform:rotate(180deg)}
 .adv-body{padding:0 22px 20px;display:none}
 .adv-body.open{display:block}
@@ -1001,11 +1019,21 @@ html.light .hos-day-header{background:var(--card2)}
         <!-- Lane Rate Tracker link -->
         <a id="lanes-btn" href="#"
           onclick="handleLanesClick(event)"
-          style="width:100%;margin-bottom:18px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
+          style="width:100%;margin-bottom:8px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
           onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
           onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
           <span style="flex:1;text-align:center">📈 Lane Rate Tracker</span>
           <span id="lanes-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);opacity:.6;padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PRO</span>
+        </a>
+
+        <!-- Bulk Load Calculator link -->
+        <a id="bulk-btn" href="#"
+          onclick="handleBulkClick(event)"
+          style="width:100%;margin-bottom:18px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
+          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+          <span style="flex:1;text-align:center">🥔 Bulk Load Calculator</span>
+          <span id="bulk-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);opacity:.6;padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PRO</span>
         </a>
 
         <!-- Profitability calculator form -->
@@ -1549,7 +1577,7 @@ html.light .hos-day-header{background:var(--card2)}
       <!-- Advanced section -->
       <div class="adv-toggle" onclick="toggleAdv()" id="adv-toggle">
         <div class="adv-toggle-left">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
           Advanced Adjustments
           <span id="adv-active-count" style="background:var(--accentbg);color:var(--accent);border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;display:none">0 on</span>
         </div>
@@ -2333,6 +2361,15 @@ function handleMultiStopClick(e){
   }
 }
 
+function handleBulkClick(e){
+  e.preventDefault();
+  if(isProUser){
+    window.location.href = '/bulk.html';
+  } else {
+    showProModal('The Bulk Load Calculator is a Pro feature. Calculate per-cwt rates with fuel surcharge logic for bulk-ag and produce hauling.');
+  }
+}
+
 function updateProUI(){
   const notesField = document.getElementById('load-notes-field');
   const quickSave  = document.getElementById('quick-save-quote-btn');
@@ -2352,6 +2389,8 @@ function updateProUI(){
   if(msTag) msTag.style.display = isProUser ? 'none' : '';
   const lanesTag = document.getElementById('lanes-pro-tag');
   if(lanesTag) lanesTag.style.display = isProUser ? 'none' : '';
+  const bulkTag = document.getElementById('bulk-pro-tag');
+  if(bulkTag) bulkTag.style.display = isProUser ? 'none' : '';
   updateQuoteLogGate();
   if(isProUser) loadQuoteLogFromSupabase();
   // Re-apply theme button styling in case Pro UI update reset it
