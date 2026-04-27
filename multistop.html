@@ -1141,7 +1141,13 @@ function updateStopLocation(id, val){
 
 function updateStopDate(id, val){
   const s = stops.find(s => s.id === id);
-  if(s){ s.date = val; calcTransitSummary(); }
+  if(s){
+    s.date = val;
+    // Run transit summary first — it sets extraDays based on the new date.
+    // Then calcTotal so the totals pick up the updated extraDays value.
+    calcTransitSummary();
+    calcTotal();
+  }
 }
 
 function calcTransitSummary(){
@@ -1192,17 +1198,17 @@ function calcTransitSummary(){
       document.getElementById('ms-extra-days-warning-text').textContent =
         `⚠ ${extraCalDays} extra day${extraCalDays>1?'s':''} beyond estimated drive time — consider adding extra day charges`;
       warningRow.style.display = '';
-      // Always sync extra days to match the date-calculated value
+      // Sync extra days to match the date-calculated value. The caller is
+      // responsible for triggering calcTotal — calling it here would create
+      // an infinite recursion (calcTotal → calcTransitSummary → calcTotal).
       extraDays = extraCalDays;
       document.getElementById('ms-extra-days-count').textContent = extraCalDays;
-      calcTotal();
     } else {
       warningRow.style.display = 'none';
-      // Reset extra days if dates no longer warrant them
+      // Reset extra days if dates no longer warrant them.
       if(extraDays > 0){
         extraDays = 0;
         document.getElementById('ms-extra-days-count').textContent = '0';
-        calcTotal();
       }
     }
   } else {
