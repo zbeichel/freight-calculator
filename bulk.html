@@ -504,6 +504,14 @@ body::before{
           <span class="val" id="r-rpm-total">—</span>
         </div>
       </div>
+
+      <!-- Download PDF — enabled once an offered rate is entered -->
+      <button id="btn-download-bulk-pdf" onclick="generateBulkPDF()" disabled
+        style="width:100%;margin-top:14px;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;padding:11px;border-radius:8px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:not-allowed;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;opacity:.45"
+        onmouseover="if(!this.disabled){this.style.background='var(--accent)';this.style.color='#000'}"
+        onmouseout="if(!this.disabled){this.style.background='var(--accentbg)';this.style.color='var(--accent)'}">
+        📄 Download Bulk Load PDF
+      </button>
     </div>
   </div>
 
@@ -579,23 +587,35 @@ async function loadRates(){
 }
 
 // ── Diesel price load ─────────────────────────────────────────────────────
-// Tries the existing /netlify/functions/diesel-price endpoint. Silent-fails
-// to the hardcoded fallback so the calculator stays useful if EIA is down.
+// Tries the existing /netlify/functions/diesel-price endpoint. On failure,
+// keeps the hardcoded $3.85 fallback so the calculator stays usable, but
+// logs verbosely to the console so developers can see exactly what failed.
 async function loadDieselPrice(){
+  const url = '/.netlify/functions/diesel-price?region=NUS';
   try {
-    const resp = await fetch('/.netlify/functions/diesel-price?region=NUS');
-    if(!resp.ok) return;
-    const data = await resp.json();
-    // Endpoint may return price as either a number or a string — normalize.
-    const price = parseFloat(data.price);
-    if(!isNaN(price) && price > 0){
-      DIESEL_PRICE = price;
-      document.getElementById('diesel-text').textContent =
-        `EIA Diesel: $${DIESEL_PRICE.toFixed(2)}/gal`;
-      calc();
+    const resp = await fetch(url);
+    if(!resp.ok){
+      console.warn(`[bulk] diesel-price HTTP ${resp.status} from ${url} — keeping fallback $${DIESEL_PRICE.toFixed(2)}`);
+      return;
     }
+    const data = await resp.json();
+    if(data?.error){
+      console.warn(`[bulk] diesel-price returned error:`, data.error, '— keeping fallback');
+      return;
+    }
+    // Endpoint may return price as either a number or a string — normalize.
+    const price = parseFloat(data?.price);
+    if(isNaN(price) || price <= 0){
+      console.warn(`[bulk] diesel-price returned unexpected shape:`, data, '— keeping fallback');
+      return;
+    }
+    DIESEL_PRICE = price;
+    document.getElementById('diesel-text').textContent =
+      `EIA Diesel: $${DIESEL_PRICE.toFixed(2)}/gal`;
+    console.log(`[bulk] live EIA diesel loaded: $${price.toFixed(2)}/gal (period ${data.period || 'n/a'})`);
+    calc();
   } catch(e){
-    // Silent fail — we keep the hardcoded fallback
+    console.warn(`[bulk] diesel-price fetch threw:`, e.message, '— keeping fallback');
   }
 }
 
@@ -1047,6 +1067,7 @@ function calc(){
     document.getElementById('market-strip').style.display = 'none';
     document.getElementById('empty-state').style.display = 'block';
     document.getElementById('compare-output').style.display = 'none';
+    setPdfButtonEnabled(false);
     return;
   }
 
@@ -1106,11 +1127,13 @@ function calc(){
   if(offeredRate <= 0){
     document.getElementById('empty-state').style.display = 'block';
     document.getElementById('compare-output').style.display = 'none';
+    setPdfButtonEnabled(false);
     return;
   }
 
   document.getElementById('empty-state').style.display = 'none';
   document.getElementById('compare-output').style.display = 'block';
+  setPdfButtonEnabled(true);
 
   const offeredBase = offeredRate * cwt;
   let fscTotal, fscDescription;
@@ -1213,6 +1236,333 @@ function clientSideProCheck(){
     }
   } catch(e){}
   return false;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// PDF generation
+//   Uses the same approach as index.html's generateQuotePDF — builds a full
+//   HTML document with print-styled CSS, opens it in a new tab via a blob
+//   URL, and lets the browser's "Save as PDF" do the actual file output.
+//   No external library, no Pro profile required (but uses it if present).
+// ──────────────────────────────────────────────────────────────────────────
+
+function setPdfButtonEnabled(enabled){
+  const btn = document.getElementById('btn-download-bulk-pdf');
+  if(!btn) return;
+  btn.disabled = !enabled;
+  btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+  btn.style.opacity = enabled ? '1' : '.45';
+}
+
+function generateBulkPDF(){
+  // ── Pull live data from the calculator state ─────────────────────────────
+  const orig         = document.getElementById('origin').value.trim();
+  const dest         = document.getElementById('dest').value.trim();
+  const loadedMiles  = +document.getElementById('loaded-miles').value || 0;
+  const deadhead     = +document.getElementById('deadhead-miles').value || 0;
+  const totalMiles   = loadedMiles + deadhead;
+  const cwt          = +document.getElementById('cwt').value || 0;
+  const targetRpm    = +document.getElementById('target-rpm').value || 0;
+  const offeredRate  = +document.getElementById('offered-rate').value || 0;
+
+  if(!orig || !dest || cwt <= 0 || loadedMiles <= 0 || offeredRate <= 0){
+    alert('Please complete the calculator before downloading — origin, destination, miles, weight, and offered rate are all required.');
+    return;
+  }
+
+  // Re-derive the same numbers calc() already computed, so the PDF is in sync.
+  let fscPerMile = 0, fscTotal = 0, fscLine = '';
+  if(fscMethod === 'permile'){
+    const baseline = +document.getElementById('baseline').value || 0;
+    const mpg      = +document.getElementById('mpg').value || 6;
+    fscPerMile = Math.max(0, (DIESEL_PRICE - baseline) / mpg);
+    fscTotal   = fscPerMile * loadedMiles;
+    fscLine    = `$${fscPerMile.toFixed(2)}/mi × ${loadedMiles.toLocaleString()} loaded mi`;
+  } else {
+    const pct = getEffectiveFscPct();
+    fscTotal  = (offeredRate * cwt) * (pct / 100);
+    fscLine   = `${pct}% of base ($${(offeredRate*cwt).toFixed(2)})`;
+  }
+
+  const offeredBase = offeredRate * cwt;
+  const total       = offeredBase + fscTotal;
+  const rpmLoaded   = total / loadedMiles;
+  const rpmTotal    = totalMiles > 0 ? total / totalMiles : rpmLoaded;
+
+  // Required-rate (Step 1) — used for context in the PDF
+  const targetMiles   = (mileMode === 'all') ? totalMiles : loadedMiles;
+  const targetRevenue = targetRpm * targetMiles;
+  let requiredRate;
+  if(fscMethod === 'permile'){
+    requiredRate = (targetRevenue - (fscPerMile * loadedMiles)) / cwt;
+  } else {
+    const pct = getEffectiveFscPct();
+    requiredRate = (targetRevenue / (1 + pct/100)) / cwt;
+  }
+  requiredRate = Math.max(0, requiredRate);
+  const meetsTarget = offeredRate >= requiredRate;
+  const rateDelta   = offeredRate - requiredRate;
+  const dollarDelta = rateDelta * cwt;
+
+  // ── Profile (logo, colors, contact info) ─────────────────────────────────
+  let profile = {};
+  try { profile = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}'); } catch(e){}
+
+  // Same color schemes as the FTL PDF — keeps branded quotes consistent.
+  const DARK_TEXT = { headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)', headerTextFaint:'rgba(255,255,255,.35)' };
+  const SCHEMES = {
+    midnight: {...DARK_TEXT, header:'#1a1f2e', accent:'#f0a500', bar:'linear-gradient(to right,#f0a500,#f0c040,#f0a500)'},
+    slate:    {...DARK_TEXT, header:'#1e2535', accent:'#60a5fa', bar:'linear-gradient(to right,#3b82f6,#60a5fa,#3b82f6)'},
+    forest:   {...DARK_TEXT, header:'#14281d', accent:'#86efac', bar:'linear-gradient(to right,#22c55e,#86efac,#22c55e)'},
+    steel:    {...DARK_TEXT, header:'#1c2228', accent:'#fb923c', bar:'linear-gradient(to right,#ea580c,#fb923c,#ea580c)'},
+    executive:{...DARK_TEXT, header:'#0d0d0d', accent:'#e2e8f0', bar:'linear-gradient(to right,#94a3b8,#e2e8f0,#94a3b8)'},
+    crimson:  {...DARK_TEXT, header:'#1f0d0d', accent:'#fca5a5', bar:'linear-gradient(to right,#dc2626,#fca5a5,#dc2626)'},
+    ocean:    {...DARK_TEXT, header:'#0c1f2e', accent:'#67e8f9', bar:'linear-gradient(to right,#0891b2,#67e8f9,#0891b2)'},
+    carbon:   {...DARK_TEXT, header:'#111111', accent:'#4ade80', bar:'linear-gradient(to right,#16a34a,#4ade80,#16a34a)'},
+    paper:    {header:'#f4f1ea', accent:'#8a6a1a', headerText:'#1a2540', headerTextSoft:'rgba(26,37,64,.58)', headerTextFaint:'rgba(26,37,64,.48)', bar:'linear-gradient(to right,#8a6a1a,#c89a2a,#8a6a1a)'},
+    mist:     {header:'#e6edf2', accent:'#2d3748', headerText:'#1a202c', headerTextSoft:'rgba(26,32,44,.58)', headerTextFaint:'rgba(26,32,44,.48)', bar:'linear-gradient(to right,#2d3748,#4a5568,#2d3748)'},
+    sand:     {header:'#ece3d3', accent:'#8b3a1f', headerText:'#4a2412', headerTextSoft:'rgba(74,36,18,.62)', headerTextFaint:'rgba(74,36,18,.5)',  bar:'linear-gradient(to right,#8b3a1f,#c26236,#8b3a1f)'},
+    arctic:   {header:'#eef3f8', accent:'#0f3d4c', headerText:'#0b2d38', headerTextSoft:'rgba(11,45,56,.6)',  headerTextFaint:'rgba(11,45,56,.48)', bar:'linear-gradient(to right,#0f3d4c,#2a6b7f,#0f3d4c)'},
+  };
+  const scheme = SCHEMES[profile.colorScheme] || SCHEMES.midnight;
+
+  // ── Quote number (shares counter with FTL quotes; "B" suffix for bulk) ──
+  const now = new Date();
+  const prefix  = (profile.quotePrefix || 'QFC').toUpperCase();
+  const startNum = profile.quoteStart || 1001;
+  const dateStr  = now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0');
+  const qNum = `${prefix}-B-${dateStr}-${startNum}`;
+  const issuedDate = now.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  try {
+    profile.quoteStart = startNum + 1;
+    localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
+  } catch(e){}
+
+  // ── Header branding pieces ──────────────────────────────────────────────
+  const logoHTML = (!profile.hideLogo && profile.logoBase64)
+    ? `<img src="${profile.logoBase64}" style="max-height:44px;max-width:140px;object-fit:contain" />`
+    : `<span style="font-size:32px;line-height:1">🥔</span>`;
+  const companyHTML = profile.companyName
+    ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${escapeHTML(profile.companyName)}</div>
+       <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${escapeHTML(profile.footerText) || 'Bulk Hauling Specialist'}</div>`
+    : `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
+       <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Bulk Load Calculator</div>`;
+
+  const hasContact = profile.contactName || profile.phone || profile.email || profile.mcNumber || profile.dotNumber;
+  const contactItems = [
+    profile.contactName,
+    profile.phone,
+    profile.email,
+    profile.mcNumber ? `MC# ${profile.mcNumber}` : '',
+    profile.dotNumber ? `DOT# ${profile.dotNumber}` : '',
+  ].filter(Boolean);
+  const contactStripHTML = hasContact ? `
+    <div style="background:#f4f6f9;border-bottom:1px solid #e4e8ef;padding:8px 40px;display:flex;align-items:center;gap:0;flex-wrap:wrap">
+      ${contactItems.map((item, i) => `
+        <span style="font-size:11px;color:#4a6070;font-weight:500">${escapeHTML(item)}</span>
+        ${i < contactItems.length-1 ? '<span style="color:#c8d4e0;margin:0 10px;font-size:11px">·</span>' : ''}
+      `).join('')}
+    </div>` : '';
+
+  const footerLeft = profile.companyName
+    ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName)} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
+    : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">🚛 <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
+  const footerRight = profile.footerText
+    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>Rates are subject to change and valid for 24 hours from issue.</div>`
+    : `<div style="font-size:10px;color:#aab8c8;text-align:right">Rates are subject to change and valid for 24 hours from issue.</div>`;
+
+  const fmt$ = (n) => '$' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  // Status banner (green if meets target, amber if not)
+  const statusBg = meetsTarget ? '#e6f7ec' : '#fff8e6';
+  const statusBorder = meetsTarget ? '#7dd49a' : '#f0c040';
+  const statusColor = meetsTarget ? '#0f6b2c' : '#7a5500';
+  const statusIcon = meetsTarget ? '▲' : '▼';
+  const statusText = meetsTarget
+    ? `$${dollarDelta.toFixed(2)} profit margin over target`
+    : `$${Math.abs(dollarDelta).toFixed(2)} short of target`;
+  const statusDetail = meetsTarget
+    ? `Offered rate of $${offeredRate.toFixed(2)}/cwt beats minimum $${requiredRate.toFixed(2)}/cwt by $${rateDelta.toFixed(2)}/cwt.`
+    : `Offered rate of $${offeredRate.toFixed(2)}/cwt is $${Math.abs(rateDelta).toFixed(2)}/cwt below minimum of $${requiredRate.toFixed(2)}/cwt.`;
+
+  const fscMethodLabel = fscMethod === 'permile' ? 'Per-mile (industry standard)' : '% of base rate';
+  const targetModeLabel = mileMode === 'all'
+    ? `$${targetRpm.toFixed(2)}/mi across all ${totalMiles.toLocaleString()} mi`
+    : `$${targetRpm.toFixed(2)}/mi on ${loadedMiles.toLocaleString()} loaded mi`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bulk Load Quote ${qNum}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-height:100vh}
+.page-wrap{max-width:780px;margin:0 auto}
+.screen-controls{display:flex;gap:12px;margin-bottom:24px;align-items:center;flex-wrap:wrap}
+.btn-print{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:10px 22px;border-radius:8px;border:none;background:${scheme.header};color:${scheme.accent};cursor:pointer}
+.screen-note{font-size:12px;color:#6b7a8d}
+.doc{background:#fff;border-radius:4px;box-shadow:0 4px 40px rgba(0,0,0,.12);overflow:hidden;display:flex;flex-direction:column;min-height:1050px}
+.doc-header{background:${scheme.header};padding:28px 40px;display:flex;align-items:center;justify-content:space-between;gap:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.doc-meta{text-align:right}
+.doc-title{font-size:22px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em;margin-bottom:4px}
+.doc-number{font-family:'DM Mono',monospace;font-size:11px;color:${scheme.headerTextFaint};margin-bottom:2px}
+.doc-date{font-size:11px;color:${scheme.headerTextFaint}}
+.accent-bar{height:4px;background:${scheme.bar};-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.doc-body{padding:36px 40px;flex:1}
+.quote-hero{background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.quote-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.quote-amount{font-size:38px;font-weight:700;color:#1a1f2e;letter-spacing:-.03em;line-height:1}
+.quote-sub{font-size:12px;color:#6b7a8d;margin-top:6px}
+.bulk-badge{display:inline-block;background:#fff8e6;border:1px solid ${scheme.accent};color:#c07800;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:.05em}
+.section-header{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #e4e8ef}
+.route-section,.breakdown-section,.target-section,.config-section{margin-bottom:24px}
+.route-visual{display:table;width:100%;table-layout:fixed;background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;overflow:hidden}
+.route-point{display:table-cell;width:calc(50% - 50px);padding:16px 20px;vertical-align:middle;text-align:center}
+.route-point-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.route-point-city{font-size:16px;font-weight:700;color:#1a1f2e}
+.route-divider{display:table-cell;width:100px;text-align:center;vertical-align:middle;padding:16px 8px;background:#f0f3f8;border-left:1px solid #e4e8ef;border-right:1px solid #e4e8ef;white-space:nowrap}
+.route-miles{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:#1a1f2e}
+.route-miles-label{font-size:9px;color:#8fa3b8;text-transform:uppercase;letter-spacing:.08em}
+.route-arrow{font-size:16px;color:${scheme.accent};margin-top:2px}
+.bd-row{display:flex;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #e4e8ef;font-size:13px}
+.bd-row:last-child{border-bottom:none}
+.bd-row.total{background:#f8f9fc;font-weight:700;font-size:14px}
+.bd-row .lbl{color:#4a6070}
+.bd-row .val{font-family:'DM Mono',monospace;color:#1a1f2e;font-weight:600}
+.breakdown-box{border:1px solid #e4e8ef;border-radius:10px;overflow:hidden}
+.target-banner{background:${statusBg};border:1px solid ${statusBorder};border-radius:10px;padding:14px 18px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.target-banner-headline{font-size:14px;font-weight:700;color:${statusColor};margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.target-banner-detail{font-size:12px;color:#4a6070;line-height:1.5}
+.config-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#e4e8ef;border:1px solid #e4e8ef;border-radius:10px;overflow:hidden}
+.config-cell{background:#fff;padding:12px 16px}
+.config-cell-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.config-cell-value{font-size:13px;font-weight:600;color:#1a1f2e}
+.doc-footer{background:#f8f9fc;border-top:1px solid #e4e8ef;padding:16px 40px;display:flex;align-items:center;justify-content:space-between;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+  html,body{background:white;padding:0;margin:0}
+  .screen-controls{display:none!important}
+  .page-wrap{max-width:100%;margin:0;padding:0}
+  .doc{box-shadow:none;border-radius:0;margin:0;display:flex;flex-direction:column;min-height:100vh}
+}
+</style>
+</head>
+<body>
+<div class="page-wrap">
+  <div class="screen-controls">
+    <button class="btn-print" onclick="window.print()">🖨 Print / Save as PDF</button>
+    <span class="screen-note">Use your browser's Print dialog → Save as PDF</span>
+  </div>
+  <div class="doc">
+    <div class="doc-header">
+      <div style="display:flex;align-items:center;gap:12px">
+        ${logoHTML}
+        <div>${companyHTML}</div>
+      </div>
+      <div class="doc-meta">
+        <div class="doc-title">Bulk Load Quote</div>
+        <div class="doc-number">Quote #${qNum}</div>
+        <div class="doc-date">Issued: ${issuedDate}</div>
+      </div>
+    </div>
+    <div class="accent-bar"></div>
+    ${contactStripHTML}
+    <div class="doc-body">
+
+      <div class="quote-hero">
+        <div>
+          <div class="quote-label">Total Load Revenue</div>
+          <div class="quote-amount">${fmt$(total)}</div>
+          <div class="quote-sub">${cwt.toLocaleString()} cwt @ $${offeredRate.toFixed(2)}/cwt + FSC</div>
+        </div>
+        <div class="bulk-badge">🥔 Bulk · ${cwt.toLocaleString()} cwt</div>
+      </div>
+
+      <div class="route-section">
+        <div class="section-header">Route</div>
+        <div class="route-visual">
+          <div class="route-point">
+            <div class="route-point-label">📍 Origin</div>
+            <div class="route-point-city">${escapeHTML(orig)}</div>
+          </div>
+          <div class="route-divider">
+            <div class="route-miles">${loadedMiles.toLocaleString()}</div>
+            <div class="route-miles-label">loaded mi</div>
+            <div class="route-arrow">→</div>
+          </div>
+          <div class="route-point">
+            <div class="route-point-label">🏁 Destination</div>
+            <div class="route-point-city">${escapeHTML(dest)}</div>
+          </div>
+        </div>
+        ${deadhead > 0 ? `<div style="font-size:11px;color:#6b7a8d;text-align:center;margin-top:8px">Plus ${deadhead.toLocaleString()} mi deadhead · ${totalMiles.toLocaleString()} mi total</div>` : ''}
+      </div>
+
+      <div class="breakdown-section">
+        <div class="section-header">Revenue Breakdown</div>
+        <div class="breakdown-box">
+          <div class="bd-row">
+            <span class="lbl">Base rate × cwt</span>
+            <span class="val">$${offeredRate.toFixed(2)} × ${cwt.toLocaleString()} = ${fmt$(offeredBase)}</span>
+          </div>
+          <div class="bd-row">
+            <span class="lbl">Fuel surcharge<br><span style="font-size:10px;color:#8fa3b8">${escapeHTML(fscLine)}</span></span>
+            <span class="val">${fmt$(fscTotal)}</span>
+          </div>
+          <div class="bd-row total">
+            <span class="lbl">Total revenue</span>
+            <span class="val">${fmt$(total)}</span>
+          </div>
+          <div class="bd-row">
+            <span class="lbl">Effective $/mi loaded</span>
+            <span class="val">$${rpmLoaded.toFixed(2)}/mi</span>
+          </div>
+          ${deadhead > 0 ? `
+          <div class="bd-row">
+            <span class="lbl">Effective $/mi all miles</span>
+            <span class="val">$${rpmTotal.toFixed(2)}/mi</span>
+          </div>` : ''}
+        </div>
+      </div>
+
+      <div class="target-section">
+        <div class="section-header">Target Comparison</div>
+        <div class="target-banner">
+          <div class="target-banner-headline">${statusIcon} ${statusText}</div>
+          <div class="target-banner-detail">${statusDetail}<br>Target: ${escapeHTML(targetModeLabel)}.</div>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <div class="section-header">Calculation Settings</div>
+        <div class="config-grid">
+          <div class="config-cell"><div class="config-cell-label">FSC method</div><div class="config-cell-value">${escapeHTML(fscMethodLabel)}</div></div>
+          <div class="config-cell"><div class="config-cell-label">Diesel reference</div><div class="config-cell-value">$${DIESEL_PRICE.toFixed(2)}/gal (EIA national)</div></div>
+        </div>
+      </div>
+
+    </div>
+    <div class="doc-footer">
+      ${footerLeft}
+      ${footerRight}
+    </div>
+  </div>
+</div>
+</body>
+</html>`;
+
+  // Open as a blob URL in a new tab — same approach as FTL PDF.
+  const blob = new Blob([html], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  const tab  = window.open(url, '_blank');
+  if(tab){
+    tab.addEventListener('load', () => URL.revokeObjectURL(url), { once: true });
+  } else {
+    URL.revokeObjectURL(url);
+    alert('Pop-up blocked — please allow pop-ups for this site to download quotes.');
+  }
 }
 
 async function init(){
