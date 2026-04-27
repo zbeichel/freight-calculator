@@ -103,6 +103,41 @@ a.brand-name:hover span{opacity:.8}
 .field-row.three{grid-template-columns:1fr 1fr 1fr}
 @media(max-width:600px){.field-row,.field-row.three{grid-template-columns:1fr}}
 
+/* ── Validation state (port from index.html) ── */
+.field.invalid input{
+  border-color:var(--red);
+  box-shadow:0 0 0 3px rgba(248,113,113,.08);
+}
+.field-error{
+  display:none;
+  margin-top:6px;
+  font-size:11px;
+  font-weight:500;
+  color:var(--red);
+  line-height:1.4;
+}
+.field.invalid .field-error{display:block}
+
+/* ── Miles status row — shown below loaded-miles while we look up routes ── */
+.miles-status-row{
+  display:none;
+  align-items:center;
+  gap:8px;
+  margin-top:6px;
+  font-size:11px;
+  color:var(--text2);
+}
+.miles-status-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:3px 10px;
+  border-radius:999px;
+  border:1px solid var(--border2);
+  background:var(--card2);
+}
+.miles-source-note{font-size:11px;color:var(--text3)}
+
 /* ── FSC method tabs ── */
 .fsc-tabs{
   display:flex;
@@ -294,19 +329,32 @@ body::before{
     <div class="field-row">
       <div class="field">
         <label>Origin</label>
-        <input type="text" id="origin" placeholder="City, ST or ZIP" oninput="onOriginChange()" />
+        <input type="text" id="origin" placeholder="City, ST or ZIP"
+          oninput="onLocationInput(this)"
+          onblur="validateLocation(this)" />
         <div class="field-help">e.g. Hastings, FL or 32145</div>
+        <div class="field-error"></div>
       </div>
       <div class="field">
         <label>Destination</label>
-        <input type="text" id="dest" placeholder="City, ST or ZIP" />
+        <input type="text" id="dest" placeholder="City, ST or ZIP"
+          oninput="onLocationInput(this)"
+          onblur="validateLocation(this)" />
+        <div class="field-error"></div>
       </div>
     </div>
 
     <div class="field-row three">
       <div class="field">
-        <label>Loaded miles</label>
-        <input type="number" id="loaded-miles" placeholder="950" oninput="calc()" />
+        <label>Loaded miles <span id="miles-source" class="miles-source-note"></span></label>
+        <input type="number" id="loaded-miles" placeholder="950"
+          oninput="onMilesManualEdit()" />
+        <div class="miles-status-row" id="miles-status-row">
+          <span class="miles-status-pill">
+            <span id="miles-status-icon">⏳</span>
+            <span id="miles-status-text">Calculating…</span>
+          </span>
+        </div>
       </div>
       <div class="field">
         <label>Deadhead miles</label>
@@ -571,6 +619,283 @@ function getRegionalReeferRpm(){
 // Trigger recalc when origin changes (region might change)
 function onOriginChange(){ calc(); }
 
+// ──────────────────────────────────────────────────────────────────────────
+// Address validation + Google Routes mileage lookup
+// Ported from index.html so the bulk page behaves consistently with FTL.
+// Race-condition-safe (LOCATION_VALIDATION_IN_FLIGHT) and includes a
+// session-level route cache so repeat lookups are free.
+// ──────────────────────────────────────────────────────────────────────────
+
+const LOCATION_VALIDATION_IN_FLIGHT = new WeakMap(); // input → latest request id
+let GMAPS_KEY = null;
+let lookupTimer = null;
+let manualMiles = false;        // true when the user types in the miles field directly
+let lastLookedUpOrig = '';
+let lastLookedUpDest = '';
+const ROUTE_CACHE = {};
+function routeCacheKey(a, b){ return a.toLowerCase().trim() + '||' + b.toLowerCase().trim(); }
+
+function setLocationError(input, message){
+  const field = input.closest('.field');
+  if(!field) return;
+  field.classList.add('invalid');
+  if(message){
+    const errEl = field.querySelector('.field-error');
+    if(errEl) errEl.textContent = message;
+  }
+  input.setAttribute('aria-invalid', 'true');
+}
+
+function clearLocationError(input){
+  const field = input.closest('.field');
+  if(!field) return;
+  field.classList.remove('invalid');
+  input.removeAttribute('aria-invalid');
+}
+
+function isLocationFieldValid(inputId){
+  const input = document.getElementById(inputId);
+  if(!input) return true;
+  if(!input.value.trim()) return true; // empty isn't invalid — just incomplete
+  const field = input.closest('.field');
+  return !field?.classList.contains('invalid');
+}
+
+function isAcceptableGeocodeResult(data, userTypedZip){
+  if(!data || data.error) return false;
+  if(!data.city || !data.state) return false;
+  // Partial matches on free-text input (e.g. "alan" → Alan, WV) — reject unless user gave a ZIP.
+  if(data.partialMatch && !userTypedZip) return false;
+  return true;
+}
+
+// Tidy common input variations before sending to the geocoder:
+//   "hastings fl"     → "Hastings, FL"
+//   "atlanta,ga"      → "Atlanta, GA"
+//   "BIRD IN HAND PA" → "Bird In Hand, PA"
+function normalizeLocationInput(raw){
+  if(/^\d{5}(-\d{4})?$/.test(raw)) return raw;
+  let val = raw.replace(/\s+/g, ' ').trim();
+  val = val.replace(/\s*,\s*/g, ', ');
+  val = val.replace(/,?\s+([A-Za-z]{2})\s*$/, (m, st) => ', ' + st.toUpperCase());
+  val = val.replace(/^([^,]+)/, city =>
+    city.trim().replace(/\b\w/g, c => c.toUpperCase())
+  );
+  return val;
+}
+
+async function validateLocation(input){
+  const raw = input.value.trim();
+  if(!raw){
+    clearLocationError(input);
+    return;
+  }
+
+  const normalized = normalizeLocationInput(raw);
+  if(normalized !== input.value) input.value = normalized;
+
+  // Race-guard so a stale response can't clobber a newer one
+  const requestId = Symbol('geocode');
+  LOCATION_VALIDATION_IN_FLIGHT.set(input, requestId);
+
+  const userTypedZip = /^\d{5}(-\d{4})?$/.test(normalized);
+
+  let data;
+  try {
+    const resp = await fetch(`/.netlify/functions/geocode?address=${encodeURIComponent(normalized)}`);
+    data = await resp.json();
+  } catch(e){
+    if(LOCATION_VALIDATION_IN_FLIGHT.get(input) === requestId){
+      clearLocationError(input);
+    }
+    return;
+  }
+
+  if(LOCATION_VALIDATION_IN_FLIGHT.get(input) !== requestId) return;
+
+  if(!isAcceptableGeocodeResult(data, userTypedZip)){
+    setLocationError(
+      input,
+      userTypedZip
+        ? 'ZIP code not recognized. Please double-check it.'
+        : "Couldn't verify this location. Try \"City, ST\" or a 5-digit ZIP code."
+    );
+    return;
+  }
+
+  clearLocationError(input);
+
+  // Google's canonical form: "City, ST ZIP"
+  const canonical = data.name;
+  if(canonical && canonical !== input.value){
+    input.value = canonical;
+  }
+
+  // Recalc (region might have shifted)
+  calc();
+
+  // If both fields are filled and valid, schedule the route lookup
+  scheduleLookup();
+}
+
+function onLocationInput(input){
+  // User is typing — clear the error state and reset the "last looked up" cache so
+  // a re-typed value gets a fresh route lookup.
+  clearLocationError(input);
+  manualMiles = false;
+  lastLookedUpOrig = '';
+  lastLookedUpDest = '';
+  scheduleLookup();
+  calc();
+}
+
+function scheduleLookup(){
+  clearTimeout(lookupTimer);
+  lookupTimer = setTimeout(tryLookupMiles, 900);
+}
+
+function onMilesManualEdit(){
+  // User typed in the loaded-miles field — respect their value, don't auto-overwrite.
+  manualMiles = true;
+  setMilesSource('manual');
+  hideMilesStatus();
+  calc();
+}
+
+function setMilesSource(type){
+  const el = document.getElementById('miles-source');
+  if(!el) return;
+  if(type === 'google'){ el.textContent = '· via Google Routes'; el.style.color = 'var(--green)'; }
+  else if(type === 'manual'){ el.textContent = '· entered manually'; el.style.color = 'var(--text3)'; }
+  else el.textContent = '';
+}
+
+function showMilesStatus(icon, text, color){
+  const row = document.getElementById('miles-status-row');
+  const iconEl = document.getElementById('miles-status-icon');
+  const textEl = document.getElementById('miles-status-text');
+  if(!row || !iconEl || !textEl) return;
+  row.style.display = 'flex';
+  iconEl.textContent = icon;
+  textEl.textContent = text;
+  textEl.style.color = color || 'var(--text2)';
+}
+function hideMilesStatus(){
+  const row = document.getElementById('miles-status-row');
+  if(row) row.style.display = 'none';
+}
+
+function fmtDuration(seconds){
+  const h = Math.floor(seconds / 3600);
+  const m = Math.round((seconds % 3600) / 60);
+  if(h === 0) return m + ' min';
+  if(m === 0) return h + ' hr';
+  return h + ' hr ' + m + ' min';
+}
+
+async function loadGMapsKey(){
+  try {
+    const resp = await fetch('/.netlify/functions/gmaps-key');
+    if(!resp.ok) throw new Error('Could not load key');
+    const data = await resp.json();
+    GMAPS_KEY = data.key || null;
+  } catch(e){
+    GMAPS_KEY = null;
+  }
+}
+
+async function tryLookupMiles(){
+  if(manualMiles) return;
+  if(!isLocationFieldValid('origin') || !isLocationFieldValid('dest')) return;
+
+  const orig = document.getElementById('origin').value.trim();
+  const dest = document.getElementById('dest').value.trim();
+  if(!orig || !dest || orig.length < 3 || dest.length < 3) return;
+
+  const origAddr = orig + ', USA';
+  const destAddr = dest + ', USA';
+
+  // Skip if this exact pair was already looked up
+  const origKey = origAddr.toLowerCase();
+  const destKey = destAddr.toLowerCase();
+  if(origKey === lastLookedUpOrig && destKey === lastLookedUpDest) return;
+
+  // Route cache hit
+  const cKey = routeCacheKey(origAddr, destAddr);
+  if(ROUTE_CACHE[cKey]){
+    const cached = ROUTE_CACHE[cKey];
+    lastLookedUpOrig = origKey; lastLookedUpDest = destKey;
+    document.getElementById('loaded-miles').value = cached.miles;
+    setMilesSource('google');
+    showMilesStatus('✅', `${cached.miles.toLocaleString()} miles · ${cached.driveText} drive (Google Maps)`, 'var(--green)');
+    calc();
+    return;
+  }
+
+  if(!GMAPS_KEY){
+    showMilesStatus('⏳', 'Loading…', 'var(--text2)');
+    await loadGMapsKey();
+  }
+  if(!GMAPS_KEY){
+    showMilesStatus('⚠️', 'Maps key not configured — enter miles manually', 'var(--red)');
+    return;
+  }
+
+  showMilesStatus('⏳', 'Calculating driving distance…', 'var(--text2)');
+
+  try {
+    const resp = await fetch(
+      'https://routes.googleapis.com/directions/v2:computeRoutes',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GMAPS_KEY,
+          'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration'
+        },
+        body: JSON.stringify({
+          origin: { address: origAddr },
+          destination: { address: destAddr },
+          travelMode: 'DRIVE',
+          routingPreference: 'TRAFFIC_UNAWARE',
+          units: 'IMPERIAL'
+        })
+      }
+    );
+
+    if(!resp.ok){
+      const err = await resp.json().catch(() => ({}));
+      const msg = err?.error?.message || ('HTTP ' + resp.status);
+      showMilesStatus('⚠️', 'Route error: ' + msg, 'var(--red)');
+      return;
+    }
+
+    const data = await resp.json();
+    const route = data?.routes?.[0];
+    if(!route){
+      showMilesStatus('⚠️', 'Route not found — check city names and try again', 'var(--red)');
+      return;
+    }
+
+    const miles = Math.round(route.distanceMeters / 1609.34);
+    const driveSecs = parseInt((route.duration || '0s').replace('s', ''), 10);
+    const driveText = fmtDuration(driveSecs);
+
+    document.getElementById('loaded-miles').value = miles;
+    setMilesSource('google');
+    showMilesStatus('✅', `${miles.toLocaleString()} miles · ${driveText} drive (Google Routes)`, 'var(--green)');
+
+    lastLookedUpOrig = origAddr.toLowerCase();
+    lastLookedUpDest = destAddr.toLowerCase();
+    ROUTE_CACHE[cKey] = { miles, driveSecs, driveText };
+
+    calc();
+
+  } catch(e){
+    showMilesStatus('⚠️', 'Could not reach Google — enter miles manually', 'var(--red)');
+  }
+}
+
 // ── FSC method picker ─────────────────────────────────────────────────────
 function setFsc(method){
   fscMethod = method;
@@ -818,9 +1143,10 @@ async function init(){
     window.location.href = '/signup.html?reason=pro-required';
     return;
   }
-  // Pro confirmed — load rates + diesel and run initial calc
+  // Pro confirmed — load rates, diesel, and Maps key in parallel
   loadRates();
   loadDieselPrice();
+  loadGMapsKey();
   calc();
 }
 
