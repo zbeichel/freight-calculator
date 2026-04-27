@@ -77,8 +77,50 @@ a.brand-name:hover span{opacity:.8}
   padding:12px;border-radius:8px;border:none;background:var(--accent);color:#000;
   cursor:pointer;transition:opacity .15s;margin-top:4px;
 }
-.submit-btn:hover{opacity:.88}
+.submit-btn:hover:not(:disabled){opacity:.88}
 .submit-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Password input with eye-toggle + live requirements checklist ────────
+   The input sits inside a wrapper so we can absolute-position the eye
+   button on the right edge. The checklist below the input updates live
+   as the user types, with each rule going from ○ (gray) to ✓ (green) as
+   it passes. Submit stays disabled until every rule passes. */
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:42px !important}
+.pw-toggle{
+  position:absolute;top:50%;right:6px;transform:translateY(-50%);
+  width:30px;height:30px;
+  background:transparent;border:none;border-radius:6px;cursor:pointer;
+  color:var(--text3);
+  display:flex;align-items:center;justify-content:center;
+  transition:color .15s, background .15s;
+}
+.pw-toggle:hover{color:var(--text);background:var(--card)}
+.pw-toggle svg{width:18px;height:18px;display:block}
+
+.pw-rules{
+  list-style:none;padding:0;margin:0;
+  display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;
+  font-size:11px;color:var(--text3);
+  line-height:1.4;
+}
+.pw-rules li{
+  display:flex;align-items:center;gap:6px;
+  transition:color .15s;
+}
+.pw-rules li::before{
+  content:'○';
+  display:inline-flex;align-items:center;justify-content:center;
+  width:14px;height:14px;
+  font-size:13px;color:var(--text3);
+  flex-shrink:0;
+  transition:color .15s, content .15s;
+}
+.pw-rules li.ok{color:var(--green)}
+.pw-rules li.ok::before{content:'✓';color:var(--green)}
+@media (max-width:380px){
+  .pw-rules{grid-template-columns:1fr}
+}
 
 .divider{height:1px;background:var(--border);margin:20px 0;position:relative}
 .divider span{
@@ -172,19 +214,34 @@ a.brand-name:hover span{opacity:.8}
         </div>
         <div class="field">
           <label>Email Address</label>
-          <input type="email" id="su-email" placeholder="john@acmefreight.com" />
+          <input type="email" id="su-email" placeholder="john@acmefreight.com" oninput="updateSignupBtnState()" />
         </div>
         <div class="field">
           <label>Password</label>
-          <input type="password" id="su-password" placeholder="At least 8 characters" onkeydown="if(event.key==='Enter')handleSignup()" />
+          <div class="pw-wrap">
+            <input type="password" id="su-password"
+              placeholder="8+ chars · upper, lower, number, symbol"
+              oninput="onSignupPasswordInput()"
+              onkeydown="if(event.key==='Enter')handleSignup()" />
+            <button type="button" class="pw-toggle" onclick="togglePwVisibility('su-password', this)" title="Show/hide password" aria-label="Toggle password visibility">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <ul class="pw-rules" id="su-pw-rules" aria-live="polite">
+            <li data-rule="length">8+ characters</li>
+            <li data-rule="lower">Lowercase letter</li>
+            <li data-rule="upper">Uppercase letter</li>
+            <li data-rule="digit">Number</li>
+            <li data-rule="symbol">Symbol (e.g. !@#$%)</li>
+          </ul>
         </div>
         <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px">
-          <input type="checkbox" id="su-agree" style="width:15px;height:15px;margin-top:2px;accent-color:#f0a500;cursor:pointer;flex-shrink:0" />
+          <input type="checkbox" id="su-agree" onchange="updateSignupBtnState()" style="width:15px;height:15px;margin-top:2px;accent-color:#f0a500;cursor:pointer;flex-shrink:0" />
           <label for="su-agree" style="font-size:12px;color:#8fa3b8;line-height:1.6;cursor:pointer">
             I agree to the <a href="/terms.html" target="_blank" style="color:#f0a500;text-decoration:none">Terms of Service</a> and <a href="/privacy.html" target="_blank" style="color:#f0a500;text-decoration:none">Privacy Policy</a>. I understand that rate quotes are estimates only and not guaranteed.
           </label>
         </div>
-        <button class="submit-btn" id="su-btn" onclick="handleSignup()">
+        <button class="submit-btn" id="su-btn" onclick="handleSignup()" disabled>
           Sign Up for Pro →
         </button>
         <div class="divider"><span>or</span></div>
@@ -206,7 +263,12 @@ a.brand-name:hover span{opacity:.8}
         </div>
         <div class="field">
           <label>Password</label>
-          <input type="password" id="li-password" placeholder="Your password" onkeydown="if(event.key==='Enter')handleLogin()" />
+          <div class="pw-wrap">
+            <input type="password" id="li-password" placeholder="Your password" onkeydown="if(event.key==='Enter')handleLogin()" />
+            <button type="button" class="pw-toggle" onclick="togglePwVisibility('li-password', this)" title="Show/hide password" aria-label="Toggle password visibility">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
         <button class="submit-btn" id="li-btn" onclick="handleLogin()">
           Sign In
@@ -219,6 +281,39 @@ a.brand-name:hover span{opacity:.8}
         <div class="footer-note">
           <a href="#" onclick="handleForgotPassword()">Forgot your password?</a><br>
           Don't have an account? <a href="#" onclick="switchTab('signup')">Sign up for Pro</a>
+        </div>
+      </div>
+
+      <!-- Recovery (set new password) — shown when the URL hash carries a
+           Supabase recovery token. The user lands here from the email link. -->
+      <div id="form-recovery" style="display:none">
+        <div class="price-note" style="background:rgba(74,222,128,.1);border-color:rgba(74,222,128,.3);color:var(--green)">
+          <strong>Reset your password</strong> · Choose a new password below
+        </div>
+        <div class="field">
+          <label>New Password</label>
+          <div class="pw-wrap">
+            <input type="password" id="rp-password"
+              placeholder="8+ chars · upper, lower, number, symbol"
+              oninput="onRecoveryPasswordInput()"
+              onkeydown="if(event.key==='Enter')handleRecoverySubmit()" />
+            <button type="button" class="pw-toggle" onclick="togglePwVisibility('rp-password', this)" title="Show/hide password" aria-label="Toggle password visibility">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <ul class="pw-rules" id="rp-pw-rules" aria-live="polite">
+            <li data-rule="length">8+ characters</li>
+            <li data-rule="lower">Lowercase letter</li>
+            <li data-rule="upper">Uppercase letter</li>
+            <li data-rule="digit">Number</li>
+            <li data-rule="symbol">Symbol (e.g. !@#$%)</li>
+          </ul>
+        </div>
+        <button class="submit-btn" id="rp-btn" onclick="handleRecoverySubmit()" disabled>
+          Set New Password
+        </button>
+        <div class="footer-note">
+          Remembered your password? <a href="#" onclick="event.preventDefault();window.location.href='/signup.html?login'">Sign in</a>
         </div>
       </div>
 
@@ -258,8 +353,12 @@ function getSession(){
 function switchTab(tab){
   document.getElementById('tab-signup').classList.toggle('active', tab==='signup');
   document.getElementById('tab-login').classList.toggle('active', tab==='login');
-  document.getElementById('form-signup').style.display = tab==='signup' ? '' : 'none';
-  document.getElementById('form-login').style.display  = tab==='login'  ? '' : 'none';
+  document.getElementById('form-signup').style.display   = tab==='signup'   ? '' : 'none';
+  document.getElementById('form-login').style.display    = tab==='login'    ? '' : 'none';
+  document.getElementById('form-recovery').style.display = tab==='recovery' ? '' : 'none';
+  // Hide the tab strip entirely while in recovery — it's not a switchable mode.
+  const tabsEl = document.querySelector('.tabs');
+  if(tabsEl) tabsEl.style.display = tab==='recovery' ? 'none' : '';
   hideMessages();
 }
 
@@ -276,6 +375,141 @@ function showSuccess(msg){
 function hideMessages(){
   document.getElementById('error-msg').style.display = 'none';
   document.getElementById('success-msg').style.display = 'none';
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Password helpers — single source of truth for the rules. Used by signup,
+// recovery, and the disabled-button gating. If you change the Supabase
+// password policy, update validatePassword() to match — nothing else.
+// ──────────────────────────────────────────────────────────────────────────
+
+function validatePassword(pw){
+  pw = pw || '';
+  return {
+    length: pw.length >= 8,
+    lower:  /[a-z]/.test(pw),
+    upper:  /[A-Z]/.test(pw),
+    digit:  /[0-9]/.test(pw),
+    // "Symbol" = anything that isn't a letter or digit. Matches Supabase's
+    // permissive definition.
+    symbol: /[^A-Za-z0-9]/.test(pw),
+    get allValid(){
+      return this.length && this.lower && this.upper && this.digit && this.symbol;
+    },
+  };
+}
+
+// SVG markup for the open-eye icon (default state)
+const PW_EYE_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+// Eye-off icon (when password is visible — clicking again hides it)
+const PW_EYE_OFF  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-7-10-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+function togglePwVisibility(inputId, btnEl){
+  const input = document.getElementById(inputId);
+  if(!input) return;
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  btnEl.innerHTML = showing ? PW_EYE_OPEN : PW_EYE_OFF;
+}
+
+// Apply validation results to the checklist UL — flips ○ to ✓ as rules pass.
+function applyChecklistTo(listId, result){
+  const list = document.getElementById(listId);
+  if(!list) return;
+  list.querySelectorAll('li').forEach(li => {
+    const rule = li.getAttribute('data-rule');
+    li.classList.toggle('ok', !!result[rule]);
+  });
+}
+
+// Signup-form input handler — runs on every keystroke in the password field.
+function onSignupPasswordInput(){
+  const pw = document.getElementById('su-password').value;
+  const result = validatePassword(pw);
+  applyChecklistTo('su-pw-rules', result);
+  updateSignupBtnState();
+}
+
+// Enable/disable the signup button based on full form validity.
+function updateSignupBtnState(){
+  const pw    = document.getElementById('su-password').value;
+  const email = document.getElementById('su-email').value.trim();
+  const agree = document.getElementById('su-agree').checked;
+  const result = validatePassword(pw);
+  const ok = result.allValid && email.length > 0 && agree;
+  const btn = document.getElementById('su-btn');
+  if(btn) btn.disabled = !ok;
+}
+
+// Recovery-form input handler — same checklist logic, separate IDs.
+function onRecoveryPasswordInput(){
+  const pw = document.getElementById('rp-password').value;
+  const result = validatePassword(pw);
+  applyChecklistTo('rp-pw-rules', result);
+  const btn = document.getElementById('rp-btn');
+  if(btn) btn.disabled = !result.allValid;
+}
+
+// Detect Supabase recovery callback. The token comes back in the URL hash
+// (e.g. #access_token=xxx&type=recovery&...). If present, switch to the
+// recovery form and stash the token for the submit handler.
+let RECOVERY_TOKEN = null;
+function detectRecoveryFlow(){
+  const hash = window.location.hash || '';
+  if(!hash.includes('type=recovery')) return false;
+  const params = new URLSearchParams(hash.replace(/^#/, ''));
+  const token = params.get('access_token');
+  if(!token) return false;
+  RECOVERY_TOKEN = token;
+  // Strip the hash from the URL bar — keeps the token from being shared
+  // accidentally if the user copies the URL.
+  history.replaceState({}, '', window.location.pathname);
+  switchTab('recovery');
+  return true;
+}
+
+// Submit handler for the recovery form — calls Supabase to update password.
+async function handleRecoverySubmit(){
+  const pw = document.getElementById('rp-password').value;
+  const result = validatePassword(pw);
+  if(!result.allValid){
+    showError('Password does not meet the requirements above.');
+    return;
+  }
+  if(!RECOVERY_TOKEN){
+    showError('Recovery link is invalid or expired. Please request a new reset email.');
+    return;
+  }
+
+  const btn = document.getElementById('rp-btn');
+  btn.disabled = true;
+  btn.textContent = 'Updating password...';
+
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${RECOVERY_TOKEN}`,
+      },
+      body: JSON.stringify({ password: pw }),
+    });
+    const data = await resp.json();
+    if(!resp.ok || data.error){
+      const msg = data.error_description || data.error?.message || data.msg || 'Could not update password. The link may have expired.';
+      showError(msg);
+      btn.disabled = false;
+      btn.textContent = 'Set New Password';
+      return;
+    }
+    showSuccess('Password updated! Redirecting you to sign in...');
+    setTimeout(() => { window.location.href = '/signup.html?login'; }, 1500);
+  } catch(e){
+    showError('Could not reach the server. Please try again.');
+    btn.disabled = false;
+    btn.textContent = 'Set New Password';
+  }
 }
 
 // ── Google OAuth ───────────────────────────────────────────────────────────
@@ -361,7 +595,10 @@ async function handleSignup(){
   const password = document.getElementById('su-password').value;
 
   if(!email || !password){ showError('Email and password are required.'); return; }
-  if(password.length < 8){ showError('Password must be at least 8 characters.'); return; }
+  if(!validatePassword(password).allValid){
+    showError('Password does not meet the requirements. Check the list above the password field.');
+    return;
+  }
   if(!document.getElementById('su-agree').checked){ showError('Please agree to the Terms of Service and Privacy Policy to continue.'); return; }
 
   const btn = document.getElementById('su-btn');
@@ -577,7 +814,13 @@ async function createProUserRow(userId, email, companyName, contactName, token){
 }
 
 // ── Check URL params — auto-switch to login tab ────────────────────────────
-if(window.location.search.includes('google=return') || window.location.hash.includes('access_token')){
+// Order matters: the recovery-link case must come BEFORE the Google-return
+// check, because both flows put an access_token in the URL hash. The
+// `type=recovery` parameter is what distinguishes a password reset.
+if(detectRecoveryFlow()){
+  // Recovery flow active — handler stashed the token and switched the form.
+  // No further URL-param processing needed.
+} else if(window.location.search.includes('google=return') || window.location.hash.includes('access_token')){
   handleGoogleReturn();
 } else {
   if(window.location.search.includes('login')){ switchTab('login'); }
