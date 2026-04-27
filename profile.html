@@ -489,8 +489,10 @@ footer a:hover{color:var(--accent)}
       </div>
     </div>
 
-    <!-- Subscription -->
-    <div class="section-card">
+    <!-- Subscription — visible only when the user has a Stripe customer ID
+         (i.e. they paid through Checkout). For comped users, the
+         #subscription-comp card below shows instead. -->
+    <div class="section-card" id="subscription-paid" style="display:none">
       <div class="section-header">
         <span class="section-icon">💳</span>
         <span class="section-title">Subscription</span>
@@ -514,6 +516,26 @@ footer a:hover{color:var(--accent)}
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
           Clicking "Manage / Cancel" opens the Stripe billing portal where you can update your payment method or cancel your subscription. Cancellation takes effect at the end of your current billing period.
+        </div>
+      </div>
+    </div>
+
+    <!-- Comp / partner account — shown for users who have Pro access without
+         going through Stripe Checkout (manually granted by admin). -->
+    <div class="section-card" id="subscription-comp" style="display:none">
+      <div class="section-header">
+        <span class="section-icon">⭐</span>
+        <span class="section-title">Pro Access</span>
+        <span class="section-sub">Comp account</span>
+      </div>
+      <div class="section-body">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">QuickFreightCalc Pro · Active</div>
+            <div style="font-size:12px;color:var(--text3);line-height:1.6">
+              Your account has Pro access without a paid subscription. Contact us if you have questions about your account.
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1155,6 +1177,9 @@ async function loadProfile(){
         });
         // Update header with user name
         updateHeaderUser(p.contact_name || p.company_name || session.user.email);
+        // Pick which subscription card to show based on whether they're a
+        // paid subscriber (has Stripe customer ID) or a comp account.
+        applySubscriptionCardState(p.stripe_customer_id);
         return;
       }
     } catch(e){}
@@ -1169,6 +1194,18 @@ async function loadProfile(){
   if(session){
     updateHeaderUser(session.user.email);
   }
+  // No row data available — leave both subscription cards hidden.
+}
+
+// Pick which subscription card to show. Stripe customer ID present →
+// the paid card with the Manage/Cancel button. Otherwise → the
+// comp-account card. Anything truthy and non-empty counts as paid.
+function applySubscriptionCardState(stripeCustomerId){
+  const hasStripe = !!(stripeCustomerId && String(stripeCustomerId).trim().length > 0);
+  const paidCard = document.getElementById('subscription-paid');
+  const compCard = document.getElementById('subscription-comp');
+  if(paidCard) paidCard.style.display = hasStripe ? '' : 'none';
+  if(compCard) compCard.style.display = hasStripe ? 'none' : '';
 }
 
 function populateForm(p){
@@ -1214,10 +1251,30 @@ async function handleManageBilling(){
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: session.user?.id || session.user?.sub })
     });
+    if(!resp.ok){
+      // Try to extract a meaningful error message from the response, but
+      // fall back gracefully if the function returned non-JSON (e.g. a
+      // 404 HTML page from Netlify).
+      let detail = `HTTP ${resp.status}`;
+      try {
+        const errData = await resp.json();
+        detail = errData.error || errData.message || detail;
+      } catch(_){ /* response wasn't JSON */ }
+      console.error('[manage-billing] create-portal failed:', resp.status, detail);
+      showToast('⚠ Could not open billing portal: ' + detail);
+      return;
+    }
     const data = await resp.json();
-    if(data.url){ window.open(data.url, '_blank'); }
-    else { showToast('⚠ Could not open billing portal. Try again.'); }
-  } catch(e){ showToast('⚠ Could not open billing portal. Try again.'); }
+    if(data.url){
+      window.open(data.url, '_blank');
+    } else {
+      console.error('[manage-billing] create-portal response missing url:', data);
+      showToast('⚠ Billing portal returned no URL. ' + (data.error || ''));
+    }
+  } catch(e){
+    console.error('[manage-billing] create-portal threw:', e);
+    showToast('⚠ Could not reach billing portal: ' + e.message);
+  }
 }
 loadProfile();
 renderSchemes();
