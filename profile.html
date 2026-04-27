@@ -73,6 +73,47 @@ a.brand-name:hover span{opacity:.8}
 .field textarea{resize:vertical;min-height:70px;line-height:1.5}
 .field-note{font-size:10px;color:var(--text3);margin-top:2px}
 
+/* ── Password input with eye-toggle + live requirements checklist ────────
+   Mirrors the components in signup.html — keep them in sync if you change
+   either one. The input wraps in a .pw-wrap so the eye button can sit
+   absolutely positioned on the right edge of the input. */
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:42px !important}
+.pw-toggle{
+  position:absolute;top:50%;right:6px;transform:translateY(-50%);
+  width:30px;height:30px;
+  background:transparent;border:none;border-radius:6px;cursor:pointer;
+  color:var(--text3);
+  display:flex;align-items:center;justify-content:center;
+  transition:color .15s, background .15s;
+}
+.pw-toggle:hover{color:var(--text);background:var(--card)}
+.pw-toggle svg{width:18px;height:18px;display:block}
+
+.pw-rules{
+  list-style:none;padding:0;margin:0;
+  display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;
+  font-size:11px;color:var(--text3);
+  line-height:1.4;
+}
+.pw-rules li{
+  display:flex;align-items:center;gap:6px;
+  transition:color .15s;
+}
+.pw-rules li::before{
+  content:'○';
+  display:inline-flex;align-items:center;justify-content:center;
+  width:14px;height:14px;
+  font-size:13px;color:var(--text3);
+  flex-shrink:0;
+  transition:color .15s, content .15s;
+}
+.pw-rules li.ok{color:var(--green)}
+.pw-rules li.ok::before{content:'✓';color:var(--green)}
+@media (max-width:380px){
+  .pw-rules{grid-template-columns:1fr}
+}
+
 /* ── Logo upload ── */
 .logo-upload-wrap{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap}
 .logo-preview-box{
@@ -485,6 +526,90 @@ footer a:hover{color:var(--accent)}
         </div>
         <div class="quote-num-preview" id="quote-num-preview">
           Next quote: <span>QFC-20260415-1001</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Change Password ──
+         Two variants depending on how the user signed up:
+         · Email/password users see #change-password-form
+         · Google OAuth users see #change-password-google (their password
+           lives at Google, not in Supabase). JS picks one in loadProfile(). -->
+    <div class="section-card" id="change-password-form" style="display:none">
+      <div class="section-header">
+        <span class="section-icon">🔒</span>
+        <span class="section-title">Change Password</span>
+        <span class="section-sub">Update your account password</span>
+      </div>
+      <div class="section-body">
+
+        <!-- Inline status (success/error) shown above the fields -->
+        <div id="cp-status" style="display:none;font-size:12px;line-height:1.5;padding:10px 12px;border-radius:8px;margin-bottom:14px"></div>
+
+        <div class="field" style="margin-bottom:14px">
+          <label>Current Password</label>
+          <div class="pw-wrap">
+            <input type="password" id="cp-current"
+              placeholder="Your current password"
+              oninput="updateChangePasswordBtnState()" />
+            <button type="button" class="pw-toggle" onclick="togglePwVisibility('cp-current', this)" title="Show/hide password" aria-label="Toggle password visibility">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:14px">
+          <label>New Password</label>
+          <div class="pw-wrap">
+            <input type="password" id="cp-new"
+              placeholder="8+ chars · upper, lower, number, symbol"
+              oninput="onChangePasswordNewInput()" />
+            <button type="button" class="pw-toggle" onclick="togglePwVisibility('cp-new', this)" title="Show/hide password" aria-label="Toggle password visibility">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <ul class="pw-rules" id="cp-pw-rules" aria-live="polite" style="margin-top:8px">
+            <li data-rule="length">8+ characters</li>
+            <li data-rule="lower">Lowercase letter</li>
+            <li data-rule="upper">Uppercase letter</li>
+            <li data-rule="digit">Number</li>
+            <li data-rule="symbol">Symbol (e.g. !@#$%)</li>
+          </ul>
+        </div>
+
+        <div class="field" style="margin-bottom:14px">
+          <label>Confirm New Password</label>
+          <div class="pw-wrap">
+            <input type="password" id="cp-confirm"
+              placeholder="Type your new password again"
+              oninput="updateChangePasswordBtnState()" />
+            <button type="button" class="pw-toggle" onclick="togglePwVisibility('cp-confirm', this)" title="Show/hide password" aria-label="Toggle password visibility">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div id="cp-mismatch" style="display:none;font-size:11px;color:var(--red);margin-top:4px">Passwords don't match.</div>
+        </div>
+
+        <button id="cp-btn" onclick="handleChangePassword()" disabled style="
+          font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;
+          padding:10px 24px;border-radius:8px;border:none;background:var(--accent);color:#000;
+          cursor:pointer;transition:opacity .15s;
+        ">
+          Update Password
+        </button>
+      </div>
+    </div>
+
+    <!-- Google OAuth users — they don't have a Supabase password to change. -->
+    <div class="section-card" id="change-password-google" style="display:none">
+      <div class="section-header">
+        <span class="section-icon">🔒</span>
+        <span class="section-title">Password</span>
+        <span class="section-sub">Managed by Google</span>
+      </div>
+      <div class="section-body">
+        <div style="font-size:13px;color:var(--text2);line-height:1.6">
+          You signed in with Google, so your password is managed through your Google Account. To change it, visit your <a href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:none">Google Account security settings</a>.
         </div>
       </div>
     </div>
@@ -1180,6 +1305,8 @@ async function loadProfile(){
         // Pick which subscription card to show based on whether they're a
         // paid subscriber (has Stripe customer ID) or a comp account.
         applySubscriptionCardState(p.stripe_customer_id);
+        // Pick which password card to show based on auth provider.
+        applyChangePasswordCardState(session);
         return;
       }
     } catch(e){}
@@ -1193,6 +1320,9 @@ async function loadProfile(){
 
   if(session){
     updateHeaderUser(session.user.email);
+    // Even when the Supabase profile fetch fails, we still know who the
+    // user is — show them the right password card based on their provider.
+    applyChangePasswordCardState(session);
   }
   // No row data available — leave both subscription cards hidden.
 }
@@ -1206,6 +1336,200 @@ function applySubscriptionCardState(stripeCustomerId){
   const compCard = document.getElementById('subscription-comp');
   if(paidCard) paidCard.style.display = hasStripe ? '' : 'none';
   if(compCard) compCard.style.display = hasStripe ? 'none' : '';
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Password change — duplicated from signup.html. If you change Supabase's
+// password rules, update validatePassword in BOTH files.
+// ──────────────────────────────────────────────────────────────────────────
+
+function validatePassword(pw){
+  pw = pw || '';
+  return {
+    length: pw.length >= 8,
+    lower:  /[a-z]/.test(pw),
+    upper:  /[A-Z]/.test(pw),
+    digit:  /[0-9]/.test(pw),
+    symbol: /[^A-Za-z0-9]/.test(pw),
+    get allValid(){
+      return this.length && this.lower && this.upper && this.digit && this.symbol;
+    },
+  };
+}
+
+const PW_EYE_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+const PW_EYE_OFF  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-7-10-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+function togglePwVisibility(inputId, btnEl){
+  const input = document.getElementById(inputId);
+  if(!input) return;
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  btnEl.innerHTML = showing ? PW_EYE_OPEN : PW_EYE_OFF;
+}
+
+function applyChecklistTo(listId, result){
+  const list = document.getElementById(listId);
+  if(!list) return;
+  list.querySelectorAll('li').forEach(li => {
+    const rule = li.getAttribute('data-rule');
+    li.classList.toggle('ok', !!result[rule]);
+  });
+}
+
+// Show which password card applies to this user. Email/password users get
+// the form; Google OAuth users get the "managed by Google" note.
+function applyChangePasswordCardState(session){
+  const provider = session?.user?.app_metadata?.provider || 'email';
+  const isGoogle = provider === 'google';
+  const formCard   = document.getElementById('change-password-form');
+  const googleCard = document.getElementById('change-password-google');
+  if(formCard)   formCard.style.display   = isGoogle ? 'none' : '';
+  if(googleCard) googleCard.style.display = isGoogle ? '' : 'none';
+}
+
+// Live updates while typing the new password.
+function onChangePasswordNewInput(){
+  const pw = document.getElementById('cp-new').value;
+  applyChecklistTo('cp-pw-rules', validatePassword(pw));
+  updateChangePasswordBtnState();
+}
+
+// Enable Update button only when: current is filled, new passes all rules,
+// and confirm matches new. Also surfaces the "passwords don't match" warning
+// once the user has typed something in confirm.
+function updateChangePasswordBtnState(){
+  const current = document.getElementById('cp-current').value;
+  const newPw   = document.getElementById('cp-new').value;
+  const confirm = document.getElementById('cp-confirm').value;
+  const result  = validatePassword(newPw);
+
+  // Mismatch indicator — only shown once user has typed something to confirm
+  const mismatchEl = document.getElementById('cp-mismatch');
+  const showMismatch = confirm.length > 0 && confirm !== newPw;
+  if(mismatchEl) mismatchEl.style.display = showMismatch ? '' : 'none';
+
+  const ok = current.length > 0 && result.allValid && newPw === confirm && confirm.length > 0;
+  const btn = document.getElementById('cp-btn');
+  if(btn) btn.disabled = !ok;
+}
+
+function showChangePwStatus(message, isError){
+  const el = document.getElementById('cp-status');
+  if(!el) return;
+  el.textContent = message;
+  el.style.display = '';
+  if(isError){
+    el.style.background = 'rgba(248,113,113,.1)';
+    el.style.border = '1px solid rgba(248,113,113,.3)';
+    el.style.color = 'var(--red)';
+  } else {
+    el.style.background = 'rgba(74,222,128,.1)';
+    el.style.border = '1px solid rgba(74,222,128,.3)';
+    el.style.color = 'var(--green)';
+  }
+}
+
+function clearChangePwStatus(){
+  const el = document.getElementById('cp-status');
+  if(el) el.style.display = 'none';
+}
+
+async function handleChangePassword(){
+  clearChangePwStatus();
+
+  const session = await getSessionRefreshed();
+  if(!session){
+    showChangePwStatus('Your session has expired. Please sign in again.', true);
+    setTimeout(() => { window.location.href = '/signup.html?login'; }, 1500);
+    return;
+  }
+
+  const email   = session.user?.email;
+  const current = document.getElementById('cp-current').value;
+  const newPw   = document.getElementById('cp-new').value;
+  const confirm = document.getElementById('cp-confirm').value;
+
+  // Defense in depth — even if someone bypasses the disabled button via
+  // DevTools, the JS still won't submit invalid input.
+  if(!email){
+    showChangePwStatus('Could not determine your email address. Please sign in again.', true);
+    return;
+  }
+  if(!validatePassword(newPw).allValid){
+    showChangePwStatus('New password does not meet the requirements above.', true);
+    return;
+  }
+  if(newPw !== confirm){
+    showChangePwStatus("New password and confirmation don't match.", true);
+    return;
+  }
+  if(newPw === current){
+    showChangePwStatus('New password must be different from your current password.', true);
+    return;
+  }
+
+  const btn = document.getElementById('cp-btn');
+  btn.disabled = true;
+  btn.textContent = 'Verifying...';
+
+  // Step 1 — re-authenticate the current password so we know the user
+  // actually owns the session, not just someone walking up to an unlocked
+  // computer. Supabase's password endpoint accepts this without breaking
+  // the existing session.
+  try {
+    const verifyResp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
+      body: JSON.stringify({ email, password: current }),
+    });
+    if(!verifyResp.ok){
+      // 400 = bad credentials. We don't care about other shapes.
+      showChangePwStatus('Current password is incorrect.', true);
+      btn.disabled = false;
+      btn.textContent = 'Update Password';
+      return;
+    }
+  } catch(e){
+    showChangePwStatus('Could not verify your current password. Please try again.', true);
+    btn.disabled = false;
+    btn.textContent = 'Update Password';
+    return;
+  }
+
+  // Step 2 — update the password using the (refreshed) session token.
+  btn.textContent = 'Updating...';
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type':'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ password: newPw }),
+    });
+    const data = await resp.json();
+    if(!resp.ok || data.error){
+      const msg = data.error_description || data.error?.message || data.msg || 'Could not update password.';
+      showChangePwStatus(msg, true);
+      btn.disabled = false;
+      btn.textContent = 'Update Password';
+      return;
+    }
+    // Success — clear inputs, show confirmation
+    document.getElementById('cp-current').value = '';
+    document.getElementById('cp-new').value = '';
+    document.getElementById('cp-confirm').value = '';
+    applyChecklistTo('cp-pw-rules', validatePassword(''));
+    showChangePwStatus('Password updated successfully.', false);
+    btn.textContent = 'Update Password';
+    // Button stays disabled because all fields are now empty — that's fine.
+  } catch(e){
+    showChangePwStatus('Could not reach the server. Please try again.', true);
+    btn.disabled = false;
+    btn.textContent = 'Update Password';
+  }
 }
 
 function populateForm(p){
