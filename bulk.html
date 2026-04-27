@@ -396,12 +396,19 @@ body::before{
 
       <div class="fsc-method-block" id="fsc-percent-block" style="display:none">
         <div class="fsc-explainer">
-          FSC = a percentage of base revenue, set by your contract. Used by some bulk-ag and LTL carriers.
+          For every $0.05 diesel rises above the base, FSC% goes up by 1%. The driver's surcharge is then that percentage of the base load rate.
         </div>
-        <div class="field" style="margin-bottom:0">
-          <label>FSC percentage of base rate</label>
-          <input type="number" step="1" value="32" oninput="calc()" id="fsc-pct" />
-          <div class="field-help">e.g. 32% of base. Negotiated with your customer.</div>
+        <div class="field-row">
+          <div class="field" style="margin-bottom:0">
+            <label>Base diesel ($/gal)</label>
+            <input type="number" step="0.01" value="1.30" oninput="calc()" id="fsc-pct-base" />
+            <div class="field-help">Industry common: $1.20–$1.30</div>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label>FSC % <span id="fsc-pct-mode" style="font-size:9px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-left:4px">Auto</span></label>
+            <input type="number" step="1" value="" placeholder="auto" oninput="onFscPctEdit()" id="fsc-pct" />
+            <div class="field-help" id="fsc-pct-help">Calculated from current diesel</div>
+          </div>
         </div>
       </div>
     </div>
@@ -520,6 +527,7 @@ const STATE_TO_REGION = {};       // built from rates.json on load
 let fscMethod = 'permile';        // 'permile' or 'percent'
 let mileMode = 'loaded';          // 'loaded' or 'all'
 let mileModeAuto = true;          // true until user manually picks
+let fscPctManual = false;         // true once the user types in the FSC% field
 
 // ── Theme (matches multistop / lanes) ─────────────────────────────────────
 function applyTheme(theme){
@@ -575,11 +583,13 @@ async function loadRates(){
 // to the hardcoded fallback so the calculator stays useful if EIA is down.
 async function loadDieselPrice(){
   try {
-    const resp = await fetch('/.netlify/functions/diesel-price');
+    const resp = await fetch('/.netlify/functions/diesel-price?region=NUS');
     if(!resp.ok) return;
     const data = await resp.json();
-    if(typeof data.price === 'number' && data.price > 0){
-      DIESEL_PRICE = data.price;
+    // Endpoint may return price as either a number or a string — normalize.
+    const price = parseFloat(data.price);
+    if(!isNaN(price) && price > 0){
+      DIESEL_PRICE = price;
       document.getElementById('diesel-text').textContent =
         `EIA Diesel: $${DIESEL_PRICE.toFixed(2)}/gal`;
       calc();
@@ -915,6 +925,54 @@ function setMileMode(mode){
   calc();
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+// FSC% auto-calculation (percent-of-base method)
+// Formula: for every $0.05 diesel rises above the user-set base,
+// the surcharge percentage goes up by 1 point. Floored at 0.
+// ──────────────────────────────────────────────────────────────────────────
+function computeAutoFscPct(){
+  const base = +document.getElementById('fsc-pct-base').value || 0;
+  if(base <= 0) return 0;
+  const pct = (DIESEL_PRICE - base) / 0.05;
+  return Math.max(0, Math.round(pct * 10) / 10);  // 1 decimal, never negative
+}
+
+// Returns the percentage to actually use in the math — either the live
+// auto-calc, or the user's manual override if they've typed one in.
+function getEffectiveFscPct(){
+  if(fscPctManual){
+    return +document.getElementById('fsc-pct').value || 0;
+  }
+  return computeAutoFscPct();
+}
+
+// User typed in the FSC% input — switch to manual mode and update the UI.
+function onFscPctEdit(){
+  fscPctManual = true;
+  const modeLabel = document.getElementById('fsc-pct-mode');
+  if(modeLabel){
+    modeLabel.textContent = 'Manual · reset';
+    modeLabel.style.color = 'var(--text3)';
+    modeLabel.style.cursor = 'pointer';
+    modeLabel.onclick = resetFscPct;
+  }
+  calc();
+}
+
+// Snap back to auto-calculated value.
+function resetFscPct(){
+  fscPctManual = false;
+  const modeLabel = document.getElementById('fsc-pct-mode');
+  if(modeLabel){
+    modeLabel.textContent = 'Auto';
+    modeLabel.style.color = 'var(--green)';
+    modeLabel.style.cursor = 'default';
+    modeLabel.onclick = null;
+  }
+  document.getElementById('fsc-pct').value = '';  // empty = placeholder shows "auto"
+  calc();
+}
+
 // ── Number formatting helper ──────────────────────────────────────────────
 function fmt$(n){
   return '$' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -953,6 +1011,26 @@ function calc(){
       `Deadhead not factored in.`;
   }
 
+  // FSC% UI sync — shown only in percent mode. In auto mode the placeholder
+  // shows the live calculated value; in manual mode the user's typed value
+  // is what's used. The help text shows the formula either way so drivers
+  // can see exactly where the % comes from.
+  const pctInput  = document.getElementById('fsc-pct');
+  const pctHelp   = document.getElementById('fsc-pct-help');
+  const pctBaseEl = document.getElementById('fsc-pct-base');
+  if(pctInput && pctHelp && pctBaseEl){
+    const autoPct  = computeAutoFscPct();
+    const baseDsl  = +pctBaseEl.value || 0;
+    if(!fscPctManual){
+      pctInput.placeholder = autoPct.toFixed(0);
+      pctHelp.textContent =
+        `= ($${DIESEL_PRICE.toFixed(2)} − $${baseDsl.toFixed(2)}) ÷ $0.05 = ${autoPct.toFixed(0)}%`;
+    } else {
+      pctHelp.textContent =
+        `Manual override · auto would be ${autoPct.toFixed(0)}% at current diesel`;
+    }
+  }
+
   // FSC per-mile (constant for the load when method = per-mile)
   let fscPerMile = 0;
   if(fscMethod === 'permile'){
@@ -982,7 +1060,7 @@ function calc(){
     const requiredBase = targetRevenue - fscTotal;
     requiredCwtRate = requiredBase / cwt;
   } else {
-    const pct = +document.getElementById('fsc-pct').value || 0;
+    const pct = getEffectiveFscPct();
     const requiredBase = targetRevenue / (1 + pct/100);
     requiredCwtRate = requiredBase / cwt;
   }
@@ -1040,7 +1118,7 @@ function calc(){
     fscTotal = fscPerMile * loadedMiles;
     fscDescription = `Fuel surcharge ($${fscPerMile.toFixed(2)}/mi × ${loadedMiles.toLocaleString()} mi)`;
   } else {
-    const pct = +document.getElementById('fsc-pct').value || 0;
+    const pct = getEffectiveFscPct();
     fscTotal = offeredBase * (pct/100);
     fscDescription = `Fuel surcharge (${pct}% of base)`;
   }
