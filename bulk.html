@@ -552,7 +552,7 @@ let fscPctManual = false;         // true once the user types in the FSC% field
 function applyTheme(theme){
   const r = document.documentElement;
   if(theme === 'light'){
-    r.style.setProperty('--bg','#ffffff');r.style.setProperty('--panel','#ffffff');
+    r.style.setProperty('--bg','#f0f4f8');r.style.setProperty('--panel','#ffffff');
     r.style.setProperty('--card','#f8fafc');r.style.setProperty('--card2','#eef2f7');
     r.style.setProperty('--border','#dde3ed');r.style.setProperty('--border2','#c8d4e0');
     r.style.setProperty('--text','#0f172a');r.style.setProperty('--text2','#334155');
@@ -567,6 +567,25 @@ function applyTheme(theme){
     r.style.setProperty('--text3','#8896a8');
     document.getElementById('theme-icon').textContent = '☀️';
     document.getElementById('theme-label').textContent = 'Light Mode';
+  }
+  updateThemeBtn(theme);
+}
+// Inverts the floating theme button's styling so it always contrasts with the
+// page. In light mode the button is dark (showing "Dark Mode"); in dark mode
+// it's cream (showing "Light Mode"). Mirrors the lanes / multistop pattern.
+function updateThemeBtn(theme){
+  const btn = document.getElementById('theme-btn');
+  if(!btn) return;
+  if(theme === 'light'){
+    btn.style.setProperty('background', '#1a1d24', 'important');
+    btn.style.setProperty('border-color', '#1a1d24', 'important');
+    btn.style.setProperty('color', '#e2e8f0', 'important');
+    btn.style.setProperty('box-shadow', '0 4px 16px rgba(0,0,0,.5)', 'important');
+  } else {
+    btn.style.setProperty('background', '#f0ede8', 'important');
+    btn.style.setProperty('border-color', '#c8c4bc', 'important');
+    btn.style.setProperty('color', '#1a1d24', 'important');
+    btn.style.setProperty('box-shadow', '0 4px 12px rgba(0,0,0,.15)', 'important');
   }
 }
 function toggleTheme(){
