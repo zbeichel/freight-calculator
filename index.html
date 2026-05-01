@@ -1059,21 +1059,11 @@ html.light .hos-day-header{background:var(--card2)}
         <!-- Bulk Load Calculator link -->
         <a id="bulk-btn" href="#"
           onclick="handleBulkClick(event)"
-          style="width:100%;margin-bottom:8px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
+          style="width:100%;margin-bottom:18px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
           onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
           onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
           <span style="flex:1;text-align:center">🥔 Bulk Load Calculator</span>
           <span id="bulk-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);opacity:.6;padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PRO</span>
-        </a>
-
-        <!-- Detention Tracker link -->
-        <a id="detention-btn" href="#"
-          onclick="handleDetentionClick(event)"
-          style="width:100%;margin-bottom:18px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
-          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
-          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
-          <span style="flex:1;text-align:center">🕐 Detention Tracker</span>
-          <span id="detention-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);opacity:.6;padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PRO</span>
         </a>
 
         <!-- Profitability calculator form -->
@@ -2425,15 +2415,6 @@ function handleBulkClick(e){
   }
 }
 
-function handleDetentionClick(e){
-  e.preventDefault();
-  if(isProUser){
-    window.location.href = '/detention.html';
-  } else {
-    showProModal('The Detention Tracker is a Pro feature. See crowdsourced detention reports from other haulers and learn which shippers and receivers actually pay.');
-  }
-}
-
 function updateProUI(){
   const notesField = document.getElementById('load-notes-field');
   const quickSave  = document.getElementById('quick-save-quote-btn');
@@ -2455,8 +2436,6 @@ function updateProUI(){
   if(lanesTag) lanesTag.style.display = isProUser ? 'none' : '';
   const bulkTag = document.getElementById('bulk-pro-tag');
   if(bulkTag) bulkTag.style.display = isProUser ? 'none' : '';
-  const detentionTag = document.getElementById('detention-pro-tag');
-  if(detentionTag) detentionTag.style.display = isProUser ? 'none' : '';
   updateQuoteLogGate();
   if(isProUser) loadQuoteLogFromSupabase();
   // Re-apply theme button styling in case Pro UI update reset it
