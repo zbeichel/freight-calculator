@@ -202,6 +202,7 @@ header{
 header .brand{ justify-self:start; }
 header .header-center{ justify-self:center;display:flex;align-items:center; }
 header .pro-account-btn{ justify-self:end; }
+header .header-auth{ justify-self:end; }
 .brand-name-mobile{
   display:none;
   font-family:'Space Grotesk',sans-serif;
@@ -779,6 +780,26 @@ html.light .hos-day-header{background:var(--card2)}
 .pro-account-btn:hover{border-color:var(--accent);color:var(--accent)}
 .pro-account-btn.logged-in{border-color:var(--accent);color:var(--text2);background:var(--accentbg)}
 .pro-account-btn.logged-in:hover{color:var(--accent)}
+
+/* Header auth wrapper — keeps the account pill and sign-out button paired */
+.header-auth{
+  display:flex;align-items:center;gap:6px;justify-self:end;
+}
+/* Sign-out button — only shown when signed in. Compact icon button so the
+   account pill stays the dominant element. Provides a second escape hatch
+   alongside the one on profile.html. */
+.header-signout-btn{
+  display:none;
+  font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;
+  width:28px;height:28px;border-radius:14px;
+  border:1px solid var(--border2);background:var(--card);
+  color:var(--text3);cursor:pointer;
+  align-items:center;justify-content:center;
+  transition:border-color .15s,color .15s,background .15s;
+  flex-shrink:0;line-height:1;padding:0;
+}
+.header-signout-btn:hover{border-color:var(--red);color:var(--red);background:var(--card2)}
+.header-signout-btn.show{display:flex}
 .theme-btn-float {
   position: fixed;
   bottom: 24px;
@@ -951,10 +972,18 @@ html.light .hos-day-header{background:var(--card2)}
       <span style="color:var(--text3);font-size:11px;margin-left:4px">per mile · DAT</span>
     </div>
   </div>
-  <a href="/signup.html" id="pro-account-btn" class="pro-account-btn">
-    <span id="pro-btn-icon">⭐</span>
-    <span id="pro-name-label">Pro</span>
-  </a>
+  <div class="header-auth">
+    <a href="/signup.html" id="pro-account-btn" class="pro-account-btn">
+      <span id="pro-btn-icon">⭐</span>
+      <span id="pro-name-label">Pro</span>
+    </a>
+    <button id="header-signout-btn" onclick="handleHeaderSignOut()"
+      class="header-signout-btn"
+      title="Sign out"
+      aria-label="Sign out">
+      ⎋
+    </button>
+  </div>
 </header>
 
 <!-- ── Floating theme button ── -->
@@ -2324,6 +2353,7 @@ function updateProAccountBtn(){
     const btn = document.getElementById('pro-account-btn');
     const nameLabel = document.getElementById('pro-name-label');
     const icon = document.getElementById('pro-btn-icon');
+    const signOutBtn = document.getElementById('header-signout-btn');
     if(!btn) return;
     const loggedIn = getProSession() !== null;
     const name = profile.contactName || profile.companyName || '';
@@ -2332,11 +2362,13 @@ function updateProAccountBtn(){
       icon.textContent = '👤';
       btn.href = '/profile.html';
       btn.classList.add('logged-in');
+      if(signOutBtn) signOutBtn.classList.add('show');
     } else {
       nameLabel.textContent = 'Pro';
       icon.textContent = '⭐';
       btn.href = '/signup.html';
       btn.classList.remove('logged-in');
+      if(signOutBtn) signOutBtn.classList.remove('show');
     }
     // Re-apply theme button styling in case it got reset
     updateThemeBtn();
@@ -4992,6 +5024,37 @@ function getProSession(){
     if(val?.access_token) return val;
   } catch(e){}
   return null;
+}
+
+// ── Header sign-out handler ─────────────────────────────────────────────
+// Provides a second escape hatch in addition to the one on profile.html.
+// Best-effort tells Supabase to invalidate the token, then unconditionally
+// wipes local session/profile/cache data and reloads. Works even if the
+// Supabase API call fails (network down, token already revoked, etc.).
+async function handleHeaderSignOut(){
+  try {
+    const session = getProSession();
+    if(session?.access_token){
+      await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/auth/v1/logout', {
+        method: 'POST',
+        headers: {
+          'apikey': 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ',
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+    }
+  } catch(e){
+    // Ignore — local cleanup below runs regardless
+  }
+  // Wipe everything that signals "logged in" so the page renders the
+  // signed-out state cleanly.
+  Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k));
+  localStorage.removeItem('qfc_pro_status');
+  localStorage.removeItem('qfc_pro_profile');
+  localStorage.removeItem('qfc_session');
+  // Reload to the homepage rather than just refreshing — guarantees a clean
+  // initial state even if the user was on a deep link with auth-only content.
+  window.location.href = '/';
 }
 
 async function saveQuote(){
