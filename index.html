@@ -202,6 +202,7 @@ header{
 header .brand{ justify-self:start; }
 header .header-center{ justify-self:center;display:flex;align-items:center; }
 header .pro-account-btn{ justify-self:end; }
+header .header-auth{ justify-self:end; }
 .brand-name-mobile{
   display:none;
   font-family:'Space Grotesk',sans-serif;
@@ -779,6 +780,27 @@ html.light .hos-day-header{background:var(--card2)}
 .pro-account-btn:hover{border-color:var(--accent);color:var(--accent)}
 .pro-account-btn.logged-in{border-color:var(--accent);color:var(--text2);background:var(--accentbg)}
 .pro-account-btn.logged-in:hover{color:var(--accent)}
+
+/* Header auth wrapper — keeps the account pill and sign-out button paired */
+.header-auth{
+  display:flex;align-items:center;gap:6px;justify-self:end;
+}
+/* Sign-out button — only shown when signed in. Compact icon button so the
+   account pill stays the dominant element. Provides a second escape hatch
+   alongside the one on profile.html — if a user gets stuck, they can sign
+   out without leaving the homepage. */
+.header-signout-btn{
+  display:none;
+  font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;
+  width:28px;height:28px;border-radius:14px;
+  border:1px solid var(--border2);background:var(--card);
+  color:var(--text3);cursor:pointer;
+  align-items:center;justify-content:center;
+  transition:border-color .15s,color .15s,background .15s;
+  flex-shrink:0;line-height:1;padding:0;
+}
+.header-signout-btn:hover{border-color:var(--red);color:var(--red);background:var(--card2)}
+.header-signout-btn.show{display:flex}
 .theme-btn-float {
   position: fixed;
   bottom: 24px;
@@ -951,10 +973,18 @@ html.light .hos-day-header{background:var(--card2)}
       <span style="color:var(--text3);font-size:11px;margin-left:4px">per mile · DAT</span>
     </div>
   </div>
-  <a href="/signup.html" id="pro-account-btn" class="pro-account-btn">
-    <span id="pro-btn-icon">⭐</span>
-    <span id="pro-name-label">Pro</span>
-  </a>
+  <div class="header-auth">
+    <a href="/signup.html" id="pro-account-btn" class="pro-account-btn">
+      <span id="pro-btn-icon">⭐</span>
+      <span id="pro-name-label">Pro</span>
+    </a>
+    <button id="header-signout-btn" onclick="handleHeaderSignOut()"
+      class="header-signout-btn"
+      title="Sign out"
+      aria-label="Sign out">
+      ⎋
+    </button>
+  </div>
 </header>
 
 <!-- ── Floating theme button ── -->
@@ -1029,11 +1059,21 @@ html.light .hos-day-header{background:var(--card2)}
         <!-- Bulk Load Calculator link -->
         <a id="bulk-btn" href="#"
           onclick="handleBulkClick(event)"
-          style="width:100%;margin-bottom:18px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
+          style="width:100%;margin-bottom:8px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
           onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
           onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
           <span style="flex:1;text-align:center">🥔 Bulk Load Calculator</span>
           <span id="bulk-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);opacity:.6;padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PRO</span>
+        </a>
+
+        <!-- Detention Tracker link -->
+        <a id="detention-btn" href="#"
+          onclick="handleDetentionClick(event)"
+          style="width:100%;margin-bottom:18px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
+          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+          <span style="flex:1;text-align:center">🕐 Detention Tracker</span>
+          <span id="detention-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);opacity:.6;padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PRO</span>
         </a>
 
         <!-- Profitability calculator form -->
@@ -2180,7 +2220,7 @@ async function refreshSession(key, val){
       body: JSON.stringify({ refresh_token: val.refresh_token })
     });
     const data = await resp.json();
-    if(data.access_token){
+    if(resp.ok && data.access_token){
       const newVal = {
         access_token:  data.access_token,
         refresh_token: data.refresh_token || val.refresh_token,
@@ -2190,7 +2230,19 @@ async function refreshSession(key, val){
       localStorage.setItem(key, JSON.stringify(newVal));
       return newVal;
     }
-  } catch(e){}
+    // Refresh was rejected by Supabase (revoked, expired, or invalidated).
+    // The token data in localStorage is now permanently dead. Wipe the
+    // sb-* keys so the page renders the signed-out state cleanly. Without
+    // this, stale data leaves the user stuck — pages think they're signed
+    // in but no auth call works.
+    console.warn('[auth] Refresh token rejected, clearing local session');
+    Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k));
+    localStorage.removeItem('qfc_pro_status');
+  } catch(e){
+    // Network error — leave storage intact so the user can retry on next
+    // page load. Don't wipe on transient failures.
+    console.warn('[auth] Network error refreshing token:', e);
+  }
   return null;
 }
 
@@ -2324,6 +2376,7 @@ function updateProAccountBtn(){
     const btn = document.getElementById('pro-account-btn');
     const nameLabel = document.getElementById('pro-name-label');
     const icon = document.getElementById('pro-btn-icon');
+    const signOutBtn = document.getElementById('header-signout-btn');
     if(!btn) return;
     const loggedIn = getProSession() !== null;
     const name = profile.contactName || profile.companyName || '';
@@ -2332,11 +2385,13 @@ function updateProAccountBtn(){
       icon.textContent = '👤';
       btn.href = '/profile.html';
       btn.classList.add('logged-in');
+      if(signOutBtn) signOutBtn.classList.add('show');
     } else {
       nameLabel.textContent = 'Pro';
       icon.textContent = '⭐';
       btn.href = '/signup.html';
       btn.classList.remove('logged-in');
+      if(signOutBtn) signOutBtn.classList.remove('show');
     }
     // Re-apply theme button styling in case it got reset
     updateThemeBtn();
@@ -2370,6 +2425,15 @@ function handleBulkClick(e){
   }
 }
 
+function handleDetentionClick(e){
+  e.preventDefault();
+  if(isProUser){
+    window.location.href = '/detention.html';
+  } else {
+    showProModal('The Detention Tracker is a Pro feature. See crowdsourced detention reports from other haulers and learn which shippers and receivers actually pay.');
+  }
+}
+
 function updateProUI(){
   const notesField = document.getElementById('load-notes-field');
   const quickSave  = document.getElementById('quick-save-quote-btn');
@@ -2391,6 +2455,8 @@ function updateProUI(){
   if(lanesTag) lanesTag.style.display = isProUser ? 'none' : '';
   const bulkTag = document.getElementById('bulk-pro-tag');
   if(bulkTag) bulkTag.style.display = isProUser ? 'none' : '';
+  const detentionTag = document.getElementById('detention-pro-tag');
+  if(detentionTag) detentionTag.style.display = isProUser ? 'none' : '';
   updateQuoteLogGate();
   if(isProUser) loadQuoteLogFromSupabase();
   // Re-apply theme button styling in case Pro UI update reset it
@@ -4992,6 +5058,38 @@ function getProSession(){
     if(val?.access_token) return val;
   } catch(e){}
   return null;
+}
+
+// ── Header sign-out handler ─────────────────────────────────────────────
+// Provides a second escape hatch in addition to the one on profile.html.
+// Best-effort tells Supabase to invalidate the token, then unconditionally
+// wipes local session/profile/cache data and reloads. Works even if the
+// Supabase API call fails (network down, token already revoked, etc.).
+async function handleHeaderSignOut(){
+  try {
+    const session = getProSession();
+    if(session?.access_token){
+      await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/auth/v1/logout', {
+        method: 'POST',
+        headers: {
+          'apikey': 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ',
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+    }
+  } catch(e){
+    // Ignore — local cleanup below runs regardless
+  }
+  // Wipe everything that signals "logged in" so the page renders the
+  // signed-out state cleanly. Same set of keys the refreshSession failure
+  // path clears, plus the profile cache and the session backup.
+  Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k));
+  localStorage.removeItem('qfc_pro_status');
+  localStorage.removeItem('qfc_pro_profile');
+  localStorage.removeItem('qfc_session');
+  // Reload to the homepage rather than just refreshing — guarantees a clean
+  // initial state even if the user was on a deep link with auth-only content.
+  window.location.href = '/';
 }
 
 async function saveQuote(){

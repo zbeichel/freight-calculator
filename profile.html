@@ -1165,7 +1165,7 @@ async function getSessionRefreshed(){
         body: JSON.stringify({ refresh_token: val.refresh_token })
       });
       const data = await resp.json();
-      if(data.access_token){
+      if(resp.ok && data.access_token){
         const newVal = {
           access_token:  data.access_token,
           refresh_token: data.refresh_token || val.refresh_token,
@@ -1175,7 +1175,18 @@ async function getSessionRefreshed(){
         localStorage.setItem(key, JSON.stringify(newVal));
         return newVal;
       }
-    } catch(e){}
+      // Refresh failed — Supabase rejected the refresh_token (revoked, expired,
+      // or invalidated). The data in localStorage is now permanently dead.
+      // Wipe it so the page renders the signed-out state cleanly instead of
+      // leaving the user stuck in a half-broken "logged in but nothing works"
+      // state where they can't even sign out.
+      console.warn('[auth] Refresh token rejected by Supabase, clearing local session');
+      clearSession();
+    } catch(e){
+      // Network error — leave the session alone; caller will treat as null
+      // and the user can retry. No need to wipe storage on transient errors.
+      console.warn('[auth] Network error refreshing token:', e);
+    }
     return null;
   }
   return val;
@@ -1275,6 +1286,16 @@ async function saveProfile(){
 
 // ── Load from Supabase (fall back to localStorage) ─────────────────────────
 async function loadProfile(){
+  // ALWAYS show the sign-out button as soon as we detect any auth-related
+  // data in localStorage, before doing any API calls. This guarantees the
+  // user can escape even when the session is broken (revoked refresh token,
+  // network failure, Supabase outage, etc.). Without this, a user with a
+  // dead session has no way out except clearing their browser data.
+  const hasSessionLikeData = Object.keys(localStorage).some(k => k.startsWith('sb-'));
+  if(hasSessionLikeData){
+    updateHeaderUser('Account');
+  }
+
   const session = await getSessionRefreshed();
   const userId = session?.user?.id || session?.user?.sub;
 
