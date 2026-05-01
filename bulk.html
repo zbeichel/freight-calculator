@@ -27,6 +27,11 @@ a.brand-name:hover span{opacity:.8}
 .back-link{font-size:12px;font-weight:600;color:var(--text2);text-decoration:none;display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--card);transition:all .15s;white-space:nowrap}
 .back-link:hover{color:var(--accent);border-color:var(--accent);background:var(--accentbg)}
 
+/* ── Footer (matches lanes / multistop / profile pattern) ── */
+footer{text-align:center;padding:24px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);margin-top:32px}
+footer a{color:var(--text2);text-decoration:none}
+footer a:hover{color:var(--accent)}
+
 /* ── Floating theme button ── */
 .theme-btn-float{
   position:fixed;bottom:24px;right:24px;z-index:999;
@@ -516,6 +521,12 @@ body::before{
   </div>
 
 </div>
+
+<!-- ── Footer (matches lanes / multistop / profile pattern) ── -->
+<footer>
+  <p style="margin-bottom:8px">Questions or problems? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent)">info@quickfreightcalc.com</a></p>
+  <p>By using QuickFreightCalc you agree to our <a href="/terms.html" target="_blank" rel="noopener noreferrer">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a>. Rates are estimates only — not guaranteed quotes.</p>
+</footer>
 
 
 <script>
