@@ -781,25 +781,105 @@ html.light .hos-day-header{background:var(--card2)}
 .pro-account-btn.logged-in{border-color:var(--accent);color:var(--text2);background:var(--accentbg)}
 .pro-account-btn.logged-in:hover{color:var(--accent)}
 
-/* Header auth wrapper — keeps the account pill and sign-out button paired */
+/* Header auth wrapper — keeps the account pill horizontally placed */
 .header-auth{
   display:flex;align-items:center;gap:6px;justify-self:end;
 }
-/* Sign-out button — only shown when signed in. Compact icon button so the
-   account pill stays the dominant element. Provides a second escape hatch
-   alongside the one on profile.html. */
-.header-signout-btn{
-  display:none;
-  font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;
-  width:28px;height:28px;border-radius:14px;
-  border:1px solid var(--border2);background:var(--card);
-  color:var(--text3);cursor:pointer;
-  align-items:center;justify-content:center;
-  transition:border-color .15s,color .15s,background .15s;
-  flex-shrink:0;line-height:1;padding:0;
+
+/* ── Account dropdown menu ───────────────────────────────────────────────
+   The wrap is the positioning context — the pill sits inline, the menu
+   floats absolutely below it. Menu visibility is toggled via JS adding
+   the .open class. Hidden state uses visibility+opacity (rather than
+   display:none) so we get a fade transition.
+*/
+.account-menu-wrap{
+  position:relative;
+  display:flex;align-items:center;
 }
-.header-signout-btn:hover{border-color:var(--red);color:var(--red);background:var(--card2)}
-.header-signout-btn.show{display:flex}
+.pro-btn-caret{
+  display:none;
+  font-size:9px;
+  margin-left:2px;
+  transition:transform .15s;
+  opacity:.7;
+}
+.pro-account-btn.logged-in .pro-btn-caret{display:inline}
+.pro-account-btn.logged-in[aria-expanded="true"] .pro-btn-caret{transform:rotate(180deg)}
+.account-menu{
+  position:absolute;
+  top:calc(100% + 6px);
+  right:0;
+  min-width:220px;
+  background:var(--card);
+  border:1px solid var(--border2);
+  border-radius:10px;
+  padding:6px 0;
+  box-shadow:0 8px 24px rgba(0,0,0,.25);
+  visibility:hidden;
+  opacity:0;
+  transform:translateY(-4px);
+  transition:opacity .12s,transform .12s,visibility 0s linear .12s;
+  z-index:200;
+}
+.account-menu.open{
+  visibility:visible;
+  opacity:1;
+  transform:translateY(0);
+  transition:opacity .12s,transform .12s,visibility 0s;
+}
+.account-menu-header{
+  padding:10px 14px 8px 14px;
+}
+.account-menu-label{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:9px;font-weight:600;
+  color:var(--text3);
+  text-transform:uppercase;letter-spacing:.1em;
+  margin-bottom:2px;
+}
+.account-menu-name{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:13px;font-weight:600;
+  color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:200px;
+}
+.account-menu-divider{
+  height:1px;
+  background:var(--border);
+  margin:4px 0;
+}
+.account-menu-item{
+  display:flex;align-items:center;gap:10px;
+  width:100%;
+  padding:9px 14px;
+  font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;
+  color:var(--text2);
+  text-decoration:none;
+  background:transparent;border:none;
+  cursor:pointer;
+  text-align:left;
+  transition:background .12s,color .12s;
+}
+.account-menu-item:hover,
+.account-menu-item:focus-visible{
+  background:var(--card2);
+  color:var(--accent);
+  outline:none;
+}
+.account-menu-icon{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:16px;font-size:13px;
+  color:var(--text3);
+}
+.account-menu-item:hover .account-menu-icon,
+.account-menu-item:focus-visible .account-menu-icon{color:var(--accent)}
+.account-menu-item-danger{color:var(--red)}
+.account-menu-item-danger .account-menu-icon{color:var(--red)}
+.account-menu-item-danger:hover,
+.account-menu-item-danger:focus-visible{color:var(--red);background:var(--redbg)}
+.account-menu-item-danger:hover .account-menu-icon,
+.account-menu-item-danger:focus-visible .account-menu-icon{color:var(--red)}
 .theme-btn-float {
   position: fixed;
   bottom: 24px;
@@ -973,16 +1053,42 @@ html.light .hos-day-header{background:var(--card2)}
     </div>
   </div>
   <div class="header-auth">
-    <a href="/signup.html" id="pro-account-btn" class="pro-account-btn">
-      <span id="pro-btn-icon">⭐</span>
-      <span id="pro-name-label">Pro</span>
-    </a>
-    <button id="header-signout-btn" onclick="handleHeaderSignOut()"
-      class="header-signout-btn"
-      title="Sign out"
-      aria-label="Sign out">
-      ⎋
-    </button>
+    <!--
+      The account pill behaves differently based on auth state:
+        • Signed out: anchor that links to /signup.html (the upsell flow).
+        • Signed in:  click toggles the dropdown menu below; navigation is
+                      suppressed in JS via preventDefault. Profile, Detention
+                      Tracker, and Sign Out all live in the dropdown.
+    -->
+    <div class="account-menu-wrap">
+      <a href="/signup.html" id="pro-account-btn" class="pro-account-btn"
+         aria-haspopup="true" aria-expanded="false">
+        <span id="pro-btn-icon">⭐</span>
+        <span id="pro-name-label">Pro</span>
+        <span id="pro-btn-caret" class="pro-btn-caret" aria-hidden="true">▾</span>
+      </a>
+      <div id="account-menu" class="account-menu" role="menu" aria-hidden="true">
+        <div class="account-menu-header">
+          <div class="account-menu-label">Signed in as</div>
+          <div class="account-menu-name" id="account-menu-name">—</div>
+        </div>
+        <div class="account-menu-divider"></div>
+        <a href="/profile.html" class="account-menu-item" role="menuitem">
+          <span class="account-menu-icon" aria-hidden="true">⚙</span>
+          <span>Profile &amp; settings</span>
+        </a>
+        <a href="/detention.html" class="account-menu-item" role="menuitem">
+          <span class="account-menu-icon" aria-hidden="true">⏱</span>
+          <span>Detention Tracker</span>
+        </a>
+        <div class="account-menu-divider"></div>
+        <button type="button" class="account-menu-item account-menu-item-danger"
+                role="menuitem" onclick="handleHeaderSignOut()">
+          <span class="account-menu-icon" aria-hidden="true">⎋</span>
+          <span>Sign out</span>
+        </button>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -2353,26 +2459,94 @@ function updateProAccountBtn(){
     const btn = document.getElementById('pro-account-btn');
     const nameLabel = document.getElementById('pro-name-label');
     const icon = document.getElementById('pro-btn-icon');
-    const signOutBtn = document.getElementById('header-signout-btn');
+    const menu = document.getElementById('account-menu');
+    const menuName = document.getElementById('account-menu-name');
     if(!btn) return;
     const loggedIn = getProSession() !== null;
     const name = profile.contactName || profile.companyName || '';
     if(loggedIn){
-      nameLabel.textContent = name ? name.split(' ')[0] : 'Account';
+      const displayName = name ? name.split(' ')[0] : 'Account';
+      nameLabel.textContent = displayName;
       icon.textContent = '👤';
+      // Pill no longer navigates when signed in — clicks toggle the dropdown.
+      // We keep the href present (so right-click "open in new tab" still works
+      // and goes to the profile page), but suppress default navigation on
+      // left-click via the toggle handler.
       btn.href = '/profile.html';
       btn.classList.add('logged-in');
-      if(signOutBtn) signOutBtn.classList.add('show');
+      // Populate dropdown header with the user's full name when available,
+      // falling back to email-style identifiers if not.
+      if(menuName) menuName.textContent = name || profile.email || 'Account';
     } else {
       nameLabel.textContent = 'Pro';
       icon.textContent = '⭐';
       btn.href = '/signup.html';
       btn.classList.remove('logged-in');
-      if(signOutBtn) signOutBtn.classList.remove('show');
+      btn.setAttribute('aria-expanded', 'false');
+      // Make sure no stale open-state lingers from a prior signed-in session
+      if(menu){ menu.classList.remove('open'); menu.setAttribute('aria-hidden','true'); }
     }
     // Re-apply theme button styling in case it got reset
     updateThemeBtn();
   } catch(e){}
+}
+
+// ── Account dropdown menu ─────────────────────────────────────────────
+// Click handler is attached once at startup (see initAccountMenu) rather
+// than wired via inline onclick, because the pill is also used as a
+// regular anchor for signed-out users — we only want the toggle behavior
+// when the user is signed in. Keeping the wiring in JS lets us decide
+// on each click whether to open the menu or let the link navigate.
+function toggleAccountMenu(forceState){
+  const btn  = document.getElementById('pro-account-btn');
+  const menu = document.getElementById('account-menu');
+  if(!btn || !menu) return;
+  const willOpen = (typeof forceState === 'boolean')
+    ? forceState
+    : !menu.classList.contains('open');
+  menu.classList.toggle('open', willOpen);
+  menu.setAttribute('aria-hidden', willOpen ? 'false' : 'true');
+  btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+}
+function closeAccountMenu(){ toggleAccountMenu(false); }
+
+function initAccountMenu(){
+  const btn  = document.getElementById('pro-account-btn');
+  const menu = document.getElementById('account-menu');
+  if(!btn || !menu) return;
+
+  // Pill click — only intercept when signed in. Signed-out users get a
+  // plain anchor click, which navigates to /signup.html as expected.
+  btn.addEventListener('click', (e) => {
+    if(!btn.classList.contains('logged-in')) return; // signed out: let the link navigate
+    e.preventDefault();
+    toggleAccountMenu();
+  });
+
+  // Click anywhere else closes the menu. We test against the wrap rather
+  // than the menu itself so clicks on the pill don't trigger this listener
+  // (those are handled by the pill's own click handler above).
+  document.addEventListener('click', (e) => {
+    if(!menu.classList.contains('open')) return;
+    if(e.target.closest('.account-menu-wrap')) return;
+    closeAccountMenu();
+  });
+
+  // Escape key closes the menu — standard accessibility pattern for popups.
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape' && menu.classList.contains('open')){
+      closeAccountMenu();
+      btn.focus();
+    }
+  });
+}
+// Wire it up once the DOM is parsed. We don't gate this behind login
+// state — the menu element exists in the DOM regardless, and the pill's
+// click handler only opens it for signed-in users anyway.
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', initAccountMenu);
+} else {
+  initAccountMenu();
 }
 
 function handleLanesClick(e){
