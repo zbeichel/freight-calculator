@@ -76,6 +76,7 @@
   --blue:      #3b82f6;
   --green:     #22c55e;
   --red:       #ef4444;
+  --redbg:     rgba(239,68,68,0.08);
   --purple:    #8b5cf6;
   --text:      #e2e8f0;
   --text2:     #9aafc4;
@@ -99,6 +100,7 @@ html.light {
   --blue:      #1d4ed8;
   --green:     #15803d;
   --red:       #b91c1c;
+  --redbg:     rgba(185,28,28,0.10);
   --purple:    #6d28d9;
   --text:      #0f172a;
   --text2:     #1e293b;
@@ -1093,25 +1095,24 @@ html.light .hos-day-header{background:var(--card2)}
                       Out live in the dropdown.
     -->
     <div class="account-menu-wrap">
-      <a href="/signup.html" id="pro-account-btn" class="pro-account-btn"
-         aria-haspopup="true" aria-expanded="false">
+      <a href="/signup.html" id="pro-account-btn" class="pro-account-btn">
         <span id="pro-btn-icon">⭐</span>
         <span id="pro-name-label">Pro</span>
         <span id="pro-btn-caret" class="pro-btn-caret" aria-hidden="true">▾</span>
       </a>
-      <div id="account-menu" class="account-menu" role="menu" aria-hidden="true">
+      <div id="account-menu" class="account-menu" aria-hidden="true">
         <div class="account-menu-header">
           <div class="account-menu-label">Signed in as</div>
           <div class="account-menu-name" id="account-menu-name">—</div>
         </div>
         <div class="account-menu-divider"></div>
-        <a href="/profile.html" class="account-menu-item" role="menuitem">
+        <a href="/profile.html" class="account-menu-item">
           <span class="account-menu-icon" aria-hidden="true">⚙</span>
           <span>Profile &amp; settings</span>
         </a>
         <div class="account-menu-divider"></div>
         <button type="button" class="account-menu-item account-menu-item-danger"
-                role="menuitem" onclick="handleHeaderSignOut()">
+                onclick="handleHeaderSignOut()">
           <span class="account-menu-icon" aria-hidden="true">⎋</span>
           <span>Sign out</span>
         </button>
@@ -2502,6 +2503,13 @@ function updateProAccountBtn(){
       // left-click via the toggle handler.
       btn.href = '/profile.html';
       btn.classList.add('logged-in');
+      // Expose disclosure-pattern ARIA so screen readers announce that the
+      // pill toggles a popover. We use aria-haspopup="true" (rather than
+      // "menu") because the popover isn't a true ARIA menu — it's a simple
+      // disclosure panel without arrow-key navigation. aria-expanded toggles
+      // in toggleAccountMenu() as the panel opens/closes.
+      btn.setAttribute('aria-haspopup', 'true');
+      btn.setAttribute('aria-expanded', 'false');
       // Populate dropdown header with the user's full name when available,
       // falling back to email-style identifiers if not.
       if(menuName) menuName.textContent = name || profile.email || 'Account';
@@ -2510,7 +2518,11 @@ function updateProAccountBtn(){
       icon.textContent = '⭐';
       btn.href = '/signup.html';
       btn.classList.remove('logged-in');
-      btn.setAttribute('aria-expanded', 'false');
+      // Strip popup ARIA — when signed out this is just a plain anchor to
+      // /signup.html. Leaving aria-haspopup attached would mislead screen
+      // readers into announcing a popup that doesn't exist.
+      btn.removeAttribute('aria-haspopup');
+      btn.removeAttribute('aria-expanded');
       // Make sure no stale open-state lingers from a prior signed-in session
       if(menu){ menu.classList.remove('open'); menu.setAttribute('aria-hidden','true'); }
     }
