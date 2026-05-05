@@ -786,6 +786,28 @@ html.light .hos-day-header{background:var(--card2)}
   display:flex;align-items:center;gap:6px;justify-self:end;
 }
 
+/* Inline Privacy/Terms links high in the page (header level). Subtle by
+   design — they shouldn't compete with the account pill — but visible
+   enough that crawlers can pick them up immediately on first scan. */
+.header-legal-link{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:11px;font-weight:500;
+  color:var(--text3);
+  text-decoration:none;
+  padding:4px 6px;
+  white-space:nowrap;
+  transition:color .15s;
+}
+.header-legal-link:hover{color:var(--accent);text-decoration:underline}
+.header-legal-sep{
+  font-size:11px;color:var(--text3);
+  opacity:.5;
+  user-select:none;
+}
+@media(max-width:720px){
+  .header-legal-link,.header-legal-sep{display:none}
+}
+
 /* ── Account dropdown menu ───────────────────────────────────────────────
    The wrap is the positioning context — the pill sits inline, the menu
    floats absolutely below it. Menu visibility is toggled via JS adding
@@ -1053,6 +1075,16 @@ html.light .hos-day-header{background:var(--card2)}
     </div>
   </div>
   <div class="header-auth">
+    <!--
+      Header legal links — small visible Privacy/Terms links high in the page
+      so OAuth verification crawlers (and users) can find them without
+      having to scroll to the footer. Hidden on the narrowest mobile sizes
+      to keep the header compact; users still have the more prominent
+      footer links there.
+    -->
+    <a href="/privacy.html" class="header-legal-link" target="_blank" rel="noopener noreferrer">Privacy</a>
+    <span class="header-legal-sep" aria-hidden="true">·</span>
+    <a href="/terms.html" class="header-legal-link" target="_blank" rel="noopener noreferrer">Terms</a>
     <!--
       The account pill behaves differently based on auth state:
         • Signed out: anchor that links to /signup.html (the upsell flow).
