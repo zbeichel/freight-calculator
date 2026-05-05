@@ -974,8 +974,10 @@ html.light .hos-day-header{background:var(--card2)}
      Bump primary action buttons to a 44px minimum height (the Apple
      HIG / Material Design thumb-friendly minimum). Increase numeric
      input font to 16px to prevent iOS Safari's auto-zoom-on-focus
-     behavior, which is triggered for any input under 16px. */
-  .btn,.btn-primary,.ship-btn,.profit-btn{
+     behavior, which is triggered for any input under 16px.
+     #btn-prof is the profitability calculator toggle, which has no
+     class and is targeted by id. */
+  .btn,.btn-primary,.ship-btn,.profit-btn,#btn-prof{
     min-height:44px;
     font-size:14px;
   }
