@@ -12,6 +12,11 @@
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://quickfreightcalc.com">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+<!-- PWA / Add-to-Home-Screen support. The manifest.json defines what happens
+     when a user installs the site as an app on their phone. -->
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#1a1d24">
 
 <!-- ── Open Graph (Facebook, LinkedIn, Reddit previews) ── -->
 <meta property="og:type" content="website">
@@ -964,6 +969,24 @@ html.light .hos-day-header{background:var(--card2)}
   .hos-stats{grid-template-columns:1fr 1fr}
   footer{padding:20px 14px;text-align:center}
   footer p{font-size:11px}
+
+  /* ── Mobile touch-target enforcement ─────────────────────────────
+     Bump primary action buttons to a 44px minimum height (the Apple
+     HIG / Material Design thumb-friendly minimum). Increase numeric
+     input font to 16px to prevent iOS Safari's auto-zoom-on-focus
+     behavior, which is triggered for any input under 16px. */
+  .btn,.btn-primary,.ship-btn,.profit-btn{
+    min-height:44px;
+    font-size:14px;
+  }
+  input[type="number"],
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  select,
+  textarea{
+    font-size:16px;
+  }
 }
 
 @media(max-width:480px){
@@ -1235,11 +1258,11 @@ html.light .hos-day-header{background:var(--card2)}
           <div class="grid2" style="margin-bottom:14px">
             <div class="field">
               <label>Loaded miles <span style="font-size:9px;color:var(--text3);margin-left:4px" id="p-miles-src"></span></label>
-              <input type="number" id="p-miles" min="1" step="10" placeholder="Auto or enter manually" oninput="calcProfit();calcProfTransit()" />
+              <input type="number" inputmode="decimal" id="p-miles" min="1" step="10" placeholder="Auto or enter manually" oninput="calcProfit();calcProfTransit()" />
             </div>
             <div class="field">
               <label>Dead head miles</label>
-              <input type="number" id="p-empty" min="0" step="10" value="0" oninput="calcProfit()" />
+              <input type="number" inputmode="decimal" id="p-empty" min="0" step="10" value="0" oninput="calcProfit()" />
             </div>
           </div>
 
@@ -1247,19 +1270,19 @@ html.light .hos-day-header{background:var(--card2)}
           <div class="grid2" style="margin-bottom:14px">
             <div class="field">
               <label>Offered rate ($)</label>
-              <input type="number" id="p-rate" min="0" step="50" placeholder="e.g. 2400" oninput="calcProfit()" />
+              <input type="number" inputmode="decimal" id="p-rate" min="0" step="50" placeholder="e.g. 2400" oninput="calcProfit()" />
             </div>
             <div class="field">
               <label>Drive hours</label>
-              <input type="number" id="p-hours" min="0.5" step="0.5" placeholder="e.g. 11" oninput="calcProfit()" />
+              <input type="number" inputmode="decimal" id="p-hours" min="0.5" step="0.5" placeholder="e.g. 11" oninput="calcProfit()" />
             </div>
             <div class="field">
               <label>Pickup wait <span style="font-size:9px;color:var(--text3);font-weight:400">(hrs)</span></label>
-              <input type="number" id="p-wait-pickup" min="0" step="0.5" value="0" placeholder="e.g. 2" oninput="calcProfit()" />
+              <input type="number" inputmode="decimal" id="p-wait-pickup" min="0" step="0.5" value="0" placeholder="e.g. 2" oninput="calcProfit()" />
             </div>
             <div class="field">
               <label>Delivery wait <span style="font-size:9px;color:var(--text3);font-weight:400">(hrs)</span></label>
-              <input type="number" id="p-wait-delivery" min="0" step="0.5" value="0" placeholder="e.g. 1" oninput="calcProfit()" />
+              <input type="number" inputmode="decimal" id="p-wait-delivery" min="0" step="0.5" value="0" placeholder="e.g. 1" oninput="calcProfit()" />
             </div>
             <div class="field">
               <label>Pickup Date</label>
@@ -1284,7 +1307,7 @@ html.light .hos-day-header{background:var(--card2)}
                 <div style="font-size:11px;color:var(--text3)">Extra day cost:</div>
                 <div style="display:flex;align-items:center;gap:4px">
                   <span style="font-size:11px;color:var(--text3)">$</span>
-                  <input type="number" id="p-extra-day-rate" value="200" min="0" step="25"
+                  <input type="number" inputmode="decimal" id="p-extra-day-rate" value="200" min="0" step="25"
                     style="width:70px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:4px 8px;outline:none;text-align:center"
                     oninput="calcProfTransit()" />
                   <span style="font-size:11px;color:var(--text3)">/day</span>
@@ -1302,11 +1325,11 @@ html.light .hos-day-header{background:var(--card2)}
                 Fuel ($/mi)
                 <span id="fuel-calc-badge" style="font-size:9px;font-weight:700;background:rgba(74,158,255,.15);color:var(--blue);padding:2px 7px;border-radius:10px;display:none">auto</span>
               </label>
-              <input type="number" id="p-fuel" min="0" step="0.01" placeholder="e.g. 0.83" oninput="fuelManualEdit();calcProfit()" />
+              <input type="number" inputmode="decimal" id="p-fuel" min="0" step="0.01" placeholder="e.g. 0.83" oninput="fuelManualEdit();calcProfit()" />
             </div>
             <div class="field">
               <label>MPG <span style="font-size:10px;color:var(--text3);font-weight:400">→ auto-fills fuel/mi</span></label>
-              <input type="number" id="p-mpg" min="1" step="0.5" placeholder="e.g. 6.5" oninput="calcFuelCPM()" />
+              <input type="number" inputmode="decimal" id="p-mpg" min="1" step="0.5" placeholder="e.g. 6.5" oninput="calcFuelCPM()" />
               <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
                 <button onclick="fetchProfDiesel()" id="p-eia-btn"
                   style="padding:4px 10px;background:var(--accentbg);border:1px solid rgba(240,165,0,.3);border-radius:20px;color:var(--accent);font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">
@@ -1317,18 +1340,18 @@ html.light .hos-day-header{background:var(--card2)}
             </div>
             <div class="field">
               <label>Driver pay ($/mi)</label>
-              <input type="number" id="p-driver" min="0" step="0.01" placeholder="e.g. 0.55" oninput="calcProfit()" />
+              <input type="number" inputmode="decimal" id="p-driver" min="0" step="0.01" placeholder="e.g. 0.55" oninput="calcProfit()" />
             </div>
             <div class="field">
               <label style="display:flex;align-items:center;justify-content:space-between">
                 Fixed costs ($/mi)
                 <span id="fixed-calc-badge" style="font-size:9px;font-weight:700;background:rgba(74,158,255,.15);color:var(--blue);padding:2px 7px;border-radius:10px;display:none">auto</span>
               </label>
-              <input type="number" id="p-fixed" min="0" step="0.01" placeholder="e.g. 0.30" oninput="fixedManualEdit();calcProfit()" />
+              <input type="number" inputmode="decimal" id="p-fixed" min="0" step="0.01" placeholder="e.g. 0.30" oninput="fixedManualEdit();calcProfit()" />
             </div>
             <div class="field">
               <label>Other flat fees ($)</label>
-              <input type="number" id="p-other" min="0" step="25" value="0" oninput="calcProfit()" />
+              <input type="number" inputmode="decimal" id="p-other" min="0" step="25" value="0" oninput="calcProfit()" />
             </div>
           </div>
 
@@ -1343,23 +1366,23 @@ html.light .hos-day-header{background:var(--card2)}
               <div class="grid2" style="margin-bottom:10px">
                 <div class="field" style="margin-bottom:10px">
                   <label style="font-size:11px">Truck payment ($/mo)</label>
-                  <input type="number" id="fc-payment" min="0" step="50" placeholder="e.g. 2200" oninput="calcFixedCPM()" />
+                  <input type="number" inputmode="decimal" id="fc-payment" min="0" step="50" placeholder="e.g. 2200" oninput="calcFixedCPM()" />
                 </div>
                 <div class="field" style="margin-bottom:10px">
                   <label style="font-size:11px">Insurance ($/mo)</label>
-                  <input type="number" id="fc-insurance" min="0" step="50" placeholder="e.g. 800" oninput="calcFixedCPM()" />
+                  <input type="number" inputmode="decimal" id="fc-insurance" min="0" step="50" placeholder="e.g. 800" oninput="calcFixedCPM()" />
                 </div>
                 <div class="field" style="margin-bottom:10px">
                   <label style="font-size:11px">Maintenance ($/mo)</label>
-                  <input type="number" id="fc-maintenance" min="0" step="50" placeholder="e.g. 400" oninput="calcFixedCPM()" />
+                  <input type="number" inputmode="decimal" id="fc-maintenance" min="0" step="50" placeholder="e.g. 400" oninput="calcFixedCPM()" />
                 </div>
                 <div class="field" style="margin-bottom:10px">
                   <label style="font-size:11px">Other fixed ($/mo)</label>
-                  <input type="number" id="fc-other" min="0" step="25" placeholder="e.g. permits, ELD" oninput="calcFixedCPM()" />
+                  <input type="number" inputmode="decimal" id="fc-other" min="0" step="25" placeholder="e.g. permits, ELD" oninput="calcFixedCPM()" />
                 </div>
                 <div class="field" style="margin-bottom:0;grid-column:span 2">
                   <label style="font-size:11px">Avg miles driven per month</label>
-                  <input type="number" id="fc-miles" min="1" step="500" placeholder="e.g. 10000" oninput="calcFixedCPM()" />
+                  <input type="number" inputmode="decimal" id="fc-miles" min="1" step="500" placeholder="e.g. 10000" oninput="calcFixedCPM()" />
                 </div>
               </div>
               <div id="fc-result" style="display:none;padding:10px 12px;background:var(--card);border:1px solid rgba(74,158,255,.25);border-radius:var(--radius);display:none">
@@ -1405,11 +1428,11 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="grid2" id="load-grid">
           <div class="field">
             <label>Miles <span id="miles-source" style="font-size:9px;font-weight:500;color:var(--text3);margin-left:4px"></span></label>
-            <input type="number" id="miles" min="1" placeholder="Auto-filled by Google" oninput="milesManualEdit();calc()" />
+            <input type="number" inputmode="decimal" id="miles" min="1" placeholder="Auto-filled by Google" oninput="milesManualEdit();calc()" />
           </div>
           <div class="field">
             <label>Weight (lbs)</label>
-            <input type="number" id="weight" min="1" placeholder="e.g. 42000" oninput="if(shipType==='ltl')calcDensity();else calc();" />
+            <input type="number" inputmode="decimal" id="weight" min="1" placeholder="e.g. 42000" oninput="if(shipType==='ltl')calcDensity();else calc();" />
           </div>
         </div>
 
@@ -1466,19 +1489,19 @@ html.light .hos-day-header{background:var(--card2)}
             <div class="dim-grid4">
               <div class="field">
                 <label style="font-size:11px">Length</label>
-                <input type="number" id="dim-l" min="1" placeholder="48" oninput="calcDensity()" />
+                <input type="number" inputmode="decimal" id="dim-l" min="1" placeholder="48" oninput="calcDensity()" />
               </div>
               <div class="field">
                 <label style="font-size:11px">Width</label>
-                <input type="number" id="dim-w" min="1" placeholder="40" oninput="calcDensity()" />
+                <input type="number" inputmode="decimal" id="dim-w" min="1" placeholder="40" oninput="calcDensity()" />
               </div>
               <div class="field">
                 <label style="font-size:11px">Height</label>
-                <input type="number" id="dim-h" min="1" placeholder="48" oninput="calcDensity()" />
+                <input type="number" inputmode="decimal" id="dim-h" min="1" placeholder="48" oninput="calcDensity()" />
               </div>
               <div class="field">
                 <label style="font-size:11px">Pallets</label>
-                <input type="number" id="dim-pallets" min="1" value="1" placeholder="1" oninput="calcDensity()" />
+                <input type="number" inputmode="decimal" id="dim-pallets" min="1" value="1" placeholder="1" oninput="calcDensity()" />
               </div>
             </div>
           </div>
@@ -1488,15 +1511,15 @@ html.light .hos-day-header{background:var(--card2)}
             <div class="dim-grid">
               <div class="field">
                 <label style="font-size:11px">Total Length</label>
-                <input type="number" id="dim-tl" min="1" placeholder="96" oninput="calcDensity()" />
+                <input type="number" inputmode="decimal" id="dim-tl" min="1" placeholder="96" oninput="calcDensity()" />
               </div>
               <div class="field">
                 <label style="font-size:11px">Total Width</label>
-                <input type="number" id="dim-tw" min="1" placeholder="48" oninput="calcDensity()" />
+                <input type="number" inputmode="decimal" id="dim-tw" min="1" placeholder="48" oninput="calcDensity()" />
               </div>
               <div class="field">
                 <label style="font-size:11px">Total Height</label>
-                <input type="number" id="dim-th" min="1" placeholder="48" oninput="calcDensity()" />
+                <input type="number" inputmode="decimal" id="dim-th" min="1" placeholder="48" oninput="calcDensity()" />
               </div>
             </div>
           </div>
@@ -1543,7 +1566,7 @@ html.light .hos-day-header{background:var(--card2)}
                 Base Rate ($/CWT)
                 <span id="cwt-badge" style="font-size:9px;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:10px;background:rgba(34,197,94,.15);color:var(--green)">default</span>
               </label>
-              <input type="number" id="cwt-override" min="1" step="0.50" oninput="cwtManualOverride();calc()"
+              <input type="number" inputmode="decimal" id="cwt-override" min="1" step="0.50" oninput="cwtManualOverride();calc()"
                 style="background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;padding:8px 12px;width:100%;outline:none" />
             </div>
             <button onclick="resetCWT()" id="cwt-reset-btn"
@@ -1635,7 +1658,7 @@ html.light .hos-day-header{background:var(--card2)}
 
         <div class="field ftl-only" id="margin-field" style="max-width:160px;margin-top:12px">
           <label>Your Margin %</label>
-          <input type="number" id="margin" aria-label="Margin percentage" value="15" min="0" max="100" oninput="calc()" />
+          <input type="number" inputmode="decimal" id="margin" aria-label="Margin percentage" value="15" min="0" max="100" oninput="calc()" />
         </div>
 
         <!-- Base Rates — moved here from Advanced for easy access -->
@@ -1701,7 +1724,7 @@ html.light .hos-day-header{background:var(--card2)}
               <div style="font-size:11px;color:var(--text3)">Extra day rate:</div>
               <div style="display:flex;align-items:center;gap:4px">
                 <span style="font-size:11px;color:var(--text3)">$</span>
-                <input type="number" id="extra-day-rate" value="200" min="0" step="25"
+                <input type="number" inputmode="decimal" id="extra-day-rate" value="200" min="0" step="25"
                   style="width:70px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:4px 8px;outline:none;text-align:center"
                   oninput="calcTransit()" />
                 <span style="font-size:11px;color:var(--text3)">/day</span>
