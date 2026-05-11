@@ -494,6 +494,131 @@ header .header-auth{ justify-self:end; }
 .adv-warn.show{display:block}
 
 .adv-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+
+/* ── Distance Decay Curve section ──
+   Sibling card to Base Rates. Users can override the default per-mile
+   multiplier curves by dragging anchor points or typing values into the
+   numeric inputs. Overrides persist per-trailer in localStorage. */
+.dcc-card{
+  margin-top:14px;
+  background:var(--card2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;
+}
+.dcc-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 14px;cursor:pointer;user-select:none;
+  transition:background .15s;
+}
+.dcc-header:hover{background:rgba(255,255,255,.02)}
+.dcc-title{
+  display:flex;align-items:center;gap:8px;
+  font-size:11px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--text2);
+}
+.dcc-modified{
+  font-size:10px;font-weight:600;letter-spacing:.04em;
+  color:var(--accent);text-transform:none;
+  padding:2px 7px;border-radius:10px;
+  background:rgba(240,165,0,.12);border:1px solid rgba(240,165,0,.25);
+  display:none;
+}
+.dcc-modified.show{display:inline-block}
+.dcc-caret{
+  font-size:11px;color:var(--text3);
+  transition:transform .2s;
+}
+.dcc-card.open .dcc-caret{transform:rotate(180deg)}
+.dcc-body{
+  display:none;
+  padding:0 14px 14px;
+  border-top:1px solid var(--border);
+}
+.dcc-card.open .dcc-body{display:block}
+.dcc-chart-wrap{
+  margin-top:12px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px 8px 6px;
+  position:relative;
+  overflow:visible;
+}
+.dcc-chart{
+  display:block;width:100%;height:auto;
+  touch-action:none;            /* prevent page scroll while dragging on touch */
+}
+.dcc-chart .dcc-grid{stroke:var(--border);stroke-width:1;opacity:.5}
+.dcc-chart .dcc-axis-label{
+  font-family:'Space Grotesk',sans-serif;font-size:10px;
+  fill:var(--text3);
+}
+.dcc-chart .dcc-curve{fill:none;stroke-width:2;opacity:.25;pointer-events:none;transition:opacity .15s}
+.dcc-chart .dcc-curve.active{opacity:1}
+.dcc-chart .dcc-anchor{
+  cursor:grab;
+  transition:r .12s, filter .12s;
+}
+.dcc-chart .dcc-anchor:hover{filter:brightness(1.2)}
+.dcc-chart .dcc-anchor.dragging{cursor:grabbing}
+.dcc-chart .dcc-anchor:focus{outline:none}
+.dcc-tooltip{
+  position:absolute;pointer-events:none;
+  background:var(--card2);border:1px solid var(--border2);
+  border-radius:6px;padding:5px 9px;
+  font-family:'Space Grotesk',sans-serif;font-size:11px;
+  color:var(--text);white-space:nowrap;
+  box-shadow:0 4px 12px rgba(0,0,0,.3);
+  opacity:0;transition:opacity .12s;
+  transform:translate(-50%,-100%);margin-top:-8px;
+  z-index:5;
+}
+.dcc-tooltip.show{opacity:1}
+.dcc-tooltip-default{color:var(--text3);font-size:10px;display:block;margin-top:1px}
+.dcc-controls{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-top:10px;gap:10px;flex-wrap:wrap;
+}
+.dcc-active-label{
+  font-size:11px;color:var(--text3);
+  display:flex;align-items:center;gap:6px;
+}
+.dcc-active-label strong{color:var(--text);font-weight:600}
+.dcc-reset{
+  font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;
+  color:var(--text3);background:none;
+  border:1px solid var(--border2);border-radius:20px;
+  padding:4px 12px;cursor:pointer;
+  transition:all .15s;
+}
+.dcc-reset:hover{border-color:var(--accent);color:var(--accent)}
+.dcc-reset:disabled{opacity:.4;cursor:not-allowed}
+.dcc-reset:disabled:hover{border-color:var(--border2);color:var(--text3)}
+.dcc-inputs{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:6px;
+  margin-top:12px;
+}
+.dcc-input-cell{display:flex;flex-direction:column;gap:3px;align-items:stretch}
+.dcc-input-cell .dcc-mi{
+  font-size:10px;color:var(--text3);text-align:center;
+  letter-spacing:.04em;
+}
+.dcc-input-cell input{
+  background:var(--card);border:1px solid var(--border2);
+  color:var(--text);border-radius:6px;
+  padding:5px 4px;font-family:'Space Grotesk',sans-serif;
+  font-size:12px;text-align:center;outline:none;width:100%;
+  transition:border-color .15s;
+}
+.dcc-input-cell input:focus{border-color:var(--accent)}
+.dcc-input-cell input.dcc-modified-input{border-color:var(--accent);color:var(--accent)}
+.dcc-help{
+  font-size:10px;line-height:1.5;color:var(--text3);
+  margin-top:10px;padding-top:8px;border-top:1px solid var(--border);
+}
 .mini-input-group{display:flex;flex-direction:column;gap:5px}
 .mini-label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase}
 .mini-input{
@@ -1028,6 +1153,10 @@ html.light .hos-day-header{background:var(--card2)}
   .adv-grid3{grid-template-columns:1fr}
   .mini-input{width:100%}
   #rate-date{width:100%!important;max-width:100%!important}
+
+  /* Distance decay curve: collapse 6-col input grid to 3 cols for thumbs */
+  .dcc-inputs{grid-template-columns:repeat(3,1fr)}
+  .dcc-input-cell input{font-size:13px;padding:6px 4px}
 
   /* Seasonal */
   .seas-labels{font-size:8px}
@@ -1705,6 +1834,35 @@ html.light .hos-day-header{background:var(--card2)}
           </div>
         </div>
 
+        <!-- Distance Decay Curve — per-trailer multiplier curves users can override -->
+        <div class="ftl-only dcc-card" id="dcc-card">
+          <div class="dcc-header" onclick="toggleDistanceCurve()" role="button" tabindex="0"
+               onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDistanceCurve();}">
+            <div class="dcc-title">
+              <span>Distance Decay Curve</span>
+              <span class="dcc-modified" id="dcc-modified-badge">modified</span>
+            </div>
+            <span class="dcc-caret">▼</span>
+          </div>
+          <div class="dcc-body">
+            <div class="dcc-chart-wrap">
+              <svg class="dcc-chart" id="dcc-chart" viewBox="0 0 600 280" preserveAspectRatio="xMidYMid meet" aria-label="Distance decay curve chart"></svg>
+              <div class="dcc-tooltip" id="dcc-tooltip"></div>
+            </div>
+            <div class="dcc-controls">
+              <div class="dcc-active-label">
+                Editing: <strong id="dcc-active-trailer">Dry Van</strong>
+                <span style="color:var(--text3)">· change in trailer selector above</span>
+              </div>
+              <button class="dcc-reset" id="dcc-reset-btn" onclick="resetActiveCurve()">↺ Reset to default</button>
+            </div>
+            <div class="dcc-inputs" id="dcc-inputs"></div>
+            <div class="dcc-help">
+              Drag any point on the chart or type a value below to override the default. <strong>1.00×</strong> = base rate; values above raise the per-mile rate at that distance, values below lower it. Changes persist per trailer.
+            </div>
+          </div>
+        </div>
+
         <!-- Load Notes — used for PDF quote -->
         <div class="field ftl-only" id="load-notes-field" style="margin-top:12px;display:none">
           <label>Load Notes <span style="font-size:10px;color:var(--text3);font-weight:400">(appears on PDF quote)</span></label>
@@ -2296,7 +2454,30 @@ const TTAG={van:'tag-van',reefer:'tag-reefer',flatbed:'tag-flat'};
 const CMULT={standard:1.0,food:1.08,hazmat:1.20,highval:1.12,oversized:1.25};
 const CLABEL={standard:'Standard',food:'Food/Perishable',hazmat:'Hazmat',highval:'High Value',oversized:'Oversized'};
 const WTIERS=[{max:9999,m:0.95,l:'0.95×'},{max:29999,m:0.97,l:'0.97×'},{max:44000,m:1.00,l:'1.00×'},{max:999999,m:1.08,l:'1.08×'}];
-const DMULTS=[{max:249,m:1.10,l:'1.10×'},{max:499,m:1.02,l:'1.02×'},{max:999,m:1.00,l:'1.00×'},{max:1499,m:0.90,l:'0.90×'},{max:1999,m:0.85,l:'0.85×'},{max:99999,m:0.80,l:'0.80×'}];
+// Distance multiplier curves — per trailer type, calibrated to real
+// freight market data (lotwizard.us, Dec 12 2025). Each curve is a list
+// of {mi, m} breakpoints; values between breakpoints are linearly
+// interpolated by dMult() so per-mile rates change smoothly with
+// distance rather than jumping at band boundaries.
+//
+// Anchor logic:
+//   ~50 mi  — short-haul premium (varies by trailer; flatbed lower
+//             because tarp/securement overhead reduces the per-mile
+//             premium on short hauls)
+//   ~300 mi — calibration band; all trailers converge near 1.00×
+//             (this is where the base rate inputs are anchored)
+//   ~600 mi — top of medium-haul; slight trailer differentiation begins
+//   ~1000 mi — long-haul blended average from market data
+//   ~1500 mi — decay starts flattening (most long-haul efficiency
+//              gains already captured by here)
+//   ~2500 mi — near-asymptote; minimal additional decay past this point
+const DMULTS={
+  van:    [{mi:100,m:1.85},{mi:300,m:1.05},{mi:600,m:1.00},{mi:1000,m:0.83},{mi:1500,m:0.72},{mi:2500,m:0.68}],
+  reefer: [{mi:100,m:1.80},{mi:300,m:1.05},{mi:600,m:1.00},{mi:1000,m:0.85},{mi:1500,m:0.75},{mi:2500,m:0.72}],
+  flatbed:[{mi:100,m:1.55},{mi:300,m:1.05},{mi:600,m:1.00},{mi:1000,m:0.87},{mi:1500,m:0.78},{mi:2500,m:0.75}],
+  // Neutral averaged curve for LTL and any caller without trailer context.
+  ltl:    [{mi:100,m:1.73},{mi:300,m:1.05},{mi:600,m:1.00},{mi:1000,m:0.85},{mi:1500,m:0.75},{mi:2500,m:0.72}]
+};
 const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LT_BASELINE={van:6.0,reefer:10.0,flatbed:25.0};
 const MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -4772,7 +4953,499 @@ function clearProfitability(){
 }
 
 function wTier(w){return WTIERS.find(t=>w<=t.max)||WTIERS[3]}
-function dMult(mi){return DMULTS.find(t=>mi<=t.max)||DMULTS[4]}
+
+// Distance multiplier with linear interpolation between curve breakpoints.
+// Picks the trailer-specific curve from DMULTS (falls back to the neutral
+// LTL curve for unknown/missing trailer keys), finds the bracket the input
+// miles falls into, and interpolates the multiplier between adjacent
+// breakpoints. Returns {m, l} where l is a formatted label like '0.86×'.
+function dMult(mi,trailer){
+  const curve=getCurve(trailer);
+  const fmt=m=>({m,l:m.toFixed(2)+'×'});
+
+  // Clamp below the first breakpoint and at/above the last.
+  if(mi<=curve[0].mi)               return fmt(curve[0].m);
+  if(mi>=curve[curve.length-1].mi)  return fmt(curve[curve.length-1].m);
+
+  // Find the bracket [lo, hi] containing mi and interpolate.
+  for(let i=0;i<curve.length-1;i++){
+    const lo=curve[i], hi=curve[i+1];
+    if(mi>=lo.mi && mi<=hi.mi){
+      const t=(mi-lo.mi)/(hi.mi-lo.mi);
+      return fmt(lo.m+(hi.m-lo.m)*t);
+    }
+  }
+  // Unreachable given the clamps above, but keep a safe fallback.
+  return fmt(curve[curve.length-1].m);
+}
+
+// ── Distance Decay Curve overrides ────────────────────────────────────────
+// User-editable per-trailer overrides for the DMULTS curves. Each key holds
+// either an array of {mi,m} breakpoints (override active) or null (use the
+// default curve from DMULTS). Persisted under qfc_distance_curves.
+const DCC_STORAGE_KEY = 'qfc_distance_curves';
+const DCC_BOUNDS = { min: 0.40, max: 2.20 };       // global multiplier limits
+const DCC_TRAILER_COLORS = {
+  van:     '#60a5fa',
+  reefer:  '#4ade80',
+  flatbed: 'var(--accent)'
+};
+// Hex equivalent of --accent for SVG stroke (CSS vars don't resolve in stroke attrs reliably across browsers).
+const DCC_FLATBED_HEX = '#f0a500';
+
+let userCurves = { van: null, reefer: null, flatbed: null };
+let dccDragState = null;                            // {trailer, idx, pointerId} while dragging
+
+// Returns the active curve for a trailer: user override if present, else the
+// default from DMULTS. Unknown trailer keys fall back to the LTL neutral curve.
+function getCurve(trailer){
+  if(trailer && userCurves[trailer]) return userCurves[trailer];
+  return DMULTS[trailer] || DMULTS.ltl;
+}
+
+// True if any trailer has a non-default override applied. Drives the
+// "modified" badge in the section header.
+function anyCurveModified(){
+  return Object.values(userCurves).some(c => c !== null);
+}
+
+// True if the currently-selected trailer has an override. Drives the
+// "Reset to default" button's disabled state.
+function activeCurveModified(){
+  const t = document.getElementById('trailer')?.value;
+  return !!(t && userCurves[t]);
+}
+
+// Persist overrides to localStorage. Stores only non-null entries to keep
+// the payload small and to make it obvious which trailers were customized.
+function saveDistanceCurves(){
+  try {
+    const payload = {};
+    for(const [t, c] of Object.entries(userCurves)){
+      if(c) payload[t] = c;
+    }
+    if(Object.keys(payload).length === 0){
+      localStorage.removeItem(DCC_STORAGE_KEY);
+    } else {
+      localStorage.setItem(DCC_STORAGE_KEY, JSON.stringify(payload));
+    }
+  } catch(e){
+    // localStorage may be unavailable (private mode, quota). Failing silently
+    // is fine — the curve still works in-session, just doesn't persist.
+    console.warn('Could not persist distance curves:', e);
+  }
+}
+
+// Load overrides from localStorage. Validates each entry against the default
+// curve's shape (same number of breakpoints, same mi values) so a future
+// change to DMULTS doesn't load stale overrides with wrong structure.
+function loadDistanceCurves(){
+  try {
+    const raw = localStorage.getItem(DCC_STORAGE_KEY);
+    if(!raw) return;
+    const parsed = JSON.parse(raw);
+    for(const trailer of ['van','reefer','flatbed']){
+      const stored = parsed[trailer];
+      const defaultCurve = DMULTS[trailer];
+      if(!stored || !Array.isArray(stored) || !defaultCurve) continue;
+      if(stored.length !== defaultCurve.length) continue;
+      const milesMatch = stored.every((pt, i) =>
+        pt && typeof pt.mi === 'number' && typeof pt.m === 'number'
+        && pt.mi === defaultCurve[i].mi
+      );
+      if(!milesMatch) continue;
+      // Clamp loaded values to current bounds in case bounds tightened.
+      userCurves[trailer] = stored.map(pt => ({
+        mi: pt.mi,
+        m: Math.max(DCC_BOUNDS.min, Math.min(DCC_BOUNDS.max, pt.m))
+      }));
+    }
+  } catch(e){
+    console.warn('Could not load distance curves:', e);
+  }
+}
+
+// ── Chart rendering ────────────────────────────────────────────────────────
+// The chart uses a fixed-aspect SVG viewBox (600×280) so it scales with the
+// container while preserving relative proportions. Coordinate space:
+//   x: distance in miles, log-ish via piecewise-linear breakpoint spacing
+//   y: multiplier value, linear from DCC_Y_MIN to DCC_Y_MAX
+const DCC_VIEW = { w: 600, h: 280, padL: 36, padR: 14, padT: 14, padB: 28 };
+const DCC_Y_MIN = 0.40;
+const DCC_Y_MAX = 2.00;
+
+// Maps a breakpoint index (0..5) to its x-coordinate in viewBox space.
+// Equal spacing across the 6 anchors keeps the dot positions intuitive
+// regardless of the actual mile values (which aren't evenly distributed).
+function dccX(idx, total){
+  const usableW = DCC_VIEW.w - DCC_VIEW.padL - DCC_VIEW.padR;
+  return DCC_VIEW.padL + (idx / (total - 1)) * usableW;
+}
+
+// Maps a multiplier value to a y-coordinate in viewBox space (inverted —
+// higher multipliers are lower y values in SVG).
+function dccY(m){
+  const usableH = DCC_VIEW.h - DCC_VIEW.padT - DCC_VIEW.padB;
+  const t = (m - DCC_Y_MIN) / (DCC_Y_MAX - DCC_Y_MIN);
+  return DCC_VIEW.padT + (1 - t) * usableH;
+}
+
+// Inverse of dccY — converts a viewBox y back to a multiplier value.
+function dccYInv(y){
+  const usableH = DCC_VIEW.h - DCC_VIEW.padT - DCC_VIEW.padB;
+  const t = 1 - (y - DCC_VIEW.padT) / usableH;
+  return DCC_Y_MIN + t * (DCC_Y_MAX - DCC_Y_MIN);
+}
+
+// Renders the full chart for the currently-selected trailer. Inactive
+// trailers' curves are drawn faded behind the active one for context.
+function renderDistanceCurveChart(){
+  const svg = document.getElementById('dcc-chart');
+  if(!svg) return;
+  const activeTrailer = document.getElementById('trailer')?.value || 'van';
+  const activeCurve = getCurve(activeTrailer);
+
+  // Build axis labels: y-axis multiplier ticks, x-axis mile labels at anchors.
+  const yTicks = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+  const xLabels = activeCurve.map(pt => pt.mi);
+
+  let svgContent = '';
+
+  // Horizontal gridlines + y-axis labels.
+  for(const t of yTicks){
+    const y = dccY(t);
+    svgContent += `<line class="dcc-grid" x1="${DCC_VIEW.padL}" y1="${y}" x2="${DCC_VIEW.w - DCC_VIEW.padR}" y2="${y}"/>`;
+    svgContent += `<text class="dcc-axis-label" x="${DCC_VIEW.padL - 6}" y="${y + 3}" text-anchor="end">${t.toFixed(2)}×</text>`;
+  }
+
+  // Emphasized 1.00× baseline.
+  const yBase = dccY(1.0);
+  svgContent += `<line x1="${DCC_VIEW.padL}" y1="${yBase}" x2="${DCC_VIEW.w - DCC_VIEW.padR}" y2="${yBase}" stroke="var(--text3)" stroke-width="1" stroke-dasharray="3,3" opacity=".5"/>`;
+
+  // X-axis labels at each breakpoint.
+  for(let i = 0; i < xLabels.length; i++){
+    const x = dccX(i, xLabels.length);
+    svgContent += `<text class="dcc-axis-label" x="${x}" y="${DCC_VIEW.h - 10}" text-anchor="middle">${xLabels[i]} mi</text>`;
+  }
+
+  // Curves: inactive trailers first (faded), then active trailer on top.
+  const trailerOrder = ['van','reefer','flatbed'].filter(t => t !== activeTrailer).concat([activeTrailer]);
+  for(const trailer of trailerOrder){
+    const curve = getCurve(trailer);
+    const isActive = trailer === activeTrailer;
+    const stroke = trailer === 'flatbed' ? DCC_FLATBED_HEX : DCC_TRAILER_COLORS[trailer];
+    const points = curve.map((pt, i) => `${dccX(i, curve.length)},${dccY(pt.m)}`).join(' ');
+    svgContent += `<polyline class="dcc-curve ${isActive ? 'active' : ''}" points="${points}" stroke="${stroke}"/>`;
+  }
+
+  // Draggable anchor points on the active trailer's curve only.
+  const activeStroke = activeTrailer === 'flatbed' ? DCC_FLATBED_HEX : DCC_TRAILER_COLORS[activeTrailer];
+  for(let i = 0; i < activeCurve.length; i++){
+    const pt = activeCurve[i];
+    const cx = dccX(i, activeCurve.length);
+    const cy = dccY(pt.m);
+    svgContent += `<circle class="dcc-anchor" data-idx="${i}" cx="${cx}" cy="${cy}" r="7" fill="${activeStroke}" stroke="var(--card)" stroke-width="2" tabindex="0" role="slider" aria-label="${pt.mi} mile multiplier" aria-valuemin="${DCC_BOUNDS.min}" aria-valuemax="${DCC_BOUNDS.max}" aria-valuenow="${pt.m.toFixed(2)}"/>`;
+  }
+
+  svg.innerHTML = svgContent;
+
+  // Attach drag handlers to each anchor.
+  svg.querySelectorAll('.dcc-anchor').forEach(circle => {
+    circle.addEventListener('pointerdown', onDccAnchorPointerDown);
+    circle.addEventListener('keydown',     onDccAnchorKeyDown);
+  });
+}
+
+// Renders the numeric inputs row beneath the chart. Each input is bound to
+// one anchor on the active trailer's curve. Typing in an input updates the
+// curve and re-renders the chart; the visual highlight differentiates
+// modified-from-default values.
+function renderDistanceCurveInputs(){
+  const container = document.getElementById('dcc-inputs');
+  if(!container) return;
+  const activeTrailer = document.getElementById('trailer')?.value || 'van';
+  const activeCurve = getCurve(activeTrailer);
+  const defaultCurve = DMULTS[activeTrailer];
+
+  let html = '';
+  for(let i = 0; i < activeCurve.length; i++){
+    const pt = activeCurve[i];
+    const isModified = defaultCurve && Math.abs(pt.m - defaultCurve[i].m) > 0.001;
+    html += `<div class="dcc-input-cell">
+      <div class="dcc-mi">${pt.mi} mi</div>
+      <input type="number" step="0.01" min="${DCC_BOUNDS.min}" max="${DCC_BOUNDS.max}"
+             data-idx="${i}" value="${pt.m.toFixed(2)}"
+             class="${isModified ? 'dcc-modified-input' : ''}"
+             aria-label="Multiplier at ${pt.mi} miles"
+             oninput="onDccInputChange(this)" />
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
+// Updates the active-trailer label, modified badge visibility, and reset
+// button enabled state. Called whenever curves change or trailer changes.
+function refreshDistanceCurveUI(){
+  const trailerEl = document.getElementById('trailer');
+  if(!trailerEl) return;
+  const activeTrailer = trailerEl.value;
+
+  // Active trailer label
+  const labelEl = document.getElementById('dcc-active-trailer');
+  if(labelEl) labelEl.textContent = (TLABEL[activeTrailer] || activeTrailer);
+
+  // Modified badge (any trailer)
+  const badgeEl = document.getElementById('dcc-modified-badge');
+  if(badgeEl) badgeEl.classList.toggle('show', anyCurveModified());
+
+  // Reset button (active trailer only)
+  const resetBtn = document.getElementById('dcc-reset-btn');
+  if(resetBtn) resetBtn.disabled = !activeCurveModified();
+}
+
+// Repaints everything: chart, inputs, header state. Used as the single
+// "something changed" entry point.
+function redrawDistanceCurve(){
+  renderDistanceCurveChart();
+  renderDistanceCurveInputs();
+  refreshDistanceCurveUI();
+}
+
+// Ensures the active trailer has a writable override array. Called before
+// any mutation so we never mutate the shared DMULTS defaults in place.
+function ensureOverride(trailer){
+  if(!userCurves[trailer]){
+    userCurves[trailer] = DMULTS[trailer].map(pt => ({ mi: pt.mi, m: pt.m }));
+  }
+  return userCurves[trailer];
+}
+
+// Clears the override for a trailer if its values now match the default
+// exactly. Keeps the persisted payload minimal and lets the modified badge
+// turn off when the user manually restores defaults.
+function clearOverrideIfDefault(trailer){
+  const override = userCurves[trailer];
+  const def = DMULTS[trailer];
+  if(!override || !def) return;
+  const matches = override.every((pt, i) =>
+    Math.abs(pt.m - def[i].m) < 0.001
+  );
+  if(matches) userCurves[trailer] = null;
+}
+
+// Applies bounds and monotonic neighbor constraints to a candidate
+// multiplier value at a given anchor index. The monotonic constraint
+// prevents users from creating nonsense shapes (e.g. dragging the 1000 mi
+// point above the 600 mi point); each anchor stays between its neighbors.
+function constrainAnchorValue(curve, idx, candidate){
+  let v = Math.max(DCC_BOUNDS.min, Math.min(DCC_BOUNDS.max, candidate));
+  // Monotonic: each anchor must be <= its left neighbor and >= its right.
+  if(idx > 0)                  v = Math.min(v, curve[idx - 1].m);
+  if(idx < curve.length - 1)   v = Math.max(v, curve[idx + 1].m);
+  return v;
+}
+
+// Commits a new multiplier value at an anchor index: applies constraints,
+// updates the override array, clears the override if back to default,
+// persists, recomputes the quote, and repaints.
+function setAnchorValue(trailer, idx, value){
+  const override = ensureOverride(trailer);
+  override[idx].m = constrainAnchorValue(override, idx, value);
+  clearOverrideIfDefault(trailer);
+  saveDistanceCurves();
+  redrawDistanceCurve();
+  if(typeof calc === 'function') calc();
+}
+
+// ── Drag handling ──────────────────────────────────────────────────────────
+// Pointer events unify mouse + touch + pen. We capture the pointer on the
+// anchor itself so drag continues even when the cursor leaves the SVG.
+function onDccAnchorPointerDown(e){
+  const circle = e.currentTarget;
+  const idx = parseInt(circle.dataset.idx, 10);
+  const trailer = document.getElementById('trailer')?.value;
+  if(!trailer || isNaN(idx)) return;
+
+  e.preventDefault();
+  circle.setPointerCapture(e.pointerId);
+  circle.classList.add('dragging');
+  dccDragState = { trailer, idx, pointerId: e.pointerId, circle };
+
+  // Bind move/up at the document level so the drag survives the cursor
+  // leaving the chart bounds.
+  document.addEventListener('pointermove', onDccPointerMove);
+  document.addEventListener('pointerup',   onDccPointerUp);
+  document.addEventListener('pointercancel', onDccPointerUp);
+
+  showDccTooltip(idx, getCurve(trailer)[idx].m);
+}
+
+function onDccPointerMove(e){
+  if(!dccDragState) return;
+  const svg = document.getElementById('dcc-chart');
+  if(!svg) return;
+
+  // Convert client pixel y to viewBox y by accounting for the SVG's actual
+  // rendered size vs its viewBox height.
+  const rect = svg.getBoundingClientRect();
+  const viewYPerPixel = DCC_VIEW.h / rect.height;
+  const viewY = (e.clientY - rect.top) * viewYPerPixel;
+  const candidate = dccYInv(viewY);
+
+  const { trailer, idx } = dccDragState;
+  const override = ensureOverride(trailer);
+  const constrained = constrainAnchorValue(override, idx, candidate);
+  override[idx].m = constrained;
+
+  // Light repaint during drag — just move the circle and update the curve
+  // path. A full re-render every pointermove is too expensive on low-end
+  // devices and causes the dragged circle to lose its event capture.
+  updateDccDragVisuals(idx, constrained);
+  showDccTooltip(idx, constrained);
+}
+
+function onDccPointerUp(e){
+  if(!dccDragState) return;
+  const { circle, trailer } = dccDragState;
+  circle.classList.remove('dragging');
+  try { circle.releasePointerCapture(dccDragState.pointerId); } catch(_) {}
+
+  document.removeEventListener('pointermove', onDccPointerMove);
+  document.removeEventListener('pointerup',   onDccPointerUp);
+  document.removeEventListener('pointercancel', onDccPointerUp);
+
+  hideDccTooltip();
+  dccDragState = null;
+
+  // Commit: persist, sync inputs, recalc quote, and do a full repaint to
+  // catch the modified-badge and reset-button state changes.
+  clearOverrideIfDefault(trailer);
+  saveDistanceCurves();
+  redrawDistanceCurve();
+  if(typeof calc === 'function') calc();
+}
+
+// During drag, update only the moving circle and the active curve path,
+// not the whole chart. Keeps drag smooth.
+function updateDccDragVisuals(idx, value){
+  const { trailer } = dccDragState;
+  const svg = document.getElementById('dcc-chart');
+  if(!svg) return;
+
+  const circle = svg.querySelector(`.dcc-anchor[data-idx="${idx}"]`);
+  if(circle){
+    const newY = dccY(value);
+    circle.setAttribute('cy', newY);
+    circle.setAttribute('aria-valuenow', value.toFixed(2));
+  }
+
+  // Find and update the active curve polyline. There are three polylines;
+  // the active one is the last (drawn on top) — its data-active attr would
+  // be cleaner, but querying by stroke or rebuilding points is simpler.
+  const activeCurve = getCurve(trailer);
+  const points = activeCurve.map((pt, i) => `${dccX(i, activeCurve.length)},${dccY(pt.m)}`).join(' ');
+  const polylines = svg.querySelectorAll('.dcc-curve.active');
+  if(polylines.length) polylines[polylines.length - 1].setAttribute('points', points);
+}
+
+// Keyboard drag: arrow keys nudge a focused anchor up/down. Step size
+// matches the input field's 0.01 increment.
+function onDccAnchorKeyDown(e){
+  if(!['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key)) return;
+  e.preventDefault();
+  const circle = e.currentTarget;
+  const idx = parseInt(circle.dataset.idx, 10);
+  const trailer = document.getElementById('trailer')?.value;
+  if(!trailer || isNaN(idx)) return;
+
+  const current = getCurve(trailer)[idx].m;
+  const step    = (e.key === 'PageUp' || e.key === 'PageDown') ? 0.05 : 0.01;
+  let next;
+  if     (e.key === 'ArrowUp'   || e.key === 'PageUp')   next = current + step;
+  else if(e.key === 'ArrowDown' || e.key === 'PageDown') next = current - step;
+  else if(e.key === 'Home')                              next = DCC_BOUNDS.max;
+  else /* End */                                          next = DCC_BOUNDS.min;
+
+  setAnchorValue(trailer, idx, next);
+  // Restore focus on the same anchor (the redraw replaced the DOM node).
+  requestAnimationFrame(() => {
+    document.querySelector(`#dcc-chart .dcc-anchor[data-idx="${idx}"]`)?.focus();
+  });
+}
+
+// ── Tooltip ────────────────────────────────────────────────────────────────
+function showDccTooltip(idx, value){
+  const tip = document.getElementById('dcc-tooltip');
+  const svg = document.getElementById('dcc-chart');
+  if(!tip || !svg) return;
+
+  const trailer = document.getElementById('trailer')?.value;
+  const curve = getCurve(trailer);
+  const def = DMULTS[trailer];
+  const mi = curve[idx].mi;
+
+  // Position tooltip above the anchor in container-relative coordinates.
+  const wrap = svg.parentElement;
+  const wrapRect = wrap.getBoundingClientRect();
+  const svgRect = svg.getBoundingClientRect();
+  const scaleX = svgRect.width  / DCC_VIEW.w;
+  const scaleY = svgRect.height / DCC_VIEW.h;
+  const x = (svgRect.left - wrapRect.left) + dccX(idx, curve.length) * scaleX;
+  const y = (svgRect.top  - wrapRect.top)  + dccY(value) * scaleY;
+
+  const defaultLabel = def
+    ? `<span class="dcc-tooltip-default">default ${def[idx].m.toFixed(2)}×</span>`
+    : '';
+  tip.innerHTML = `${mi} mi · ${value.toFixed(2)}×${defaultLabel}`;
+  tip.style.left = `${x}px`;
+  tip.style.top  = `${y}px`;
+  tip.classList.add('show');
+}
+
+function hideDccTooltip(){
+  document.getElementById('dcc-tooltip')?.classList.remove('show');
+}
+
+// ── Input handlers ─────────────────────────────────────────────────────────
+function onDccInputChange(input){
+  const idx = parseInt(input.dataset.idx, 10);
+  const trailer = document.getElementById('trailer')?.value;
+  const value = parseFloat(input.value);
+  if(!trailer || isNaN(idx) || isNaN(value)) return;
+  setAnchorValue(trailer, idx, value);
+}
+
+// ── Reset / toggle ─────────────────────────────────────────────────────────
+function resetActiveCurve(){
+  const trailer = document.getElementById('trailer')?.value;
+  if(!trailer) return;
+  userCurves[trailer] = null;
+  saveDistanceCurves();
+  redrawDistanceCurve();
+  if(typeof calc === 'function') calc();
+}
+
+function toggleDistanceCurve(){
+  const card = document.getElementById('dcc-card');
+  if(!card) return;
+  card.classList.toggle('open');
+  // Re-render on open so the chart sizes correctly after the container
+  // transitions from display:none.
+  if(card.classList.contains('open')) redrawDistanceCurve();
+}
+
+// ── Initialization ─────────────────────────────────────────────────────────
+function initDistanceCurve(){
+  loadDistanceCurves();
+  redrawDistanceCurve();
+  // Re-render when the user changes trailer type so the active curve and
+  // inputs reflect the new selection. The trailer <select> already calls
+  // calc() via its own listener; we hook in alongside it.
+  const trailerEl = document.getElementById('trailer');
+  if(trailerEl){
+    trailerEl.addEventListener('change', redrawDistanceCurve);
+  }
+}
 
 // ── Advanced panel ────────────────────────────────────────────────────────
 function toggleAdv(){
@@ -5175,7 +5848,7 @@ function calc(){
   const base=BASE[trailer];
 
   const wt=weight?wTier(weight):{m:1.0,l:'—'};
-  const dm=miles?dMult(miles):{m:1.0,l:'—'};
+  const dm=miles?dMult(miles,trailer):{m:1.0,l:'—'};
   let dayL='—';
   if(pickup){const d=new Date(pickup+'T12:00:00').getDay();dayL=DAYS[d];}
   const cm=CMULT[commodity];
@@ -5325,7 +5998,7 @@ async function saveQuote(){
   const BASE=getBase();
   const base=BASE[trailer];
   const wt=weight?wTier(weight):{m:1.0};
-  const dm=dMult(miles);
+  const dm=dMult(miles,trailer);
   const adjRpm=base*wt.m*dm.m*CMULT[commodity]*getCapacityMult(trailer)*getSeasonMult(trailer,pickup);
   const cost=(adjRpm + getDieselFSC())*miles;
   const quote=cost*(1+marginPct);
@@ -6213,6 +6886,7 @@ async function startup(){
   loadTheme();
   loadAll();
   loadRates();
+  initDistanceCurve();
   document.getElementById('pickup').valueAsDate=new Date();
   updateFSCLabel();
   updateAdvCount();
