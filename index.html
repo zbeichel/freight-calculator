@@ -495,6 +495,46 @@ header .header-auth{ justify-self:end; }
 
 .adv-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
 
+/* ── Advanced Adjustments section card ──
+   Wraps the existing Advanced toggle + body in the same visual card
+   vocabulary used by Base Rates and Distance Decay Curve. The original
+   .adv-toggle was styled as a full-width footer band (border-top, tinted
+   background) for when it sat outside card-body. Inside this card wrapper
+   we neutralize those styles so it reads as a section header instead. */
+.adv-card{
+  margin-top:14px;
+  background:var(--card2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;
+}
+.adv-card .adv-toggle{
+  /* Reset footer-band styling for the in-card context */
+  border-top:none;
+  background:transparent;
+  padding:12px 14px;
+}
+.adv-card .adv-toggle:hover{
+  background:rgba(255,255,255,.02);
+  filter:none;
+}
+.adv-card .adv-toggle-left{
+  /* Match the section-title look used by Base Rates and DCC */
+  font-size:11px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--text2);
+  gap:8px;
+}
+.adv-card .adv-toggle-left svg{ display:none; }
+.adv-card .adv-arrow{
+  font-size:11px;color:var(--text3);
+}
+.adv-card .adv-body{
+  padding:0 14px 14px;
+  border-top:1px solid var(--border);
+  padding-top:14px;
+}
+.adv-card .adv-body.open{ display:block; }
+
 /* ── Distance Decay Curve section ──
    Sibling card to Base Rates. Users can override the default per-mile
    multiplier curves by dragging anchor points or typing values into the
@@ -640,6 +680,71 @@ header .header-auth{ justify-self:end; }
 .seas-strip{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;margin:8px 0 4px}
 .seas-month{border-radius:4px;padding:5px 2px;text-align:center;font-size:11px;font-weight:700;font-family:'Space Grotesk',sans-serif}
 .seas-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:8px}
+
+/* ── Holiday & Industry Event multipliers ──
+   A two-column grid of toggleable events that stack multiplicatively into
+   the quote (e.g., DOT Roadcheck, Thanksgiving, Mother's Day). Each row
+   is a label wrapping a hidden checkbox so the entire row is the tap
+   target. Layout matches the rest of the Advanced subsection vocabulary. */
+.holiday-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+  margin-top:8px;
+}
+.holiday-row{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:8px 10px;
+  background:var(--card);
+  border:1px solid var(--border2);
+  border-radius:8px;
+  font-size:12px;color:var(--text2);
+  cursor:pointer;user-select:none;
+  transition:all .15s;
+}
+.holiday-row:hover{ border-color:var(--text3); }
+.holiday-row input[type="checkbox"]{
+  /* Visually hidden but still keyboard-focusable */
+  position:absolute;opacity:0;pointer-events:none;
+}
+.holiday-row .holiday-check{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:16px;height:16px;flex-shrink:0;
+  border:1.5px solid var(--border2);border-radius:4px;
+  background:var(--card2);
+  transition:all .15s;
+}
+.holiday-row .holiday-check::after{
+  content:'';width:8px;height:8px;border-radius:2px;
+  background:var(--accent);
+  transform:scale(0);transition:transform .12s;
+}
+.holiday-row .holiday-name{
+  flex:1;
+  display:flex;align-items:center;gap:6px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.holiday-row .holiday-mult{
+  font-size:11px;font-weight:700;
+  color:var(--text3);
+  font-variant-numeric:tabular-nums;
+  flex-shrink:0;
+}
+.holiday-row input[type="checkbox"]:checked ~ .holiday-check{
+  border-color:var(--accent);
+}
+.holiday-row input[type="checkbox"]:checked ~ .holiday-check::after{
+  transform:scale(1);
+}
+.holiday-row.checked{
+  border-color:var(--accent);
+  background:var(--accentbg);
+  color:var(--text);
+}
+.holiday-row.checked .holiday-mult{ color:var(--accent); }
+.holiday-row input[type="checkbox"]:focus-visible ~ .holiday-check{
+  outline:2px solid var(--accent);outline-offset:2px;
+}
 
 
 /* ── Results card ── */
@@ -1157,6 +1262,9 @@ html.light .hos-day-header{background:var(--card2)}
   /* Distance decay curve: collapse 6-col input grid to 3 cols for thumbs */
   .dcc-inputs{grid-template-columns:repeat(3,1fr)}
   .dcc-input-cell input{font-size:13px;padding:6px 4px}
+
+  /* Holiday event grid: single column on phones for easier tapping */
+  .holiday-grid{grid-template-columns:1fr}
 
   /* Seasonal */
   .seas-labels{font-size:8px}
@@ -1792,6 +1900,159 @@ html.light .hos-day-header{background:var(--card2)}
           <input type="number" inputmode="decimal" id="margin" aria-label="Margin percentage" value="15" min="0" max="100" oninput="calc()" />
         </div>
 
+        <!-- Advanced Adjustments — moved here from below; wrapped in section card to match Base Rates / Distance Decay Curve -->
+        <div class="ftl-only adv-card" id="adv-card">
+          <div class="adv-toggle" onclick="toggleAdv()" id="adv-toggle">
+            <div class="adv-toggle-left">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+              Advanced Adjustments
+              <span id="adv-active-count" style="background:var(--accentbg);color:var(--accent);border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;display:none">0 on</span>
+            </div>
+            <span class="adv-arrow" id="adv-arrow">▾</span>
+          </div>
+
+          <div class="adv-body" id="adv-body">
+
+            <!-- Diesel -->
+            <div class="adv-sub" style="display:flex;align-items:center;justify-content:space-between">
+              <span>Diesel Surcharge</span>
+              <label class="tog" style="margin-bottom:0">
+                <input type="checkbox" id="diesel-enabled" onchange="toggleDiesel()" />
+                <span class="tog-track"><span class="tog-thumb"></span></span>
+                <span class="tog-label" id="diesel-tog-lbl">Off</span>
+              </label>
+            </div>
+            <div class="adv-note" style="margin-bottom:8px">
+              <strong>Adds a per-mile surcharge using the DAT RateView FSC formula</strong> (EIA price − $1.25 baseline) ÷ 6.5 MPG. DAT spot rates already include fuel — enable when quoting off contract rates or when your carrier requires a separate FSC.
+            </div>
+            <div class="adv-warn" id="diesel-warn">
+              <strong style="color:var(--accent)">FSC active</strong> — DAT RateView formula. Best used with contract rates; enabling on DAT spot rates may double-count fuel.
+            </div>
+            <div id="diesel-controls" style="display:none;margin-bottom:4px">
+              <!-- Region selector -->
+              <div class="mini-input-group" style="margin-bottom:10px">
+                <div class="mini-label" style="color:var(--red)">Diesel Region</div>
+                <select id="diesel-region" onchange="saveDiesel();calc()"
+                  style="background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;padding:8px 10px;width:100%;outline:none;cursor:pointer">
+                  <option value="R10">East Coast</option>
+                  <option value="R20">Midwest</option>
+                  <option value="R30">Gulf Coast</option>
+                  <option value="R40">Rocky Mountain</option>
+                  <option value="R50">West Coast</option>
+                  <option value="NUS">National Average</option>
+                </select>
+              </div>
+              <!-- Price input + fetch button -->
+              <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-bottom:6px">
+                <div class="mini-input-group">
+                  <div class="mini-label" style="color:var(--red)">Diesel Price ($/gal)</div>
+                  <input class="mini-input" type="number" id="diesel-price" value="3.85" step="0.01" min="1" style="color:var(--red);border-color:rgba(239,68,68,.3)" oninput="saveDiesel();calc()" />
+                </div>
+                <button onclick="fetchEIADiesel()" id="eia-fetch-btn"
+                  style="height:38px;padding:0 12px;background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--red);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s"
+                  title="Fetch latest weekly price from EIA">
+                  ⚡ Live
+                </button>
+              </div>
+              <div id="eia-status" style="font-size:11px;color:var(--text3);margin-bottom:4px"></div>
+              <div id="diesel-fsc-display" style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:4px"></div><div class="mini-sub">DAT RateView formula: (EIA price − $1.25) ÷ 6.5 MPG · <a href="https://iq.support.dat.com/1-rateview-d8f11ff2/fuel-surcharge-calculation-in-rateview-81e5c885" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:none">DAT source ↗</a> · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
+            </div>
+
+            <!-- Capacity -->
+            <div class="adv-sub" style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span>Capacity / Load-to-Truck</span>
+                <span style="font-size:10px;color:var(--text3);font-weight:400">Updated: <span id="lt-updated-date" style="color:var(--text2)">—</span></span>
+              </div>
+              <label class="tog" style="margin-bottom:0">
+                <input type="checkbox" id="cap-enabled" onchange="toggleCapacity()" />
+                <span class="tog-track"><span class="tog-thumb"></span></span>
+                <span class="tog-label" id="cap-tog-lbl">Off</span>
+              </label>
+            </div>
+            <div class="adv-note" style="margin-bottom:8px">
+              <strong>Current DAT rates reflect this week's capacity.</strong> Enable when your rates are a few days stale or you're adjusting for a lane you know is tighter or looser than the national average.
+            </div>
+            <div id="cap-controls" style="display:none;margin-bottom:4px">
+              <div class="adv-grid3">
+                <div class="mini-input-group">
+                  <div class="mini-label" style="color:#60a5fa">Van L:T</div>
+                  <input class="mini-input" type="number" id="lt-van" value="8.1" step="0.1" min="0.1" style="color:#60a5fa;border-color:rgba(59,130,246,.3)" oninput="saveCapacity();calc()" />
+                  <div class="mini-sub">base <span id="lt-van-base">6.0</span> · <span id="lt-van-mult" style="font-weight:600">—</span></div>
+                </div>
+                <div class="mini-input-group">
+                  <div class="mini-label" style="color:#4ade80">Reefer L:T</div>
+                  <input class="mini-input" type="number" id="lt-reefer" value="14.9" step="0.1" min="0.1" style="color:#4ade80;border-color:rgba(34,197,94,.3)" oninput="saveCapacity();calc()" />
+                  <div class="mini-sub">base <span id="lt-reefer-base">10.0</span> · <span id="lt-reefer-mult" style="font-weight:600">—</span></div>
+                </div>
+                <div class="mini-input-group">
+                  <div class="mini-label" style="color:var(--accent)">Flatbed L:T</div>
+                  <input class="mini-input" type="number" id="lt-flatbed" value="25.0" step="0.1" min="0.1" style="color:var(--accent);border-color:rgba(240,165,0,.3)" oninput="saveCapacity();calc()" />
+                  <div class="mini-sub">base <span id="lt-flatbed-base">25.0</span> · <span id="lt-flatbed-mult" style="font-weight:600">—</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Seasonality -->
+            <div class="adv-sub" style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+              <span>Seasonal Adjustment</span>
+              <label class="tog" style="margin-bottom:0">
+                <input type="checkbox" id="seas-enabled" onchange="toggleSeason()" />
+                <span class="tog-track"><span class="tog-thumb"></span></span>
+                <span class="tog-label" id="seas-tog-lbl">Off</span>
+              </label>
+            </div>
+            <div class="adv-note" style="margin-bottom:10px">
+              Auto-applies from your pickup date. Select the origin region that best matches your lane — each profile reflects seasonal capacity and demand patterns for that growing region. Recommended to keep on — DAT rates lag seasonal transitions by several days.
+            </div>
+            <div id="seas-controls">
+              <div class="field" style="margin-bottom:10px">
+                <label>Origin Region</label>
+                <select id="seas-region" onchange="saveSeason();calc()">
+                  <optgroup label="── Produce / Reefer Lanes ──">
+                    <option value="fl">Florida · potatoes, citrus, tomatoes (May–Jun peak)</option>
+                    <option value="se">Southeast · GA, SC, NC peaches, watermelon (Apr–Jun peak)</option>
+                    <option value="ca">California / San Joaquin · grapes, stone fruit (Jun–Sep peak)</option>
+                    <option value="pnw">Pacific Northwest · WA/OR/ID apples, potatoes (Aug–Oct peak)</option>
+                    <option value="tx">Texas / Rio Grande Valley · winter citrus, onions (Jan–Feb peak)</option>
+                    <option value="az">Arizona / Yuma · winter lettuce, vegetables (Nov–Mar peak)</option>
+                    <option value="gl">Great Lakes / Michigan · cherries, blueberries, apples (Jul–Sep peak)</option>
+                    <option value="ne_produce">Northeast fall harvest · NY, NJ, PA apples, potatoes (Sep–Nov peak)</option>
+                    <option value="storage">Storage season / Northern · ME, WI, MI, NY potatoes (Oct–Apr peak)</option>
+                  </optgroup>
+                  <optgroup label="── General Freight Lanes ──">
+                    <option value="mw">Midwest · grain, manufacturing</option>
+                    <option value="ne">Northeast · general freight, retail</option>
+                    <option value="sw">Southwest / Texas · general, oil field</option>
+                    <option value="national">National average · no specific region</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Monthly multipliers — <span id="seas-cal-label">FL Reefer</span></div>
+              <div class="seas-strip" id="seas-calendar"></div>
+              <div class="seas-labels"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span></div>
+            </div>
+
+            <!-- Holidays & Industry Events -->
+            <div class="adv-sub" style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+              <span>Holidays &amp; Industry Events</span>
+              <label class="tog" style="margin-bottom:0">
+                <input type="checkbox" id="hol-enabled" onchange="toggleHolidays()" />
+                <span class="tog-track"><span class="tog-thumb"></span></span>
+                <span class="tog-label" id="hol-tog-lbl">Off</span>
+              </label>
+            </div>
+            <div class="adv-note" style="margin-bottom:10px">
+              Check the events that overlap your pickup date. Each adds a multiplier to the quote. <strong>Stacks with Seasonal</strong> — useful for compounding spikes (e.g., Mother's Day during peak produce season), but watch for double-counting if both adjust for the same underlying signal.
+            </div>
+            <div id="hol-controls" style="display:none">
+              <div class="holiday-grid" id="hol-grid"></div>
+            </div>
+
+          </div>
+        </div>
+
+
         <!-- Base Rates — moved here from Advanced for easy access -->
         <div class="ftl-only" id="base-rates-main" style="margin-top:14px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
@@ -1921,139 +2182,6 @@ html.light .hos-day-header{background:var(--card2)}
 
       </div>
 
-      <!-- Advanced section -->
-      <div class="adv-toggle" onclick="toggleAdv()" id="adv-toggle">
-        <div class="adv-toggle-left">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-          Advanced Adjustments
-          <span id="adv-active-count" style="background:var(--accentbg);color:var(--accent);border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;display:none">0 on</span>
-        </div>
-        <span class="adv-arrow" id="adv-arrow">▾</span>
-      </div>
-
-      <div class="adv-body" id="adv-body">
-
-        <!-- Diesel -->
-        <div class="adv-sub" style="display:flex;align-items:center;justify-content:space-between">
-          <span>Diesel Surcharge</span>
-          <label class="tog" style="margin-bottom:0">
-            <input type="checkbox" id="diesel-enabled" onchange="toggleDiesel()" />
-            <span class="tog-track"><span class="tog-thumb"></span></span>
-            <span class="tog-label" id="diesel-tog-lbl">Off</span>
-          </label>
-        </div>
-        <div class="adv-note" style="margin-bottom:8px">
-          <strong>Adds a per-mile surcharge using the DAT RateView FSC formula</strong> (EIA price − $1.25 baseline) ÷ 6.5 MPG. DAT spot rates already include fuel — enable when quoting off contract rates or when your carrier requires a separate FSC.
-        </div>
-        <div class="adv-warn" id="diesel-warn">
-          <strong style="color:var(--accent)">FSC active</strong> — DAT RateView formula. Best used with contract rates; enabling on DAT spot rates may double-count fuel.
-        </div>
-        <div id="diesel-controls" style="display:none;margin-bottom:4px">
-          <!-- Region selector -->
-          <div class="mini-input-group" style="margin-bottom:10px">
-            <div class="mini-label" style="color:var(--red)">Diesel Region</div>
-            <select id="diesel-region" onchange="saveDiesel();calc()"
-              style="background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;padding:8px 10px;width:100%;outline:none;cursor:pointer">
-              <option value="R10">East Coast</option>
-              <option value="R20">Midwest</option>
-              <option value="R30">Gulf Coast</option>
-              <option value="R40">Rocky Mountain</option>
-              <option value="R50">West Coast</option>
-              <option value="NUS">National Average</option>
-            </select>
-          </div>
-          <!-- Price input + fetch button -->
-          <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-bottom:6px">
-            <div class="mini-input-group">
-              <div class="mini-label" style="color:var(--red)">Diesel Price ($/gal)</div>
-              <input class="mini-input" type="number" id="diesel-price" value="3.85" step="0.01" min="1" style="color:var(--red);border-color:rgba(239,68,68,.3)" oninput="saveDiesel();calc()" />
-            </div>
-            <button onclick="fetchEIADiesel()" id="eia-fetch-btn"
-              style="height:38px;padding:0 12px;background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--red);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s"
-              title="Fetch latest weekly price from EIA">
-              ⚡ Live
-            </button>
-          </div>
-          <div id="eia-status" style="font-size:11px;color:var(--text3);margin-bottom:4px"></div>
-          <div id="diesel-fsc-display" style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:4px"></div><div class="mini-sub">DAT RateView formula: (EIA price − $1.25) ÷ 6.5 MPG · <a href="https://iq.support.dat.com/1-rateview-d8f11ff2/fuel-surcharge-calculation-in-rateview-81e5c885" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:none">DAT source ↗</a> · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
-        </div>
-
-        <!-- Capacity -->
-        <div class="adv-sub" style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span>Capacity / Load-to-Truck</span>
-            <span style="font-size:10px;color:var(--text3);font-weight:400">Updated: <span id="lt-updated-date" style="color:var(--text2)">—</span></span>
-          </div>
-          <label class="tog" style="margin-bottom:0">
-            <input type="checkbox" id="cap-enabled" onchange="toggleCapacity()" />
-            <span class="tog-track"><span class="tog-thumb"></span></span>
-            <span class="tog-label" id="cap-tog-lbl">Off</span>
-          </label>
-        </div>
-        <div class="adv-note" style="margin-bottom:8px">
-          <strong>Current DAT rates reflect this week's capacity.</strong> Enable when your rates are a few days stale or you're adjusting for a lane you know is tighter or looser than the national average.
-        </div>
-        <div id="cap-controls" style="display:none;margin-bottom:4px">
-          <div class="adv-grid3">
-            <div class="mini-input-group">
-              <div class="mini-label" style="color:#60a5fa">Van L:T</div>
-              <input class="mini-input" type="number" id="lt-van" value="8.1" step="0.1" min="0.1" style="color:#60a5fa;border-color:rgba(59,130,246,.3)" oninput="saveCapacity();calc()" />
-              <div class="mini-sub">base <span id="lt-van-base">6.0</span> · <span id="lt-van-mult" style="font-weight:600">—</span></div>
-            </div>
-            <div class="mini-input-group">
-              <div class="mini-label" style="color:#4ade80">Reefer L:T</div>
-              <input class="mini-input" type="number" id="lt-reefer" value="14.9" step="0.1" min="0.1" style="color:#4ade80;border-color:rgba(34,197,94,.3)" oninput="saveCapacity();calc()" />
-              <div class="mini-sub">base <span id="lt-reefer-base">10.0</span> · <span id="lt-reefer-mult" style="font-weight:600">—</span></div>
-            </div>
-            <div class="mini-input-group">
-              <div class="mini-label" style="color:var(--accent)">Flatbed L:T</div>
-              <input class="mini-input" type="number" id="lt-flatbed" value="25.0" step="0.1" min="0.1" style="color:var(--accent);border-color:rgba(240,165,0,.3)" oninput="saveCapacity();calc()" />
-              <div class="mini-sub">base <span id="lt-flatbed-base">25.0</span> · <span id="lt-flatbed-mult" style="font-weight:600">—</span></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Seasonality -->
-        <div class="adv-sub" style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
-          <span>Seasonal Adjustment</span>
-          <label class="tog" style="margin-bottom:0">
-            <input type="checkbox" id="seas-enabled" onchange="toggleSeason()" />
-            <span class="tog-track"><span class="tog-thumb"></span></span>
-            <span class="tog-label" id="seas-tog-lbl">Off</span>
-          </label>
-        </div>
-        <div class="adv-note" style="margin-bottom:10px">
-          Auto-applies from your pickup date. Select the origin region that best matches your lane — each profile reflects seasonal capacity and demand patterns for that growing region. Recommended to keep on — DAT rates lag seasonal transitions by several days.
-        </div>
-        <div id="seas-controls">
-          <div class="field" style="margin-bottom:10px">
-            <label>Origin Region</label>
-            <select id="seas-region" onchange="saveSeason();calc()">
-              <optgroup label="── Produce / Reefer Lanes ──">
-                <option value="fl">Florida · potatoes, citrus, tomatoes (May–Jun peak)</option>
-                <option value="se">Southeast · GA, SC, NC peaches, watermelon (Apr–Jun peak)</option>
-                <option value="ca">California / San Joaquin · grapes, stone fruit (Jun–Sep peak)</option>
-                <option value="pnw">Pacific Northwest · WA/OR/ID apples, potatoes (Aug–Oct peak)</option>
-                <option value="tx">Texas / Rio Grande Valley · winter citrus, onions (Jan–Feb peak)</option>
-                <option value="az">Arizona / Yuma · winter lettuce, vegetables (Nov–Mar peak)</option>
-                <option value="gl">Great Lakes / Michigan · cherries, blueberries, apples (Jul–Sep peak)</option>
-                <option value="ne_produce">Northeast fall harvest · NY, NJ, PA apples, potatoes (Sep–Nov peak)</option>
-                <option value="storage">Storage season / Northern · ME, WI, MI, NY potatoes (Oct–Apr peak)</option>
-              </optgroup>
-              <optgroup label="── General Freight Lanes ──">
-                <option value="mw">Midwest · grain, manufacturing</option>
-                <option value="ne">Northeast · general freight, retail</option>
-                <option value="sw">Southwest / Texas · general, oil field</option>
-                <option value="national">National average · no specific region</option>
-              </optgroup>
-            </select>
-          </div>
-          <div style="font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Monthly multipliers — <span id="seas-cal-label">FL Reefer</span></div>
-          <div class="seas-strip" id="seas-calendar"></div>
-          <div class="seas-labels"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span></div>
-        </div>
-
-      </div>
     </div>
 
     <!-- HOS Trip Plan -->
@@ -2176,6 +2304,7 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="pill"><div class="pill-label">Diesel</div><div class="pill-val" id="m-diesel" style="color:var(--text3)">off</div></div>
         <div class="pill"><div class="pill-label">Capacity</div><div class="pill-val" id="m-cap" style="color:var(--text3)">off</div></div>
         <div class="pill" style="grid-column:1/-1"><div class="pill-label">Seasonal</div><div class="pill-val" id="m-seas">—</div></div>
+        <div class="pill" style="grid-column:1/-1"><div class="pill-label">Holidays / Events</div><div class="pill-val" id="m-hol" style="color:var(--text3)">off</div></div>
       </div>
       <!-- Download Quote button — Pro feature -->
       <div style="padding:14px 16px;border-top:1px solid var(--border)">
@@ -3096,10 +3225,12 @@ function setShipType(t){
   // Weather — FTL only
   const wx=document.getElementById('weather-card');
   if(wx) wx.style.display=(t==='ltl'||t==='prof')?'none':'';
-  // Advanced adjustments — FTL only
-  const advToggle=document.getElementById('adv-toggle');
+  // Advanced adjustments — FTL only. Hides the whole wrapping card so the
+  // toggle and body collapse together. Also resets the open state so the
+  // section starts closed when the user returns to FTL.
+  const advCard=document.getElementById('adv-card');
   const advBody=document.getElementById('adv-body');
-  if(advToggle) advToggle.style.display=(t==='ltl'||t==='prof')?'none':'';
+  if(advCard) advCard.style.display=(t==='ltl'||t==='prof')?'none':'';
   if(advBody&&t!=='ftl') advBody.classList.remove('open');
   // Hide margin field and base rates in prof mode
   const marginField = document.getElementById('margin-field');
@@ -5457,7 +5588,8 @@ function updateAdvCount(){
   const on=[
     document.getElementById('diesel-enabled').checked,
     document.getElementById('cap-enabled').checked,
-    document.getElementById('seas-enabled').checked
+    document.getElementById('seas-enabled').checked,
+    holidaysActive()
   ].filter(Boolean).length;
   const el=document.getElementById('adv-active-count');
   el.textContent=on+' on';
@@ -5833,7 +5965,124 @@ function updateSeasonCalendar(trailer,pickup){
   }).join('');
 }
 
-// ── Main calc ─────────────────────────────────────────────────────────────
+// ── Holidays & Industry Events ────────────────────────────────────────────
+// Multiplicative quote adjustments for known capacity-tightening windows
+// (DOT inspection weeks, major retail holidays, Mother's Day). Values are
+// midpoints of the published industry ranges; defensible as starting points
+// but not measured against a private dataset. Stacks with Seasonal — users
+// are warned in the UI to watch for double-counting on overlapping signals.
+const HOLIDAY_EVENTS = [
+  { id:'roadcheck',   label:'DOT Roadcheck',        mult:1.125, hint:'Mid-May, ~3 days' },
+  { id:'brake_week',  label:'Brake Safety Week',    mult:1.05,  hint:'Mid-August' },
+  { id:'memorial',    label:'Memorial Day',         mult:1.065, hint:'Last Mon. of May' },
+  { id:'july4',       label:'July 4th',             mult:1.055, hint:'Independence Day week' },
+  { id:'labor',       label:'Labor Day',            mult:1.065, hint:'First Mon. of Sept.' },
+  { id:'thanksgiving',label:'Thanksgiving',         mult:1.125, hint:'4th Thu. of Nov.' },
+  { id:'xmas_nye',    label:'Christmas / New Year', mult:1.15,  hint:'Dec 22 – Jan 2' },
+  { id:'mothers_day', label:"Mother's Day",         mult:1.125, hint:'2nd Sun. of May — floral surge' }
+];
+
+// Renders the checkbox grid. Called on boot (to seed rows) and on toggle
+// (so newly-revealed rows reflect persisted state). Each row is a <label>
+// wrapping a hidden <input> + visual check indicator + text + multiplier.
+function renderHolidayGrid(){
+  const grid = document.getElementById('hol-grid');
+  if(!grid) return;
+  grid.innerHTML = HOLIDAY_EVENTS.map(ev => {
+    const pct = Math.round((ev.mult - 1) * 100);
+    return `<label class="holiday-row" data-id="${ev.id}" title="${ev.hint}">
+      <input type="checkbox" id="hol-${ev.id}" onchange="onHolidayChange(this)" />
+      <span class="holiday-check" aria-hidden="true"></span>
+      <span class="holiday-name">${ev.label}</span>
+      <span class="holiday-mult">+${pct}%</span>
+    </label>`;
+  }).join('');
+}
+
+// Master enable toggle. Mirrors toggleSeason / toggleCapacity exactly.
+function toggleHolidays(){
+  const on = document.getElementById('hol-enabled').checked;
+  document.getElementById('hol-controls').style.display = on ? 'block' : 'none';
+  document.getElementById('hol-tog-lbl').textContent   = on ? 'On' : 'Off';
+  document.getElementById('hol-tog-lbl').style.color   = on ? 'var(--accent)' : '';
+  saveHolidays();
+  updateAdvCount();
+  calc();
+}
+
+// Per-checkbox handler. Updates the row's "checked" visual state, persists,
+// recalculates, and refreshes the Advanced count badge (a single increment
+// when ≥1 event is checked, not one per event).
+function onHolidayChange(input){
+  const row = input.closest('.holiday-row');
+  if(row) row.classList.toggle('checked', input.checked);
+  saveHolidays();
+  updateAdvCount();
+  calc();
+}
+
+// Returns the set of currently-checked event ids. Used for both the
+// multiplier calculation and the result-panel display.
+function getActiveHolidayIds(){
+  if(!document.getElementById('hol-enabled')?.checked) return [];
+  return HOLIDAY_EVENTS
+    .filter(ev => document.getElementById('hol-'+ev.id)?.checked)
+    .map(ev => ev.id);
+}
+
+// Cumulative multiplier from all checked events. Multiplicative stacking
+// matches how Capacity and Seasonal compose into the quote formula. With
+// the master toggle off OR no events checked, returns 1.0 (no effect).
+function getHolidayMult(){
+  if(!document.getElementById('hol-enabled')?.checked) return 1.0;
+  let m = 1.0;
+  for(const ev of HOLIDAY_EVENTS){
+    if(document.getElementById('hol-'+ev.id)?.checked) m *= ev.mult;
+  }
+  return m;
+}
+
+// Returns true if the master toggle is on AND at least one event is
+// checked. Drives both the Advanced count badge increment and whether
+// the result-panel pill shows a value vs. "off".
+function holidaysActive(){
+  return document.getElementById('hol-enabled')?.checked
+      && getActiveHolidayIds().length > 0;
+}
+
+// Persistence. Stores enabled state + the array of checked event ids
+// (more compact than a {id:bool} map). Matches the frc_* naming used
+// by sibling Advanced subsections (diesel, capacity, seasonal).
+function saveHolidays(){
+  try{
+    localStorage.setItem('frc_holidays', JSON.stringify({
+      enabled: document.getElementById('hol-enabled').checked,
+      events:  getActiveHolidayIds()
+    }));
+  }catch(e){}
+}
+
+// Boot-time hydration. Called from loadAll(). Restores the master toggle
+// and rehydrates checkbox state from the persisted event id list.
+function loadHolidays(){
+  try{
+    const h = JSON.parse(localStorage.getItem('frc_holidays') || '{}');
+    if(Array.isArray(h.events)){
+      for(const id of h.events){
+        const cb = document.getElementById('hol-'+id);
+        if(cb){
+          cb.checked = true;
+          cb.closest('.holiday-row')?.classList.add('checked');
+        }
+      }
+    }
+    if(h.enabled === true){
+      document.getElementById('hol-enabled').checked = true;
+      toggleHolidays();
+    }
+  }catch(e){}
+}
+
 function calc(){
   if(shipType==='ltl'){ calcLTL(); return; }
   const miles=parseFloat(document.getElementById('miles').value)||0;
@@ -5855,14 +6104,16 @@ function calc(){
   const dieselM=getDieselMult();
   const capM=getCapacityMult(trailer);
   const seasM=getSeasonMult(trailer,pickup);
+  const holM=getHolidayMult();
   const dieselOn=document.getElementById('diesel-enabled').checked;
   const capOn=document.getElementById('cap-enabled').checked;
   const seasOn=document.getElementById('seas-enabled').checked;
+  const holOn=holidaysActive();
 
   updateCapMults();
   updateSeasonCalendar(trailer,pickup);
 
-  const adjRpm = base*wt.m*dm.m*cm*capM*seasM;
+  const adjRpm = base*wt.m*dm.m*cm*capM*seasM*holM;
   const fscPerMile = getDieselFSC();
   const cost = miles ? (adjRpm + fscPerMile) * miles : 0;
   const marginAmt=cost*marginPct;
@@ -5898,6 +6149,21 @@ function calc(){
   document.getElementById('m-cap').style.color=capOn?(capM>1?'#f87171':capM<1?'#4ade80':'var(--text2)'):'var(--text3)';
   document.getElementById('m-seas').textContent=seasOn?seasM.toFixed(3)+'×':'off';
   document.getElementById('m-seas').style.color=seasOn?seasColor:'var(--text3)';
+  // Holiday/event multiplier pill — shows cumulative × and a tooltip listing
+  // which specific events are stacked, so users can audit the adjustment.
+  const mHol = document.getElementById('m-hol');
+  if(holOn){
+    const labels = HOLIDAY_EVENTS
+      .filter(ev => document.getElementById('hol-'+ev.id)?.checked)
+      .map(ev => ev.label);
+    mHol.textContent = holM.toFixed(3)+'×';
+    mHol.style.color = holM>1.05 ? '#f87171' : 'var(--accent)';
+    mHol.title       = labels.join(', ');
+  } else {
+    mHol.textContent = 'off';
+    mHol.style.color = 'var(--text3)';
+    mHol.title       = '';
+  }
 
   // Schedule anonymous lane data capture if quote is complete
   if(miles && orig && dest) scheduleLaneCapture();
@@ -5999,7 +6265,7 @@ async function saveQuote(){
   const base=BASE[trailer];
   const wt=weight?wTier(weight):{m:1.0};
   const dm=dMult(miles,trailer);
-  const adjRpm=base*wt.m*dm.m*CMULT[commodity]*getCapacityMult(trailer)*getSeasonMult(trailer,pickup);
+  const adjRpm=base*wt.m*dm.m*CMULT[commodity]*getCapacityMult(trailer)*getSeasonMult(trailer,pickup)*getHolidayMult();
   const cost=(adjRpm + getDieselFSC())*miles;
   const quote=cost*(1+marginPct);
   const qRpm=quote/miles;
@@ -6461,6 +6727,12 @@ function loadAll(){
     if(s.region) document.getElementById('seas-region').value=s.region;
     // Only enable if user explicitly turned it on before — default is Off for new visitors
     if(s.enabled===true){document.getElementById('seas-enabled').checked=true;toggleSeason();}
+
+    // Holidays: render the grid first (creates the checkbox DOM), then
+    // hydrate from storage which flips the right boxes on. loadHolidays
+    // also calls toggleHolidays if the master toggle was previously on.
+    renderHolidayGrid();
+    loadHolidays();
 
     quoteLog=[];
   }catch(e){}
@@ -7102,4 +7374,3 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') closeProModal
 
 </body>
 </html>
-
