@@ -6,7 +6,7 @@
     },
     "southeast": {
       "states": ["VA","WV","KY","TN","NC","SC","FL","GA","AL","MS"],
-      "van": 2.65, "reefer": 2.92, "flatbed": 3.74
+      "van": 2.65, "reefer": 3.03, "flatbed": 3.74
     },
     "midwest": {
       "states": ["OH","IN","MI","WI","MN","IA","IL","MO","ND","SD","NE","KS"],
@@ -22,14 +22,14 @@
     },
     "national": {
       "states": [],
-      "van": 2.64, "reefer": 3.08, "flatbed": 3.53
+      "van": 2.70, "reefer": 3.15, "flatbed": 3.58
     }
   },
   "loadToTruck": {
     "van":     { "current": 8.3,  "base": 6.0  },
-    "reefer":  { "current": 14.5, "base": 10.0 },
+    "reefer":  { "current": 16.3, "base": 10.0 },
     "flatbed": { "current": 63.1, "base": 25.0 },
-    "updated": "May 5, 2026",
+    "updated": "May 11, 2026",
     "source": "DAT Trendlines"
   },
   "history": [
