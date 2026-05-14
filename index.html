@@ -946,6 +946,11 @@ header .header-auth{ justify-self:end; }
   font-size:10px;font-weight:600;color:var(--text3);
   letter-spacing:.05em;
 }
+.mp-help{
+  font-size:10px;line-height:1.5;color:var(--text3);
+  margin-top:10px;padding-top:8px;border-top:1px solid var(--border);
+}
+.mp-help strong{ color:var(--text2); }
 
 /* ── Quote log ── */
 .log-card{
@@ -2472,6 +2477,9 @@ html.light .hos-day-header{background:var(--card2)}
           <span class="mp-readout-label" id="mp-label">Normal</span>
           <span class="mp-readout-pct" id="mp-pct">+0%</span>
           <span class="mp-readout-mult" id="mp-mult">× 1.000</span>
+        </div>
+        <div class="mp-help">
+          <strong>Drag the slider</strong> to adjust the quote based on current market conditions. Normal (0%) applies no change; slide right when the market is tight and rates are surging, left when the market is soft.
         </div>
       </div>
 
