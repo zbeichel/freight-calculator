@@ -2,34 +2,34 @@
   "regions": {
     "northeast": {
       "states": ["ME","VT","NH","MA","RI","CT","NY","NJ","PA","DE","MD"],
-      "van": 2.36, "reefer": 2.57, "flatbed": 3.30
+      "van": 2.40, "reefer": 2.60, "flatbed": 3.30
     },
     "southeast": {
       "states": ["VA","WV","KY","TN","NC","SC","FL","GA","AL","MS"],
-      "van": 2.65, "reefer": 3.03, "flatbed": 3.74
+      "van": 2.90, "reefer": 3.35, "flatbed": 3.90
     },
     "midwest": {
       "states": ["OH","IN","MI","WI","MN","IA","IL","MO","ND","SD","NE","KS"],
-      "van": 2.83, "reefer": 3.29, "flatbed": 3.55
+      "van": 2.94, "reefer": 3.37, "flatbed": 3.62
     },
     "southwest": {
       "states": ["NM","TX","OK","AR","LA"],
-      "van": 2.75, "reefer": 3.35, "flatbed": 3.54
+      "van": 2.91, "reefer": 3.51, "flatbed": 3.76
     },
     "west": {
       "states": ["MT","WY","CO","AZ","ID","NV","UT","WA","OR","CA","AK","HI"],
-      "van": 2.55, "reefer": 3.18, "flatbed": 2.99
+      "van": 2.67, "reefer": 3.32, "flatbed": 3.09
     },
     "national": {
       "states": [],
-      "van": 2.70, "reefer": 3.15, "flatbed": 3.58
+      "van": 2.85, "reefer": 3.35, "flatbed": 3.64
     }
   },
   "loadToTruck": {
-    "van":     { "current": 8.3,  "base": 6.0  },
-    "reefer":  { "current": 16.3, "base": 10.0 },
-    "flatbed": { "current": 63.1, "base": 25.0 },
-    "updated": "May 11, 2026",
+    "van":     { "current": 7.5,  "base": 6.0  },
+    "reefer":  { "current": 13.5, "base": 10.0 },
+    "flatbed": { "current": 72, "base": 25.0 },
+    "updated": "May 28, 2026",
     "source": "DAT Trendlines"
   },
   "history": [
@@ -82,6 +82,6 @@
       }
     }
   ],
-  "updated": "May 11, 2026",
+  "updated": "May 28, 2026",
   "source": "DAT Trendlines"
 }
