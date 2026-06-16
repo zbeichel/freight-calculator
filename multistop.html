@@ -908,23 +908,12 @@ function adjustExtraDays(delta){
   calcTotal();
 }
 let legTimers = {};
-let GMAPS_KEY = null;
 let stopChargeOverrides = {}; // stopId → { amount, type } where type is 'flat' or 'permile'
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
 
 const CMULT = {standard:1.0,food:1.08,hazmat:1.20,highval:1.12,oversized:1.25};
-
-// ── Load Google Maps key ───────────────────────────────────────────────────
-async function loadGMapsKey(){
-  try {
-    const resp = await fetch('/.netlify/functions/gmaps-key');
-    if(!resp.ok) throw new Error();
-    const data = await resp.json();
-    GMAPS_KEY = data.key || null;
-  } catch(e){ GMAPS_KEY = null; }
-}
 
 // ── Stop management ────────────────────────────────────────────────────────
 // ── Edit mode ─────────────────────────────────────────────────────────────
@@ -1259,22 +1248,12 @@ async function lookupLegMiles(id){
   if(status){ status.className = 'miles-status loading'; status.textContent = 'Calculating miles...'; }
 
   try {
-    if(!GMAPS_KEY) await loadGMapsKey();
-    if(!GMAPS_KEY) throw new Error('No key');
-
-    const resp = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+    const resp = await fetch('/.netlify/functions/routes', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': GMAPS_KEY,
-        'X-Goog-FieldMask': 'routes.distanceMeters'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        origin:      { address: from + ', USA' },
-        destination: { address: to   + ', USA' },
-        travelMode: 'DRIVE',
-        routingPreference: 'TRAFFIC_UNAWARE',
-        units: 'IMPERIAL'
+        origin: from + ', USA',
+        destination: to + ', USA'
       })
     });
     const data = await resp.json();
@@ -2000,7 +1979,6 @@ async function initWithProCheck(){
     return;
   }
   // User is verified Pro — load the page
-  loadGMapsKey();
   loadMsRates();
   addStop('pickup');
   addStop('delivery');
