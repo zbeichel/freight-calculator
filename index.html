@@ -4663,27 +4663,13 @@ async function tryProfLookup(){
   statusText.style.color = 'var(--text2)';
   statusPill.style.borderColor = 'var(--border2)';
 
-  if(!GMAPS_KEY) await loadGMapsKey();
-  if(!GMAPS_KEY){
-    statusText.textContent = 'Maps not configured — enter miles manually';
-    statusText.style.color = 'var(--red)';
-    return;
-  }
-
   try {
-    const resp = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+    const resp = await fetch('/.netlify/functions/routes', {
       method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'X-Goog-Api-Key': GMAPS_KEY,
-        'X-Goog-FieldMask':'routes.distanceMeters,routes.duration'
-      },
+      headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({
-        origin:{address: orig+', USA'},
-        destination:{address: dest+', USA'},
-        travelMode:'DRIVE',
-        routingPreference:'TRAFFIC_UNAWARE',
-        units:'IMPERIAL'
+        origin: orig+', USA',
+        destination: dest+', USA'
       })
     });
     if(!resp.ok) throw new Error('HTTP '+resp.status);
@@ -7111,20 +7097,7 @@ function loadRates(){
 }
 
 // ── Google Routes API (Compute Routes) ───────────────────────────────────
-// API key is stored as a Netlify environment variable (GMAPS_API_KEY)
-// and served via /.netlify/functions/gmaps-key — never exposed in source
-let GMAPS_KEY = null;
-
-async function loadGMapsKey(){
-  try {
-    const resp = await fetch('/.netlify/functions/gmaps-key');
-    if(!resp.ok) throw new Error('Could not load key');
-    const data = await resp.json();
-    GMAPS_KEY = data.key || null;
-  } catch(e) {
-    GMAPS_KEY = null;
-  }
-}
+// Key stays server-side — routing goes through /.netlify/functions/routes
 let lookupTimer = null;
 let manualMiles = false;
 let lastLookedUpOrig = '';
@@ -7221,36 +7194,19 @@ async function tryLookupMiles(){
     return;
   }
 
-  // Load key if not yet fetched
-  if(!GMAPS_KEY) {
-    showMilesStatus('⏳', 'Loading...', 'var(--text2)');
-    await loadGMapsKey();
-  }
-  if(!GMAPS_KEY) {
-    showMilesStatus('⚠️', 'Maps key not configured — enter miles manually', 'var(--red)');
-    return;
-  }
-
   showMilesStatus('⏳', 'Calculating driving distance...', 'var(--text2)');
 
   try {
-    // Routes API — Compute Routes (REST endpoint, no JS SDK needed)
+    // Routes API — routed through our server-side proxy (key stays off the client)
     const resp = await fetch(
-      'https://routes.googleapis.com/directions/v2:computeRoutes',
+      '/.netlify/functions/routes',
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': GMAPS_KEY,
-          // Field mask — legs locations added so weather can reuse coords (no extra API calls)
-          'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.legs.startLocation,routes.legs.endLocation'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          origin: { address: origAddr },
-          destination: { address: destAddr },
-          travelMode: 'DRIVE',
-          routingPreference: 'TRAFFIC_UNAWARE', // Essentials tier — no traffic = stays in free cap
-          units: 'IMPERIAL'
+          origin: origAddr,
+          destination: destAddr,
+          includeLegs: true
         })
       }
     );
@@ -7494,10 +7450,6 @@ async function startup(){
   renderCustomAccs();
   updateProUI();
   updateProAccountBtn();
-
-  // Defer network-dependent calls until after first paint
-  // so they don't block the initial render
-  setTimeout(() => { loadGMapsKey(); }, 300);
 
   // Normal startup
   checkProAuth();
