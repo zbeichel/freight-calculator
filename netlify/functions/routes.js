@@ -6,6 +6,8 @@
 // scraped from the page or a network tab — which is the protection an HTTP
 // referrer restriction was trying (and failing) to provide.
 
+// Production domains that are always allowed. Netlify preview/branch deploys
+// (*.netlify.app) and localhost are also allowed below so testing works.
 const ALLOWED_ORIGINS = [
   'https://quickfreightcalc.com',
   'https://www.quickfreightcalc.com',
@@ -14,6 +16,19 @@ const ALLOWED_ORIGINS = [
 const BASE_FIELDS = 'routes.distanceMeters,routes.duration';
 const LEG_FIELDS = 'routes.legs.startLocation,routes.legs.endLocation';
 const MAX_ADDR_LEN = 120;
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // non-browser callers send no Origin header
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  try {
+    const { hostname } = new URL(origin);
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+    if (hostname.endsWith('.netlify.app')) return true; // previews + branch deploys
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -24,7 +39,7 @@ exports.handler = async (event) => {
   // Not a hard security boundary (Origin can be forged), but the real lock is
   // that the key is server-only and API-restricted in Cloud Console.
   const origin = event.headers.origin || event.headers.Origin || '';
-  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+  if (!isAllowedOrigin(origin)) {
     return json(403, { error: 'Forbidden' });
   }
 
