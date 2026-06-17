@@ -2950,11 +2950,11 @@ async function _verifyProAuthBackground(){
       const rows = await resp.json();
 
       if(rows?.[0]){
-        if(rows[0].is_active !== false) isProUser = true;
+        if(rows[0].is_active === true) isProUser = true;
 
         // Cache Pro status for instant load next time — tied to userId
         localStorage.setItem('qfc_pro_status', JSON.stringify({
-          isActive: rows[0].is_active !== false,
+          isActive: rows[0].is_active === true,
           userId,
           cachedAt: Date.now()
         }));
@@ -2983,7 +2983,7 @@ async function _verifyProAuthBackground(){
               'Authorization':`Bearer ${val.access_token}`,
               'Prefer':'return=minimal,resolution=ignore-duplicates'
             },
-            body: JSON.stringify({ id: userId, email: val.user.email, is_active: false })
+            body: JSON.stringify({ id: userId, email: val.user.email })
           });
         }
       }

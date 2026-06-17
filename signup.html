@@ -619,7 +619,7 @@ async function handleSignup(){
     // Store session
     if(data.access_token){
       storeSession(data);
-      // Create pro_users row (is_active: false until payment)
+      // Create pro_users row (is_active defaults to false in the DB until payment)
       await createProUserRow(data.user.id, email, '', '', data.access_token);
       // Redirect to Stripe checkout
       showSuccess('Account created! Redirecting to checkout...');
@@ -808,7 +808,7 @@ async function createProUserRow(userId, email, companyName, contactName, token){
         'Authorization': `Bearer ${token}`,
         'Prefer': 'return=minimal,resolution=ignore-duplicates'
       },
-      body: JSON.stringify({ id: userId, email, company_name: companyName, contact_name: contactName, is_active: false })
+      body: JSON.stringify({ id: userId, email, company_name: companyName, contact_name: contactName })
     });
   } catch(e){}
 }
