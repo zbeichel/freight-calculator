@@ -6,7 +6,7 @@
     },
     "southeast": {
       "states": ["VA","WV","KY","TN","NC","SC","FL","GA","AL","MS"],
-      "van": 2.90, "reefer": 3.35, "flatbed": 3.91
+      "van": 2.90, "reefer": 3.35, "flatbed": 3.90
     },
     "midwest": {
       "states": ["OH","IN","MI","WI","MN","IA","IL","MO","ND","SD","NE","KS"],
