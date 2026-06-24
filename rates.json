@@ -1,35 +1,111 @@
 {
   "regions": {
     "northeast": {
-      "states": ["ME","VT","NH","MA","RI","CT","NY","NJ","PA","DE","MD"],
-      "van": 2.40, "reefer": 2.60, "flatbed": 3.30
+      "states": [
+        "ME",
+        "VT",
+        "NH",
+        "MA",
+        "RI",
+        "CT",
+        "NY",
+        "NJ",
+        "PA",
+        "DE",
+        "MD"
+      ],
+      "van": 2.45,
+      "reefer": 2.61,
+      "flatbed": 3.3
     },
     "southeast": {
-      "states": ["VA","WV","KY","TN","NC","SC","FL","GA","AL","MS"],
-      "van": 2.90, "reefer": 3.35, "flatbed": 3.90
+      "states": [
+        "VA",
+        "WV",
+        "KY",
+        "TN",
+        "NC",
+        "SC",
+        "FL",
+        "GA",
+        "AL",
+        "MS"
+      ],
+      "van": 3.2,
+      "reefer": 3.45,
+      "flatbed": 4.04
     },
     "midwest": {
-      "states": ["OH","IN","MI","WI","MN","IA","IL","MO","ND","SD","NE","KS"],
-      "van": 2.94, "reefer": 3.37, "flatbed": 3.62
+      "states": [
+        "OH",
+        "IN",
+        "MI",
+        "WI",
+        "MN",
+        "IA",
+        "IL",
+        "MO",
+        "ND",
+        "SD",
+        "NE",
+        "KS"
+      ],
+      "van": 3.09,
+      "reefer": 3.51,
+      "flatbed": 3.68
     },
     "southwest": {
-      "states": ["NM","TX","OK","AR","LA"],
-      "van": 2.91, "reefer": 3.51, "flatbed": 3.76
+      "states": [
+        "NM",
+        "TX",
+        "OK",
+        "AR",
+        "LA"
+      ],
+      "van": 3.14,
+      "reefer": 3.49,
+      "flatbed": 3.97
     },
     "west": {
-      "states": ["MT","WY","CO","AZ","ID","NV","UT","WA","OR","CA","AK","HI"],
-      "van": 2.67, "reefer": 3.32, "flatbed": 3.09
+      "states": [
+        "MT",
+        "WY",
+        "CO",
+        "AZ",
+        "ID",
+        "NV",
+        "UT",
+        "WA",
+        "OR",
+        "CA",
+        "AK",
+        "HI"
+      ],
+      "van": 2.88,
+      "reefer": 3.52,
+      "flatbed": 3.22
     },
     "national": {
       "states": [],
-      "van": 2.85, "reefer": 3.35, "flatbed": 3.64
+      "van": 2.99,
+      "reefer": 3.7,
+      "flatbed": 3.37
     }
   },
   "loadToTruck": {
-    "van":     { "current": 7.5,  "base": 6.0  },
-    "reefer":  { "current": 13.5, "base": 10.0 },
-    "flatbed": { "current": 72, "base": 25.0 },
-    "updated": "May 28, 2026",
+    "van": {
+      "current": 7.5,
+      "base": 6.0
+    },
+    "reefer": {
+      "current": 13.5,
+      "base": 10.0
+    },
+    "flatbed": {
+      "current": 72,
+      "base": 25.0
+    },
+    "updated": "June 24, 2026",
     "source": "DAT Trendlines"
   },
   "history": [
@@ -37,51 +113,183 @@
       "date": "2026-01-15",
       "label": "Jan 2026",
       "regions": {
-        "northeast": { "van": 2.00, "reefer": 2.53, "flatbed": 2.52 },
-        "southeast":  { "van": 2.10, "reefer": 2.45, "flatbed": 2.55 },
-        "midwest":    { "van": 2.15, "reefer": 2.55, "flatbed": 2.60 },
-        "southwest":  { "van": 2.00, "reefer": 2.70, "flatbed": 2.70 },
-        "west":       { "van": 2.20, "reefer": 2.58, "flatbed": 2.50 },
-        "national":   { "van": 2.20, "reefer": 2.60, "flatbed": 2.65 }
+        "northeast": {
+          "van": 2.0,
+          "reefer": 2.53,
+          "flatbed": 2.52
+        },
+        "southeast": {
+          "van": 2.1,
+          "reefer": 2.45,
+          "flatbed": 2.55
+        },
+        "midwest": {
+          "van": 2.15,
+          "reefer": 2.55,
+          "flatbed": 2.6
+        },
+        "southwest": {
+          "van": 2.0,
+          "reefer": 2.7,
+          "flatbed": 2.7
+        },
+        "west": {
+          "van": 2.2,
+          "reefer": 2.58,
+          "flatbed": 2.5
+        },
+        "national": {
+          "van": 2.2,
+          "reefer": 2.6,
+          "flatbed": 2.65
+        }
       }
     },
     {
       "date": "2026-03-15",
       "label": "Mar 2026",
       "regions": {
-        "northeast": { "van": 2.17, "reefer": 2.65, "flatbed": 2.60 },
-        "southeast":  { "van": 2.30, "reefer": 2.80, "flatbed": 3.25 },
-        "midwest":    { "van": 2.30, "reefer": 2.65, "flatbed": 3.30 },
-        "southwest":  { "van": 2.25, "reefer": 2.70, "flatbed": 3.10 },
-        "west":       { "van": 2.30, "reefer": 2.75, "flatbed": 2.70 },
-        "national":   { "van": 2.40, "reefer": 2.80, "flatbed": 3.00 }
+        "northeast": {
+          "van": 2.17,
+          "reefer": 2.65,
+          "flatbed": 2.6
+        },
+        "southeast": {
+          "van": 2.3,
+          "reefer": 2.8,
+          "flatbed": 3.25
+        },
+        "midwest": {
+          "van": 2.3,
+          "reefer": 2.65,
+          "flatbed": 3.3
+        },
+        "southwest": {
+          "van": 2.25,
+          "reefer": 2.7,
+          "flatbed": 3.1
+        },
+        "west": {
+          "van": 2.3,
+          "reefer": 2.75,
+          "flatbed": 2.7
+        },
+        "national": {
+          "van": 2.4,
+          "reefer": 2.8,
+          "flatbed": 3.0
+        }
       }
     },
     {
       "date": "2026-04-15",
       "label": "Apr 2026",
       "regions": {
-        "northeast": { "van": 2.38, "reefer": 2.64, "flatbed": 3.24 },
-        "southeast":  { "van": 2.61, "reefer": 2.73, "flatbed": 3.57 },
-        "midwest":    { "van": 2.88, "reefer": 3.39, "flatbed": 3.49 },
-        "southwest":  { "van": 2.69, "reefer": 3.34, "flatbed": 3.28 },
-        "west":       { "van": 2.49, "reefer": 3.22, "flatbed": 2.88 },
-        "national":   { "van": 2.70, "reefer": 3.17, "flatbed": 3.45 }
+        "northeast": {
+          "van": 2.38,
+          "reefer": 2.64,
+          "flatbed": 3.24
+        },
+        "southeast": {
+          "van": 2.61,
+          "reefer": 2.73,
+          "flatbed": 3.57
+        },
+        "midwest": {
+          "van": 2.88,
+          "reefer": 3.39,
+          "flatbed": 3.49
+        },
+        "southwest": {
+          "van": 2.69,
+          "reefer": 3.34,
+          "flatbed": 3.28
+        },
+        "west": {
+          "van": 2.49,
+          "reefer": 3.22,
+          "flatbed": 2.88
+        },
+        "national": {
+          "van": 2.7,
+          "reefer": 3.17,
+          "flatbed": 3.45
+        }
       }
     },
     {
       "date": "2026-05-05",
       "label": "May 2026",
       "regions": {
-        "northeast": { "van": 2.36, "reefer": 2.57, "flatbed": 3.30 },
-        "southeast":  { "van": 2.65, "reefer": 2.92, "flatbed": 3.74 },
-        "midwest":    { "van": 2.83, "reefer": 3.29, "flatbed": 3.55 },
-        "southwest":  { "van": 2.75, "reefer": 3.35, "flatbed": 3.54 },
-        "west":       { "van": 2.55, "reefer": 3.18, "flatbed": 2.99 },
-        "national":   { "van": 2.64, "reefer": 3.08, "flatbed": 3.53 }
+        "northeast": {
+          "van": 2.36,
+          "reefer": 2.57,
+          "flatbed": 3.3
+        },
+        "southeast": {
+          "van": 2.65,
+          "reefer": 2.92,
+          "flatbed": 3.74
+        },
+        "midwest": {
+          "van": 2.83,
+          "reefer": 3.29,
+          "flatbed": 3.55
+        },
+        "southwest": {
+          "van": 2.75,
+          "reefer": 3.35,
+          "flatbed": 3.54
+        },
+        "west": {
+          "van": 2.55,
+          "reefer": 3.18,
+          "flatbed": 2.99
+        },
+        "national": {
+          "van": 2.64,
+          "reefer": 3.08,
+          "flatbed": 3.53
+        }
+      }
+    },
+    {
+      "date": "2026-06-24",
+      "label": "June 2026",
+      "regions": {
+        "northeast": {
+          "van": 2.45,
+          "reefer": 2.61,
+          "flatbed": 3.3
+        },
+        "southeast": {
+          "van": 3.2,
+          "reefer": 3.45,
+          "flatbed": 4.04
+        },
+        "midwest": {
+          "van": 3.09,
+          "reefer": 3.51,
+          "flatbed": 3.68
+        },
+        "southwest": {
+          "van": 3.14,
+          "reefer": 3.49,
+          "flatbed": 3.97
+        },
+        "west": {
+          "van": 2.88,
+          "reefer": 3.52,
+          "flatbed": 3.22
+        },
+        "national": {
+          "van": 2.99,
+          "reefer": 3.7,
+          "flatbed": 3.37
+        }
       }
     }
   ],
-  "updated": "May 28, 2026",
+  "updated": "June 24, 2026",
   "source": "DAT Trendlines"
 }
