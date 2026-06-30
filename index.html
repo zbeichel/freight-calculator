@@ -7211,14 +7211,13 @@ async function tryLookupMiles(){
       }
     );
 
-    if(!resp.ok){
-      const err = await resp.json().catch(() => ({}));
-      const msg = err?.error?.message || ('HTTP ' + resp.status);
-      showMilesStatus('⚠️', 'Route error: ' + msg, 'var(--red)');
+    const data = await resp.json().catch(() => ({}));
+
+    if(!resp.ok || data.error){
+      showMilesStatus('⚠️', data.error || 'Distance lookup is temporarily unavailable — enter miles manually.', 'var(--red)');
       return;
     }
 
-    const data = await resp.json();
     const route = data?.routes?.[0];
 
     if(!route){
