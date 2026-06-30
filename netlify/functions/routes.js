@@ -38,7 +38,13 @@ function isAllowedOrigin(origin) {
 }
 
 function norm(s) {
-  return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  return String(s || '')
+    .toLowerCase()
+    .replace(/,?\s*(usa|united states)\s*$/i, '') // drop trailing country
+    .replace(/\s+\d{5}(-\d{4})?\b/, '')           // drop ZIP (5 or ZIP+4)
+    .replace(/[.,]/g, ' ')                          // commas/periods → space
+    .replace(/\s+/g, ' ')                           // collapse whitespace
+    .trim();
 }
 
 function cacheKey(origin, destination, includeLegs) {
