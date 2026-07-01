@@ -1628,14 +1628,14 @@ html.light .hos-day-header{background:var(--card2)}
               <label>Origin</label>
               <input type="text" id="p-origin" placeholder="e.g. Hastings, FL or 32145" autocomplete="off"
                 onblur="validateLocation(this)"
-                oninput="clearLocationError(this);clearTimeout(pLookupTimer);pLookupTimer=setTimeout(tryProfLookup,900)" />
+                oninput="clearLocationError(this);clearTimeout(pLookupTimer)" />
               <div class="field-error" id="p-origin-error">Couldn't verify this location. Try "City, ST" or a 5-digit ZIP code.</div>
             </div>
             <div class="field" id="p-dest-field">
               <label>Destination</label>
               <input type="text" id="p-dest" placeholder="e.g. Charlotte, NC or 28202" autocomplete="off"
                 onblur="validateLocation(this)"
-                oninput="clearLocationError(this);clearTimeout(pLookupTimer);pLookupTimer=setTimeout(tryProfLookup,900)" />
+                oninput="clearLocationError(this);clearTimeout(pLookupTimer)" />
               <div class="field-error" id="p-dest-error">Couldn't verify this location. Try "City, ST" or a 5-digit ZIP code.</div>
             </div>
           </div>
@@ -1797,14 +1797,14 @@ html.light .hos-day-header{background:var(--card2)}
             <label>Origin</label>
             <input type="text" id="origin" placeholder="e.g. Hastings, FL or 32145" autocomplete="off"
               onblur="validateLocation(this)"
-              oninput="clearLocationError(this);lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';if(!ratesManualOverride)applyRegionalRates();clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" />
+              oninput="clearLocationError(this);lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';if(!ratesManualOverride)applyRegionalRates();clearTimeout(lookupTimer);triggerWeatherUpdate()" />
             <div class="field-error" id="origin-error">Couldn't verify this location. Try "City, ST" or a 5-digit ZIP code.</div>
           </div>
           <div class="field" id="dest-field">
             <label>Destination</label>
             <input type="text" id="dest" placeholder="e.g. Charlotte, NC or 28202" autocomplete="off"
               onblur="validateLocation(this)"
-              oninput="clearLocationError(this);lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';clearTimeout(lookupTimer);lookupTimer=setTimeout(tryLookupMiles,900);triggerWeatherUpdate()" />
+              oninput="clearLocationError(this);lastLookedUpOrig='';lastLookedUpDest='';origCoords=null;destCoords=null;lastCapturedKey='';clearTimeout(lookupTimer);triggerWeatherUpdate()" />
             <div class="field-error" id="dest-error">Couldn't verify this location. Try "City, ST" or a 5-digit ZIP code.</div>
           </div>
         </div>
@@ -7120,20 +7120,33 @@ let lastLookedUpDest = '';
 let lastDriveSecs    = 0;
 let lastDriveText    = '';
 
-// Wire up debounced lookup once DOM is ready
+// Fire `fn` only once focus has left BOTH fields of a lane pair. This is what
+// stops a premature lookup when the user changes the pickup while the previous
+// destination is still filled — we wait until they're done with the whole lane.
+function wireLaneCommit(ids, fn){
+  const stillInPair = () => ids.includes(document.activeElement && document.activeElement.id);
+  let t = null;
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('blur', () => {
+      clearTimeout(t);
+      t = setTimeout(() => { if(!stillInPair()) fn(); }, 150);
+    });
+  });
+}
+
+// Wire up lookups once DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
+  // Typing cancels any pending lookup but doesn't start one — see wireLaneCommit.
   ['origin','dest'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => {
       manualMiles = false;
       clearTimeout(lookupTimer);
-      lookupTimer = setTimeout(tryLookupMiles, 900);
-    });
-    document.getElementById(id).addEventListener('blur', () => {
-      manualMiles = false;
-      clearTimeout(lookupTimer);
-      tryLookupMiles();
     });
   });
+  wireLaneCommit(['origin','dest'], tryLookupMiles);
+  wireLaneCommit(['p-origin','p-dest'], tryProfLookup);
 });
 
 function milesManualEdit(){
