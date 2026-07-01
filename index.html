@@ -7138,12 +7138,18 @@ function wireLaneCommit(ids, fn){
 
 // Wire up lookups once DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-  // Typing cancels any pending lookup but doesn't start one — see wireLaneCommit.
+  // Typing cancels any pending lookup and clears stale mileage, but doesn't
+  // start a new lookup — see wireLaneCommit.
   ['origin','dest'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => {
       manualMiles = false;
       clearTimeout(lookupTimer);
+      resetMilesPending();
     });
+  });
+  ['p-origin','p-dest'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('input', resetProfMilesPending);
   });
   wireLaneCommit(['origin','dest'], tryLookupMiles);
   wireLaneCommit(['p-origin','p-dest'], tryProfLookup);
@@ -7172,6 +7178,35 @@ function showMilesStatus(icon, text, color){
   iconEl.textContent = icon;
   textEl.textContent = text;
   textEl.style.color = color || 'var(--text2)';
+}
+
+// Called when a pickup/destination field is edited: clear the now-stale
+// auto-distance so the old mileage doesn't look valid for the new lane. It
+// repopulates once both fields are set and the user leaves them.
+function resetMilesPending(){
+  const milesEl = document.getElementById('miles');
+  if(milesEl && milesEl.value && !manualMiles){
+    milesEl.value = '';
+    setMilesSource('none');
+    calc();
+  }
+  showMilesStatus('✏️', 'Miles update once pickup & destination are set', 'var(--text2)');
+}
+
+function resetProfMilesPending(){
+  const pm = document.getElementById('p-miles');
+  const ph = document.getElementById('p-hours');
+  if(pm && (pm.value || (ph && ph.value))){
+    pm.value = '';
+    if(ph) ph.value = '';
+    calcProfit(); calcProfTransit();
+  }
+  const row = document.getElementById('p-miles-status-row');
+  if(row) row.style.display = 'flex';
+  const icon = document.getElementById('p-miles-status-icon');
+  if(icon) icon.textContent = '✏️';
+  const text = document.getElementById('p-miles-status-text');
+  if(text){ text.textContent = 'Miles update once origin & destination are set'; text.style.color = 'var(--text2)'; }
 }
 
 function hideMilesStatus(){
