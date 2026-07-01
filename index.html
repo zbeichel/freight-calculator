@@ -4664,16 +4664,31 @@ async function tryProfLookup(){
   statusPill.style.borderColor = 'var(--border2)';
 
   try {
+    const _s = getProSession();
+    const _h = { 'Content-Type':'application/json' };
+    if(_s?.access_token) _h['Authorization'] = 'Bearer ' + _s.access_token;
     const resp = await fetch('/.netlify/functions/routes', {
       method:'POST',
-      headers:{ 'Content-Type':'application/json' },
+      headers:_h,
       body: JSON.stringify({
         origin: orig+', USA',
         destination: dest+', USA'
       })
     });
-    if(!resp.ok) throw new Error('HTTP '+resp.status);
-    const data = await resp.json();
+    const data = await resp.json().catch(() => ({}));
+    if(data.limit){
+      statusIcon.textContent = '🔒';
+      statusText.textContent = 'Daily free limit reached — upgrade to Pro or enter miles manually.';
+      statusText.style.color = 'var(--red)';
+      showProModal("You've used all 5 of your free quotes for today. Upgrade to Pro for unlimited quotes.");
+      return;
+    }
+    if(!resp.ok || data.error){
+      statusIcon.textContent = '⚠️';
+      statusText.textContent = data.error || 'Route not found — enter miles manually';
+      statusText.style.color = 'var(--red)';
+      return;
+    }
     const route = data?.routes?.[0];
     if(!route) throw new Error('No route found');
 
@@ -7198,11 +7213,14 @@ async function tryLookupMiles(){
 
   try {
     // Routes API — routed through our server-side proxy (key stays off the client)
+    const _s = getProSession();
+    const _h = { 'Content-Type': 'application/json' };
+    if(_s?.access_token) _h['Authorization'] = 'Bearer ' + _s.access_token;
     const resp = await fetch(
       '/.netlify/functions/routes',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: _h,
         body: JSON.stringify({
           origin: origAddr,
           destination: destAddr,
@@ -7212,6 +7230,12 @@ async function tryLookupMiles(){
     );
 
     const data = await resp.json().catch(() => ({}));
+
+    if(data.limit){
+      showMilesStatus('🔒', 'Daily free limit reached — upgrade to Pro or enter miles manually.', 'var(--red)');
+      showProModal("You've used all 5 of your free quotes for today. Upgrade to Pro for unlimited quotes.");
+      return;
+    }
 
     if(!resp.ok || data.error){
       showMilesStatus('⚠️', data.error || 'Distance lookup is temporarily unavailable — enter miles manually.', 'var(--red)');
@@ -7569,6 +7593,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
 
     <div style="padding:20px 28px;border-bottom:1px solid var(--border)">
       <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">♾️</span> Unlimited quotes — no daily limit on auto-distance lookups</div>
         <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">📄</span> Branded PDF quotes — your logo, colors & MC/DOT#</div>
         <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">📋</span> Quote log with notes — saved & synced across devices</div>
         <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">🗺</span> Multi-stop load builder with per-mile stop charges</div>

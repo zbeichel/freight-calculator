@@ -883,11 +883,17 @@ async function tryLookupMiles(){
   showMilesStatus('⏳', 'Calculating driving distance…', 'var(--text2)');
 
   try {
+    let _tok = null;
+    for(const k of Object.keys(localStorage).filter(k => k.startsWith('sb-'))){
+      try { const v = JSON.parse(localStorage.getItem(k)||'{}'); if(v?.access_token){ _tok = v.access_token; break; } } catch(e){}
+    }
+    const _h = { 'Content-Type': 'application/json' };
+    if(_tok) _h['Authorization'] = 'Bearer ' + _tok;
     const resp = await fetch(
       '/.netlify/functions/routes',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: _h,
         body: JSON.stringify({
           origin: origAddr,
           destination: destAddr
