@@ -32,6 +32,28 @@ function stripeRequest(path, method, data){
   });
 }
 
+// Verify the Supabase access token and return the authenticated user id, or
+// null. This is what stops one user from opening another user's billing portal.
+function verifyUser(accessToken){
+  return new Promise((resolve) => {
+    if(!accessToken){ resolve(null); return; }
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const url = new URL(`${SUPABASE_URL}/auth/v1/user`);
+    https.get({
+      hostname: url.hostname,
+      path: url.pathname,
+      headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${accessToken}` }
+    }, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => {
+        try { const b = JSON.parse(d); resolve(res.statusCode === 200 && b && b.id ? b.id : null); }
+        catch(e){ resolve(null); }
+      });
+    }).on('error', () => resolve(null));
+  });
+}
+
 async function getStripeCustomerId(userId){
   const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   return new Promise((resolve, reject) => {
@@ -61,9 +83,15 @@ exports.handler = async function(event){
     return { statusCode: 405, body: 'Method not allowed' };
   }
 
-  const { userId } = JSON.parse(event.body || '{}');
-  if(!userId){
-    return { statusCode: 400, body: JSON.stringify({ error: 'Missing userId' }) };
+  const { userId, accessToken } = JSON.parse(event.body || '{}');
+  if(!userId || !accessToken){
+    return { statusCode: 400, body: JSON.stringify({ error: 'Missing credentials' }) };
+  }
+
+  // Only the authenticated owner of this userId may open the billing portal.
+  const verifiedId = await verifyUser(accessToken);
+  if(!verifiedId || verifiedId !== userId){
+    return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
   }
 
   // Set SITE_URL in Netlify env vars. Swap to https://quickfreightcalc.com before going live.
