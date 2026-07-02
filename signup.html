@@ -567,7 +567,7 @@ async function handleGoogleReturn(){
       const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, email: user.email })
+        body: JSON.stringify({ userId: user.id, email: user.email, accessToken })
       });
       const checkoutData = await checkoutResp.json();
       if(checkoutData.url){
@@ -627,7 +627,7 @@ async function handleSignup(){
       const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: data.user.id, email })
+        body: JSON.stringify({ userId: data.user.id, email, accessToken: data.access_token })
       });
       const checkoutData = await checkoutResp.json();
       if(checkoutData.url){
@@ -668,7 +668,7 @@ async function handleSignup(){
             const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId, email })
+              body: JSON.stringify({ userId, email, accessToken: checkData.access_token })
             });
             const checkoutData = await checkoutResp.json();
             if(checkoutData.url){
@@ -739,7 +739,7 @@ async function handleLogin(){
         const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, email })
+          body: JSON.stringify({ userId, email, accessToken: data.access_token })
         });
         const checkoutData = await checkoutResp.json();
         if(checkoutData.url){

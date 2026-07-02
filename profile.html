@@ -1594,7 +1594,7 @@ async function handleManageBilling(){
     const resp = await fetch('/.netlify/functions/create-portal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: session.user?.id || session.user?.sub })
+      body: JSON.stringify({ userId: session.user?.id || session.user?.sub, accessToken: session.access_token })
     });
     if(!resp.ok){
       // Try to extract a meaningful error message from the response, but

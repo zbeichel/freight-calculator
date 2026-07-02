@@ -7691,7 +7691,7 @@ async function handleProModalUpgrade(){
       const resp = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, email })
+        body: JSON.stringify({ userId, email, accessToken: session.access_token })
       });
       const data = await resp.json();
       // Defensive prefix check: even though our create-checkout function
