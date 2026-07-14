@@ -324,6 +324,39 @@ header .header-auth{ justify-self:end; }
 }
 .main>*{min-width:0}
 
+/* ── Google AdSense ad units ──────────────────────────────────────────────
+   Side rails are fixed to the viewport edges and vertically centred. They
+   are hidden by default and only revealed on wide screens (see media query
+   below) where there is room in the margin beside the 1200px content column
+   without overlapping it. The bottom banner sits in normal page flow above
+   the footer and shows on every screen size.
+   Nothing renders until a real publisher ID is set in ADS_CONFIG (see the
+   script near the bottom of <body>) — before that, .ad-unit stays hidden. */
+.ad-unit{display:none}                 /* shown by JS once AdSense is configured */
+.ad-label{
+  font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--text3);text-align:center;margin-bottom:6px;
+}
+.ad-rail{
+  position:fixed;top:50%;transform:translateY(-50%);
+  width:160px;z-index:40;
+}
+.ad-rail.left{left:16px}
+.ad-rail.right{right:16px}
+.ad-rail .adsbygoogle{width:160px;height:600px}
+.ad-bottom{
+  max-width:1200px;margin:0 auto 8px;padding:0 24px;
+  text-align:center;
+}
+.ad-bottom .adsbygoogle{display:block}
+/* Only show the side rails when the window is wide enough to hold a 160px ad
+   plus breathing room on each side of the 1200px content. Narrower windows
+   (most laptops, tablets, phones) keep just the bottom banner. */
+@media(min-width:1560px){
+  .ad-unit.ad-rail.ads-ready{display:block}
+}
+.ad-unit.ad-bottom.ads-ready{display:block}
+
 /* ── Cards ── */
 .card{
   background:var(--card);
@@ -1475,6 +1508,18 @@ html.light .hos-day-header{background:var(--card2)}
 </script>
 </head>
 <body>
+
+<!-- ── Google AdSense side rails ──────────────────────────────────────────
+     Fixed in the left/right page margins on wide screens. Hidden until a real
+     publisher ID is configured (see the ADS_CONFIG script before </body>). -->
+<aside class="ad-unit ad-rail left" id="ad-left" aria-hidden="true">
+  <div class="ad-label">Advertisement</div>
+  <ins class="adsbygoogle" style="display:inline-block" data-ad-client="" data-ad-slot=""></ins>
+</aside>
+<aside class="ad-unit ad-rail right" id="ad-right" aria-hidden="true">
+  <div class="ad-label">Advertisement</div>
+  <ins class="adsbygoogle" style="display:inline-block" data-ad-client="" data-ad-slot=""></ins>
+</aside>
 
 <!-- ── Header ── -->
 <header>
@@ -2630,6 +2675,15 @@ function toggleSeoBlock(){
   }
 }
 </script>
+
+<!-- ── Google AdSense bottom banner ──────────────────────────────────────
+     Responsive horizontal unit in normal page flow, above the footer. Shows
+     on all screen sizes once a real publisher ID is configured. -->
+<div class="ad-unit ad-bottom" id="ad-bottom" aria-hidden="true">
+  <div class="ad-label">Advertisement</div>
+  <ins class="adsbygoogle" style="display:block" data-ad-client="" data-ad-slot=""
+       data-ad-format="horizontal" data-full-width-responsive="true"></ins>
+</div>
 
 <footer>
   <p>Rates sourced from <a href="https://www.dat.com/trendlines" target="_blank" rel="noopener noreferrer">DAT Trendlines</a> · Diesel from <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" rel="noopener noreferrer">EIA Weekly</a> · LTL FSC calibrated to <a href="https://www.odfl.com/us/en/resources/fuel-surcharge.html" target="_blank" rel="noopener noreferrer">ODFL published rates</a> · For informational use — always verify before quoting</p>
@@ -7721,6 +7775,67 @@ document.getElementById('pro-modal-overlay').addEventListener('click', function(
   if(e.target === this) closeProModal();
 });
 document.addEventListener('keydown', e => { if(e.key === 'Escape') closeProModal(); });
+</script>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     GOOGLE ADSENSE CONFIGURATION
+     ────────────────────────────────────────────────────────────────────────
+     ▸ STEP 1: After your AdSense account is approved, paste your publisher ID
+       into `client` below. It looks like "ca-pub-1234567890123456" and is
+       found in AdSense under Account → Settings → Account information.
+
+     ▸ STEP 2: In AdSense, create three "Display" ad units (Ads → By ad unit):
+         • a vertical / skyscraper unit  → paste its slot ID into slots.left
+         • a second vertical unit        → paste its slot ID into slots.right
+         • a horizontal / banner unit    → paste its slot ID into slots.bottom
+       Each slot ID is the 10-digit number in the unit's snippet
+       (data-ad-slot="1234567890").
+
+     Until `client` is a real ID (i.e. no longer contains "XXXX"), NO ads and
+     NO Google scripts load — the page looks exactly as it does today.
+     See ADSENSE_SETUP.md in the repo for the full walkthrough.
+     ════════════════════════════════════════════════════════════════════════ -->
+<script>
+const ADS_CONFIG = {
+  client: "ca-pub-XXXXXXXXXXXXXXXX",   // ← your AdSense publisher ID
+  slots: {
+    left:   "XXXXXXXXXX",              // ← left skyscraper ad unit slot ID
+    right:  "XXXXXXXXXX",              // ← right skyscraper ad unit slot ID
+    bottom: "XXXXXXXXXX"               // ← bottom banner ad unit slot ID
+  }
+};
+
+(function initAds(){
+  // Bail out cleanly until a real publisher ID has been filled in. This keeps
+  // the live site clean (no empty ad frames, no console errors) while you wait
+  // for AdSense approval.
+  if(!ADS_CONFIG.client || ADS_CONFIG.client.indexOf("XXXX") !== -1) return;
+
+  const units = [
+    { el: document.getElementById('ad-left'),   slot: ADS_CONFIG.slots.left   },
+    { el: document.getElementById('ad-right'),  slot: ADS_CONFIG.slots.right  },
+    { el: document.getElementById('ad-bottom'), slot: ADS_CONFIG.slots.bottom }
+  ];
+
+  // Load the AdSense library once, then reveal + fill each configured unit.
+  const s = document.createElement('script');
+  s.async = true;
+  s.crossOrigin = "anonymous";
+  s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" +
+          encodeURIComponent(ADS_CONFIG.client);
+  document.head.appendChild(s);
+
+  units.forEach(u => {
+    if(!u.el || !u.slot || u.slot.indexOf("XXXX") !== -1) return;
+    const ins = u.el.querySelector('ins.adsbygoogle');
+    ins.setAttribute('data-ad-client', ADS_CONFIG.client);
+    ins.setAttribute('data-ad-slot', u.slot);
+    u.el.classList.add('ads-ready');       // CSS reveals it (rails still gated by width)
+    u.el.setAttribute('aria-hidden', 'false');
+    // adsbygoogle queues pushes even before the library finishes loading.
+    (window.adsbygoogle = window.adsbygoogle || []).push({});
+  });
+})();
 </script>
 
 </body>
