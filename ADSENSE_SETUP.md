@@ -1,54 +1,37 @@
 # Google AdSense Setup Guide
 
-This site is already wired up for Google AdSense. Ad slots are in place on the
-main page (`index.html`): a **left rail**, a **right rail** (both shown only on
-wide monitors), and a **bottom banner** (shown on every screen size).
+This site is wired up for Google AdSense under Publisher ID
+**`ca-pub-5621259704181475`**. Ad slots are in place on the main page
+(`index.html`): a **left rail**, a **right rail** (both shown only on wide
+monitors), and a **bottom banner** (shown on every screen size).
 
-**Nothing shows until you finish the steps below.** Until you paste in a real
-publisher ID, no ads and no Google scripts load — the live site looks exactly
-as it does today. So you can ship this safely and turn ads on once you're
-approved.
+**Verification is already handled** by three things now in the repo, so
+Google's "connect your site" step can detect the site:
+
+- a `<meta name="google-adsense-account" ...>` tag in the `<head>` of every page,
+- the AdSense loader `<script>` in `index.html`'s `<head>`, and
+- an `ads.txt` file at the site root authorizing Google to serve ads.
+
+**Ads themselves stay hidden** until you paste real *slot IDs* (Step 2) after
+approval — so no empty ad frames show while you wait.
 
 ---
 
-## Step 1 — Create a Google AdSense account
+## Step 1 — Verify the site (do this now)
 
-1. Go to **<https://adsense.google.com>** and click **Get started**.
-2. Sign in with the Google account you want to use (e.g. your Gmail).
-3. Enter your site URL: **`quickfreightcalc.com`**.
-4. Choose your country and accept the AdSense Terms.
-5. AdSense will give you a small verification code snippet. **You don't have to
-   paste that manually** — see Step 2, which already handles connecting the site.
-
-## Step 2 — Get your Publisher ID and verify the site
-
-1. In the AdSense dashboard, go to **Account → Settings → Account information**.
-2. Copy your **Publisher ID**. It looks like:
-
-   ```
-   ca-pub-1234567890123456
-   ```
-
-3. Open **`index.html`**, scroll to the bottom (search for `ADS_CONFIG`), and
-   replace the placeholder:
-
-   ```js
-   const ADS_CONFIG = {
-     client: "ca-pub-XXXXXXXXXXXXXXXX",   // ← paste your real ID here
-     ...
-   ```
-
-   As soon as this is a real ID (no more `XXXX`), the page loads the AdSense
-   library, which is exactly what Google needs to verify your site.
-
-4. Commit, push, and let Netlify deploy. Back in AdSense, click **Verify** /
-   **Request review**.
+1. Push the current changes and let Netlify deploy (see "Deploying" below).
+2. In AdSense, on the **"Connect your site to AdSense"** / **"Get your site
+   ready"** screen, click **Verify** / **Request review**.
+   - It doesn't matter which method AdSense shows you (code snippet, meta tag,
+     or ads.txt) — all three are present, so verification should pass.
+   - If it says it still can't find the code, wait ~15 minutes for the deploy to
+     go live and Google to re-crawl, then click Verify again.
 
 > **Approval takes a few days to ~2 weeks.** Google reviews your site for
 > content and policy compliance. During this time the ad slots stay blank —
 > that's normal.
 
-## Step 3 — Create your three ad units
+## Step 2 — Create your three ad units (after approval)
 
 Once approved, create the actual ad units:
 
@@ -74,6 +57,24 @@ Once approved, create the actual ad units:
 
 4. Commit, push, deploy. Real ads will begin appearing (may take an hour or two
    the first time).
+
+---
+
+## Deploying
+
+This is a Netlify site that deploys from git. To push a change live:
+
+```
+git add -A
+git commit -m "your message"
+git push
+```
+
+Netlify builds and publishes automatically within a minute or two. You can watch
+it in your Netlify dashboard. The AdSense files live at:
+
+- `ads.txt` → served at `https://quickfreightcalc.com/ads.txt`
+- verification meta tag → in the `<head>` of every `.html` page
 
 ---
 

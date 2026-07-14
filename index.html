@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Google AdSense — site ownership verification + ad library loader -->
+<meta name="google-adsense-account" content="ca-pub-5621259704181475">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5621259704181475" crossorigin="anonymous"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -7797,7 +7800,7 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') closeProModal
      ════════════════════════════════════════════════════════════════════════ -->
 <script>
 const ADS_CONFIG = {
-  client: "ca-pub-XXXXXXXXXXXXXXXX",   // ← your AdSense publisher ID
+  client: "ca-pub-5621259704181475",   // your AdSense publisher ID (set)
   slots: {
     left:   "XXXXXXXXXX",              // ← left skyscraper ad unit slot ID
     right:  "XXXXXXXXXX",              // ← right skyscraper ad unit slot ID
@@ -7806,9 +7809,11 @@ const ADS_CONFIG = {
 };
 
 (function initAds(){
-  // Bail out cleanly until a real publisher ID has been filled in. This keeps
-  // the live site clean (no empty ad frames, no console errors) while you wait
-  // for AdSense approval.
+  // The AdSense library itself is loaded from a static tag in <head> (needed
+  // for Google's site verification). Here we only fill in and reveal the
+  // individual ad units — and only those whose slot ID has been set. Until you
+  // paste real slot IDs (after approval), each unit stays hidden, so there are
+  // no empty ad frames or console errors while you wait.
   if(!ADS_CONFIG.client || ADS_CONFIG.client.indexOf("XXXX") !== -1) return;
 
   const units = [
@@ -7816,14 +7821,6 @@ const ADS_CONFIG = {
     { el: document.getElementById('ad-right'),  slot: ADS_CONFIG.slots.right  },
     { el: document.getElementById('ad-bottom'), slot: ADS_CONFIG.slots.bottom }
   ];
-
-  // Load the AdSense library once, then reveal + fill each configured unit.
-  const s = document.createElement('script');
-  s.async = true;
-  s.crossOrigin = "anonymous";
-  s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" +
-          encodeURIComponent(ADS_CONFIG.client);
-  document.head.appendChild(s);
 
   units.forEach(u => {
     if(!u.el || !u.slot || u.slot.indexOf("XXXX") !== -1) return;
