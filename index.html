@@ -3208,6 +3208,8 @@ function updateProUI(){
   if(bulkTag) bulkTag.style.display = isProUser ? 'none' : '';
   updateQuoteLogGate();
   if(isProUser) loadQuoteLogFromSupabase();
+  // Pro users don't see ads — hide them (or restore for non-Pro / signed-out).
+  if(typeof refreshAdsForProStatus === 'function') refreshAdsForProStatus();
   // Re-apply theme button styling in case Pro UI update reset it
   updateThemeBtn();
 }
@@ -7808,31 +7810,84 @@ const ADS_CONFIG = {
   }
 };
 
-(function initAds(){
-  // The AdSense library itself is loaded from a static tag in <head> (needed
-  // for Google's site verification). Here we only fill in and reveal the
-  // individual ad units — and only those whose slot ID has been set. Until you
-  // paste real slot IDs (after approval), each unit stays hidden, so there are
-  // no empty ad frames or console errors while you wait.
-  if(!ADS_CONFIG.client || ADS_CONFIG.client.indexOf("XXXX") !== -1) return;
+// Pro subscribers do not see ads. We suppress them two ways: a fast, synchronous
+// check of the cached Pro status at page load (so a Pro user never even briefly
+// sees an ad), and a re-check every time Pro status is confirmed or changes —
+// updateProUI() calls refreshAdsForProStatus() below.
+function _proAdsCacheActive(){
+  try{
+    let uid = null;
+    for(const k of Object.keys(localStorage).filter(k => k.startsWith('sb-'))){
+      try{ const v = JSON.parse(localStorage.getItem(k) || '{}');
+           if(v && v.access_token){ uid = v.user?.id || v.user?.sub; break; } }catch(e){}
+    }
+    const c = JSON.parse(localStorage.getItem('qfc_pro_status') || '{}');
+    return !!(uid && c.isActive && c.userId === uid);
+  }catch(e){ return false; }
+}
+function _adsSuppressed(){
+  return (typeof isProUser !== 'undefined' && isProUser) || _proAdsCacheActive();
+}
 
-  const units = [
+function _adUnits(){
+  return [
     { el: document.getElementById('ad-left'),   slot: ADS_CONFIG.slots.left   },
     { el: document.getElementById('ad-right'),  slot: ADS_CONFIG.slots.right  },
     { el: document.getElementById('ad-bottom'), slot: ADS_CONFIG.slots.bottom }
   ];
+}
 
-  units.forEach(u => {
-    if(!u.el || !u.slot || u.slot.indexOf("XXXX") !== -1) return;
-    const ins = u.el.querySelector('ins.adsbygoogle');
-    ins.setAttribute('data-ad-client', ADS_CONFIG.client);
-    ins.setAttribute('data-ad-slot', u.slot);
-    u.el.classList.add('ads-ready');       // CSS reveals it (rails still gated by width)
-    u.el.setAttribute('aria-hidden', 'false');
-    // adsbygoogle queues pushes even before the library finishes loading.
-    (window.adsbygoogle = window.adsbygoogle || []).push({});
+// Reveal a unit and request an ad — but only once, and only when it is actually
+// on screen. Reading offsetWidth forces layout, so a side rail that CSS is
+// hiding on a narrow screen reports width 0 and we skip it (requesting an ad for
+// a zero-width slot makes AdSense throw). A later resize pass picks it up.
+function _activateAdUnit(u){
+  if(!u.el || !u.slot || u.slot.indexOf("XXXX") !== -1) return;
+  u.el.classList.add('ads-ready');
+  u.el.setAttribute('aria-hidden', 'false');
+  if(u.el.dataset.adFilled) return;
+  if(u.el.offsetWidth === 0) return;       // hidden by CSS right now (e.g. side rail on a laptop)
+  const ins = u.el.querySelector('ins.adsbygoogle');
+  ins.setAttribute('data-ad-client', ADS_CONFIG.client);
+  ins.setAttribute('data-ad-slot', u.slot);
+  (window.adsbygoogle = window.adsbygoogle || []).push({});
+  u.el.dataset.adFilled = '1';
+}
+
+function activateAds(){
+  if(!ADS_CONFIG.client || ADS_CONFIG.client.indexOf("XXXX") !== -1) return;
+  if(_adsSuppressed()) return;             // Pro user — no ads
+  _adUnits().forEach(_activateAdUnit);
+}
+
+// Called from updateProUI() whenever Pro status is (re)evaluated: hide ads for
+// Pro users, show/activate them for everyone else (e.g. after a sign-out).
+function refreshAdsForProStatus(){
+  const suppressed = _adsSuppressed();
+  _adUnits().forEach(u => {
+    if(!u.el) return;
+    if(suppressed){
+      u.el.style.display = 'none';
+      u.el.setAttribute('aria-hidden', 'true');
+    } else {
+      u.el.style.display = '';             // hand control back to the CSS rules
+    }
   });
-})();
+  if(!suppressed) activateAds();
+}
+
+// Initial page load.
+activateAds();
+
+// If the window is resized past the ~1560px side-rail breakpoint, activate any
+// rail that has just become visible (non-Pro only). Debounced.
+let _adResizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_adResizeTimer);
+  _adResizeTimer = setTimeout(() => {
+    if(!_adsSuppressed()) _adUnits().forEach(_activateAdUnit);
+  }, 300);
+});
 </script>
 
 </body>
