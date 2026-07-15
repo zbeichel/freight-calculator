@@ -15,8 +15,8 @@
         "MD"
       ],
       "van": 2.45,
-      "reefer": 2.61,
-      "flatbed": 3.3
+      "reefer": 2.65,
+      "flatbed": 3.25
     },
     "southeast": {
       "states": [
@@ -31,9 +31,9 @@
         "AL",
         "MS"
       ],
-      "van": 3.2,
-      "reefer": 3.45,
-      "flatbed": 4.04
+      "van": 3.19,
+      "reefer": 3.49,
+      "flatbed": 3.99
     },
     "midwest": {
       "states": [
@@ -50,9 +50,9 @@
         "NE",
         "KS"
       ],
-      "van": 3.09,
-      "reefer": 3.51,
-      "flatbed": 3.68
+      "van": 3.05,
+      "reefer": 3.5,
+      "flatbed": 3.6
     },
     "southwest": {
       "states": [
@@ -62,9 +62,9 @@
         "AR",
         "LA"
       ],
-      "van": 3.14,
-      "reefer": 3.49,
-      "flatbed": 3.97
+      "van": 3.16,
+      "reefer": 3.52,
+      "flatbed": 3.94
     },
     "west": {
       "states": [
@@ -81,29 +81,29 @@
         "AK",
         "HI"
       ],
-      "van": 2.88,
-      "reefer": 3.52,
-      "flatbed": 3.22
+      "van": 2.94,
+      "reefer": 3.55,
+      "flatbed": 3.21
     },
     "national": {
       "states": [],
-      "van": 2.99,
-      "reefer": 3.7,
-      "flatbed": 3.37
+      "van": 3.04,
+      "reefer": 3.46,
+      "flatbed": 3.66
     }
   },
   "loadToTruck": {
     "van": {
       "current": 7.5,
-      "base": 6.0
+      "base": 6
     },
     "reefer": {
       "current": 13.5,
-      "base": 10.0
+      "base": 10
     },
     "flatbed": {
       "current": 72,
-      "base": 25.0
+      "base": 25
     },
     "updated": "June 24, 2026",
     "source": "DAT Trendlines"
@@ -114,7 +114,7 @@
       "label": "Jan 2026",
       "regions": {
         "northeast": {
-          "van": 2.0,
+          "van": 2,
           "reefer": 2.53,
           "flatbed": 2.52
         },
@@ -129,7 +129,7 @@
           "flatbed": 2.6
         },
         "southwest": {
-          "van": 2.0,
+          "van": 2,
           "reefer": 2.7,
           "flatbed": 2.7
         },
@@ -177,7 +177,7 @@
         "national": {
           "van": 2.4,
           "reefer": 2.8,
-          "flatbed": 3.0
+          "flatbed": 3
         }
       }
     },
@@ -288,8 +288,44 @@
           "flatbed": 3.37
         }
       }
+    },
+    {
+      "date": "2026-07-15",
+      "label": "July 2026",
+      "regions": {
+        "northeast": {
+          "van": 2.45,
+          "reefer": 2.65,
+          "flatbed": 3.25
+        },
+        "southeast": {
+          "van": 3.19,
+          "reefer": 3.49,
+          "flatbed": 3.99
+        },
+        "midwest": {
+          "van": 3.05,
+          "reefer": 3.5,
+          "flatbed": 3.6
+        },
+        "southwest": {
+          "van": 3.16,
+          "reefer": 3.52,
+          "flatbed": 3.94
+        },
+        "west": {
+          "van": 2.94,
+          "reefer": 3.55,
+          "flatbed": 3.21
+        },
+        "national": {
+          "van": 3.04,
+          "reefer": 3.46,
+          "flatbed": 3.66
+        }
+      }
     }
   ],
-  "updated": "June 24, 2026",
+  "updated": "July 15, 2026",
   "source": "DAT Trendlines"
 }
