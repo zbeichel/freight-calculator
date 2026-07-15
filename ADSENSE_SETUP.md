@@ -85,6 +85,10 @@ it in your Netlify dashboard. The AdSense files live at:
   tablets, and phones they stay hidden automatically.
 - **Bottom banner** is a responsive horizontal unit above the footer and shows
   on all screen sizes.
+- **Pro subscribers never see ads.** The moment a signed-in Pro account is
+  confirmed, all ad slots are hidden and no ads are requested. This is checked
+  instantly from the cached Pro status on load (so a Pro user never even briefly
+  sees an ad) and again whenever Pro status changes.
 - Want a rail to be a different size or want ads on the other tool pages
   (`bulk.html`, `lanes.html`, etc.)? The same `ADS_CONFIG` pattern can be copied
   in — ask and it can be added.
