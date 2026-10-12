@@ -362,6 +362,42 @@
       }
     },
     {
+      "date": "2026-09-14",
+      "label": "Sep 2026",
+      "regions": {
+        "northeast": {
+          "van": 2.74,
+          "reefer": 3.26,
+          "flatbed": 3.27
+        },
+        "southeast": {
+          "van": 2.81,
+          "reefer": 3,
+          "flatbed": 3.78
+        },
+        "midwest": {
+          "van": 3.12,
+          "reefer": 3.96,
+          "flatbed": 3.55
+        },
+        "southwest": {
+          "van": 2.77,
+          "reefer": 3.05,
+          "flatbed": 3.59
+        },
+        "west": {
+          "van": 2.86,
+          "reefer": 3.5,
+          "flatbed": 3.1
+        },
+        "national": {
+          "van": 2.98,
+          "reefer": 3.58,
+          "flatbed": 3.56
+        }
+      }
+    },
+    {
       "date": "2026-10-12",
       "label": "Oct 2026",
       "regions": {
