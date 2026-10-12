@@ -14,9 +14,9 @@
         "DE",
         "MD"
       ],
-      "van": 2.57,
-      "reefer": 2.93,
-      "flatbed": 3.2
+      "van": 2.88,
+      "reefer": 3.37,
+      "flatbed": 3.48
     },
     "southeast": {
       "states": [
@@ -31,9 +31,9 @@
         "AL",
         "MS"
       ],
-      "van": 2.92,
-      "reefer": 3.09,
-      "flatbed": 3.86
+      "van": 2.88,
+      "reefer": 3.13,
+      "flatbed": 3.93
     },
     "midwest": {
       "states": [
@@ -50,9 +50,9 @@
         "NE",
         "KS"
       ],
-      "van": 3.04,
-      "reefer": 3.69,
-      "flatbed": 3.53
+      "van": 3.3,
+      "reefer": 4.18,
+      "flatbed": 3.71
     },
     "southwest": {
       "states": [
@@ -62,9 +62,9 @@
         "AR",
         "LA"
       ],
-      "van": 2.98,
-      "reefer": 3.3,
-      "flatbed": 3.8
+      "van": 2.84,
+      "reefer": 3.12,
+      "flatbed": 3.62
     },
     "west": {
       "states": [
@@ -81,31 +81,31 @@
         "AK",
         "HI"
       ],
-      "van": 2.95,
-      "reefer": 3.38,
-      "flatbed": 3.17
+      "van": 3.05,
+      "reefer": 3.71,
+      "flatbed": 3.16
     },
     "national": {
       "states": [],
-      "van": 2.91,
-      "reefer": 3.33,
-      "flatbed": 3.55
+      "van": 3.08,
+      "reefer": 3.62,
+      "flatbed": 3.61
     }
   },
   "loadToTruck": {
     "van": {
-      "current": 10.5,
+      "current": 11.3,
       "base": 6
     },
     "reefer": {
-      "current": 20,
+      "current": 19.2,
       "base": 10
     },
     "flatbed": {
-      "current": 43,
+      "current": 39,
       "base": 25
     },
-    "updated": "August 18, 2026",
+    "updated": "October 12, 2026",
     "source": "DAT Trendlines"
   },
   "history": [
@@ -360,8 +360,44 @@
           "flatbed": 3.55
         }
       }
+    },
+    {
+      "date": "2026-10-12",
+      "label": "Oct 2026",
+      "regions": {
+        "northeast": {
+          "van": 2.88,
+          "reefer": 3.37,
+          "flatbed": 3.48
+        },
+        "southeast": {
+          "van": 2.88,
+          "reefer": 3.13,
+          "flatbed": 3.93
+        },
+        "midwest": {
+          "van": 3.3,
+          "reefer": 4.18,
+          "flatbed": 3.71
+        },
+        "southwest": {
+          "van": 2.84,
+          "reefer": 3.12,
+          "flatbed": 3.62
+        },
+        "west": {
+          "van": 3.05,
+          "reefer": 3.71,
+          "flatbed": 3.16
+        },
+        "national": {
+          "van": 3.08,
+          "reefer": 3.62,
+          "flatbed": 3.61
+        }
+      }
     }
   ],
-  "updated": "August 18, 2026",
+  "updated": "October 12, 2026",
   "source": "DAT Trendlines"
 }
