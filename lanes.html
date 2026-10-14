@@ -248,7 +248,7 @@ footer a:hover{color:var(--accent)}
     <div style="margin-top:12px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius)">
       <div style="font-size:11px;color:var(--text3);line-height:1.7">
         <strong style="color:var(--text2)">How it works</strong><br>
-        Rates are tracked automatically each time DAT Trendlines data is updated in our system. Historical data points are added monthly so you can see how the rate per mile changes on your lanes over time.
+        Rates are tracked automatically each time our market rate data is updated. Historical data points are added monthly so you can see how the rate per mile changes on your lanes over time.
       </div>
     </div>
   </div>
@@ -845,7 +845,7 @@ function renderAdjustmentsCard(){
         <div class="adj-controls ${cap.enabled?'open':''}" id="adj-cap-controls">
           <div class="lt-grid" id="adj-cap-grid"></div>
           <div class="lt-actions">
-            <span class="lt-source">${escapeHTML(ratesData?.loadToTruck?.source) || 'DAT Trendlines'} · ${escapeHTML(ratesData?.loadToTruck?.updated) || 'current'}</span>
+            <span class="lt-source">${escapeHTML(ratesData?.loadToTruck?.source) || 'Market averages'} · ${escapeHTML(ratesData?.loadToTruck?.updated) || 'current'}</span>
             <button type="button" class="lt-reset-btn" id="adj-cap-reset" onclick="onCapacityReset()">Reset to current</button>
           </div>
         </div>
@@ -1243,7 +1243,7 @@ function renderDetail(){
     </div>` : ''}
 
     <div style="font-size:10px;color:var(--text3);margin:-4px 0 16px;text-align:center">
-      Rates sourced from DAT Trendlines · Updated monthly · ${escapeHTML(ratesData?.updated)||''}
+      Regional market rate averages · Updated monthly · ${escapeHTML(ratesData?.updated)||''}
     </div>
 
     <!-- History table -->

@@ -1,7 +1,7 @@
 {
   "name": "QuickFreightCalc",
   "short_name": "QFC",
-  "description": "Free freight rate calculator with live DAT spot rates, load profitability, HOS planning, and transit estimates. Built for brokers, drivers, and dispatchers.",
+  "description": "Free freight rate calculator with regional spot rate averages, load profitability, HOS planning, and transit estimates. Built for brokers, drivers, and dispatchers.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",

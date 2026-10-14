@@ -106,7 +106,7 @@
       "base": 25
     },
     "updated": "October 12, 2026",
-    "source": "DAT Trendlines"
+    "source": "Market averages"
   },
   "history": [
     {
@@ -435,5 +435,5 @@
     }
   ],
   "updated": "October 12, 2026",
-  "source": "DAT Trendlines"
+  "source": "Market averages"
 }

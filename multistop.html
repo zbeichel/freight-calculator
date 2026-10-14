@@ -437,7 +437,7 @@ footer a:hover{color:var(--accent)}
               <span class="tog-label" id="ms-diesel-lbl">Off</span>
             </label>
           </div>
-          <div class="adv-note" style="margin-bottom:8px"><strong>Adds a per-mile surcharge using the DAT RateView FSC formula</strong> (EIA price − $1.25 baseline) ÷ 6.5 MPG. Enable when quoting off contract rates or when your carrier requires a separate FSC.</div>
+          <div class="adv-note" style="margin-bottom:8px"><strong>Adds a per-mile surcharge using the standard FSC formula</strong> (EIA price − $1.25 baseline) ÷ 6.5 MPG. Enable when quoting off contract rates or when your carrier requires a separate FSC.</div>
           <div class="adv-warn" id="ms-diesel-warn"><strong style="color:var(--accent)">Surcharge active.</strong> Best used with contract rates only.</div>
           <div id="ms-diesel-controls" style="display:none;margin-bottom:4px">
             <div class="mini-input-group" style="margin-bottom:10px">
@@ -459,7 +459,7 @@ footer a:hover{color:var(--accent)}
               <button onclick="msFetchDiesel()" id="ms-eia-btn" style="height:38px;padding:0 12px;background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--red);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s">⚡ Live</button>
             </div>
             <div id="ms-eia-status" style="font-size:11px;color:var(--text3);margin-bottom:4px"></div>
-            <div class="mini-sub">DAT RateView formula: (EIA price − $1.25) ÷ 6.5 MPG · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
+            <div class="mini-sub">Standard FSC formula: (EIA price − $1.25) ÷ 6.5 MPG · <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:none">EIA weekly ↗</a></div>
           </div>
 
           <!-- Capacity -->
@@ -474,7 +474,7 @@ footer a:hover{color:var(--accent)}
               <span class="tog-label" id="ms-cap-lbl">Off</span>
             </label>
           </div>
-          <div class="adv-note" style="margin-bottom:8px"><strong>Current DAT rates reflect this week's capacity.</strong> Enable when your rates are a few days stale or you know your lane is tighter/looser than average.</div>
+          <div class="adv-note" style="margin-bottom:8px"><strong>Base rates reflect recent market capacity.</strong> Enable when your rates are a few days stale or you know your lane is tighter/looser than average.</div>
           <div id="ms-cap-controls" style="display:none;margin-bottom:4px">
             <div class="adv-grid3">
               <div class="mini-input-group">
