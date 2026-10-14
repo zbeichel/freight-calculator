@@ -2,9 +2,9 @@
 //
 // Server-side proxy for the Google Routes API (Compute Routes).
 // - The API key never leaves the server.
-// - Identical origin→destination lookups are cached in Supabase (route_cache),
-//   so a lane priced once never hits Google again — this cuts cost AND keeps us
-//   off the daily quota ceiling.
+// - Routes are not cached: Google's Routes API terms only allow temporary
+//   caching of lat/lng, not distances or durations, so every lookup goes to
+//   Google. The free-tier daily limit below still caps anonymous usage.
 // - Google's raw error bodies are NEVER forwarded to the client. Failures come
 //   back as a short, user-safe message; the real reason is logged server-side.
 
@@ -53,57 +53,12 @@ function norm(s) {
     .trim();
 }
 
-function cacheKey(origin, destination, includeLegs) {
-  const raw = `${norm(origin)}|${norm(destination)}|${includeLegs ? '1' : '0'}`;
-  return crypto.createHash('sha256').update(raw).digest('hex');
-}
-
 function supaHeaders(serviceKey) {
   return {
     apikey: serviceKey,
     Authorization: `Bearer ${serviceKey}`,
     'Content-Type': 'application/json',
   };
-}
-
-// Read a cached route. Returns the Google-shaped payload, or null on miss /
-// any failure (so a Supabase hiccup just falls through to a live Google call).
-async function readCache(key, serviceKey) {
-  if (!serviceKey) return null;
-  try {
-    const url = `${SUPABASE_URL}/rest/v1/route_cache?cache_key=eq.${key}&select=distance_meters,duration,legs`;
-    const resp = await fetch(url, { headers: supaHeaders(serviceKey) });
-    if (!resp.ok) return null;
-    const rows = await resp.json();
-    if (!Array.isArray(rows) || rows.length === 0) return null;
-    const r = rows[0];
-    const route = { distanceMeters: r.distance_meters, duration: r.duration };
-    if (r.legs) route.legs = r.legs;
-    return { routes: [route] };
-  } catch {
-    return null;
-  }
-}
-
-// Store a successful route. Best-effort: never blocks or fails the response.
-async function writeCache(key, origin, destination, route, serviceKey) {
-  if (!serviceKey) return;
-  try {
-    await fetch(`${SUPABASE_URL}/rest/v1/route_cache`, {
-      method: 'POST',
-      headers: { ...supaHeaders(serviceKey), Prefer: 'resolution=merge-duplicates' },
-      body: JSON.stringify({
-        cache_key: key,
-        origin: origin.slice(0, MAX_ADDR_LEN),
-        destination: destination.slice(0, MAX_ADDR_LEN),
-        distance_meters: route.distanceMeters,
-        duration: route.duration || null,
-        legs: route.legs || null,
-      }),
-    });
-  } catch {
-    /* caching is best-effort */
-  }
 }
 
 // The caller's IP, used to meter anonymous (not-signed-in) visitors.
@@ -206,7 +161,6 @@ exports.handler = async (event) => {
     return json(400, { error: 'origin and destination are required' });
   }
   const includeLegs = body.includeLegs === true;
-  const ck = cacheKey(originAddr, destAddr, includeLegs);
 
   // Free-tier limit. Pro users are exempt; everyone else gets FREE_DAILY_LIMIT
   // distinct lanes/day. The lane key is legs-agnostic so the same lane counts
@@ -223,11 +177,7 @@ exports.handler = async (event) => {
     }
   }
 
-  // 1) Cache hit → no Google call at all.
-  const cached = await readCache(ck, serviceKey);
-  if (cached) return json(200, cached);
-
-  // 2) Cache miss → call Google.
+  // 1) Call Google.
   const fieldMask = includeLegs ? `${BASE_FIELDS},${LEG_FIELDS}` : BASE_FIELDS;
   let resp, data;
   try {
@@ -254,18 +204,17 @@ exports.handler = async (event) => {
 
   const route = data && data.routes && data.routes[0];
 
-  // 3) Success → cache and return.
+  // 2) Success → return it.
   if (resp.ok && route && route.distanceMeters != null) {
-    await writeCache(ck, originAddr, destAddr, route, serviceKey);
     return json(200, { routes: [route] });
   }
 
-  // 4) Valid request but no route between the points → let the client say so.
+  // 3) Valid request but no route between the points → let the client say so.
   if (resp.ok && !route) {
     return json(200, { notFound: true });
   }
 
-  // 5) Real error (quota, denied, etc.) → log the truth, return a safe message.
+  // 4) Real error (quota, denied, etc.) → log the truth, return a safe message.
   const reason = (data && data.error && (data.error.message || data.error.status)) || `HTTP ${resp.status}`;
   console.error('[routes] google failure:', resp.status, reason);
   const quota = resp.status === 429 || /quota|RESOURCE_EXHAUSTED/i.test(reason);
