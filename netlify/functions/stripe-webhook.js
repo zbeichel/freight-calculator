@@ -132,7 +132,7 @@ Here's what you unlocked:
 
 • Multi-Stop Load Builder — quote multi-stop loads with per-leg mileage and PDF exports
 • Bulk Load Calculator — per-cwt rate calculator with EIA fuel surcharge logic
-• Lane Rate Tracker — track how your regular lanes compare to DAT regional rates
+• Lane Rate Tracker — track how your regular lanes compare to regional market rates
 • Detention Tracker — see crowdsourced reports on shipper and receiver detention pay
 • PDF quote exports with your branding (set up on your profile page)
 • Quote logging for your records
@@ -181,7 +181,7 @@ Manage your subscription anytime from your Profile: ${siteUrl}/profile.html
       <ul>
         <li><strong>🚛 Multi-Stop Load Builder</strong> — quote multi-stop loads with per-leg mileage and PDF exports</li>
         <li><strong>🥔 Bulk Load Calculator</strong> — per-cwt rate calculator with EIA fuel surcharge logic for bulk hauling</li>
-        <li><strong>📈 Lane Rate Tracker</strong> — track how your regular lanes compare to DAT regional rates over time</li>
+        <li><strong>📈 Lane Rate Tracker</strong> — track how your regular lanes compare to regional market rates over time</li>
         <li><strong>🕐 Detention Tracker</strong> — see crowdsourced reports on shipper and receiver detention pay</li>
         <li><strong>PDF quote exports</strong> with your branding (set this up on your profile page)</li>
         <li><strong>Quote logging</strong> for your records</li>
