@@ -5,8 +5,8 @@
 //
 // - Authenticated with an API key (Authorization: Bearer qfc_live_…) created
 //   on the Profile page. Only the key's SHA-256 hash is stored (api-keys.js).
-// - Needs an active API plan (netlify/lib/plans.js). Subscribers from before
-//   the plan changes get the API once their subscription renews on it.
+// - Needs an active API plan (netlify/lib/plans.js). change-plan only records
+//   the API plan once Stripe has been paid for it.
 // - Metered by the api_record_request database function: API_PER_MINUTE
 //   requests a minute per account, and API_MONTHLY_QUOTES quotes with
 //   automatic miles per billing month. A request that looks up miles counts
@@ -18,7 +18,7 @@
 //   can't call it (and so can't leak a customer's key).
 
 const crypto = require('crypto');
-const { API_MONTHLY_QUOTES, API_PER_MINUTE, normalizePlan, legacyUnlimited } = require('../lib/plans.js');
+const { API_MONTHLY_QUOTES, API_PER_MINUTE, normalizePlan } = require('../lib/plans.js');
 const engine = require('../lib/quote-engine.js');
 const { geocodePlace, computeRoute } = require('../lib/google.js');
 
@@ -60,7 +60,7 @@ async function lookupKey(apiKey, serviceKey) {
   const hash = crypto.createHash('sha256').update(apiKey).digest('hex');
   const resp = await fetch(
     `${SUPABASE_URL}/rest/v1/api_keys?key_hash=eq.${hash}&revoked_at=is.null` +
-      '&select=id,user_id,pro_users(is_active,plan,created_at,billing_period_start,renews_at)',
+      '&select=id,user_id,pro_users(is_active,plan,billing_period_start,renews_at)',
     { headers: supaHeaders(serviceKey), signal: AbortSignal.timeout(5000) }
   );
   if (!resp.ok) throw new Error(`api_keys lookup HTTP ${resp.status}`);
@@ -237,11 +237,6 @@ exports.handler = async function (event) {
   }
   if (normalizePlan(sub.plan) !== 'api') {
     return fail(403, 'plan_required', 'API access is part of the API plan ($199/month). Switch plans from your Profile page.');
-  }
-  if (legacyUnlimited(sub.created_at, sub.billing_period_start)) {
-    const when = Date.parse(sub.renews_at || '');
-    return fail(403, 'starts_at_renewal', 'Your API plan starts when your subscription renews' +
-      (Number.isFinite(when) ? ` on ${new Date(when).toISOString().slice(0, 10)}` : '') + '.');
   }
 
   // ── What they asked for ──

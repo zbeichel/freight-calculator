@@ -749,7 +749,6 @@ footer a:hover{color:var(--accent)}
             <a class="api-btn secondary" href="/api.html" target="_blank" rel="noopener">Read the API docs →</a>
           </div>
         </div>
-        <div id="api-pending" class="api-copy" style="display:none"></div>
         <div id="api-active" style="display:none">
           <div class="api-usage">
             <div class="api-usage-top"><span>Quotes with automatic miles this billing month</span><strong id="api-usage-count">—</strong></div>
@@ -1490,30 +1489,34 @@ const PROFILE_PLANS = {
 const PROFILE_PLAN_RANK = { pro: 1, plus: 2, max: 3, api: 4 };
 function normalizeProfilePlan(plan){ return PROFILE_PLANS[plan] ? plan : 'pro'; }
 
-function formatRenewal(iso){
-  const d = iso ? new Date(iso) : null;
-  return d && !isNaN(d) ? d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
-}
-
-// unlimitedUntilRenewal: a subscriber from before the plan changes, who keeps
-// unlimited quotes until their subscription renews onto `plan`.
+// onOriginal (verify-pro's unlimitedUntilRenewal): a subscriber on the original
+// Pro plan, who keeps unlimited quotes at their current price until their first
+// bill on or after January 1, 2027, then moves to `nextPlan` (Pro by default).
 let currentPlan = 'pro';
-let currentlyUnlimitedUntilRenewal = false;
-function applyPlanState(plan, isActive, unlimitedUntilRenewal, renewsAt){
+let onOriginalPlan = false;
+let currentNextPlan = 'pro';
+function applyPlanState(plan, isActive, onOriginal, renewsAt, nextPlan){
   currentPlan = plan;
-  currentlyUnlimitedUntilRenewal = !!unlimitedUntilRenewal;
+  onOriginalPlan = !!onOriginal;
+  currentNextPlan = normalizeProfilePlan(nextPlan);
   const info = PROFILE_PLANS[plan];
+  const next = PROFILE_PLANS[currentNextPlan];
   const setText = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
-  setText('sub-plan-name', 'QuickFreightCalc ' + info.name);
-  setText('sub-plan-detail', `${info.price}/month · ${info.detail} · Cancel anytime`);
+  if(onOriginalPlan){
+    setText('sub-plan-name', 'QuickFreightCalc Pro · original plan');
+    setText('sub-plan-detail', 'Unlimited quotes with automatic miles until January 2027 · Cancel anytime');
+  } else {
+    setText('sub-plan-name', 'QuickFreightCalc ' + info.name);
+    setText('sub-plan-detail', `${info.price}/month · ${info.detail} · Cancel anytime`);
+  }
   setText('comp-plan-name', `QuickFreightCalc ${info.name} · Active`);
 
   const legacy = document.getElementById('sub-plan-legacy');
   if(legacy){
-    if(currentlyUnlimitedUntilRenewal){
-      const when = formatRenewal(renewsAt);
-      legacy.textContent = `You keep unlimited quotes with automatic miles until your subscription renews${when ? ' on ' + when : ''}. ` +
-        `It then renews on ${info.name} at ${info.price}/month — choose a different plan below or cancel anytime before then.`;
+    if(onOriginalPlan){
+      legacy.textContent = 'Our plans change on January 1, 2027. You keep unlimited quotes with automatic miles at your current price ' +
+        `until your first bill on or after January 1. Then your subscription moves to ${next.name} at ${next.price}/month. ` +
+        'Choose a different plan below, or cancel anytime before then.';
       legacy.style.display = '';
     } else {
       legacy.style.display = 'none';
@@ -1522,7 +1525,7 @@ function applyPlanState(plan, isActive, unlimitedUntilRenewal, renewsAt){
 
   const select = document.getElementById('sub-plan-select');
   const btn = document.getElementById('sub-plan-switch');
-  if(select){ select.style.display = isActive ? '' : 'none'; select.value = plan; }
+  if(select){ select.style.display = isActive ? '' : 'none'; select.value = onOriginalPlan ? currentNextPlan : plan; }
   if(btn) btn.style.display = isActive ? '' : 'none';
 }
 
@@ -1537,7 +1540,7 @@ async function refreshPlanFromServer(){
     });
     if(!resp.ok) return;
     const data = await resp.json();
-    if(data.active) applyPlanState(normalizeProfilePlan(data.plan), true, data.unlimitedUntilRenewal, data.renewsAt);
+    if(data.active) applyPlanState(normalizeProfilePlan(data.plan), true, data.unlimitedUntilRenewal, data.renewsAt, data.nextPlan);
   } catch(e){}
 }
 
@@ -1553,14 +1556,16 @@ async function handleSwitchPlan(){
   const select = document.getElementById('sub-plan-select');
   const target = normalizeProfilePlan(select && select.value);
   const info = PROFILE_PLANS[target];
-  if(target === currentPlan && !currentlyUnlimitedUntilRenewal){
+  if(target === currentPlan && !onOriginalPlan){
     setPlanStatus(`You're already on ${info.name}.`);
     return;
   }
-  const question = currentlyUnlimitedUntilRenewal
-    ? `Renew on ${info.name} at ${info.price}/month?\n\nNothing is charged today — you keep unlimited quotes until your subscription renews, then it renews on ${info.name}.`
-    : PROFILE_PLAN_RANK[target] > PROFILE_PLAN_RANK[currentPlan]
-      ? `Upgrade to ${info.name} for ${info.price}/month?\n\nYou'll be charged the prorated difference today.`
+  // From the original plan, Pro / Pro Plus / Pro Max start in January; the API
+  // plan is available now and is charged like any upgrade.
+  const question = onOriginalPlan && target !== 'api'
+    ? `Move to ${info.name} at ${info.price}/month from January 1, 2027?\n\nNothing changes or is charged now. You keep unlimited quotes until your first bill on or after January 1; from then it's ${info.price}/month.`
+    : onOriginalPlan || PROFILE_PLAN_RANK[target] > PROFILE_PLAN_RANK[currentPlan]
+      ? `Upgrade to ${info.name} for ${info.price}/month?\n\nYou'll be charged the prorated difference today${target === 'api' ? ', and API access starts right away' : ''}.`
       : `Switch to ${info.name} for ${info.price}/month?\n\nThe unused part of your current plan is credited on your next invoice.`;
   if(!confirm(question)) return;
 
@@ -1577,11 +1582,13 @@ async function handleSwitchPlan(){
     });
     const data = await resp.json().catch(() => ({}));
     if(data.status === 'ok'){
-      applyPlanState(normalizeProfilePlan(data.plan), true, data.atRenewal, data.renewsAt);
-      const name = PROFILE_PLANS[normalizeProfilePlan(data.plan)].name;
+      const chosen = normalizeProfilePlan(data.plan);
+      if(data.atRenewal) applyPlanState(currentPlan, true, true, data.renewsAt, chosen);
+      else applyPlanState(chosen, true, false, data.renewsAt, chosen);
       setPlanStatus(data.atRenewal
-        ? `✅ Your subscription will renew on ${name}.`
-        : `✅ You're on ${name}.`);
+        ? `✅ From your first bill on or after January 1, 2027, you'll be on ${PROFILE_PLANS[chosen].name}.`
+        : `✅ You're on ${PROFILE_PLANS[chosen].name}.`);
+      refreshPlanFromServer();
       loadApiSection();
       return;
     }
@@ -1647,7 +1654,6 @@ function renderApiSection(data){
   apiState = data;
   const show = (id, on) => { const el = document.getElementById(id); if(el) el.style.display = on ? '' : 'none'; };
   show('api-upsell', data.access === 'plan_required');
-  show('api-pending', data.access === 'starts_at_renewal');
   show('api-active', data.access === 'active');
   setApiStatus('');
 
@@ -1657,11 +1663,6 @@ function renderApiSection(data){
   const canSwitch = !!(select && select.style.display !== 'none' && document.getElementById('subscription-paid').style.display !== 'none');
   show('api-upsell-switch', data.access === 'plan_required' && canSwitch);
 
-  if(data.access === 'starts_at_renewal'){
-    const when = apiDate(data.renewsAt);
-    document.getElementById('api-pending').textContent =
-      `Your API plan starts when your subscription renews${when ? ' on ' + when : ''}. You can create API keys then.`;
-  }
   if(data.access !== 'active') return;
 
   const u = data.usage || {};

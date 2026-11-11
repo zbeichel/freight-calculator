@@ -1,8 +1,8 @@
 // netlify/lib/plans.js
 // The paid plans and the rules shared by routes.js, create-checkout.js,
-// change-plan.js, stripe-webhook.js and verify-pro.js. Lives outside
-// netlify/functions so Netlify doesn't publish it as an endpoint; the
-// functions bundle it through require().
+// change-plan.js, stripe-webhook.js, verify-pro.js, apply-plan-changes.js and
+// the API functions. Lives outside netlify/functions so Netlify doesn't
+// publish it as an endpoint; the functions bundle it through require().
 //
 //   pro   Pro       $9.99/mo   automatic miles on 100 quotes per day
 //   plus  Pro Plus  $19.99/mo  automatic miles on 250 quotes per day
@@ -27,47 +27,80 @@ function normalizePlan(plan) {
   return PLANS.includes(plan) ? plan : 'pro';
 }
 
-// Stripe price for each plan (Netlify env vars). STRIPE_PRICE_ID is Pro.
-function priceIdFor(plan) {
+// Stripe prices (Netlify env vars) for the new plans:
+//   STRIPE_PRICE_ID_PRO ($9.99), _PLUS ($19.99), _MAX ($49.99), _API ($199).
+// STRIPE_PRICE_ID stays the original $4.99 Pro price that current subscribers
+// pay; any subscription on a price that isn't one of these new ones is on the
+// original plan (see "Subscribers on the original Pro plan" below).
+function newPriceIdFor(plan) {
   return {
-    pro: process.env.STRIPE_PRICE_ID,
+    pro: process.env.STRIPE_PRICE_ID_PRO,
     plus: process.env.STRIPE_PRICE_ID_PLUS,
     max: process.env.STRIPE_PRICE_ID_MAX,
     api: process.env.STRIPE_PRICE_ID_API,
   }[plan];
 }
 
+function newPlanPriceIds() {
+  return PLANS.map(newPriceIdFor).filter(Boolean);
+}
+
+// The price to sell a plan at. Until STRIPE_PRICE_ID_PRO is set, Pro is still
+// sold at the original price, so checkout keeps working; those subscribers
+// are treated as being on the original plan and move in January like the rest.
+function priceIdFor(plan) {
+  return newPriceIdFor(plan) || (plan === 'pro' ? process.env.STRIPE_PRICE_ID : undefined);
+}
+
+// True for a price that isn't one of the new plans (the original $4.99 Pro).
+function isOriginalPlanPrice(priceId) {
+  return !!priceId && !newPlanPriceIds().includes(priceId);
+}
+
 // Plan for a subscription's price ids. Anything that isn't the Plus, Max or
-// API price (including the old $4.99 price) is Pro.
+// API price (including the original $4.99 price) is Pro.
 function planForPriceIds(priceIds) {
   const ids = (priceIds || []).filter(Boolean);
   for (const plan of ['api', 'max', 'plus']) {
-    const price = priceIdFor(plan);
+    const price = newPriceIdFor(plan);
     if (price && ids.includes(price)) return plan;
   }
   return 'pro';
 }
 
-// ── Subscribers from before the plan changes ─────────────────────────────────
-// They keep unlimited quotes until their subscription renews. The Stripe webhook
-// records the start of each billing period in pro_users.billing_period_start;
-// once a period that started on or after NEW_PLANS_FROM_RENEWAL is recorded,
-// their chosen plan's limit applies. LEGACY_BACKSTOP ends it for anyone whose
-// renewal wasn't recorded (monthly plans renew within a month).
-//   LEGACY_BEFORE           accounts created before this are current subscribers
-//   NEW_PLANS_FROM_RENEWAL  the first renewal on/after this starts the new plans
-// Set both to the day the change goes live. To give 30 days' notice of the new
-// prices (see the Terms), move NEW_PLANS_FROM_RENEWAL 30 days later.
-const LEGACY_BEFORE = Date.parse('2026-11-12T00:00:00Z');
-const NEW_PLANS_FROM_RENEWAL = Date.parse('2026-11-12T00:00:00Z');
-const LEGACY_BACKSTOP = NEW_PLANS_FROM_RENEWAL + 33 * 24 * 60 * 60 * 1000;
+// ── Subscribers on the original Pro plan ($4.99) ────────────────────────────
+// New signups get the new plans straight away. Subscribers on the original
+// plan keep unlimited quotes at their current price until their first bill on
+// or after NEW_PLANS_START (January 1, 2027), then move to the plan they chose
+// (pro_users.next_plan; Pro if they didn't choose).
+//   - pro_users.grandfathered marks them. It was set for every active
+//     subscriber when the new plans launched, and the webhook and
+//     apply-plan-changes set it for any subscription still on the original price.
+//   - apply-plan-changes (scheduled, hourly) switches each one's Stripe price,
+//     with no proration, once the subscription's current period ends on or
+//     after NEW_PLANS_START, so their first bill on or after that day is at the
+//     new price and nothing is charged at the switch.
+//   - The webhook records billing_period_start at each renewal. Once a period
+//     starting on or after NEW_PLANS_START is recorded, the plan's daily limit
+//     applies. LEGACY_BACKSTOP ends it for anyone whose renewal wasn't recorded
+//     (and for comp accounts, which have no billing periods).
+const DAY_MS = 24 * 60 * 60 * 1000;
+const NEW_PLANS_START = Date.parse('2027-01-01T05:00:00Z'); // midnight Eastern, Jan 1 2027
+const LEGACY_BACKSTOP = NEW_PLANS_START + 33 * DAY_MS;
 
-function legacyUnlimited(createdAt, billingPeriodStart, now = Date.now()) {
-  const created = Date.parse(createdAt || '');
-  if (!Number.isFinite(created) || created >= LEGACY_BEFORE) return false;
+// `row`: a pro_users row with grandfathered and billing_period_start.
+function legacyUnlimited(row, now = Date.now()) {
+  if (!row || row.grandfathered !== true) return false;
   if (now >= LEGACY_BACKSTOP) return false;
-  const periodStart = Date.parse(billingPeriodStart || '');
-  return !(Number.isFinite(periodStart) && periodStart >= NEW_PLANS_FROM_RENEWAL);
+  const periodStart = Date.parse(row.billing_period_start || '');
+  return !(Number.isFinite(periodStart) && periodStart >= NEW_PLANS_START);
+}
+
+// True once a subscription's current period ends on or after NEW_PLANS_START,
+// i.e. its next bill is in the new plans: time to switch its price.
+function dueForNewPlan(periodEndIso) {
+  const end = Date.parse(periodEndIso || '');
+  return Number.isFinite(end) && end >= NEW_PLANS_START;
 }
 
 // Current billing period of a Stripe subscription as ISO strings. Older API
@@ -88,11 +121,14 @@ module.exports = {
   API_MONTHLY_QUOTES,
   API_PER_MINUTE,
   normalizePlan,
+  newPriceIdFor,
+  newPlanPriceIds,
   priceIdFor,
+  isOriginalPlanPrice,
   planForPriceIds,
   legacyUnlimited,
+  dueForNewPlan,
   subscriptionPeriod,
-  LEGACY_BEFORE,
-  NEW_PLANS_FROM_RENEWAL,
+  NEW_PLANS_START,
   LEGACY_BACKSTOP,
 };

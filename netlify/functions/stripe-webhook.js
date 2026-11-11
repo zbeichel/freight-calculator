@@ -64,7 +64,7 @@ function verifySignature(payload, signature, secret, now = Date.now()){
   });
 }
 
-const { PLANS, PLAN_NAME, normalizePlan, planForPriceIds, subscriptionPeriod } = require('../lib/plans.js');
+const { PLANS, PLAN_NAME, normalizePlan, planForPriceIds, isOriginalPlanPrice, subscriptionPeriod } = require('../lib/plans.js');
 
 // Which plan a subscription is on, from its price (Pro, Pro Plus, Pro Max or
 // API — see netlify/lib/plans.js). Falls back to the metadata checkout
@@ -80,10 +80,11 @@ function planFromCheckout(session){
   return normalizePlan(session.metadata?.plan);
 }
 
-// A new subscription's billing period, so limits that run by billing month
-// (the API plan's 5,000 quotes) count from the right day. Best effort: null if
-// Stripe can't be reached; the next renewal records it anyway.
-async function fetchSubscriptionPeriod(subscriptionId){
+// A new subscription, read from Stripe at checkout: its billing period (so
+// limits that run by billing month, like the API plan's 5,000 quotes, count
+// from the right day) and its price. Best effort: null if Stripe can't be
+// reached; the next renewal records the period anyway.
+async function fetchSubscription(subscriptionId){
   if(!subscriptionId || !process.env.STRIPE_SECRET_KEY) return null;
   try {
     const resp = await fetch(`https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`, {
@@ -91,17 +92,23 @@ async function fetchSubscriptionPeriod(subscriptionId){
       signal: AbortSignal.timeout(5000),
     });
     if(!resp.ok) return null;
-    return subscriptionPeriod(await resp.json());
+    return await resp.json();
   } catch(e){
-    console.warn('Could not read the new subscription period:', e.message);
+    console.warn('Could not read the new subscription:', e.message);
     return null;
   }
 }
 
+function priceOf(subscription){
+  return subscription?.items?.data?.[0]?.price?.id || null;
+}
+
 // `period` ({ start, end } ISO strings from subscriptionPeriod) records the
 // current billing period: billing_period_start tells routes.js when a
-// subscriber from before the plan changes has renewed, renews_at is shown to them.
-async function setProActive(userId, isActive, stripeCustomerId, stripeSubscriptionId, serviceKey, plan, period){
+// subscriber on the original Pro plan has renewed into the new plans, and
+// renews_at is shown to them. `extra`: other server-only columns to set
+// (grandfathered, next_plan).
+async function setProActive(userId, isActive, stripeCustomerId, stripeSubscriptionId, serviceKey, plan, period, extra){
   const updateData = {
     is_active: isActive,
     updated_at: new Date().toISOString(),
@@ -111,6 +118,7 @@ async function setProActive(userId, isActive, stripeCustomerId, stripeSubscripti
   if(PLANS.includes(plan)) updateData.plan = plan;
   if(period?.start) updateData.billing_period_start = period.start;
   if(period?.end) updateData.renews_at = period.end;
+  if(extra) Object.assign(updateData, extra);
 
   // Try PATCH first
   const patchResp = await supabaseRequest(
@@ -356,9 +364,14 @@ exports.handler = async function(event){
         }
 
         const plan = planFromCheckout(session);
-        const period = await fetchSubscriptionPeriod(subscriptionId);
+        const newSub = await fetchSubscription(subscriptionId);
+        const period = newSub ? subscriptionPeriod(newSub) : null;
+        // A new subscription is on the new plans unless it was sold at the
+        // original price (only while STRIPE_PRICE_ID_PRO isn't set yet).
+        const price = priceOf(newSub);
+        const extra = price ? { grandfathered: isOriginalPlanPrice(price), next_plan: plan } : { next_plan: plan };
         console.log(`Activating Pro (${plan}) for user ${userId}`);
-        await setProActive(userId, true, customerId, subscriptionId, serviceKey, plan, period);
+        await setProActive(userId, true, customerId, subscriptionId, serviceKey, plan, period, extra);
 
         // Send welcome email only on FIRST activation
         if(!wasAlreadyActive){
@@ -377,9 +390,11 @@ exports.handler = async function(event){
         const userId = subscription.metadata?.userId;
 
         // Back to the default plan, so a later comp or re-subscription starts clean.
+        // A later subscription starts on the new plans.
+        const reset = { grandfathered: false, next_plan: null };
         if(userId){
           console.log(`Deactivating Pro for user ${userId}`);
-          await setProActive(userId, false, null, null, serviceKey, 'pro');
+          await setProActive(userId, false, null, null, serviceKey, 'pro', null, reset);
         } else {
           // Look up user by stripe_subscription_id
           const resp = await supabaseRequest(
@@ -387,7 +402,7 @@ exports.handler = async function(event){
             'GET', null, serviceKey
           );
           if(resp.body?.[0]?.id){
-            await setProActive(resp.body[0].id, false, null, null, serviceKey, 'pro');
+            await setProActive(resp.body[0].id, false, null, null, serviceKey, 'pro', null, reset);
           }
         }
         break;
@@ -400,17 +415,19 @@ exports.handler = async function(event){
         // Plan switches (change-plan or the billing portal) and renewals land here.
         const plan = planFromSubscription(subscription);
         const period = subscriptionPeriod(subscription);
+        // Still on the original Pro plan: keep it marked for the January 1 move.
+        const extra = isOriginalPlanPrice(priceOf(subscription)) ? { grandfathered: true } : null;
 
         if(userId){
           console.log(`Updating Pro status for user ${userId}: ${isActive} (${plan})`);
-          await setProActive(userId, isActive, null, null, serviceKey, plan, period);
+          await setProActive(userId, isActive, null, null, serviceKey, plan, period, extra);
         } else {
           const resp = await supabaseRequest(
             `/rest/v1/pro_users?stripe_subscription_id=eq.${subscription.id}&select=id`,
             'GET', null, serviceKey
           );
           if(resp.body?.[0]?.id){
-            await setProActive(resp.body[0].id, isActive, null, null, serviceKey, plan, period);
+            await setProActive(resp.body[0].id, isActive, null, null, serviceKey, plan, period, extra);
           }
         }
         break;

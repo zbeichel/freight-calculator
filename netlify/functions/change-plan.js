@@ -6,9 +6,14 @@
 //   'api'  → STRIPE_PRICE_ID_API  ($199/mo, Pro Max + API access)
 //
 // POST { userId, accessToken, plan: 'pro' | 'plus' | 'max' | 'api' }
-//  - Subscribers from before the plan changes (still on unlimited until they
-//    renew): the new price starts at their next renewal, nothing is charged
-//    now (proration_behavior=none). Response has atRenewal: true.
+//  - Subscribers still on the original Pro plan choosing Pro, Pro Plus or Pro
+//    Max: the choice is recorded (pro_users.next_plan) and nothing is charged.
+//    They move to it at their first bill on or after January 1, 2027 — the
+//    Stripe price is switched (no proration) here if their next bill is
+//    already on or after that day, otherwise by apply-plan-changes.
+//    Response has atRenewal: true and startsAt.
+//  - The API plan is available now: from the original plan it's an upgrade
+//    like any other.
 //  - Upgrade: Stripe charges the prorated difference right away, and the
 //    change only takes effect once that payment succeeds
 //    (payment_behavior=pending_if_incomplete). If the card needs attention we
@@ -23,7 +28,8 @@
 // Errors: { error: '<code>', message: '<user-safe text>' } with a 4xx/5xx status.
 
 const https = require('https');
-const { PLANS, PLAN_NAME, PLAN_RANK, priceIdFor, planForPriceIds, legacyUnlimited, subscriptionPeriod } = require('../lib/plans.js');
+const { PLANS, PLAN_NAME, PLAN_RANK, priceIdFor, newPriceIdFor, planForPriceIds, isOriginalPlanPrice,
+  dueForNewPlan, subscriptionPeriod, NEW_PLANS_START } = require('../lib/plans.js');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const CONTACT = 'email info@quickfreightcalc.com and we\'ll switch it for you';
@@ -111,7 +117,7 @@ exports.handler = async function(event){
 
   try {
     const rowResp = await supabase(
-      `/rest/v1/pro_users?id=eq.${encodeURIComponent(userId)}&select=is_active,plan,stripe_subscription_id,created_at,billing_period_start`,
+      `/rest/v1/pro_users?id=eq.${encodeURIComponent(userId)}&select=is_active,plan,stripe_subscription_id`,
       'GET', null, serviceKey
     );
     const row = Array.isArray(rowResp.body) ? rowResp.body[0] : null;
@@ -148,21 +154,50 @@ exports.handler = async function(event){
       return reply(502, { error: 'stripe_error', message: 'Could not load your subscription. Please try again.' });
     }
 
-    // Already on that price (Stripe is the source of truth, not our copy of the plan).
     const currentPrice = item.price && item.price.id;
     const period = subscriptionPeriod(sub);
-    if(currentPrice === priceId){
+    const userPath = `/rest/v1/pro_users?id=eq.${encodeURIComponent(userId)}`;
+
+    // Still on the original Pro plan (Stripe's price is the source of truth,
+    // not our copy). Pro, Pro Plus and Pro Max start with the January 1, 2027
+    // changeover: record the choice, charge nothing now.
+    if (isOriginalPlanPrice(currentPrice) && plan !== 'api') {
+      const record = { next_plan: plan, grandfathered: true, updated_at: new Date().toISOString() };
+      const newPrice = newPriceIdFor(plan);
+      if (dueForNewPlan(period.end) && !sub.cancel_at_period_end && newPrice) {
+        // Their next bill is already on or after January 1: switch the price
+        // now, without proration, so that bill is at the new price.
+        const sw = await stripe(`/v1/subscriptions/${subId}`, 'POST', {
+          'items[0][id]': item.id,
+          'items[0][price]': newPrice,
+          'proration_behavior': 'none',
+        });
+        if (sw.status !== 200 || !sw.body || sw.body.error) {
+          const msg = sw.body && sw.body.error && sw.body.error.message;
+          console.error('[change-plan] January switch failed:', sw.status, msg);
+          return reply(400, { error: 'stripe_error', message: msg || 'Stripe could not change your plan.' });
+        }
+        record.plan = plan;
+      }
+      const saved = await supabase(userPath, 'PATCH', record, serviceKey);
+      if (saved.status >= 300) {
+        console.error('[change-plan] could not save the January plan:', saved.status, JSON.stringify(saved.body));
+        return reply(500, { error: 'server_error', message: 'Could not save your choice. Please try again.' });
+      }
+      return reply(200, { status: 'ok', plan, atRenewal: true,
+        startsAt: new Date(NEW_PLANS_START).toISOString(), renewsAt: period.end });
+    }
+
+    if (currentPrice === priceId) {
       return reply(200, { status: 'ok', plan, unchanged: true, renewsAt: period.end });
     }
 
-    // Subscribers from before the plan changes keep unlimited quotes until they
-    // renew, so their choice takes effect at renewal with nothing charged now.
-    const atRenewal = legacyUnlimited(row.created_at, row.billing_period_start);
-    const upgrade = !atRenewal && PLAN_RANK[plan] > PLAN_RANK[planForPriceIds([currentPrice])];
+    // From the original plan (to the API plan) or up a tier: an upgrade.
+    const upgrade = isOriginalPlanPrice(currentPrice) || PLAN_RANK[plan] > PLAN_RANK[planForPriceIds([currentPrice])];
     const params = {
       'items[0][id]': item.id,
       'items[0][price]': priceId,
-      'proration_behavior': atRenewal ? 'none' : (upgrade ? 'always_invoice' : 'create_prorations'),
+      'proration_behavior': upgrade ? 'always_invoice' : 'create_prorations',
       'expand[0]': 'latest_invoice',
     };
     if(upgrade) params['payment_behavior'] = 'pending_if_incomplete';
@@ -190,16 +225,15 @@ exports.handler = async function(event){
       return reply(502, { error: 'stripe_error', message: 'Stripe did not apply the change. Please try again.' });
     }
 
-    const record = { plan, updated_at: new Date().toISOString() };
+    const record = { plan, next_plan: plan, updated_at: new Date().toISOString() };
     if(period.start) record.billing_period_start = period.start;
     if(period.end) record.renews_at = period.end;
-    const patch = await supabase(`/rest/v1/pro_users?id=eq.${encodeURIComponent(userId)}`, 'PATCH',
-      record, serviceKey);
+    const patch = await supabase(userPath, 'PATCH', record, serviceKey);
     if(patch.status >= 300){
       // Stripe has switched; the webhook will record the plan shortly.
       console.error('[change-plan] pro_users update failed:', patch.status, JSON.stringify(patch.body));
     }
-    return reply(200, { status: 'ok', plan, atRenewal, renewsAt: period.end });
+    return reply(200, { status: 'ok', plan, atRenewal: false, renewsAt: period.end });
   } catch(err){
     console.error('[change-plan] error:', err);
     return reply(500, { error: 'server_error', message: 'Something went wrong. Please try again.' });

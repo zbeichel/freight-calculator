@@ -8098,7 +8098,7 @@ async function handleUpgrade(){
     const data = await resp.json().catch(() => ({}));
     if(data.status === 'ok'){
       setUpgradeStatus(data.atRenewal
-        ? `✅ You'll move to ${PLAN_LABEL[plan]} when your subscription renews.`
+        ? `✅ You'll move to ${PLAN_LABEL[plan]} at your first bill on or after January 1, 2027.`
         : `✅ You're on ${PLAN_LABEL[plan]}.`);
       setTimeout(() => { closeUpgradeModal(); retryLaneLookup(); }, 1200);
       return;

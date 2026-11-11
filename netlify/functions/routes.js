@@ -33,8 +33,9 @@ const MSG_UNAVAILABLE = 'Distance lookup is temporarily unavailable — please e
 // always be entered by hand.
 //   - Free (not signed in, or signed in without Pro): FREE_DAILY_LIMIT
 //   - Paid plans: PLAN_DAILY_LIMIT in netlify/lib/plans.js (Pro 100, Pro Plus
-//     250, Pro Max and API 1,000). Subscribers from before the plan changes
-//     keep unlimited quotes until they renew (legacyUnlimited).
+//     250, Pro Max and API 1,000). Subscribers on the original Pro plan keep
+//     unlimited quotes until their first bill on or after January 1, 2027
+//     (legacyUnlimited).
 const { PLAN_DAILY_LIMIT, normalizePlan, legacyUnlimited } = require('../lib/plans.js');
 
 const FREE_DAILY_LIMIT = 5;
@@ -136,7 +137,7 @@ async function resolveIdentity(event, serviceKey) {
         const uid = user && user.id;
         if (uid) {
           const pResp = await fetch(
-            `${SUPABASE_URL}/rest/v1/pro_users?id=eq.${uid}&select=is_active,plan,created_at,billing_period_start`,
+            `${SUPABASE_URL}/rest/v1/pro_users?id=eq.${uid}&select=is_active,plan,grandfathered,billing_period_start`,
             { headers: supaHeaders(serviceKey) }
           );
           if (pResp.ok) {
@@ -146,7 +147,7 @@ async function resolveIdentity(event, serviceKey) {
             return {
               pro: isPro,
               plan: normalizePlan(isPro ? row.plan : 'pro'),
-              createdAt: row ? row.created_at : null,
+              grandfathered: row ? row.grandfathered === true : false,
               billingPeriodStart: row ? row.billing_period_start : null,
               identity: `user:${uid}`,
             };
@@ -162,9 +163,9 @@ async function resolveIdentity(event, serviceKey) {
 }
 
 // Today's lane limit for this caller, or null for no limit.
-function dailyLaneLimit({ pro, plan, createdAt, billingPeriodStart }) {
+function dailyLaneLimit({ pro, plan, grandfathered, billingPeriodStart }) {
   if (!pro) return FREE_DAILY_LIMIT;
-  if (legacyUnlimited(createdAt, billingPeriodStart)) return null;
+  if (legacyUnlimited({ grandfathered, billing_period_start: billingPeriodStart })) return null;
   return PLAN_DAILY_LIMIT[normalizePlan(plan)];
 }
 

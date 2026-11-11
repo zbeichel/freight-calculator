@@ -8,12 +8,11 @@
 //   create → { key, item, access, keys, usage }  (the full key is returned this
 //            once; only its SHA-256 hash is stored)
 //   revoke → { access, keys, usage }
-// `access`: 'active' (API plan, can create keys) | 'starts_at_renewal' (chose the
-// API plan, starts when the current subscription renews) | 'plan_required'.
+// `access`: 'active' (API plan, can create keys) | 'plan_required'.
 // Keys can be listed and revoked on any plan; they only work on the API plan.
 
 const crypto = require('crypto');
-const { API_MONTHLY_QUOTES, API_PER_MINUTE, normalizePlan, legacyUnlimited } = require('../lib/plans.js');
+const { API_MONTHLY_QUOTES, API_PER_MINUTE, normalizePlan } = require('../lib/plans.js');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const MAX_KEYS = 5;
@@ -58,7 +57,6 @@ async function verifyUser(accessToken, serviceKey) {
 
 function accessFor(sub) {
   if (!sub || sub.is_active !== true || normalizePlan(sub.plan) !== 'api') return 'plan_required';
-  if (legacyUnlimited(sub.created_at, sub.billing_period_start)) return 'starts_at_renewal';
   return 'active';
 }
 
@@ -115,14 +113,12 @@ exports.handler = async function (event) {
 
   try {
     const subResp = await rest(serviceKey,
-      `/rest/v1/pro_users?id=eq.${userId}&select=is_active,plan,created_at,billing_period_start,renews_at`);
+      `/rest/v1/pro_users?id=eq.${userId}&select=is_active,plan,billing_period_start,renews_at`);
     const sub = Array.isArray(subResp.data) ? subResp.data[0] || null : null;
 
     if (action === 'create') {
       if (accessFor(sub) !== 'active') {
-        return reply(403, { error: accessFor(sub) === 'starts_at_renewal'
-          ? 'Your API plan starts when your subscription renews. You can create keys then.'
-          : 'API keys need the API plan ($199/month). Switch plans above.' });
+        return reply(403, { error: 'API keys need the API plan ($199/month). Switch plans above.' });
       }
       const countResp = await rest(serviceKey, `/rest/v1/api_keys?user_id=eq.${userId}&revoked_at=is.null&select=id`);
       if (Array.isArray(countResp.data) && countResp.data.length >= MAX_KEYS) {

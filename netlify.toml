@@ -8,6 +8,11 @@
 [functions]
   directory = "netlify/functions"
 
+# Moves subscribers on the original Pro plan to the new plans for
+# January 1, 2027 (see netlify/functions/apply-plan-changes.js).
+[functions."apply-plan-changes"]
+  schedule = "@hourly"
+
 # Redirect www to non-www (301 permanent — Google will update its index)
 [[redirects]]
   from = "https://www.quickfreightcalc.com/*"

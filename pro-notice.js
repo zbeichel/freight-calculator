@@ -1,11 +1,11 @@
-// pro-notice.js — tells Pro subscribers from before the plan changes what's
-// changing and when. Included on the calculator, bulk, multi-stop and lanes
-// pages; the Profile page shows the same information inline.
+// pro-notice.js — tells subscribers on the original Pro plan that the plans
+// change on January 1, 2027. Included on the calculator, bulk, multi-stop and
+// lanes pages; the Profile page shows the same information inline.
 //
-// Shown to a signed-in, paid subscriber who still has unlimited quotes until
-// their subscription renews (verify-pro's unlimitedUntilRenewal, from the rule
-// in netlify/lib/plans.js). "Got it" or "Choose a plan" hides it for good on
-// this browser; the ✕ hides it until the next visit.
+// Shown to a signed-in, paid subscriber still on the original plan
+// (verify-pro's unlimitedUntilRenewal, from the rule in netlify/lib/plans.js).
+// "Got it" or "Choose a plan" hides it for good on this browser; the ✕ hides
+// it until the next visit.
 (function () {
   var DISMISSED_KEY = 'qfc_notice_plan_changes_2026_11';   // localStorage: { userId: true }
   var LATER_KEY = 'qfc_notice_plan_changes_later';          // sessionStorage
@@ -25,11 +25,6 @@
     return null;
   }
 
-  function formatDate(iso) {
-    var d = iso ? new Date(iso) : null;
-    return d && !isNaN(d) ? d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
-  }
-
   function dismiss(userId) {
     var all = readJson(localStorage, DISMISSED_KEY);
     all[userId] = true;
@@ -43,8 +38,7 @@
     return n;
   }
 
-  function show(userId, renewsAt) {
-    var when = formatDate(renewsAt);
+  function show(userId) {
     var overlay = el('div',
       'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);' +
       'display:flex;align-items:center;justify-content:center;padding:20px;font-family:"Space Grotesk",sans-serif');
@@ -70,16 +64,15 @@
       '<div id="qfc-plan-notice-title" style="font-size:19px;font-weight:700;color:#f0f4f8">Changes coming to QuickFreightCalc Pro</div>');
 
     var body = el('div', 'padding:20px 28px',
-      '<p style="margin:0 0 12px">Because of increased server costs, our Pro plans are changing.</p>' +
-      '<p style="margin:0 0 12px;color:var(--text,#fff)"><strong>Nothing changes for you until your subscription renews' +
-        (when ? ' on ' + when : '') + '.</strong> You keep unlimited quotes with automatic miles until then.</p>' +
-      '<p style="margin:0 0 8px">When it renews, you can choose:</p>' +
+      '<p style="margin:0 0 12px">Because of increased server costs, our Pro plans are changing on <strong style="color:var(--text,#fff)">January 1, 2027</strong>.</p>' +
+      '<p style="margin:0 0 12px;color:var(--text,#fff)"><strong>Nothing changes for you until then.</strong> You keep unlimited quotes with automatic miles at your current price until your first bill on or after January 1.</p>' +
+      '<p style="margin:0 0 8px">From then, you can choose:</p>' +
       '<ul style="margin:0 0 12px;padding-left:18px">' +
         '<li><strong style="color:var(--text,#fff)">Pro</strong> — $9.99/month · automatic miles on 100 quotes per day</li>' +
         '<li><strong style="color:var(--text,#fff)">Pro Plus</strong> — $19.99/month · automatic miles on 250 quotes per day</li>' +
         '<li><strong style="color:var(--text,#fff)">Pro Max</strong> — $49.99/month · automatic miles on 1,000 quotes per day</li>' +
       '</ul>' +
-      '<p style="margin:0 0 12px">If you don\'t choose, your subscription renews on Pro. You can change plans or cancel anytime before then from your Profile.</p>' +
+      '<p style="margin:0 0 12px">If you don\'t choose, you\'ll move to Pro. You can choose a plan or cancel anytime before then from your Profile.</p>' +
       '<p style="margin:0 0 4px"><strong style="color:var(--text,#fff)">New: API access</strong> — $199/month · get quotes on your own website or system, 5,000 quotes per month, and everything in Pro Max. ' +
         '<a href="/api.html" target="_blank" rel="noopener" style="color:var(--accent,#f0a500)">API docs</a></p>' +
       '<p style="margin:0"><a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--accent,#f0a500)">What counts as a quote?</a></p>');
@@ -142,7 +135,7 @@
       });
       if (!resp.ok) return;
       var data = await resp.json();
-      if (data && data.active && data.paid && data.unlimitedUntilRenewal) show(userId, data.renewsAt);
+      if (data && data.active && data.paid && data.unlimitedUntilRenewal) show(userId);
     } catch (e) {}
   }
 
