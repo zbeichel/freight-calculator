@@ -3044,6 +3044,7 @@ async function _verifyProAuthBackground(){
           hideLogo: p.hide_logo === true,
           pdfStyle: p.pdf_style === 'classic' ? 'classic' : 'modern',
           pdfBreakdown: p.pdf_breakdown !== false,
+          pdfAccent: p.pdf_accent || '', pdfInk: p.pdf_ink || '',
         }));
         if(p.rate_profiles && Array.isArray(p.rate_profiles)){
           // Key matches PROFILES_KEY in lanes.html — keep them in sync.
@@ -3800,7 +3801,7 @@ function generateQuotePDF(){
     sand:     {header:'#ece3d3', accent:'#8b3a1f', headerText:'#4a2412', headerTextSoft:'rgba(74,36,18,.62)', headerTextFaint:'rgba(74,36,18,.5)',  bar:'linear-gradient(to right,#8b3a1f,#c26236,#8b3a1f)'},
     arctic:   {header:'#eef3f8', accent:'#0f3d4c', headerText:'#0b2d38', headerTextSoft:'rgba(11,45,56,.6)',  headerTextFaint:'rgba(11,45,56,.48)', bar:'linear-gradient(to right,#0f3d4c,#2a6b7f,#0f3d4c)'},
   };
-  const scheme = SCHEMES[profile.colorScheme] || SCHEMES.midnight;
+  const scheme = (window.QFCQuotePDF && QFCQuotePDF.classicScheme(profile)) || SCHEMES[profile.colorScheme] || SCHEMES.midnight;
 
   // Trailer / commodity / weight
   const trailerLabels = { van:'Dry Van', reefer:'Refrigerated (Reefer)', flatbed:'Flatbed' };
@@ -4122,7 +4123,7 @@ function generateQuotePDFFromLog(id){
     sand:     {header:'#ece3d3', accent:'#8b3a1f', headerText:'#4a2412', headerTextSoft:'rgba(74,36,18,.62)', headerTextFaint:'rgba(74,36,18,.5)',  bar:'linear-gradient(to right,#8b3a1f,#c26236,#8b3a1f)'},
     arctic:   {header:'#eef3f8', accent:'#0f3d4c', headerText:'#0b2d38', headerTextSoft:'rgba(11,45,56,.6)',  headerTextFaint:'rgba(11,45,56,.48)', bar:'linear-gradient(to right,#0f3d4c,#2a6b7f,#0f3d4c)'},
   };
-  const scheme = SCHEMES[profile.colorScheme] || SCHEMES.midnight;
+  const scheme = (window.QFCQuotePDF && QFCQuotePDF.classicScheme(profile)) || SCHEMES[profile.colorScheme] || SCHEMES.midnight;
 
   const trailerLabels = { van:'Dry Van', reefer:'Refrigerated (Reefer)', flatbed:'Flatbed' };
   const trailerDisplay = trailerLabels[q.trailer] || q.trailer || '—';

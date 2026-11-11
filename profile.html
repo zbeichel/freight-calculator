@@ -331,6 +331,14 @@ a.brand-name:hover span{opacity:.8}
 .scheme-preview-line-short{height:5px;border-radius:2px;width:60%}
 .scheme-name{font-size:10px;font-weight:700;color:var(--text3);text-align:center;padding:6px;background:var(--card2)}
 .active .scheme-name{color:var(--accent)}
+.custom-colors{display:none;margin-top:14px;padding:14px 16px;border:1px solid var(--border2);border-radius:10px;background:var(--card)}
+.custom-colors.show{display:block}
+.custom-colors-row{display:flex;gap:18px;flex-wrap:wrap}
+.color-field{display:flex;align-items:center;gap:10px}
+.color-field input[type=color]{width:44px;height:34px;padding:2px;border:1px solid var(--border2);border-radius:8px;background:var(--card2);cursor:pointer}
+.color-field-label{font-size:12px;font-weight:600;color:var(--text)}
+.color-field-hex{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--text3)}
+.custom-colors-note{font-size:11px;color:var(--text3);line-height:1.5;margin-top:10px}
 
 /* ── Quote number preview ── */
 .quote-num-preview{
@@ -552,6 +560,22 @@ footer a:hover{color:var(--accent)}
       <div class="section-body">
         <div class="scheme-grid" id="scheme-grid">
           <!-- Schemes rendered by JS -->
+        </div>
+        <div class="custom-colors" id="custom-colors">
+          <div class="custom-colors-row">
+            <label class="color-field">
+              <input type="color" id="pdf-accent" value="#f0a500" oninput="onCustomColorInput()" />
+              <span><span class="color-field-label">Accent color</span><br><span class="color-field-hex" id="pdf-accent-hex">#F0A500</span></span>
+            </label>
+            <label class="color-field">
+              <input type="color" id="pdf-ink" value="#1a1f2e" oninput="onCustomColorInput()" />
+              <span><span class="color-field-label">Heading color</span><br><span class="color-field-hex" id="pdf-ink-hex">#1A1F2E</span></span>
+            </label>
+          </div>
+          <div class="custom-colors-note">
+            Accent: the lines and highlights. Heading: your company name, the title and the total on Modern PDFs, and the header bar on Classic.
+            Dark heading colors read best on paper.
+          </div>
         </div>
 
         <!-- Live PDF preview -->
@@ -924,26 +948,62 @@ function renderSchemes(){
   const darkCards  = SCHEMES.filter(s => s.tone !== 'light').map(cardHTML).join('');
   const lightCards = SCHEMES.filter(s => s.tone === 'light').map(cardHTML).join('');
 
+  // Custom: the user's own accent and heading colors (pdf-quote.js).
+  const accent = customColorValue('pdf-accent', '#f0a500');
+  const ink = customColorValue('pdf-ink', '#1a1f2e');
+  const customCard = `
+    <div class="scheme-card ${currentScheme==='custom'?'active':''}" onclick="selectScheme('custom')" id="scheme-custom">
+      <div class="scheme-preview-header" style="background:${ink}">
+        <span class="scheme-preview-emoji">🎨</span>
+        <span class="scheme-preview-text" style="color:rgba(255,255,255,.7)">Your colors</span>
+      </div>
+      <div class="scheme-preview-bar" style="background:${accent}"></div>
+      <div class="scheme-preview-body">
+        <div class="scheme-preview-line" style="background:${accent};opacity:.5"></div>
+        <div class="scheme-preview-line-short" style="background:#e4e8ef"></div>
+        <div class="scheme-preview-line-short" style="background:#e4e8ef;width:40%;margin-top:3px"></div>
+      </div>
+      <div class="scheme-name">Custom</div>
+    </div>`;
+
   grid.innerHTML = `
     <div class="scheme-group-label">Dark headers</div>
     <div class="scheme-grid-row">${darkCards}</div>
     <div class="scheme-group-label">Light headers <span class="scheme-group-hint">— best for dark logos</span></div>
     <div class="scheme-grid-row">${lightCards}</div>
+    <div class="scheme-group-label">Your colors <span class="scheme-group-hint">— pick your own</span></div>
+    <div class="scheme-grid-row">${customCard}</div>
   `;
+  const panel = document.getElementById('custom-colors');
+  if(panel) panel.classList.toggle('show', currentScheme === 'custom');
+}
+
+// A custom color input's value, if it's a valid #rrggbb color.
+function customColorValue(id, fallback){
+  const el = document.getElementById(id);
+  const v = el ? el.value : '';
+  return /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
+}
+
+function onCustomColorInput(){
+  document.getElementById('pdf-accent-hex').textContent = customColorValue('pdf-accent', '#f0a500').toUpperCase();
+  document.getElementById('pdf-ink-hex').textContent = customColorValue('pdf-ink', '#1a1f2e').toUpperCase();
+  if(currentScheme !== 'custom'){ selectScheme('custom'); return; }
+  renderSchemes();
+  updatePreview();
 }
 
 function selectScheme(id){
   currentScheme = id;
-  document.querySelectorAll('.scheme-card').forEach(c => c.classList.remove('active'));
-  document.getElementById('scheme-'+id)?.classList.add('active');
+  renderSchemes();
   updatePreview();
 }
 
 function updatePreview(){
-  const s = SCHEMES.find(x => x.id === currentScheme) || SCHEMES[0];
+  const s = (currentScheme === 'custom' && window.QFCQuotePDF && QFCQuotePDF.classicScheme(profileFromForm()))
+    || SCHEMES.find(x => x.id === currentScheme) || SCHEMES[0];
   // Modern: white letterhead with the scheme's ink and accent (pdf-quote.js).
-  const m = currentPdfStyle === 'modern' && window.QFCQuotePDF
-    ? (QFCQuotePDF.schemes[currentScheme] || QFCQuotePDF.schemes.midnight) : null;
+  const m = currentPdfStyle === 'modern' && window.QFCQuotePDF ? QFCQuotePDF.colorsFor(profileFromForm()) : null;
   if(m){
     document.getElementById('preview-header').style.background = '#ffffff';
     document.getElementById('preview-bar').style.background = m.accent;
@@ -1016,6 +1076,8 @@ function profileFromForm(){
     hideLogo:    document.getElementById('hide-logo').checked,
     pdfStyle:    currentPdfStyle,
     pdfBreakdown: document.getElementById('pdf-breakdown').checked,
+    pdfAccent:   customColorValue('pdf-accent', '#f0a500'),
+    pdfInk:      customColorValue('pdf-ink', '#1a1f2e'),
   };
 }
 
@@ -1467,6 +1529,8 @@ async function saveProfile(){
     hideLogo:     document.getElementById('hide-logo').checked,
     pdfStyle:     currentPdfStyle,
     pdfBreakdown: document.getElementById('pdf-breakdown').checked,
+    pdfAccent:    customColorValue('pdf-accent', '#f0a500'),
+    pdfInk:       customColorValue('pdf-ink', '#1a1f2e'),
     savedAt:      new Date().toISOString(),
   };
 
@@ -1500,6 +1564,8 @@ async function saveProfile(){
           hide_logo:     profile.hideLogo,
           pdf_style:     profile.pdfStyle,
           pdf_breakdown: profile.pdfBreakdown,
+          pdf_accent:    profile.pdfAccent,
+          pdf_ink:       profile.pdfInk,
           updated_at:    new Date().toISOString(),
         })
       });
@@ -1554,6 +1620,8 @@ async function loadProfile(){
           hideLogo:    p.hide_logo === true,
           pdfStyle:    p.pdf_style,
           pdfBreakdown: p.pdf_breakdown !== false,
+          pdfAccent:   p.pdf_accent,
+          pdfInk:      p.pdf_ink,
         });
         // Update header with user name
         updateHeaderUser(p.contact_name || p.company_name || session.user.email);
@@ -2097,6 +2165,12 @@ function populateForm(p){
   if(p.colorScheme) currentScheme = p.colorScheme;
   document.getElementById('hide-logo').checked = p.hideLogo === true;
   document.getElementById('pdf-breakdown').checked = p.pdfBreakdown !== false;
+  const hex = v => /^#[0-9a-fA-F]{6}$/.test(v || '');
+  if(hex(p.pdfAccent)) document.getElementById('pdf-accent').value = p.pdfAccent.toLowerCase();
+  if(hex(p.pdfInk)) document.getElementById('pdf-ink').value = p.pdfInk.toLowerCase();
+  document.getElementById('pdf-accent-hex').textContent = customColorValue('pdf-accent', '#f0a500').toUpperCase();
+  document.getElementById('pdf-ink-hex').textContent = customColorValue('pdf-ink', '#1a1f2e').toUpperCase();
+  renderSchemes();
   selectPdfStyle(p.pdfStyle);
   if(p.logoBase64){
     // Reuse applyLogo so the preview state (remove + adjust buttons) stays in

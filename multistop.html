@@ -1032,6 +1032,7 @@ function adjustExtraDays(delta){
 }
 let legTimers = {};
 let stopChargeOverrides = {}; // stopId → { amount, type } where type is 'flat' or 'permile'
+let msLastCalc = null; // calcTotal()'s numbers, for the Modern PDF (pdf-quote.js)
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
@@ -1684,6 +1685,7 @@ function calcTotal(){
   const marginAmt = preMargin * marginPct;
   const total     = preMargin * (1 + marginPct);
   const rpm       = totalMiles > 0 ? total / totalMiles : 0;
+  msLastCalc = { totalMiles, totalWeight, fscPerMile, stopChargesTotal, extraDayTotal, marginPct };
 
   // Update result card
   const fmt = n => '$' + Math.round(n).toLocaleString();
@@ -1783,6 +1785,35 @@ function generateMultiStopPDF(){
   let profile = {};
   try { profile = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}'); } catch(e){}
 
+  // Modern design (pdf-quote.js) unless the Profile chose Classic — then the
+  // original template below, unchanged.
+  if(window.QFCQuotePDF && QFCQuotePDF.style(profile) === 'modern' && msLastCalc){
+    const c = msLastCalc;
+    const markup = 1 + c.marginPct;
+    // The first pickup and first delivery are included; other stops are extra.
+    const included = new Set([stops.find(s => s.type === 'pickup')?.id, stops.find(s => s.type === 'delivery')?.id]);
+    const trailerEl = document.getElementById('ms-trailer');
+    const COMMODITY = { standard:'Standard', food:'Food / Perishable', hazmat:'Hazmat', highval:'High Value', oversized:'Oversized' };
+    const day = ymd => {
+      if(!ymd) return '';
+      const d = new Date(ymd + 'T12:00:00');
+      return isNaN(d) ? ymd : d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+    };
+    QFCQuotePDF.openMultiStop({
+      total: Number(total.replace(/[^0-9.]/g, '')) || 0,
+      totalMiles: c.totalMiles,
+      totalWeight: c.totalWeight,
+      trailer: trailerEl ? trailerEl.options[trailerEl.selectedIndex].text : '',
+      commodity: COMMODITY[document.getElementById('ms-commodity')?.value] || '',
+      stops: stops.map(s => ({ type: s.type, location: s.location, date: day(s.date),
+        weight: parseFloat(s.weight) || null, legMiles: legMiles[s.id] || null, extra: !included.has(s.id) })),
+      // As the customer pays them (with your margin), so they add up to the total.
+      charges: { fuel: c.fscPerMile * c.totalMiles * markup, stops: c.stopChargesTotal * markup, extra: c.extraDayTotal * markup },
+      notes: document.getElementById('ms-load-notes')?.value.trim() || '',
+    }, profile);
+    return;
+  }
+
   // Scheme config — mirrors profile.html. headerText/Soft/Faint define text
   // colors for the dark header so light-header schemes remain legible.
   const DARK_TEXT  = { headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)', headerTextFaint:'rgba(255,255,255,.35)' };
@@ -1801,7 +1832,7 @@ function generateMultiStopPDF(){
     sand:     {header:'#ece3d3', accent:'#8b3a1f', headerText:'#4a2412', headerTextSoft:'rgba(74,36,18,.62)', headerTextFaint:'rgba(74,36,18,.5)',  bar:'linear-gradient(to right,#8b3a1f,#c26236,#8b3a1f)'},
     arctic:   {header:'#eef3f8', accent:'#0f3d4c', headerText:'#0b2d38', headerTextSoft:'rgba(11,45,56,.6)',  headerTextFaint:'rgba(11,45,56,.48)', bar:'linear-gradient(to right,#0f3d4c,#2a6b7f,#0f3d4c)'},
   };
-  const scheme = SCHEMES[profile.colorScheme] || SCHEMES.midnight;
+  const scheme = (window.QFCQuotePDF && QFCQuotePDF.classicScheme(profile)) || SCHEMES[profile.colorScheme] || SCHEMES.midnight;
   const stopFee = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
 
   // Timezone-safe date formatter for the PDF. Input is a YYYY-MM-DD string from
@@ -2525,5 +2556,6 @@ initWithProCheck();
 </script>
 <!-- Notice to current Pro subscribers about the plan changes (see pro-notice.js) -->
 <script src="/pro-notice.js" defer></script>
+<script src="/pdf-quote.js" defer></script>
 </body>
 </html>
