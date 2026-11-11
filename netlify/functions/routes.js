@@ -4,8 +4,8 @@
 // - The API key never leaves the server.
 // - Routes are not cached: Google's Routes API terms only allow temporary
 //   caching of lat/lng, not distances or durations, so every lookup goes to
-//   Google. The daily lane limits below (free 5, Pro 100, Pro Unlimited
-//   none) cap how many lanes each caller can look up.
+//   Google. The daily lane limits below (free 5, Pro 100, Pro Plus 250,
+//   Pro Unlimited none) cap how many lanes each caller can look up.
 // - Each end is routed on the verified coordinates the page sends
 //   (originLatLng / destinationLatLng) when it has them, else on the text.
 // - Google's raw error bodies are NEVER forwarded to the client. Failures come
@@ -32,27 +32,18 @@ const MSG_UNAVAILABLE = 'Distance lookup is temporarily unavailable — please e
 // is one quote. Re-pricing a lane you already ran today is free, and miles can
 // always be entered by hand.
 //   - Free (not signed in, or signed in without Pro): FREE_DAILY_LIMIT
-//   - Pro: PRO_DAILY_LIMIT ("Automatic miles on 100 quotes per day")
-//   - Pro Unlimited (pro_users.plan = 'unlimited'): no limit
+//   - Paid plans: PLAN_DAILY_LIMIT in netlify/lib/plans.js (Pro 100, Pro Plus
+//     250, Pro Unlimited none). Subscribers from before the plan changes keep
+//     unlimited quotes until they renew (legacyUnlimited).
+const { PLAN_DAILY_LIMIT, normalizePlan, legacyUnlimited } = require('../lib/plans.js');
+
 const FREE_DAILY_LIMIT = 5;
-const PRO_DAILY_LIMIT = 100;
 const MSG_LIMIT =
   "You've used today's 5 free quotes with automatic miles. Upgrade to Pro for 100 a day — or enter the miles manually.";
-const MSG_PRO_LIMIT =
-  "You've used today's 100 quotes with automatic miles. Pro Unlimited ($49.99/mo) has no daily limit — or enter the miles manually.";
-
-// Pro accounts that existed before the daily Pro limit was added keep the old
-// no-limit behavior until EXISTING_PRO_LIMIT_FROM: the Terms promise
-// subscribers 14 days' email notice of material changes. Accounts created on
-// or after FAIR_USE_ADDED are limited straight away.
-const FAIR_USE_ADDED = Date.parse('2026-11-12T00:00:00Z');
-const EXISTING_PRO_LIMIT_FROM = Date.parse('2026-11-26T00:00:00Z');
-
-function proLimitWaived(createdAt, now = Date.now()) {
-  if (now >= EXISTING_PRO_LIMIT_FROM) return false;
-  const created = Date.parse(createdAt || '');
-  return Number.isFinite(created) && created < FAIR_USE_ADDED;
-}
+const MSG_PLAN_LIMIT = {
+  pro: "You've used today's 100 quotes with automatic miles. Pro Plus ($19.99/mo) gives you 250 a day and Pro Unlimited ($49.99/mo) has no limit — or enter the miles manually.",
+  plus: "You've used today's 250 quotes with automatic miles. Pro Unlimited ($49.99/mo) has no daily limit — or enter the miles manually.",
+};
 
 function isAllowedOrigin(origin) {
   if (!origin) return true; // non-browser callers send no Origin header
@@ -141,7 +132,7 @@ async function resolveIdentity(event, serviceKey) {
         const uid = user && user.id;
         if (uid) {
           const pResp = await fetch(
-            `${SUPABASE_URL}/rest/v1/pro_users?id=eq.${uid}&select=is_active,plan,created_at`,
+            `${SUPABASE_URL}/rest/v1/pro_users?id=eq.${uid}&select=is_active,plan,created_at,billing_period_start`,
             { headers: supaHeaders(serviceKey) }
           );
           if (pResp.ok) {
@@ -150,8 +141,9 @@ async function resolveIdentity(event, serviceKey) {
             const isPro = !!row && row.is_active === true;
             return {
               pro: isPro,
-              plan: isPro && row.plan === 'unlimited' ? 'unlimited' : 'pro',
+              plan: normalizePlan(isPro ? row.plan : 'pro'),
               createdAt: row ? row.created_at : null,
+              billingPeriodStart: row ? row.billing_period_start : null,
               identity: `user:${uid}`,
             };
           }
@@ -166,10 +158,10 @@ async function resolveIdentity(event, serviceKey) {
 }
 
 // Today's lane limit for this caller, or null for no limit.
-function dailyLaneLimit({ pro, plan, createdAt }) {
+function dailyLaneLimit({ pro, plan, createdAt, billingPeriodStart }) {
   if (!pro) return FREE_DAILY_LIMIT;
-  if (plan === 'unlimited' || proLimitWaived(createdAt)) return null;
-  return PRO_DAILY_LIMIT;
+  if (legacyUnlimited(createdAt, billingPeriodStart)) return null;
+  return PLAN_DAILY_LIMIT[normalizePlan(plan)];
 }
 
 // Records a lane against today's usage and returns whether it's allowed.
@@ -243,7 +235,7 @@ exports.handler = async (event) => {
     const allowed = await withinDailyLimit(caller.identity, laneKey, limit, serviceKey);
     if (!allowed) {
       return caller.pro
-        ? json(200, { error: MSG_PRO_LIMIT, limit: true, plan: 'pro' })
+        ? json(200, { error: MSG_PLAN_LIMIT[caller.plan] || MSG_PLAN_LIMIT.pro, limit: true, plan: caller.plan })
         : json(200, { error: MSG_LIMIT, limit: true, plan: 'free' });
     }
   }

@@ -231,8 +231,14 @@ a.brand-name:hover span{opacity:.8}
           <label class="plan-option">
             <input type="radio" name="su-plan" value="pro" checked />
             <span class="plan-name">Pro</span>
-            <span class="plan-price"><strong>$4.99</strong>/month</span>
+            <span class="plan-price"><strong>$9.99</strong>/month</span>
             <span class="plan-detail">Automatic miles on 100 quotes per day</span>
+          </label>
+          <label class="plan-option">
+            <input type="radio" name="su-plan" value="plus" />
+            <span class="plan-name">Pro Plus</span>
+            <span class="plan-price"><strong>$19.99</strong>/month</span>
+            <span class="plan-detail">Automatic miles on 250 quotes per day</span>
           </label>
           <label class="plan-option">
             <input type="radio" name="su-plan" value="unlimited" />
@@ -241,7 +247,9 @@ a.brand-name:hover span{opacity:.8}
             <span class="plan-detail">Everything in Pro, with automatic miles on every quote — no daily limit</span>
           </label>
         </div>
-        <div class="plan-footnote">Cancel anytime.</div>
+        <div class="plan-footnote">
+          Cancel anytime · <a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">What counts as a quote?</a>
+        </div>
         <div class="field">
           <label>Email Address</label>
           <input type="email" id="su-email" placeholder="john@acmefreight.com" oninput="updateSignupBtnState()" />
@@ -543,15 +551,17 @@ async function handleRecoverySubmit(){
 }
 
 // ── Plan choice ────────────────────────────────────────────────────────────
-// 'pro' or 'unlimited'. /signup.html?plan=unlimited preselects Unlimited (the
-// calculator's "Pro Unlimited" button links here).
+// 'pro', 'plus' or 'unlimited'. /signup.html?plan=plus (or =unlimited)
+// preselects that plan (the calculator's upgrade buttons link here).
+const SIGNUP_PLANS = ['pro', 'plus', 'unlimited'];
 function getSelectedPlan(){
   const el = document.querySelector('input[name="su-plan"]:checked');
-  return el && el.value === 'unlimited' ? 'unlimited' : 'pro';
+  return el && SIGNUP_PLANS.includes(el.value) ? el.value : 'pro';
 }
 (function preselectPlan(){
-  if(new URLSearchParams(window.location.search).get('plan') === 'unlimited'){
-    const el = document.querySelector('input[name="su-plan"][value="unlimited"]');
+  const wanted = new URLSearchParams(window.location.search).get('plan');
+  if(SIGNUP_PLANS.includes(wanted)){
+    const el = document.querySelector(`input[name="su-plan"][value="${wanted}"]`);
     if(el) el.checked = true;
   }
 })();
@@ -610,7 +620,8 @@ async function handleGoogleReturn(){
       await createProUserRow(user.id, user.email, '', '', accessToken);
       showSuccess('Account created! Redirecting to checkout...');
 
-      const plan = localStorage.getItem('qfc_signup_plan') === 'unlimited' ? 'unlimited' : 'pro';
+      const storedPlan = localStorage.getItem('qfc_signup_plan');
+      const plan = SIGNUP_PLANS.includes(storedPlan) ? storedPlan : 'pro';
       localStorage.removeItem('qfc_signup_plan');
       const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',

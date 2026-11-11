@@ -430,6 +430,17 @@ header .header-auth{ justify-self:end; }
 /* Which place a location box was matched to (e.g. "📍 Vernon County, WI") */
 .field-note{font-size:11px;color:var(--text3);line-height:1.4}
 .field-note:empty,.field.invalid .field-note{display:none}
+/* Plan options in the upgrade modal (Pro Plus / Pro Unlimited) */
+.upg-option{
+  display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;row-gap:2px;align-items:center;
+  border:1px solid var(--border2);border-radius:10px;padding:10px 12px;cursor:pointer;background:var(--card2);
+}
+.upg-option:has(input:checked){border-color:var(--accent);background:var(--accentbg)}
+.upg-option input{accent-color:var(--accent);margin:0;grid-row:span 2}
+.upg-name{font-size:13px;font-weight:700;color:var(--text)}
+.upg-price{font-size:12px;color:var(--text2);text-align:right}
+.upg-price strong{color:var(--accent);font-size:14px}
+.upg-detail{grid-column:2 / 4;font-size:11px;color:var(--text3);line-height:1.4}
 .field select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
 .field select option{background:var(--card2)}
 
@@ -7881,7 +7892,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
 
     <div style="padding:20px 28px">
       <div style="text-align:center;font-size:13px;color:var(--text3);margin-bottom:14px">
-        <strong style="color:#f0a500;font-size:18px">$4.99</strong>/month &nbsp;·&nbsp; Cancel anytime
+        <strong style="color:#f0a500;font-size:18px">$9.99</strong>/month &nbsp;·&nbsp; Cancel anytime
       </div>
       <button onclick="handleProModalUpgrade()" style="
         display:block;width:100%;text-align:center;
@@ -7894,12 +7905,15 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
         Sign Up for Pro →
       </button>
       <div style="text-align:center;margin-top:10px">
-        <button onclick="closeProModal();showUnlimitedModal()" style="
+        <button onclick="closeProModal();showUpgradeModal()" style="
           font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
           background:none;border:none;cursor:pointer;color:#f0a500;
         ">
-          Need more than 100 quotes a day? Pro Unlimited ($49.99/mo)
+          Need more quotes? Pro Plus $19.99 · Unlimited $49.99
         </button>
+      </div>
+      <div style="text-align:center;margin-top:6px;font-size:12px">
+        <a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--text3)">What counts as a quote?</a>
       </div>
       <div style="text-align:center;margin-top:6px">
         <button onclick="closeProModal();window.location.href='/signup.html?login'" style="
@@ -7915,9 +7929,9 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
   </div>
 </div>
 
-<!-- ── Pro Unlimited Modal ── offered when a Pro account reaches the daily
-     100 quotes/day limit, or from the "Pro Unlimited" link in the Pro modal ── -->
-<div id="unl-modal-overlay" style="
+<!-- ── Upgrade Modal ── offers Pro Plus and Pro Unlimited: when a Pro or Pro
+     Plus account uses its quotes for the day, or from the link in the Pro modal ── -->
+<div id="upg-modal-overlay" style="
   display:none;position:fixed;inset:0;z-index:10000;
   background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
   align-items:center;justify-content:center;padding:20px;
@@ -7927,7 +7941,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
     max-width:420px;width:100%;overflow:hidden;position:relative;
     box-shadow:0 24px 60px rgba(0,0,0,.5);
   ">
-    <button onclick="closeUnlimitedModal()" aria-label="Close" style="
+    <button onclick="closeUpgradeModal()" aria-label="Close" style="
       position:absolute;top:14px;right:14px;
       font-family:'Space Grotesk',sans-serif;font-size:18px;line-height:1;
       background:var(--card2);border:1px solid var(--border2);border-radius:8px;
@@ -7939,24 +7953,34 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
     onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">✕</button>
 
     <div style="background:linear-gradient(135deg,#1a1f2e 0%,#0f1318 100%);padding:28px 28px 24px;text-align:center;border-bottom:1px solid var(--border);-webkit-print-color-adjust:exact;print-color-adjust:exact">
-      <div style="font-size:32px;margin-bottom:8px">♾️</div>
-      <div style="font-size:20px;font-weight:700;color:#f0f4f8;margin-bottom:6px">QuickFreightCalc <span style="color:#f0a500">Pro Unlimited</span></div>
-      <div style="font-size:13px;color:#8fa3b8;line-height:1.5" id="unl-modal-desc">Automatic miles with no daily limit.</div>
+      <div style="font-size:32px;margin-bottom:8px">📈</div>
+      <div style="font-size:20px;font-weight:700;color:#f0f4f8;margin-bottom:6px">More quotes with <span style="color:#f0a500">automatic miles</span></div>
+      <div style="font-size:13px;color:#8fa3b8;line-height:1.5" id="upg-modal-desc">Pick the plan that fits how much you quote.</div>
     </div>
 
     <div style="padding:20px 28px;border-bottom:1px solid var(--border)">
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">♾️</span> Automatic miles on every quote — no daily limit</div>
-        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">✅</span> Everything in Pro, unchanged</div>
-        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">↩️</span> Switch back to Pro anytime from your Profile</div>
+      <div role="radiogroup" aria-label="Plan" style="display:flex;flex-direction:column;gap:10px">
+        <label class="upg-option" id="upg-option-plus">
+          <input type="radio" name="upg-plan" value="plus" onchange="updateUpgradeButton()" />
+          <span class="upg-name">Pro Plus</span>
+          <span class="upg-price"><strong>$19.99</strong>/month</span>
+          <span class="upg-detail">Automatic miles on 250 quotes per day</span>
+        </label>
+        <label class="upg-option" id="upg-option-unlimited">
+          <input type="radio" name="upg-plan" value="unlimited" onchange="updateUpgradeButton()" />
+          <span class="upg-name">Pro Unlimited</span>
+          <span class="upg-price"><strong>$49.99</strong>/month</span>
+          <span class="upg-detail">Automatic miles on every quote — no daily limit</span>
+        </label>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">
+        Everything in Pro is included. <a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--accent)">What counts as a quote?</a>
       </div>
     </div>
 
     <div style="padding:20px 28px">
-      <div style="text-align:center;font-size:13px;color:var(--text3);margin-bottom:14px">
-        <strong style="color:#f0a500;font-size:18px">$49.99</strong>/month &nbsp;·&nbsp; <span id="unl-modal-billing">Cancel anytime</span>
-      </div>
-      <button id="unl-modal-btn" onclick="handleUnlimitedUpgrade()" style="
+      <div id="upg-modal-billing" style="text-align:center;font-size:12px;color:var(--text3);margin-bottom:12px">Cancel anytime</div>
+      <button id="upg-modal-btn" onclick="handleUpgrade()" style="
         display:block;width:100%;text-align:center;
         font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;
         padding:12px;border-radius:8px;border:none;
@@ -7964,11 +7988,11 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
         cursor:pointer;transition:opacity .15s;box-sizing:border-box;
       "
       onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-        Upgrade to Unlimited →
+        Upgrade to Pro Plus →
       </button>
-      <div id="unl-modal-status" role="status" style="display:none;text-align:center;font-size:12px;line-height:1.5;margin-top:10px"></div>
+      <div id="upg-modal-status" role="status" style="display:none;text-align:center;font-size:12px;line-height:1.5;margin-top:10px"></div>
       <div style="text-align:center;margin-top:10px">
-        <button onclick="closeUnlimitedModal()" style="
+        <button onclick="closeUpgradeModal()" style="
           font-family:'Space Grotesk',sans-serif;font-size:12px;
           background:none;border:none;cursor:pointer;
           color:var(--text3);text-decoration:underline;
@@ -7982,55 +8006,75 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
 </div>
 
 <script>
+const PLAN_LABEL = { pro: 'Pro', plus: 'Pro Plus', unlimited: 'Pro Unlimited' };
+
 // The routes function reports a daily lane limit with the caller's plan:
-// free accounts are offered Pro, Pro accounts (100/day) are offered Unlimited.
+// free accounts are offered Pro; Pro (100/day) is offered Plus or Unlimited;
+// Plus (250/day) is offered Unlimited.
 function showLaneLimit(data, setStatus){
-  if(data && data.plan === 'pro'){
-    setStatus('🔒', "You've used today's 100 quotes with automatic miles — enter miles manually or go Unlimited.");
-    showUnlimitedModal(data.error);
+  if(data && (data.plan === 'pro' || data.plan === 'plus')){
+    const used = data.plan === 'plus' ? 250 : 100;
+    setStatus('🔒', `You've used today's ${used} quotes with automatic miles — enter miles manually or upgrade.`);
+    showUpgradeModal(data.error, data.plan === 'plus' ? ['unlimited'] : ['plus', 'unlimited']);
   } else {
     setStatus('🔒', 'Daily free limit reached — upgrade to Pro or enter miles manually.');
     showProModal("You've used today's 5 free quotes with automatic miles. Upgrade to Pro for 100 a day.");
   }
 }
 
-function showUnlimitedModal(desc){
-  document.getElementById('unl-modal-desc').textContent =
-    desc || 'Automatic miles with no daily limit.';
-  document.getElementById('unl-modal-billing').textContent = isProUser
-    ? "You're charged the prorated difference today"
+// `plans`: which upgrades to offer (default Plus and Unlimited); the first is preselected.
+function showUpgradeModal(desc, plans){
+  const offer = plans && plans.length ? plans : ['plus', 'unlimited'];
+  ['plus', 'unlimited'].forEach(p => {
+    const option = document.getElementById('upg-option-' + p);
+    option.style.display = offer.includes(p) ? '' : 'none';
+    option.querySelector('input').checked = p === offer[0];
+  });
+  document.getElementById('upg-modal-desc').textContent =
+    desc || 'Pick the plan that fits how much you quote.';
+  document.getElementById('upg-modal-billing').textContent = isProUser
+    ? "You're charged the prorated difference today · Cancel anytime"
     : 'Cancel anytime';
-  setUnlimitedStatus('');
-  document.getElementById('unl-modal-overlay').style.display = 'flex';
+  setUpgradeStatus('');
+  updateUpgradeButton();
+  document.getElementById('upg-modal-overlay').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
-function closeUnlimitedModal(){
-  document.getElementById('unl-modal-overlay').style.display = 'none';
+function closeUpgradeModal(){
+  document.getElementById('upg-modal-overlay').style.display = 'none';
   document.body.style.overflow = '';
 }
-function setUnlimitedStatus(text, isError){
-  const el = document.getElementById('unl-modal-status');
+function selectedUpgradePlan(){
+  const el = document.querySelector('input[name="upg-plan"]:checked');
+  return el ? el.value : 'plus';
+}
+function updateUpgradeButton(){
+  document.getElementById('upg-modal-btn').textContent = `Upgrade to ${PLAN_LABEL[selectedUpgradePlan()]} →`;
+}
+function setUpgradeStatus(text, isError){
+  const el = document.getElementById('upg-modal-status');
   el.textContent = text || '';
   el.style.display = text ? 'block' : 'none';
   el.style.color = isError ? 'var(--red)' : 'var(--text2)';
 }
 
-// Pro accounts switch their subscription (change-plan); anyone else starts a
-// new Unlimited subscription through Stripe Checkout.
-async function handleUnlimitedUpgrade(){
+// Subscribers switch plans (change-plan); anyone else starts a new
+// subscription on the chosen plan through Stripe Checkout.
+async function handleUpgrade(){
+  const plan = selectedUpgradePlan();
   const session = getProSession();
-  if(!session){ window.location.href = '/signup.html?plan=unlimited'; return; }
+  if(!session){ window.location.href = '/signup.html?plan=' + plan; return; }
   const userId = session.user?.id || session.user?.sub;
   const email  = session.user?.email;
-  const btn = document.getElementById('unl-modal-btn');
+  const btn = document.getElementById('upg-modal-btn');
   btn.disabled = true;
-  setUnlimitedStatus('One moment…');
+  setUpgradeStatus('One moment…');
   try {
     if(!isProUser){
       const resp = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, email, accessToken: session.access_token, plan: 'unlimited' })
+        body: JSON.stringify({ userId, email, accessToken: session.access_token, plan })
       });
       const data = await resp.json().catch(() => ({}));
       if(data.url && /^https:\/\/checkout\.stripe\.com\//.test(data.url)){
@@ -8039,7 +8083,7 @@ async function handleUnlimitedUpgrade(){
         return;
       }
       if(data.error !== 'already_subscribed'){
-        setUnlimitedStatus(data.error || 'Could not start checkout. Please try again.', true);
+        setUpgradeStatus(data.error || 'Could not start checkout. Please try again.', true);
         return;
       }
       // Already subscribed after all — switch the plan below.
@@ -8047,21 +8091,23 @@ async function handleUnlimitedUpgrade(){
     const resp = await fetch('/.netlify/functions/change-plan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, accessToken: session.access_token, plan: 'unlimited' })
+      body: JSON.stringify({ userId, accessToken: session.access_token, plan })
     });
     const data = await resp.json().catch(() => ({}));
     if(data.status === 'ok'){
-      setUnlimitedStatus("✅ You're on Pro Unlimited — no daily limit.");
-      setTimeout(() => { closeUnlimitedModal(); retryLaneLookup(); }, 1200);
+      setUpgradeStatus(data.atRenewal
+        ? `✅ You'll move to ${PLAN_LABEL[plan]} when your subscription renews.`
+        : `✅ You're on ${PLAN_LABEL[plan]}.`);
+      setTimeout(() => { closeUpgradeModal(); retryLaneLookup(); }, 1200);
       return;
     }
     if(data.status === 'needs_payment' && data.url && /^https:\/\/invoice\.stripe\.com\//.test(data.url)){
       window.location.href = data.url; // finish paying the prorated invoice
       return;
     }
-    setUnlimitedStatus(data.message || 'Could not upgrade right now. Please try again.', true);
+    setUpgradeStatus(data.message || 'Could not upgrade right now. Please try again.', true);
   } catch(e){
-    setUnlimitedStatus('Could not reach the server. Please try again.', true);
+    setUpgradeStatus('Could not reach the server. Please try again.', true);
   } finally {
     btn.disabled = false;
   }
@@ -8117,10 +8163,10 @@ function closeProModal(){
 document.getElementById('pro-modal-overlay').addEventListener('click', function(e){
   if(e.target === this) closeProModal();
 });
-document.getElementById('unl-modal-overlay').addEventListener('click', function(e){
-  if(e.target === this) closeUnlimitedModal();
+document.getElementById('upg-modal-overlay').addEventListener('click', function(e){
+  if(e.target === this) closeUpgradeModal();
 });
-document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeProModal(); closeUnlimitedModal(); } });
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeProModal(); closeUpgradeModal(); } });
 </script>
 
 <!-- ════════════════════════════════════════════════════════════════════════
@@ -8231,5 +8277,7 @@ window.addEventListener('resize', () => {
 });
 </script>
 
+<!-- Notice to current Pro subscribers about the plan changes (see pro-notice.js) -->
+<script src="/pro-notice.js" defer></script>
 </body>
 </html>

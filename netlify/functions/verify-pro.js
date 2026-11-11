@@ -3,6 +3,7 @@
 // Called from Pro pages on load to verify the user has an active subscription
 
 const https = require('https');
+const { normalizePlan, legacyUnlimited } = require('../lib/plans.js');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 
@@ -81,17 +82,27 @@ exports.handler = async function(event){
 
     // Now check pro_users with service key — bypasses RLS, authoritative
     const resp = await supabaseRequest(
-      `/rest/v1/pro_users?id=eq.${userId}&select=is_active,plan`,
+      `/rest/v1/pro_users?id=eq.${userId}&select=is_active,plan,created_at,billing_period_start,renews_at,stripe_subscription_id`,
       serviceKey
     );
 
-    const isActive = resp.body?.[0]?.is_active === true;
-    const plan = isActive && resp.body?.[0]?.plan === 'unlimited' ? 'unlimited' : 'pro';
+    const row = resp.body?.[0] || {};
+    const isActive = row.is_active === true;
+    const plan = normalizePlan(row.plan);
+    // Subscribers from before the plan changes keep unlimited quotes until they
+    // renew; the pages use this to show the change notice and renewal date.
+    const unlimitedUntilRenewal = isActive && legacyUnlimited(row.created_at, row.billing_period_start);
 
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ active: isActive, plan })
+      body: JSON.stringify({
+        active: isActive,
+        plan,
+        unlimitedUntilRenewal,
+        paid: !!row.stripe_subscription_id,
+        renewsAt: row.renews_at || null,
+      })
     };
 
   } catch(err){

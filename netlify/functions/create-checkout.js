@@ -1,11 +1,15 @@
 // netlify/functions/create-checkout.js
 // Creates a Stripe checkout session for a new subscription:
-//   plan 'pro'       → STRIPE_PRICE_ID           ($4.99/mo, automatic miles on 100 quotes/day)
+//   plan 'pro'       → STRIPE_PRICE_ID           ($9.99/mo, automatic miles on 100 quotes/day)
+//   plan 'plus'      → STRIPE_PRICE_ID_PLUS      ($19.99/mo, 250 quotes/day)
 //   plan 'unlimited' → STRIPE_PRICE_ID_UNLIMITED ($49.99/mo, no daily limit)
 // Someone who already has an active subscription is sent to change-plan
 // instead, so nobody ends up paying for two subscriptions.
 
 const https = require('https');
+const { PLANS, normalizePlan, priceIdFor } = require('../lib/plans.js');
+
+const PLAN_NAME = { pro: 'Pro', plus: 'Pro Plus', unlimited: 'Pro Unlimited' };
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 
@@ -87,7 +91,7 @@ exports.handler = async function(event){
   if(!userId || !email || !accessToken){
     return { statusCode: 400, body: JSON.stringify({ error: 'Missing credentials' }) };
   }
-  const plan = requestedPlan === 'unlimited' ? 'unlimited' : 'pro';
+  const plan = PLANS.includes(requestedPlan) ? requestedPlan : 'pro';
 
   // A user may only start checkout for their own account.
   const verifiedId = await verifyUser(accessToken);
@@ -103,22 +107,20 @@ exports.handler = async function(event){
       statusCode: 409,
       body: JSON.stringify({
         error: 'already_subscribed',
-        plan: proRow.plan === 'unlimited' ? 'unlimited' : 'pro',
+        plan: normalizePlan(proRow.plan),
         message: 'You already have Pro — switch plans from your Profile page.'
       })
     };
   }
 
-  const priceId = plan === 'unlimited'
-    ? process.env.STRIPE_PRICE_ID_UNLIMITED
-    : process.env.STRIPE_PRICE_ID;
+  const priceId = priceIdFor(plan);
   if(!priceId){
     console.error(`create-checkout: no Stripe price configured for plan "${plan}"`);
     return {
       statusCode: 503,
-      body: JSON.stringify({ error: plan === 'unlimited'
-        ? "Pro Unlimited isn't available yet — email info@quickfreightcalc.com and we'll set you up."
-        : 'Checkout is unavailable right now. Please try again later.' })
+      body: JSON.stringify({ error: plan === 'pro'
+        ? 'Checkout is unavailable right now. Please try again later.'
+        : `${PLAN_NAME[plan]} isn't available yet — email info@quickfreightcalc.com and we'll set you up.` })
     };
   }
   const siteUrl = process.env.DEPLOY_URL && process.env.DEPLOY_URL.includes('dev--')

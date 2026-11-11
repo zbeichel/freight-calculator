@@ -52,29 +52,35 @@ function verifySignature(payload, signature, secret){
   return crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'));
 }
 
-// Which plan a subscription is on: Pro Unlimited when it carries the Unlimited
-// price, otherwise Pro. Falls back to the metadata checkout set when the items
-// aren't in the event.
+const { PLANS, normalizePlan, planForPriceIds, subscriptionPeriod } = require('../lib/plans.js');
+
+// Which plan a subscription is on, from its price (Pro, Pro Plus or Pro
+// Unlimited — see netlify/lib/plans.js). Falls back to the metadata checkout
+// set when the items aren't in the event.
 function planFromSubscription(subscription){
-  const unlimitedPrice = process.env.STRIPE_PRICE_ID_UNLIMITED;
   const priceIds = (subscription.items?.data || []).map(i => i.price?.id).filter(Boolean);
-  if(priceIds.length) return unlimitedPrice && priceIds.includes(unlimitedPrice) ? 'unlimited' : 'pro';
-  return subscription.metadata?.plan === 'unlimited' ? 'unlimited' : 'pro';
+  if(priceIds.length) return planForPriceIds(priceIds);
+  return normalizePlan(subscription.metadata?.plan);
 }
 
 // Checkout sets metadata.plan from the price it charged (see create-checkout).
 function planFromCheckout(session){
-  return session.metadata?.plan === 'unlimited' ? 'unlimited' : 'pro';
+  return normalizePlan(session.metadata?.plan);
 }
 
-async function setProActive(userId, isActive, stripeCustomerId, stripeSubscriptionId, serviceKey, plan){
+// `period` ({ start, end } ISO strings from subscriptionPeriod) records the
+// current billing period: billing_period_start tells routes.js when a
+// subscriber from before the plan changes has renewed, renews_at is shown to them.
+async function setProActive(userId, isActive, stripeCustomerId, stripeSubscriptionId, serviceKey, plan, period){
   const updateData = {
     is_active: isActive,
     updated_at: new Date().toISOString(),
   };
   if(stripeCustomerId) updateData.stripe_customer_id = stripeCustomerId;
   if(stripeSubscriptionId) updateData.stripe_subscription_id = stripeSubscriptionId;
-  if(plan === 'pro' || plan === 'unlimited') updateData.plan = plan;
+  if(PLANS.includes(plan)) updateData.plan = plan;
+  if(period?.start) updateData.billing_period_start = period.start;
+  if(period?.end) updateData.renews_at = period.end;
 
   // Try PATCH first
   const patchResp = await supabaseRequest(
@@ -139,16 +145,16 @@ function sendResendEmail({ apiKey, from, to, subject, html, text }){
 }
 
 function buildWelcomeEmail(siteUrl, plan){
-  const unlimited = plan === 'unlimited';
-  const subject = unlimited
-    ? "Welcome to QuickFreightCalc Pro Unlimited — you're all set"
-    : "Welcome to QuickFreightCalc Pro — you're all set";
-  const lookupsText = unlimited
-    ? 'Automatic miles on every quote, with no daily limit (Pro Unlimited)'
-    : 'Automatic miles on 100 quotes per day';
+  const planName = { pro: 'Pro', plus: 'Pro Plus', unlimited: 'Pro Unlimited' }[normalizePlan(plan)];
+  const subject = `Welcome to QuickFreightCalc ${planName} — you're all set`;
+  const lookupsText = {
+    pro: 'Automatic miles on 100 quotes per day',
+    plus: 'Automatic miles on 250 quotes per day (Pro Plus)',
+    unlimited: 'Automatic miles on every quote, with no daily limit (Pro Unlimited)',
+  }[normalizePlan(plan)];
 
   // Plain-text version (fallback for clients that don't render HTML)
-  const text = `Thanks for signing up — your Pro${unlimited ? ' Unlimited' : ''} account is active.
+  const text = `Thanks for signing up — your ${planName} account is active.
 
 Here's what you unlocked:
 
@@ -200,7 +206,7 @@ Manage your subscription anytime from your Profile: ${siteUrl}/profile.html
     <div class="accent-bar"></div>
     <div class="body">
       <h1>You're all set</h1>
-      <p>Thanks for signing up — your Pro${unlimited ? ' Unlimited' : ''} account is active and ready to go. Here's what you just unlocked:</p>
+      <p>Thanks for signing up — your ${planName} account is active and ready to go. Here's what you just unlocked:</p>
       <ul>
         <li><strong>♾️ ${lookupsText}</strong></li>
         <li><strong>🚛 Multi-Stop Load Builder</strong> — quote multi-stop loads with per-leg mileage and PDF exports</li>
@@ -359,19 +365,20 @@ exports.handler = async function(event){
         const subscription = stripeEvent.data.object;
         const isActive = subscription.status === 'active' || subscription.status === 'trialing';
         const userId = subscription.metadata?.userId;
-        // Plan switches (change-plan or the billing portal) land here.
+        // Plan switches (change-plan or the billing portal) and renewals land here.
         const plan = planFromSubscription(subscription);
+        const period = subscriptionPeriod(subscription);
 
         if(userId){
           console.log(`Updating Pro status for user ${userId}: ${isActive} (${plan})`);
-          await setProActive(userId, isActive, null, null, serviceKey, plan);
+          await setProActive(userId, isActive, null, null, serviceKey, plan, period);
         } else {
           const resp = await supabaseRequest(
             `/rest/v1/pro_users?stripe_subscription_id=eq.${subscription.id}&select=id`,
             'GET', null, serviceKey
           );
           if(resp.body?.[0]?.id){
-            await setProActive(resp.body[0].id, isActive, null, null, serviceKey, plan);
+            await setProActive(resp.body[0].id, isActive, null, null, serviceKey, plan, period);
           }
         }
         break;
