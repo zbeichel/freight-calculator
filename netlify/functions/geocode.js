@@ -7,8 +7,15 @@
 // only allow temporary caching of lat/lng and forbid sharing cached address
 // results across users, so every lookup goes to Google.
 //
+// One Google call per lookup. The ZIP is included only when Google returns one
+// for the place itself (a typed ZIP or a street address). Bare city entries come
+// back as "City, ST" — we no longer make a second reverse-geocode call just to
+// decorate them with the ZIP at the city centre. The pages route on the lat/lon
+// returned here, so the ZIP isn't needed to pin the place for the Routes API, and
+// `county` lets the page show which same-named place was matched.
+//
 // Response shape (success):
-//   { name, city, state, zip, lat, lon, types, partialMatch, formatted }
+//   { name, city, state, zip, county, lat, lon, types, partialMatch, formatted }
 // Failure: { error: "<safe message>" }  (HTTP 200 — client branches on .error)
 
 const GOOGLE_ENDPOINT = 'https://maps.googleapis.com/maps/api/geocode/json';
@@ -46,25 +53,6 @@ function extractCity(components) {
     if (name) return name;
   }
   return '';
-}
-
-async function lookupZipByCoords(lat, lon, apiKey) {
-  const params = new URLSearchParams({
-    latlng: `${lat},${lon}`,
-    key: apiKey,
-    result_type: 'postal_code',
-  });
-  let data;
-  try {
-    const resp = await fetch(`${GOOGLE_ENDPOINT}?${params}`);
-    data = await resp.json();
-  } catch {
-    return '';
-  }
-  if (data.status !== 'OK' || !data.results?.length) return '';
-  const zipResult =
-    data.results.find((r) => r.types?.includes('postal_code')) || data.results[0];
-  return findComponent(zipResult.address_components || [], 'postal_code');
 }
 
 exports.handler = async (event) => {
@@ -109,17 +97,15 @@ exports.handler = async (event) => {
 
   const city = extractCity(components);
   const state = findComponent(components, 'administrative_area_level_1', true);
-  let zip = findComponent(components, 'postal_code');
-
-  if (!zip && typeof lat === 'number' && typeof lon === 'number') {
-    zip = await lookupZipByCoords(lat, lon, apiKey);
-  }
+  const zip = findComponent(components, 'postal_code');
+  const county = findComponent(components, 'administrative_area_level_2');
 
   const payload = {
     name: buildDisplayName(city, state, zip),
     city,
     state,
     zip,
+    county,
     lat,
     lon,
     types: result.types || [],
