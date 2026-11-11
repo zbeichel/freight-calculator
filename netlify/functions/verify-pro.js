@@ -81,16 +81,17 @@ exports.handler = async function(event){
 
     // Now check pro_users with service key — bypasses RLS, authoritative
     const resp = await supabaseRequest(
-      `/rest/v1/pro_users?id=eq.${userId}&select=is_active`,
+      `/rest/v1/pro_users?id=eq.${userId}&select=is_active,plan`,
       serviceKey
     );
 
     const isActive = resp.body?.[0]?.is_active === true;
+    const plan = isActive && resp.body?.[0]?.plan === 'unlimited' ? 'unlimited' : 'pro';
 
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ active: isActive })
+      body: JSON.stringify({ active: isActive, plan })
     };
 
   } catch(err){

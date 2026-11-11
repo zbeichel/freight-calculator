@@ -4,7 +4,8 @@
 // - The API key never leaves the server.
 // - Routes are not cached: Google's Routes API terms only allow temporary
 //   caching of lat/lng, not distances or durations, so every lookup goes to
-//   Google. The free-tier daily limit below still caps anonymous usage.
+//   Google. The daily lane limits below (free 5, Pro fair use 100, Pro
+//   Unlimited none) cap how many lanes each caller can look up.
 // - Each end is routed on the verified coordinates the page sends
 //   (originLatLng / destinationLatLng) when it has them, else on the text.
 // - Google's raw error bodies are NEVER forwarded to the client. Failures come
@@ -26,11 +27,31 @@ const MAX_ADDR_LEN = 120;
 const MSG_BUSY = 'Distance lookup is busy right now — please enter the miles manually.';
 const MSG_UNAVAILABLE = 'Distance lookup is temporarily unavailable — please enter the miles manually.';
 
-// Free tier: this many distinct lanes (origin→destination pairs) per day.
-// Pro users are exempt. Re-pricing a lane you already ran today is free.
+// Daily limits on automatic distance lookups, counted in distinct lanes
+// (origin→destination pairs) per UTC day. Re-pricing a lane you already ran
+// today is free, and miles can always be entered by hand.
+//   - Free (not signed in, or signed in without Pro): FREE_DAILY_LIMIT
+//   - Pro: PRO_DAILY_LIMIT — the "fair use" behind "Unlimited quotes*"
+//   - Pro Unlimited (pro_users.plan = 'unlimited'): no limit
 const FREE_DAILY_LIMIT = 5;
+const PRO_DAILY_LIMIT = 100;
 const MSG_LIMIT =
-  "You've hit today's free limit of 5 auto-distance lookups. Upgrade to Pro for unlimited — or enter the miles manually.";
+  "You've hit today's free limit of 5 auto-distance lookups. Upgrade to Pro for up to 100 lanes a day — or enter the miles manually.";
+const MSG_PRO_LIMIT =
+  "You've reached today's fair-use limit of 100 lanes with automatic miles. Pro Unlimited ($49.99/mo) has no daily limit — or enter the miles manually.";
+
+// Pro accounts that existed before the fair-use limit was added keep the old
+// no-limit behavior until EXISTING_PRO_LIMIT_FROM: the Terms promise
+// subscribers 14 days' email notice of material changes. Accounts created on
+// or after FAIR_USE_ADDED are limited straight away.
+const FAIR_USE_ADDED = Date.parse('2026-11-12T00:00:00Z');
+const EXISTING_PRO_LIMIT_FROM = Date.parse('2026-11-26T00:00:00Z');
+
+function proLimitWaived(createdAt, now = Date.now()) {
+  if (now >= EXISTING_PRO_LIMIT_FROM) return false;
+  const created = Date.parse(createdAt || '');
+  return Number.isFinite(created) && created < FAIR_USE_ADDED;
+}
 
 function isAllowedOrigin(origin) {
   if (!origin) return true; // non-browser callers send no Origin header
@@ -100,10 +121,11 @@ function clientIp(event) {
   ).trim();
 }
 
-// Works out who is calling and whether they're Pro (Pro = exempt from limits).
-// Signed-in users are verified against Supabase Auth + pro_users so a client
-// can't just claim to be Pro. Anonymous callers are identified by IP.
-// Returns { pro, identity } where identity is 'user:<uuid>' or 'ip:<addr>'.
+// Works out who is calling, whether they're Pro and on which plan. Signed-in
+// users are verified against Supabase Auth + pro_users so a client can't just
+// claim to be Pro. Anonymous callers are identified by IP.
+// Returns { pro, plan, createdAt, identity } where identity is 'user:<uuid>'
+// or 'ip:<addr>'.
 async function resolveIdentity(event, serviceKey) {
   const authHeader = event.headers.authorization || event.headers.Authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
@@ -118,13 +140,19 @@ async function resolveIdentity(event, serviceKey) {
         const uid = user && user.id;
         if (uid) {
           const pResp = await fetch(
-            `${SUPABASE_URL}/rest/v1/pro_users?id=eq.${uid}&select=is_active`,
+            `${SUPABASE_URL}/rest/v1/pro_users?id=eq.${uid}&select=is_active,plan,created_at`,
             { headers: supaHeaders(serviceKey) }
           );
           if (pResp.ok) {
             const rows = await pResp.json();
-            const isPro = Array.isArray(rows) && rows[0] && rows[0].is_active === true;
-            return { pro: isPro, identity: `user:${uid}` };
+            const row = Array.isArray(rows) && rows[0];
+            const isPro = !!row && row.is_active === true;
+            return {
+              pro: isPro,
+              plan: isPro && row.plan === 'unlimited' ? 'unlimited' : 'pro',
+              createdAt: row ? row.created_at : null,
+              identity: `user:${uid}`,
+            };
           }
           return { pro: false, identity: `user:${uid}` };
         }
@@ -136,11 +164,18 @@ async function resolveIdentity(event, serviceKey) {
   return { pro: false, identity: `ip:${clientIp(event) || 'unknown'}` };
 }
 
+// Today's lane limit for this caller, or null for no limit.
+function dailyLaneLimit({ pro, plan, createdAt }) {
+  if (!pro) return FREE_DAILY_LIMIT;
+  if (plan === 'unlimited' || proLimitWaived(createdAt)) return null;
+  return PRO_DAILY_LIMIT;
+}
+
 // Records a lane against today's usage and returns whether it's allowed.
 // Re-pricing a lane already used today is always allowed (no new slot spent).
 // FAILS OPEN: if the counter is unreachable we allow the request, so an infra
 // hiccup never blocks a customer — the Google daily quota is the hard ceiling.
-async function withinFreeLimit(identity, laneKey, serviceKey) {
+async function withinDailyLimit(identity, laneKey, limit, serviceKey) {
   if (!serviceKey) return true;
   try {
     const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/record_free_lane`, {
@@ -149,7 +184,7 @@ async function withinFreeLimit(identity, laneKey, serviceKey) {
       body: JSON.stringify({
         p_identity: identity,
         p_lane: laneKey,
-        p_limit: FREE_DAILY_LIMIT,
+        p_limit: limit,
       }),
     });
     if (!resp.ok) return true;
@@ -193,18 +228,22 @@ exports.handler = async (event) => {
   const originLatLng = toLatLng(body.originLatLng);
   const destLatLng = toLatLng(body.destinationLatLng);
 
-  // Free-tier limit. Pro users are exempt; everyone else gets FREE_DAILY_LIMIT
-  // distinct lanes/day. The lane key is legs-agnostic so the same lane counts
+  // Daily lane limit: FREE_DAILY_LIMIT without Pro, PRO_DAILY_LIMIT on Pro,
+  // none on Pro Unlimited. The lane key is legs-agnostic so the same lane counts
   // once no matter which page (calculator, profitability, etc.) requested it.
-  const { pro, identity } = await resolveIdentity(event, serviceKey);
-  if (!pro) {
+  // `plan` in the limit response tells the page which upgrade to offer.
+  const caller = await resolveIdentity(event, serviceKey);
+  const limit = dailyLaneLimit(caller);
+  if (limit) {
     const laneKey = crypto
       .createHash('sha256')
       .update(`${laneEnd(originAddr, originLatLng)}|${laneEnd(destAddr, destLatLng)}`)
       .digest('hex');
-    const allowed = await withinFreeLimit(identity, laneKey, serviceKey);
+    const allowed = await withinDailyLimit(caller.identity, laneKey, limit, serviceKey);
     if (!allowed) {
-      return json(200, { error: MSG_LIMIT, limit: true });
+      return caller.pro
+        ? json(200, { error: MSG_PRO_LIMIT, limit: true, plan: 'pro' })
+        : json(200, { error: MSG_LIMIT, limit: true, plan: 'free' });
     }
   }
 

@@ -1409,6 +1409,8 @@ async function lookupLegMiles(id){
           })
         });
         const data = await resp.json();
+        // Daily lane limit reached: show the server's message (it names the upgrade).
+        if(data?.limit) throw Object.assign(new Error('Limit'), { userMessage: data.error });
         const meters = data?.routes?.[0]?.distanceMeters;
         if(!meters) throw new Error('No route');
         return Math.round(meters / 1609.34);
@@ -1435,7 +1437,12 @@ async function lookupLegMiles(id){
     badge = document.getElementById(`leg-badge-${id}`);
     status = document.getElementById(`leg-status-${id}`);
     if(badge){ badge.className = 'leg-miles-badge'; badge.textContent = '— mi'; }
-    if(status){ status.className = 'miles-status err'; status.textContent = `⚠ ${e.message === 'No key' ? 'Could not load Maps key' : 'Could not look up miles'} — enter manually`; }
+    if(status){
+      status.className = 'miles-status err';
+      status.textContent = e.userMessage
+        ? `🔒 ${e.userMessage}`
+        : `⚠ ${e.message === 'No key' ? 'Could not load Maps key' : 'Could not look up miles'} — enter manually`;
+    }
   }
 }
 

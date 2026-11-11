@@ -52,13 +52,29 @@ function verifySignature(payload, signature, secret){
   return crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'));
 }
 
-async function setProActive(userId, isActive, stripeCustomerId, stripeSubscriptionId, serviceKey){
+// Which plan a subscription is on: Pro Unlimited when it carries the Unlimited
+// price, otherwise Pro. Falls back to the metadata checkout set when the items
+// aren't in the event.
+function planFromSubscription(subscription){
+  const unlimitedPrice = process.env.STRIPE_PRICE_ID_UNLIMITED;
+  const priceIds = (subscription.items?.data || []).map(i => i.price?.id).filter(Boolean);
+  if(priceIds.length) return unlimitedPrice && priceIds.includes(unlimitedPrice) ? 'unlimited' : 'pro';
+  return subscription.metadata?.plan === 'unlimited' ? 'unlimited' : 'pro';
+}
+
+// Checkout sets metadata.plan from the price it charged (see create-checkout).
+function planFromCheckout(session){
+  return session.metadata?.plan === 'unlimited' ? 'unlimited' : 'pro';
+}
+
+async function setProActive(userId, isActive, stripeCustomerId, stripeSubscriptionId, serviceKey, plan){
   const updateData = {
     is_active: isActive,
     updated_at: new Date().toISOString(),
   };
   if(stripeCustomerId) updateData.stripe_customer_id = stripeCustomerId;
   if(stripeSubscriptionId) updateData.stripe_subscription_id = stripeSubscriptionId;
+  if(plan === 'pro' || plan === 'unlimited') updateData.plan = plan;
 
   // Try PATCH first
   const patchResp = await supabaseRequest(
@@ -122,14 +138,21 @@ function sendResendEmail({ apiKey, from, to, subject, html, text }){
   });
 }
 
-function buildWelcomeEmail(siteUrl){
-  const subject = "Welcome to QuickFreightCalc Pro — you're all set";
+function buildWelcomeEmail(siteUrl, plan){
+  const unlimited = plan === 'unlimited';
+  const subject = unlimited
+    ? "Welcome to QuickFreightCalc Pro Unlimited — you're all set"
+    : "Welcome to QuickFreightCalc Pro — you're all set";
+  const lookupsText = unlimited
+    ? 'Automatic miles with no daily limit (Pro Unlimited)'
+    : 'Unlimited quotes, with automatic miles on up to 100 lanes a day';
 
   // Plain-text version (fallback for clients that don't render HTML)
-  const text = `Thanks for signing up — your Pro account is active.
+  const text = `Thanks for signing up — your Pro${unlimited ? ' Unlimited' : ''} account is active.
 
 Here's what you unlocked:
 
+• ${lookupsText}
 • Multi-Stop Load Builder — quote multi-stop loads with per-leg mileage and PDF exports
 • Bulk Load Calculator — per-cwt rate calculator with EIA fuel surcharge logic
 • Lane Rate Tracker — track how your regular lanes compare to regional market rates
@@ -177,8 +200,9 @@ Manage your subscription anytime from your Profile: ${siteUrl}/profile.html
     <div class="accent-bar"></div>
     <div class="body">
       <h1>You're all set</h1>
-      <p>Thanks for signing up — your Pro account is active and ready to go. Here's what you just unlocked:</p>
+      <p>Thanks for signing up — your Pro${unlimited ? ' Unlimited' : ''} account is active and ready to go. Here's what you just unlocked:</p>
       <ul>
+        <li><strong>♾️ ${lookupsText}</strong></li>
         <li><strong>🚛 Multi-Stop Load Builder</strong> — quote multi-stop loads with per-leg mileage and PDF exports</li>
         <li><strong>🥔 Bulk Load Calculator</strong> — per-cwt rate calculator with EIA fuel surcharge logic for bulk hauling</li>
         <li><strong>📈 Lane Rate Tracker</strong> — track how your regular lanes compare to regional market rates over time</li>
@@ -201,7 +225,7 @@ Manage your subscription anytime from your Profile: ${siteUrl}/profile.html
   return { subject, html, text };
 }
 
-async function trySendWelcomeEmail({ toEmail, serviceKey }){
+async function trySendWelcomeEmail({ toEmail, serviceKey, plan }){
   const apiKey = process.env.RESEND_API_KEY;
   if(!apiKey){
     console.warn('[welcome-email] RESEND_API_KEY not set — skipping');
@@ -213,7 +237,7 @@ async function trySendWelcomeEmail({ toEmail, serviceKey }){
   }
 
   const siteUrl = process.env.SITE_URL || 'https://quickfreightcalc.com';
-  const { subject, html, text } = buildWelcomeEmail(siteUrl);
+  const { subject, html, text } = buildWelcomeEmail(siteUrl, plan);
 
   try {
     const resp = await sendResendEmail({
@@ -294,15 +318,16 @@ exports.handler = async function(event){
           console.warn('Pre-activation check failed (will still send welcome):', e.message);
         }
 
-        console.log(`Activating Pro for user ${userId}`);
-        await setProActive(userId, true, customerId, subscriptionId, serviceKey);
+        const plan = planFromCheckout(session);
+        console.log(`Activating Pro (${plan}) for user ${userId}`);
+        await setProActive(userId, true, customerId, subscriptionId, serviceKey, plan);
 
         // Send welcome email only on FIRST activation
         if(!wasAlreadyActive){
           // Stripe Checkout puts the email at session.customer_details.email
           // (most reliable) with session.customer_email as a fallback.
           const recipientEmail = session.customer_details?.email || session.customer_email;
-          await trySendWelcomeEmail({ toEmail: recipientEmail, serviceKey });
+          await trySendWelcomeEmail({ toEmail: recipientEmail, serviceKey, plan });
         } else {
           console.log(`[welcome-email] Skipping — user ${userId} was already active`);
         }
@@ -313,9 +338,10 @@ exports.handler = async function(event){
         const subscription = stripeEvent.data.object;
         const userId = subscription.metadata?.userId;
 
+        // Back to the default plan, so a later comp or re-subscription starts clean.
         if(userId){
           console.log(`Deactivating Pro for user ${userId}`);
-          await setProActive(userId, false, null, null, serviceKey);
+          await setProActive(userId, false, null, null, serviceKey, 'pro');
         } else {
           // Look up user by stripe_subscription_id
           const resp = await supabaseRequest(
@@ -323,7 +349,7 @@ exports.handler = async function(event){
             'GET', null, serviceKey
           );
           if(resp.body?.[0]?.id){
-            await setProActive(resp.body[0].id, false, null, null, serviceKey);
+            await setProActive(resp.body[0].id, false, null, null, serviceKey, 'pro');
           }
         }
         break;
@@ -333,17 +359,19 @@ exports.handler = async function(event){
         const subscription = stripeEvent.data.object;
         const isActive = subscription.status === 'active' || subscription.status === 'trialing';
         const userId = subscription.metadata?.userId;
+        // Plan switches (change-plan or the billing portal) land here.
+        const plan = planFromSubscription(subscription);
 
         if(userId){
-          console.log(`Updating Pro status for user ${userId}: ${isActive}`);
-          await setProActive(userId, isActive, null, null, serviceKey);
+          console.log(`Updating Pro status for user ${userId}: ${isActive} (${plan})`);
+          await setProActive(userId, isActive, null, null, serviceKey, plan);
         } else {
           const resp = await supabaseRequest(
             `/rest/v1/pro_users?stripe_subscription_id=eq.${subscription.id}&select=id`,
             'GET', null, serviceKey
           );
           if(resp.body?.[0]?.id){
-            await setProActive(resp.body[0].id, isActive, null, null, serviceKey);
+            await setProActive(resp.body[0].id, isActive, null, null, serviceKey, plan);
           }
         }
         break;

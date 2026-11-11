@@ -158,6 +158,21 @@ a.brand-name:hover span{opacity:.8}
   margin-bottom:20px;text-align:center;
 }
 .price-note strong{color:var(--accent)}
+
+/* Plan picker on the sign-up form */
+.plan-picker{display:grid;gap:8px;margin-bottom:8px}
+.plan-option{
+  display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;row-gap:2px;align-items:center;
+  border:1px solid var(--border2);border-radius:8px;padding:10px 12px;cursor:pointer;
+  background:var(--card2);transition:border-color .15s;
+}
+.plan-option:has(input:checked){border-color:var(--accent);background:var(--accentbg)}
+.plan-option input{accent-color:var(--accent);margin:0;grid-row:span 2}
+.plan-name{font-size:13px;font-weight:700;color:var(--text)}
+.plan-price{font-size:12px;color:var(--text2);text-align:right}
+.plan-price strong{color:var(--accent);font-size:14px}
+.plan-detail{grid-column:2 / 4;font-size:11px;color:var(--text3);line-height:1.4}
+.plan-footnote{font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:20px}
 </style>
 </head>
 <body>
@@ -212,8 +227,22 @@ a.brand-name:hover span{opacity:.8}
 
       <!-- Sign Up form -->
       <div id="form-signup">
-        <div class="price-note">
-          <strong>$4.99/month</strong> · Cancel anytime
+        <div class="plan-picker" role="radiogroup" aria-label="Plan">
+          <label class="plan-option">
+            <input type="radio" name="su-plan" value="pro" checked />
+            <span class="plan-name">Pro</span>
+            <span class="plan-price"><strong>$4.99</strong>/month</span>
+            <span class="plan-detail">Unlimited quotes* · automatic miles on up to 100 lanes a day</span>
+          </label>
+          <label class="plan-option">
+            <input type="radio" name="su-plan" value="unlimited" />
+            <span class="plan-name">Pro Unlimited</span>
+            <span class="plan-price"><strong>$49.99</strong>/month</span>
+            <span class="plan-detail">Everything in Pro, with no daily limit on automatic miles</span>
+          </label>
+        </div>
+        <div class="plan-footnote">
+          * Fair use: automatic distance lookups cover up to 100 lanes a day, and you can always type the miles in yourself. Cancel anytime.
         </div>
         <div class="field">
           <label>Email Address</label>
@@ -515,6 +544,20 @@ async function handleRecoverySubmit(){
   }
 }
 
+// ── Plan choice ────────────────────────────────────────────────────────────
+// 'pro' or 'unlimited'. /signup.html?plan=unlimited preselects Unlimited (the
+// calculator's "Pro Unlimited" button links here).
+function getSelectedPlan(){
+  const el = document.querySelector('input[name="su-plan"]:checked');
+  return el && el.value === 'unlimited' ? 'unlimited' : 'pro';
+}
+(function preselectPlan(){
+  if(new URLSearchParams(window.location.search).get('plan') === 'unlimited'){
+    const el = document.querySelector('input[name="su-plan"][value="unlimited"]');
+    if(el) el.checked = true;
+  }
+})();
+
 // ── Google OAuth ───────────────────────────────────────────────────────────
 function handleGoogleAuth(){
   const isSignup = document.getElementById('tab-signup').classList.contains('active');
@@ -524,6 +567,8 @@ function handleGoogleAuth(){
       return;
     }
     localStorage.setItem('qfc_google_intent', 'signup');
+    // The plan picker is gone after the Google redirect — remember the choice.
+    localStorage.setItem('qfc_signup_plan', getSelectedPlan());
   } else {
     localStorage.setItem('qfc_google_intent', 'login');
   }
@@ -567,10 +612,12 @@ async function handleGoogleReturn(){
       await createProUserRow(user.id, user.email, '', '', accessToken);
       showSuccess('Account created! Redirecting to checkout...');
 
+      const plan = localStorage.getItem('qfc_signup_plan') === 'unlimited' ? 'unlimited' : 'pro';
+      localStorage.removeItem('qfc_signup_plan');
       const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, email: user.email, accessToken })
+        body: JSON.stringify({ userId: user.id, email: user.email, accessToken, plan })
       });
       const checkoutData = await checkoutResp.json();
       if(checkoutData.url){
@@ -630,7 +677,7 @@ async function handleSignup(){
       const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: data.user.id, email, accessToken: data.access_token })
+        body: JSON.stringify({ userId: data.user.id, email, accessToken: data.access_token, plan: getSelectedPlan() })
       });
       const checkoutData = await checkoutResp.json();
       if(checkoutData.url){
@@ -671,7 +718,7 @@ async function handleSignup(){
             const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId, email, accessToken: checkData.access_token })
+              body: JSON.stringify({ userId, email, accessToken: checkData.access_token, plan: getSelectedPlan() })
             });
             const checkoutData = await checkoutResp.json();
             if(checkoutData.url){
@@ -742,7 +789,7 @@ async function handleLogin(){
         const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, email, accessToken: data.access_token })
+          body: JSON.stringify({ userId, email, accessToken: data.access_token, plan: getSelectedPlan() })
         });
         const checkoutData = await checkoutResp.json();
         if(checkoutData.url){
