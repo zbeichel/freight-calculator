@@ -67,7 +67,7 @@ a.brand-name:hover span{opacity:.8}
 .field-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
 .field{display:flex;flex-direction:column;gap:6px}
 .field label{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
-.field input,.field textarea{
+.field input,.field textarea,.field select{
   background:var(--card2);border:1px solid var(--border2);border-radius:8px;
   color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:14px;
   padding:9px 12px;outline:none;transition:border-color .15s;width:100%
@@ -331,6 +331,12 @@ a.brand-name:hover span{opacity:.8}
 .scheme-preview-line-short{height:5px;border-radius:2px;width:60%}
 .scheme-name{font-size:10px;font-weight:700;color:var(--text3);text-align:center;padding:6px;background:var(--card2)}
 .active .scheme-name{color:var(--accent)}
+.wl-locked{font-size:12.5px;color:var(--text2);line-height:1.6;background:var(--accentbg);border:1px solid var(--accent);border-radius:8px;padding:10px 12px;margin-bottom:14px}
+.wl-locked a{color:var(--accent);font-weight:600;text-decoration:none}
+.wl-check{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text);margin-bottom:16px}
+.wl-check input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+#wl-fields{transition:opacity .15s}
+#wl-fields .field + .field{margin-top:14px}
 .custom-colors{display:none;margin-top:14px;padding:14px 16px;border:1px solid var(--border2);border-radius:10px;background:var(--card)}
 .custom-colors.show{display:block}
 .custom-colors-row{display:flex;gap:18px;flex-wrap:wrap}
@@ -550,6 +556,42 @@ footer a:hover{color:var(--accent)}
       </div>
     </div>
 
+    <!-- ── White-label PDFs (Pro Max, API and comp accounts) ── -->
+    <div class="section-card" id="white-label-card">
+      <div class="section-header">
+        <span class="section-icon">🏷</span>
+        <span class="section-title">White-Label PDFs</span>
+        <span class="section-sub">Pro Max and API</span>
+      </div>
+      <div class="section-body">
+        <div class="wl-locked" id="wl-locked" style="display:none">
+          White-label PDFs come with <strong>Pro Max</strong> ($49.99/month) and the <strong>API</strong> plan:
+          leave QuickFreightCalc off your quotes, choose how long quotes are valid, and print your own terms.
+          <a href="#subscription-paid">Change plan →</a>
+        </div>
+        <div id="wl-fields">
+          <label class="wl-check">
+            <input type="checkbox" id="pdf-white-label" />
+            Leave QuickFreightCalc off my PDFs (only your company shows)
+          </label>
+          <div class="field" style="max-width:260px">
+            <label for="pdf-valid-hours">Quotes are valid for</label>
+            <select id="pdf-valid-hours">
+              <option value="24">24 hours</option>
+              <option value="48">48 hours</option>
+              <option value="72">72 hours</option>
+              <option value="168">7 days</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pdf-terms">Your terms (optional)</label>
+            <textarea id="pdf-terms" maxlength="1000" rows="3" placeholder="Rates are subject to change and valid for 24 hours from issue."></textarea>
+            <div class="field-note">Printed at the bottom of every quote in place of the standard line. Up to 1,000 characters.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Color Scheme ── -->
     <div class="section-card">
       <div class="section-header">
@@ -747,7 +789,7 @@ footer a:hover{color:var(--accent)}
           ">
             <option value="pro">Pro — $9.99/mo · 100 quotes/day</option>
             <option value="plus">Pro Plus — $19.99/mo · 250 quotes/day</option>
-            <option value="max">Pro Max — $49.99/mo · 1,000 quotes/day</option>
+            <option value="max">Pro Max — $49.99/mo · 1,000 quotes/day + white-label PDFs</option>
             <option value="api">API — $199/mo · Pro Max + 5,000 API quotes/mo</option>
           </select>
           <button id="sub-plan-switch" onclick="handleSwitchPlan()" style="
@@ -771,7 +813,7 @@ footer a:hover{color:var(--accent)}
         </div>
         <div id="sub-plan-status" role="status" style="display:none;font-size:12px;margin-top:10px;line-height:1.5"></div>
         <div id="sub-plan-footnote" style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
-          Pro $9.99/month: automatic miles on 100 quotes per day · Pro Plus $19.99/month: 250 per day · Pro Max $49.99/month: 1,000 per day · API $199/month: Pro Max plus 5,000 API quotes per month.
+          Pro $9.99/month: automatic miles on 100 quotes per day · Pro Plus $19.99/month: 250 per day · Pro Max $49.99/month: 1,000 per day and white-label PDFs · API $199/month: Pro Max plus 5,000 API quotes per month.
           <a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">What counts as a quote?</a>
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
@@ -1045,6 +1087,32 @@ function updatePreviewLogo(){
   }
 }
 
+// ── White-label PDFs ──────────────────────────────────────────────────────
+// Pro Max, API and comp accounts (pdf-quote.js checks the same thing when it
+// builds a PDF). accountTier comes from the account row and plan changes.
+let accountTier = { plan: 'pro', comp: false };
+function applyWhiteLabelAccess(){
+  const allowed = accountTier.comp || accountTier.plan === 'max' || accountTier.plan === 'api';
+  const locked = document.getElementById('wl-locked');
+  if(locked) locked.style.display = allowed ? 'none' : '';
+  ['pdf-white-label', 'pdf-valid-hours', 'pdf-terms'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.disabled = !allowed;
+  });
+  const fields = document.getElementById('wl-fields');
+  if(fields) fields.style.opacity = allowed ? '1' : '.55';
+}
+
+function whiteLabelFromForm(){
+  return {
+    pdfWhiteLabel: document.getElementById('pdf-white-label').checked,
+    pdfValidHours: parseInt(document.getElementById('pdf-valid-hours').value, 10) || 24,
+    pdfTerms:      document.getElementById('pdf-terms').value.trim().slice(0, 1000),
+    plan:          accountTier.plan,
+    comp:          accountTier.comp,
+  };
+}
+
 // ── PDF quote style ───────────────────────────────────────────────────────
 // 'modern' (pdf-quote.js, the default) or 'classic' (the original template).
 let currentPdfStyle = 'modern';
@@ -1078,6 +1146,7 @@ function profileFromForm(){
     pdfBreakdown: document.getElementById('pdf-breakdown').checked,
     pdfAccent:   customColorValue('pdf-accent', '#f0a500'),
     pdfInk:      customColorValue('pdf-ink', '#1a1f2e'),
+    ...whiteLabelFromForm(),
   };
 }
 
@@ -1531,6 +1600,7 @@ async function saveProfile(){
     pdfBreakdown: document.getElementById('pdf-breakdown').checked,
     pdfAccent:    customColorValue('pdf-accent', '#f0a500'),
     pdfInk:       customColorValue('pdf-ink', '#1a1f2e'),
+    ...whiteLabelFromForm(),
     savedAt:      new Date().toISOString(),
   };
 
@@ -1566,6 +1636,9 @@ async function saveProfile(){
           pdf_breakdown: profile.pdfBreakdown,
           pdf_accent:    profile.pdfAccent,
           pdf_ink:       profile.pdfInk,
+          pdf_white_label: profile.pdfWhiteLabel,
+          pdf_valid_hours: profile.pdfValidHours,
+          pdf_terms:     profile.pdfTerms || null,
           updated_at:    new Date().toISOString(),
         })
       });
@@ -1622,12 +1695,17 @@ async function loadProfile(){
           pdfBreakdown: p.pdf_breakdown !== false,
           pdfAccent:   p.pdf_accent,
           pdfInk:      p.pdf_ink,
+          pdfWhiteLabel: p.pdf_white_label === true,
+          pdfValidHours: p.pdf_valid_hours,
+          pdfTerms:    p.pdf_terms,
         });
         // Update header with user name
         updateHeaderUser(p.contact_name || p.company_name || session.user.email);
         // Pick which subscription card to show based on whether they're a
         // paid subscriber (has Stripe customer ID) or a comp account.
+        accountTier = { plan: normalizeProfilePlan(p.plan), comp: p.is_active === true && !p.stripe_subscription_id };
         applySubscriptionCardState(p.stripe_customer_id, p.plan, p.is_active === true);
+        applyWhiteLabelAccess();
         // Pick which password card to show based on auth provider.
         applyChangePasswordCardState(session);
         return;
@@ -1672,7 +1750,7 @@ function applySubscriptionCardState(stripeCustomerId, plan, isActive){
 const PROFILE_PLANS = {
   pro:  { name: 'Pro',      price: '$9.99',  detail: 'Automatic miles on 100 quotes per day' },
   plus: { name: 'Pro Plus', price: '$19.99', detail: 'Automatic miles on 250 quotes per day' },
-  max:  { name: 'Pro Max',  price: '$49.99', detail: 'Automatic miles on 1,000 quotes per day' },
+  max:  { name: 'Pro Max',  price: '$49.99', detail: 'Automatic miles on 1,000 quotes per day and white-label PDFs' },
   api:  { name: 'API',      price: '$199',   detail: 'Pro Max plus 5,000 API quotes per month' },
 };
 const PROFILE_PLAN_RANK = { pro: 1, plus: 2, max: 3, api: 4 };
@@ -1688,6 +1766,8 @@ function applyPlanState(plan, isActive, onOriginal, renewsAt, nextPlan){
   currentPlan = plan;
   onOriginalPlan = !!onOriginal;
   currentNextPlan = normalizeProfilePlan(nextPlan);
+  accountTier.plan = plan;
+  applyWhiteLabelAccess();
   const info = PROFILE_PLANS[plan];
   const next = PROFILE_PLANS[currentNextPlan];
   const setText = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
@@ -2172,6 +2252,9 @@ function populateForm(p){
   document.getElementById('pdf-ink-hex').textContent = customColorValue('pdf-ink', '#1a1f2e').toUpperCase();
   renderSchemes();
   selectPdfStyle(p.pdfStyle);
+  document.getElementById('pdf-white-label').checked = p.pdfWhiteLabel === true;
+  document.getElementById('pdf-valid-hours').value = [24, 48, 72, 168].includes(Number(p.pdfValidHours)) ? String(p.pdfValidHours) : '24';
+  document.getElementById('pdf-terms').value = typeof p.pdfTerms === 'string' ? p.pdfTerms : '';
   if(p.logoBase64){
     // Reuse applyLogo so the preview state (remove + adjust buttons) stays in
     // sync with the upload path — no duplicated show/hide logic.
@@ -2230,6 +2313,7 @@ async function handleManageBilling(){
 loadProfile();
 renderSchemes();
 updatePreview();
+applyWhiteLabelAccess();
 updateQuotePreview();
 
 // Handle Stripe redirect back

@@ -3045,6 +3045,8 @@ async function _verifyProAuthBackground(){
           pdfStyle: p.pdf_style === 'classic' ? 'classic' : 'modern',
           pdfBreakdown: p.pdf_breakdown !== false,
           pdfAccent: p.pdf_accent || '', pdfInk: p.pdf_ink || '',
+          pdfWhiteLabel: p.pdf_white_label === true, pdfValidHours: p.pdf_valid_hours || 24, pdfTerms: p.pdf_terms || '',
+          plan: p.plan, comp: p.is_active === true && !p.stripe_subscription_id,
         }));
         if(p.rate_profiles && Array.isArray(p.rate_profiles)){
           // Key matches PROFILES_KEY in lanes.html — keep them in sync.
@@ -3880,12 +3882,19 @@ function generateQuotePDF(){
     </div>` : '';
 
   // Footer text
-  const footerLeft = profile.companyName
+  // White-label (pdf-quote.js; Pro Max, API and comp accounts): no
+  // QuickFreightCalc name, and the user's own terms or quote validity.
+  const wlFooter  = !!(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile));
+  const ownTerms  = window.QFCQuotePDF && QFCQuotePDF.customTerms(profile);
+  const termsLine = ownTerms ? escapeHTML(ownTerms).replace(/\n/g, '<br>') : 'Rates are subject to change and valid for 24 hours from issue.';
+  const footerLeft = wlFooter
+    ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName || '')}</div>`
+    : profile.companyName
     ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName)} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
     : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">🚛 <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
   const footerRight = profile.footerText
-    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>Rates are subject to change and valid for 24 hours from issue.</div>`
-    : `<div style="font-size:10px;color:#aab8c8;text-align:right">Rates are subject to change and valid for 24 hours from issue.</div>`;
+    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>${termsLine}</div>`
+    : `<div style="font-size:10px;color:#aab8c8;text-align:right">${termsLine}</div>`;
 
   const notesHTML = notes
     ? `<div class="notes-text">${escapeHTML(notes).replace(/\n/g,'<br>')}</div>`
@@ -4165,12 +4174,19 @@ function generateQuotePDFFromLog(id){
       `).join('')}
     </div>` : '';
 
-  const footerLeft = profile.companyName
+  // White-label (pdf-quote.js; Pro Max, API and comp accounts): no
+  // QuickFreightCalc name, and the user's own terms or quote validity.
+  const wlFooter  = !!(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile));
+  const ownTerms  = window.QFCQuotePDF && QFCQuotePDF.customTerms(profile);
+  const termsLine = ownTerms ? escapeHTML(ownTerms).replace(/\n/g, '<br>') : 'Rates are subject to change and valid for 24 hours from issue.';
+  const footerLeft = wlFooter
+    ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName || '')}</div>`
+    : profile.companyName
     ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName)} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
     : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">🚛 <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
   const footerRight = profile.footerText
-    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>Rates are subject to change and valid for 24 hours from issue.</div>`
-    : `<div style="font-size:10px;color:#aab8c8;text-align:right">Rates are subject to change and valid for 24 hours from issue.</div>`;
+    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>${termsLine}</div>`
+    : `<div style="font-size:10px;color:#aab8c8;text-align:right">${termsLine}</div>`;
 
   const notesHTML = q.notes
     ? `<div class="notes-text">${escapeHTML(q.notes).replace(/\n/g,'<br>')}</div>`
@@ -8017,7 +8033,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
           <input type="radio" name="upg-plan" value="max" onchange="updateUpgradeButton()" />
           <span class="upg-name">Pro Max</span>
           <span class="upg-price"><strong>$49.99</strong>/month</span>
-          <span class="upg-detail">Automatic miles on 1,000 quotes per day</span>
+          <span class="upg-detail">Automatic miles on 1,000 quotes per day, plus white-label PDFs</span>
         </label>
       </div>
       <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">

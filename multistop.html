@@ -1942,6 +1942,11 @@ function generateMultiStopPDF(){
   const extraDayAmt   = extraDayNum > 0 ? `${extraDays} day${extraDays > 1 ? 's' : ''} · ${money(extraDayNum)}` : null;
   const firstPickup   = stops.find(s => s.type==='pickup');
   const lastDelivery  = [...stops].reverse().find(s => s.type==='delivery');
+  // White-label (pdf-quote.js; Pro Max, API and comp accounts): no
+  // QuickFreightCalc name, and the user's own terms or quote validity.
+  const msWhiteLabel = !!(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile));
+  const msOwnTerms   = window.QFCQuotePDF && QFCQuotePDF.customTerms(profile);
+  const msTerms      = msOwnTerms ? escapeHTML(msOwnTerms).replace(/\n/g, '<br>') : 'Rates subject to change · Valid 24 hours from issue';
 
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <title>Multi-Stop Quote ${qNum}</title>
@@ -2080,8 +2085,8 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
 
     </div>
     <div class="doc-footer">
-      <div style="font-size:11px;color:#b0c4d8">${profile.companyName?escapeHTML(profile.companyName):'🚛 QuickFreightCalc'} · ${profile.companyName?'Powered by QuickFreightCalc':'quickfreightcalc.com'}</div>
-      <div style="font-size:10px;color:#aab8c8">Rates subject to change · Valid 24 hours from issue</div>
+      <div style="font-size:11px;color:#b0c4d8">${msWhiteLabel ? escapeHTML(profile.companyName || '') : `${profile.companyName?escapeHTML(profile.companyName):'🚛 QuickFreightCalc'} · ${profile.companyName?'Powered by QuickFreightCalc':'quickfreightcalc.com'}`}</div>
+      <div style="font-size:10px;color:#aab8c8">${msTerms}</div>
     </div>
   </div>
 </div></body></html>`;

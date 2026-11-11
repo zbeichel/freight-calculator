@@ -6,7 +6,8 @@
 //
 //   pro   Pro       $9.99/mo   automatic miles on 100 quotes per day
 //   plus  Pro Plus  $19.99/mo  automatic miles on 250 quotes per day
-//   max   Pro Max   $49.99/mo  automatic miles on 1,000 quotes per day
+//   max   Pro Max   $49.99/mo  automatic miles on 1,000 quotes per day, plus
+//                              white-label PDFs (pdf-quote.js; comp accounts too)
 //   api   API       $199/mo    Pro Max on the site + API access with
 //                              API_MONTHLY_QUOTES automatic-miles quotes per
 //                              billing month (see api-quote.js)

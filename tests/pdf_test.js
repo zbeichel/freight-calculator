@@ -1,5 +1,6 @@
 // tests/pdf_test.js — the Modern / Classic quote PDFs (calculator, quote log,
-// multi-stop and bulk), custom colors and their Profile settings, in a real browser (needs Playwright with Chromium). Network calls
+// multi-stop and bulk), custom colors, white-label and their Profile settings,
+// in a real browser (needs Playwright with Chromium). Network calls
 // other than this site are stubbed. Run from the repository root:
 //   node tests/pdf_test.js [folder for screenshots and a sample PDF]
 const http = require('http');
@@ -48,7 +49,7 @@ async function setup(browser, base, profileOverrides, opts = {}) {
       if (route.request().method() === 'PATCH') { supa.patches.push(JSON.parse(route.request().postData())); return route.fulfill({ status: 204, body: '' }); }
       return json(supa.row ? [supa.row] : []);
     }
-    if (url.includes('/.netlify/functions/verify-pro')) return json({ active: true, plan: 'pro', paid: true, unlimitedUntilRenewal: false });
+    if (url.includes('/.netlify/functions/verify-pro')) return json({ active: true, plan: (supa.row && supa.row.plan) || 'pro', paid: true, unlimitedUntilRenewal: false });
     if (url.includes('/.netlify/functions/')) return json({});
     if (url.includes('supabase.co')) return json([]);
     if (url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com')) return route.continue();
@@ -362,6 +363,85 @@ async function calculatorPDF(t, opts = {}) {
   await t.page.goto(base + '/profile.html'); await t.page.waitForTimeout(1800);
   check('loads saved custom colors from the account', await t.page.$eval('#scheme-custom', (e) => e.classList.contains('active'))
     && (await t.page.inputValue('#pdf-accent')) === '#0f766e' && (await t.page.inputValue('#pdf-ink')) === '#3b0764');
+  await t.context.close();
+
+  // ── White-label ─────────────────────────────────────────────────────────
+  console.log('\n=== White-label ===');
+  const wl = { pdfWhiteLabel: true, pdfValidHours: 48, pdfTerms: 'Net 30. Detention after 2 free hours is <b>$75</b>/hr.' };
+  const freshCalc = async (overrides) => {
+    const tt = await setup(browser, base, overrides);
+    await tt.page.goto(base + '/index.html');
+    await tt.page.waitForFunction(() => typeof regionalRates !== 'undefined' && regionalRates !== null && window.QFCQuotePDF);
+    return tt;
+  };
+  t = await freshCalc({ ...wl, plan: 'pro' });
+  tab = await calculatorPDF(t, { diesel: true });
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  check('Pro: white-label settings have no effect (branding and standard terms stay)', text.includes('Prepared with QuickFreightCalc')
+    && text.includes('valid for 24 hours from issue') && !text.includes('Net 30'));
+  await t.context.close();
+
+  t = await freshCalc({ ...wl, plan: 'max' });
+  tab = await calculatorPDF(t, { diesel: true });
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  const in48h = new Date(Date.now() + 48 * 3600 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  check('Pro Max, Modern: no QuickFreightCalc anywhere on the quote', !text.includes('QuickFreightCalc'));
+  check('your own terms, shown as text', text.includes('Net 30. Detention after 2 free hours is <b>$75</b>/hr.') && !(await tab.$('.terms b')));
+  check('valid until 48 hours after issue', (await tab.$eval('.meta', (e) => e.textContent)).includes(in48h), in48h);
+  await tab.screenshot({ path: path.join(SHOTS, 'modern_white_label.png'), fullPage: true });
+  await t.context.close();
+
+  t = await freshCalc({ pdfWhiteLabel: true, comp: true, plan: 'pro' });
+  tab = await calculatorPDF(t, {});
+  check('comp account (coworker): white-label too', !(await tab.textContent('body')).includes('QuickFreightCalc'));
+  await t.context.close();
+
+  t = await freshCalc({ ...wl, plan: 'max', pdfStyle: 'classic' });
+  tab = await calculatorPDF(t, {});
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  check('Pro Max, Classic: no "Powered by QuickFreightCalc", your terms in the footer', !text.includes('QuickFreightCalc')
+    && text.includes('Net 30') && !text.includes('valid for 24 hours'));
+  await t.context.close();
+
+  t = await setup(browser, base, { ...wl, plan: 'max', pdfStyle: 'classic' }, { signedIn: true });
+  tab = await multiStopPDF(t);
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  check('Pro Max, Classic multi-stop: white-label footer and terms', !text.includes('QuickFreightCalc') && text.includes('Net 30'));
+  await t.context.close();
+  t = await setup(browser, base, { ...wl, plan: 'api', pdfStyle: 'classic' }, { signedIn: true });
+  tab = await bulkPDF(t);
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  check('API plan, Classic bulk: white-label footer and terms', !text.includes('QuickFreightCalc') && text.includes('Net 30'));
+  await t.context.close();
+  t = await setup(browser, base, { ...wl, plan: 'max' }, { signedIn: true });
+  tab = await multiStopPDF(t);
+  check('Pro Max, Modern multi-stop: white-label', !(await tab.textContent('body')).includes('QuickFreightCalc'));
+  await t.context.close();
+
+  console.log('\n=== Profile: white-label section ===');
+  const acct = { id: 'user-1', is_active: true, stripe_customer_id: 'cus_1', stripe_subscription_id: 'sub_1', company_name: 'Keystone Produce Logistics' };
+  t = await setup(browser, base, {}, { signedIn: true, row: { ...acct, plan: 'pro' } });
+  await t.page.goto(base + '/profile.html'); await t.page.waitForTimeout(1800);
+  check('Pro: section locked, with the way to get it', await t.page.isVisible('#wl-locked') && await t.page.isDisabled('#pdf-white-label')
+    && await t.page.isDisabled('#pdf-terms') && (await t.page.textContent('#wl-locked')).includes('Pro Max'));
+  await t.page.locator('#white-label-card').screenshot({ path: path.join(SHOTS, 'profile_white_label_locked.png') });
+  await t.context.close();
+  t = await setup(browser, base, {}, { signedIn: true, row: { ...acct, plan: 'max', pdf_white_label: true, pdf_valid_hours: 72, pdf_terms: 'Net 30.' } });
+  await t.page.goto(base + '/profile.html'); await t.page.waitForTimeout(1800);
+  check('Pro Max: section open, saved settings loaded', !(await t.page.isVisible('#wl-locked')) && !(await t.page.isDisabled('#pdf-white-label'))
+    && await t.page.isChecked('#pdf-white-label') && (await t.page.inputValue('#pdf-valid-hours')) === '72' && (await t.page.inputValue('#pdf-terms')) === 'Net 30.');
+  await t.page.fill('#pdf-terms', 'Net 30. Quote valid for 3 days.');
+  await t.page.click('.save-btn'); await t.page.waitForTimeout(800);
+  const wpatch = t.supa.patches.at(-1) || {};
+  check('save sends white-label, validity and terms', wpatch.pdf_white_label === true && wpatch.pdf_valid_hours === 72 && wpatch.pdf_terms === 'Net 30. Quote valid for 3 days.', JSON.stringify(wpatch));
+  const wlocal = await t.page.evaluate(() => JSON.parse(localStorage.getItem('qfc_pro_profile')));
+  check('and keeps them, with the plan, for the PDFs in this browser', wlocal.pdfWhiteLabel === true && wlocal.plan === 'max' && wlocal.pdfValidHours === 72);
+  await t.page.locator('#white-label-card').screenshot({ path: path.join(SHOTS, 'profile_white_label.png') });
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+  t = await setup(browser, base, {}, { signedIn: true, row: { id: 'user-1', is_active: true, plan: 'pro', company_name: 'EK Bare' } });
+  await t.page.goto(base + '/profile.html'); await t.page.waitForTimeout(1800);
+  check('comp account: section open', !(await t.page.isVisible('#wl-locked')) && !(await t.page.isDisabled('#pdf-white-label')));
   await t.context.close();
 
   await browser.close();

@@ -1514,12 +1514,19 @@ function generateBulkPDF(){
       `).join('')}
     </div>` : '';
 
-  const footerLeft = profile.companyName
+  // White-label (pdf-quote.js; Pro Max, API and comp accounts): no
+  // QuickFreightCalc name, and the user's own terms or quote validity.
+  const wlFooter  = !!(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile));
+  const ownTerms  = window.QFCQuotePDF && QFCQuotePDF.customTerms(profile);
+  const termsLine = ownTerms ? escapeHTML(ownTerms).replace(/\n/g, '<br>') : 'Rates are subject to change and valid for 24 hours from issue.';
+  const footerLeft = wlFooter
+    ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName || '')}</div>`
+    : profile.companyName
     ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName)} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
     : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">🚛 <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
   const footerRight = profile.footerText
-    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>Rates are subject to change and valid for 24 hours from issue.</div>`
-    : `<div style="font-size:10px;color:#aab8c8;text-align:right">Rates are subject to change and valid for 24 hours from issue.</div>`;
+    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>${termsLine}</div>`
+    : `<div style="font-size:10px;color:#aab8c8;text-align:right">${termsLine}</div>`;
 
   const fmt$ = (n) => '$' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 

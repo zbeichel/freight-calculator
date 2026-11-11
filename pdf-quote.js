@@ -10,6 +10,11 @@
 // Colors: the profile's color scheme (profile.colorScheme), or 'custom' with
 // the user's own accent and heading colors (profile.pdfAccent / pdfInk, #rrggbb).
 // classicScheme() gives the Classic templates the same custom colors.
+//
+// White-label (Pro Max, API and comp accounts: profile.plan / profile.comp):
+// leave QuickFreightCalc off the PDF (profile.pdfWhiteLabel), choose how long
+// quotes are valid (profile.pdfValidHours) and print your own terms
+// (profile.pdfTerms). The Classic templates use the same helpers.
 (function () {
   'use strict';
 
@@ -93,6 +98,31 @@
     return profile && profile.pdfStyle === 'classic' ? 'classic' : 'modern';
   }
 
+  // ── White-label ────────────────────────────────────────────────────────────
+  var VALID_HOURS = [24, 48, 72, 168];
+  function whiteLabelAllowed(profile) {
+    return !!profile && (profile.comp === true || profile.plan === 'max' || profile.plan === 'api');
+  }
+  function whiteLabel(profile) {
+    return whiteLabelAllowed(profile) && profile.pdfWhiteLabel === true;
+  }
+  function validHours(profile) {
+    var h = Number(profile && profile.pdfValidHours);
+    return whiteLabelAllowed(profile) && VALID_HOURS.indexOf(h) >= 0 ? h : 24;
+  }
+  function validText(hours) { return hours === 168 ? '7 days' : hours + ' hours'; }
+  // The user's own terms line, or null when the standard line applies.
+  function customTerms(profile) {
+    if (!whiteLabelAllowed(profile)) return null;
+    var own = typeof profile.pdfTerms === 'string' ? profile.pdfTerms.trim().slice(0, 1000) : '';
+    if (own) return own;
+    var h = validHours(profile);
+    return h !== 24 ? 'Rates are subject to change and valid for ' + validText(h) + ' from issue.' : null;
+  }
+  function termsText(profile) {
+    return customTerms(profile) || 'Rates are subject to change and valid for 24 hours from issue.';
+  }
+
   // Quote number and dates, numbered the same way as the Classic PDFs
   // (PREFIX-YYYYMMDD-counter, or PREFIX-TAG-YYYYMMDD-counter), advancing the
   // counter in the saved profile when `persist` is set.
@@ -107,7 +137,7 @@
         localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
       } catch (e) {}
     }
-    var valid = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    var valid = new Date(now.getTime() + validHours(profile) * 60 * 60 * 1000);
     return {
       number: prefix + '-' + (tag ? tag + '-' : '') + ymd + '-' + num,
       issued: now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
@@ -199,13 +229,14 @@
 
   function letterhead(profile, s, title, meta) {
     var company = profile.companyName || '';
+    var wl = whiteLabel(profile);
     var showLogo = !profile.hideLogo && profile.logoBase64;
     var brand = showLogo
       ? '<img class="logo" src="' + esc(profile.logoBase64) + '" alt="" />'
-      : '<div class="mark">' + esc((company || 'Q').trim().charAt(0).toUpperCase()) + '</div>';
+      : (company || !wl ? '<div class="mark">' + esc((company || 'Q').trim().charAt(0).toUpperCase()) + '</div>' : '');
     var brandText = company
       ? '<div class="company">' + esc(company) + '</div>' + (profile.footerText ? '<div class="tagline">' + esc(profile.footerText) + '</div>' : '')
-      : '<div class="company">Quick<span style="color:' + s.accent + '">Freight</span>Calc</div><div class="tagline">Freight Rate Calculator</div>';
+      : (wl ? '' : '<div class="company">Quick<span style="color:' + s.accent + '">Freight</span>Calc</div><div class="tagline">Freight Rate Calculator</div>');
     var contact = [
       profile.contactName,
       profile.phone,
@@ -273,17 +304,19 @@
       : '';
   }
 
-  function closing(profile, meta, terms, signatures) {
+  // `extra`: a sentence added after the terms (e.g. what the all-in rate includes).
+  function closing(profile, meta, extra, signatures) {
     var company = profile.companyName || '';
     var signer = profile.contactName || company;
-    return '<section class="terms">' + esc(terms) + '</section>\n' +
+    var terms = esc(termsText(profile)).replace(/\n/g, '<br>') + (extra ? ' ' + esc(extra) : '');
+    return '<section class="terms">' + terms + '</section>\n' +
       (signatures === false ? '' :
         '<section class="sign">\n' +
         '  <div class="sig"><div class="line"></div><div class="lbl"><strong>Accepted by</strong> — signature, printed name &amp; date</div></div>\n' +
         '  <div class="sig"><div class="line"></div><div class="lbl"><strong>Authorized by</strong>' + (signer ? ' — ' + esc(signer) : '') + '</div></div>\n' +
         '</section>\n') +
       '<footer><span>' + (company ? esc(company) + ' · ' : '') + 'Quote ' + esc(meta.number) + '</span>' +
-      '<span>Prepared with QuickFreightCalc</span></footer>\n';
+      (whiteLabel(profile) ? '' : '<span>Prepared with QuickFreightCalc</span>') + '</footer>\n';
   }
 
   function page(title, s, body) {
@@ -296,7 +329,6 @@
       '<div class="doc">\n' + body + '</div>\n</body>\n</html>';
   }
 
-  var TERMS = 'Rates are subject to change and valid for 24 hours from issue.';
 
   // ── Single lane (calculator and quote log) ─────────────────────────────────
   // q: { total, ratePerMile, miles, origin, destination, pickup, delivery,
@@ -318,7 +350,7 @@
       ]) +
       rateBlock('All-in rate', dollars(total), lines, q.ratePerMile ? ['Rate per mile', cents(q.ratePerMile)] : null) +
       notesBlock(q.notes) +
-      closing(profile, meta, TERMS + (lines.length ? '' : ' The all-in rate includes linehaul and fuel.'));
+      closing(profile, meta, lines.length ? '' : 'The all-in rate includes linehaul and fuel.');
     return page('Freight Quote ' + meta.number, s, body);
   }
 
@@ -365,7 +397,7 @@
       rateBlock('All-in rate', dollars(total), lines,
         d.totalMiles ? ['Rate per mile', cents(total / d.totalMiles), miles + ' total'] : null) +
       notesBlock(d.notes) +
-      closing(profile, meta, TERMS + (lines.length ? '' : ' The all-in rate includes linehaul, fuel and stop charges.'));
+      closing(profile, meta, lines.length ? '' : 'The all-in rate includes linehaul, fuel and stop charges.');
     return page('Multi-Stop Quote ' + meta.number, s, body);
   }
 
@@ -397,7 +429,7 @@
       '<div class="status ' + (d.meetsTarget ? 'good' : 'short') + '"><strong>' + (d.meetsTarget ? '▲ ' : '▼ ') + esc(d.statusText) + '</strong>' +
       esc(d.statusDetail) + ' Target: ' + esc(d.targetText) + '.</div></section>\n' +
       factsBlock([['Diesel reference', '$' + d.diesel.toFixed(2) + '/gal (EIA national)']]) +
-      closing(profile, meta, TERMS, false);
+      closing(profile, meta, '', false);
     return page('Bulk Load Quote ' + meta.number, s, body);
   }
 
@@ -425,6 +457,7 @@
 
   window.QFCQuotePDF = {
     schemes: SCHEMES, style: style, colorsFor: colorsFor, classicScheme: classicScheme, isHex: function (v) { return HEX.test(v || ''); },
+    whiteLabelAllowed: whiteLabelAllowed, whiteLabel: whiteLabel, validHours: validHours, customTerms: customTerms, termsText: termsText,
     nextQuoteNumber: nextQuoteNumber, modernHTML: modernHTML, multiStopHTML: multiStopHTML, bulkHTML: bulkHTML,
     openHTML: openHTML, openModern: openModern, openMultiStop: openMultiStop, openBulk: openBulk,
   };
