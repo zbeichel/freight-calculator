@@ -68,6 +68,24 @@ function planFromCheckout(session){
   return normalizePlan(session.metadata?.plan);
 }
 
+// A new subscription's billing period, so limits that run by billing month
+// (the API plan's 5,000 quotes) count from the right day. Best effort: null if
+// Stripe can't be reached; the next renewal records it anyway.
+async function fetchSubscriptionPeriod(subscriptionId){
+  if(!subscriptionId || !process.env.STRIPE_SECRET_KEY) return null;
+  try {
+    const resp = await fetch(`https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    if(!resp.ok) return null;
+    return subscriptionPeriod(await resp.json());
+  } catch(e){
+    console.warn('Could not read the new subscription period:', e.message);
+    return null;
+  }
+}
+
 // `period` ({ start, end } ISO strings from subscriptionPeriod) records the
 // current billing period: billing_period_start tells routes.js when a
 // subscriber from before the plan changes has renewed, renews_at is shown to them.
@@ -326,8 +344,9 @@ exports.handler = async function(event){
         }
 
         const plan = planFromCheckout(session);
+        const period = await fetchSubscriptionPeriod(subscriptionId);
         console.log(`Activating Pro (${plan}) for user ${userId}`);
-        await setProActive(userId, true, customerId, subscriptionId, serviceKey, plan);
+        await setProActive(userId, true, customerId, subscriptionId, serviceKey, plan, period);
 
         // Send welcome email only on FIRST activation
         if(!wasAlreadyActive){

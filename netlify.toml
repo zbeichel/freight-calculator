@@ -21,6 +21,14 @@
   status = 301
   force = true
 
+# Public API (API plan): POST https://quickfreightcalc.com/api/v1/quote.
+# Docs for customers are at /api.html.
+[[redirects]]
+  from = "/api/v1/quote"
+  to = "/.netlify/functions/api-quote"
+  status = 200
+  force = true
+
 # Ensure rates.json is served with correct content type and no caching
 [[headers]]
   for = "/rates.json"

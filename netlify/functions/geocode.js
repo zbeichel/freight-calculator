@@ -18,7 +18,7 @@
 //   { name, city, state, zip, county, lat, lon, types, partialMatch, formatted }
 // Failure: { error: "<safe message>" }  (HTTP 200 — client branches on .error)
 
-const GOOGLE_ENDPOINT = 'https://maps.googleapis.com/maps/api/geocode/json';
+const { geocodePlace } = require('../lib/google.js');
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
@@ -27,32 +27,6 @@ const JSON_HEADERS = {
 
 function respond(statusCode, body) {
   return { statusCode, headers: JSON_HEADERS, body: JSON.stringify(body) };
-}
-
-function findComponent(components, type, short = false) {
-  const match = components.find((c) => c.types.includes(type));
-  if (!match) return '';
-  return short ? match.short_name : match.long_name;
-}
-
-function buildDisplayName(city, state, zip) {
-  const cityState = [city, state].filter(Boolean).join(', ');
-  return zip ? `${cityState} ${zip}` : cityState;
-}
-
-function extractCity(components) {
-  const preferred = [
-    'locality',
-    'sublocality',
-    'postal_town',
-    'administrative_area_level_3',
-    'neighborhood',
-  ];
-  for (const type of preferred) {
-    const name = findComponent(components, type);
-    if (name) return name;
-  }
-  return '';
 }
 
 exports.handler = async (event) => {
@@ -67,51 +41,12 @@ exports.handler = async (event) => {
     console.error('[geocode] GMAPS_API_KEY not configured');
     return respond(200, { error: 'Location lookup is unavailable' });
   }
-  const params = new URLSearchParams({
-    address: address.trim(),
-    key: apiKey,
-    components: 'country:US',
-  });
 
-  let data;
-  try {
-    const resp = await fetch(`${GOOGLE_ENDPOINT}?${params}`);
-    data = await resp.json();
-  } catch {
-    return respond(200, { error: 'Location lookup is unavailable' });
+  // The lookup and the parsing live in netlify/lib/google.js, shared with the API.
+  const result = await geocodePlace(address, apiKey, 'geocode');
+  if (result.status === 'not_found') return respond(200, { error: 'No results' });
+  if (result.status !== 'ok') {
+    return respond(200, { error: result.unreachable ? 'Location lookup is unavailable' : 'Could not verify location' });
   }
-
-  if (data.status === 'ZERO_RESULTS') {
-    return respond(200, { error: 'No results' });
-  }
-  if (data.status !== 'OK' || !data.results?.length) {
-    // Log the real Google status/message; return only a safe generic to the client.
-    console.error('[geocode] google status:', data.status, data.error_message || '');
-    return respond(200, { error: 'Could not verify location' });
-  }
-
-  const result = data.results[0];
-  const components = result.address_components || [];
-  const lat = result.geometry?.location?.lat;
-  const lon = result.geometry?.location?.lng;
-
-  const city = extractCity(components);
-  const state = findComponent(components, 'administrative_area_level_1', true);
-  const zip = findComponent(components, 'postal_code');
-  const county = findComponent(components, 'administrative_area_level_2');
-
-  const payload = {
-    name: buildDisplayName(city, state, zip),
-    city,
-    state,
-    zip,
-    county,
-    lat,
-    lon,
-    types: result.types || [],
-    partialMatch: result.partial_match === true,
-    formatted: result.formatted_address || '',
-  };
-
-  return respond(200, payload);
+  return respond(200, result.place);
 };
