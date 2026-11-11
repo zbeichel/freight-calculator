@@ -117,6 +117,44 @@ a.brand-name:hover span{opacity:.8}
   .pw-rules{grid-template-columns:1fr}
 }
 
+/* ── API access ── */
+.api-copy{font-size:13px;color:var(--text2);line-height:1.6;margin:0 0 14px}
+.api-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.api-btn{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:8px 16px;border-radius:8px;cursor:pointer;
+  border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.api-btn.secondary{border-color:var(--border2);background:var(--card);color:var(--text2)}
+.api-btn:disabled{opacity:.6;cursor:default}
+.api-usage{background:var(--card2);border:1px solid var(--border2);border-radius:10px;padding:14px 16px;margin-bottom:18px}
+.api-usage-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-bottom:8px}
+.api-usage-top strong{color:var(--text);font-size:13px}
+.api-meter{height:8px;border-radius:4px;background:var(--card);overflow:hidden}
+.api-meter > div{height:100%;width:0;background:var(--accent);border-radius:4px;transition:width .3s}
+.api-meter > div.full{background:var(--red)}
+.api-usage-note{font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5}
+.api-new-key{border:1px solid var(--green);background:rgba(34,197,94,.08);border-radius:10px;padding:12px 14px;margin-bottom:18px}
+.api-new-key-title{font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px}
+.api-key-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.api-key-row code{flex:1;min-width:0;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
+  background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;color:var(--text)}
+.api-keys-title{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.api-key-item{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--border)}
+.api-key-item:first-child{border-top:none}
+.api-key-main{flex:1;min-width:180px}
+.api-key-name{font-size:13px;font-weight:600;color:var(--text);overflow-wrap:anywhere}
+.api-key-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.api-key-meta code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.api-key-revoke{font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:6px 12px;border-radius:7px;cursor:pointer;
+  border:1px solid var(--border2);background:var(--card);color:var(--text2)}
+.api-key-revoke:hover{border-color:var(--red);color:var(--red)}
+.api-empty{font-size:12px;color:var(--text3);padding:6px 0 4px}
+.api-create{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.api-create input{flex:1;min-width:180px;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);
+  font-family:'Space Grotesk',sans-serif;font-size:13px;padding:8px 12px;outline:none}
+.api-create input:focus{border-color:var(--accent)}
+.api-foot{font-size:11px;color:var(--text3);margin-top:14px;line-height:1.6}
+.api-foot a{color:var(--accent);text-decoration:none}
+#api-status{font-size:12px;margin-top:10px;line-height:1.5}
+
 /* ── Logo upload ── */
 .logo-upload-wrap{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap}
 .logo-preview-box{
@@ -692,6 +730,52 @@ footer a:hover{color:var(--accent)}
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- API access — keys and usage for the API plan, or what the plan is
+         for everyone else. Filled in by loadApiSection() (api-keys function). -->
+    <div class="section-card" id="api-access" style="display:none">
+      <div class="section-header">
+        <span class="section-icon">🔌</span>
+        <span class="section-title">API Access</span>
+        <span class="section-sub">Quotes in your own website or software</span>
+      </div>
+      <div class="section-body">
+        <div id="api-upsell" style="display:none">
+          <p class="api-copy">Get QuickFreightCalc quotes inside your own website, TMS or spreadsheet. The <strong>API plan</strong> is $199/month: everything in Pro Max, plus 5,000 API quotes with automatic miles every billing month.</p>
+          <div class="api-actions">
+            <button class="api-btn" id="api-upsell-switch" onclick="switchToApiPlan()" style="display:none">Switch to the API plan</button>
+            <a class="api-btn secondary" href="/api.html" target="_blank" rel="noopener">Read the API docs →</a>
+          </div>
+        </div>
+        <div id="api-pending" class="api-copy" style="display:none"></div>
+        <div id="api-active" style="display:none">
+          <div class="api-usage">
+            <div class="api-usage-top"><span>Quotes with automatic miles this billing month</span><strong id="api-usage-count">—</strong></div>
+            <div class="api-meter"><div id="api-usage-bar"></div></div>
+            <div class="api-usage-note" id="api-usage-note"></div>
+          </div>
+          <div class="api-new-key" id="api-new-key" style="display:none">
+            <div class="api-new-key-title">Your new key. Copy it now: for your security it won't be shown again.</div>
+            <div class="api-key-row">
+              <code id="api-new-key-value"></code>
+              <button class="api-btn" id="api-copy-btn" onclick="copyNewApiKey()">Copy</button>
+            </div>
+          </div>
+          <div class="api-keys-title">Keys</div>
+          <div id="api-keys-list"></div>
+          <div class="api-create">
+            <input id="api-key-name" type="text" maxlength="40" placeholder="Key name, e.g. Website quote form" aria-label="Key name"
+              onkeydown="if(event.key==='Enter')createApiKey()" />
+            <button class="api-btn" id="api-create-btn" onclick="createApiKey()">Create key</button>
+          </div>
+          <div class="api-foot">
+            Use keys only from your own server, never in a web page or app that others can download.
+            <a href="/api.html" target="_blank" rel="noopener">API docs →</a>
+          </div>
+        </div>
+        <div id="api-status" role="status" style="display:none"></div>
       </div>
     </div>
 
@@ -1391,6 +1475,7 @@ function applySubscriptionCardState(stripeCustomerId, plan, isActive){
   // Ask the server whether this subscriber still has unlimited quotes until
   // they renew (the rule lives in netlify/lib/plans.js) and when they renew.
   if(isActive === true) refreshPlanFromServer();
+  loadApiSection();
 }
 
 // Paid plans: Pro ($9.99, automatic miles on 100 quotes/day), Pro Plus
@@ -1497,6 +1582,7 @@ async function handleSwitchPlan(){
       setPlanStatus(data.atRenewal
         ? `✅ Your subscription will renew on ${name}.`
         : `✅ You're on ${name}.`);
+      loadApiSection();
       return;
     }
     if(data.status === 'needs_payment' && data.url && /^https:\/\/invoice\.stripe\.com\//.test(data.url)){
@@ -1510,6 +1596,175 @@ async function handleSwitchPlan(){
   } finally {
     if(btn) btn.disabled = false;
   }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// API access — keys and usage (netlify/functions/api-keys.js). Key names come
+// from the user, so everything here is rendered with textContent.
+// ──────────────────────────────────────────────────────────────────────────
+let apiState = null;
+
+async function apiKeysRequest(payload){
+  const session = await getSessionRefreshed();
+  if(!session) return { error: 'Please sign in again.' };
+  try {
+    const resp = await fetch('/.netlify/functions/api-keys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ accessToken: session.access_token }, payload))
+    });
+    const data = await resp.json().catch(() => ({}));
+    if(!resp.ok) return { error: data.error || 'Something went wrong. Please try again.' };
+    return data;
+  } catch(e){
+    return { error: 'Could not reach the server. Please try again.' };
+  }
+}
+
+function setApiStatus(text, isError){
+  const el = document.getElementById('api-status');
+  if(!el) return;
+  el.textContent = text || '';
+  el.style.display = text ? 'block' : 'none';
+  el.style.color = isError ? 'var(--red)' : 'var(--text2)';
+}
+
+async function loadApiSection(){
+  const card = document.getElementById('api-access');
+  if(!card) return;
+  card.style.display = '';
+  const data = await apiKeysRequest({ action: 'list' });
+  if(data.error){ setApiStatus(data.error, true); return; }
+  renderApiSection(data);
+}
+
+function apiDate(iso){
+  const d = iso ? new Date(iso) : null;
+  return d && !isNaN(d) ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+}
+
+function renderApiSection(data){
+  apiState = data;
+  const show = (id, on) => { const el = document.getElementById(id); if(el) el.style.display = on ? '' : 'none'; };
+  show('api-upsell', data.access === 'plan_required');
+  show('api-pending', data.access === 'starts_at_renewal');
+  show('api-active', data.access === 'active');
+  setApiStatus('');
+
+  // "Switch to the API plan" uses the plan switcher above, so it only shows
+  // for a paid subscription that can switch.
+  const select = document.getElementById('sub-plan-select');
+  const canSwitch = !!(select && select.style.display !== 'none' && document.getElementById('subscription-paid').style.display !== 'none');
+  show('api-upsell-switch', data.access === 'plan_required' && canSwitch);
+
+  if(data.access === 'starts_at_renewal'){
+    const when = apiDate(data.renewsAt);
+    document.getElementById('api-pending').textContent =
+      `Your API plan starts when your subscription renews${when ? ' on ' + when : ''}. You can create API keys then.`;
+  }
+  if(data.access !== 'active') return;
+
+  const u = data.usage || {};
+  const used = Number.isFinite(u.used) ? u.used : 0;
+  const limit = u.limit || 5000;
+  document.getElementById('api-usage-count').textContent = `${used.toLocaleString('en-US')} of ${limit.toLocaleString('en-US')}`;
+  const bar = document.getElementById('api-usage-bar');
+  bar.style.width = Math.min(100, (used / limit) * 100) + '%';
+  bar.classList.toggle('full', used >= limit * 0.9);
+  const resets = apiDate(u.resetsAt);
+  document.getElementById('api-usage-note').textContent =
+    (resets ? `Resets ${resets}. ` : '') +
+    `Requests where you send the miles don't count. Up to ${u.perMinute || 60} requests a minute.`;
+
+  const list = document.getElementById('api-keys-list');
+  list.textContent = '';
+  const keys = data.keys || [];
+  if(!keys.length){
+    const empty = document.createElement('div');
+    empty.className = 'api-empty';
+    empty.textContent = 'No keys yet. Create one below to start using the API.';
+    list.appendChild(empty);
+  }
+  keys.forEach(k => {
+    const row = document.createElement('div');
+    row.className = 'api-key-item';
+    const main = document.createElement('div');
+    main.className = 'api-key-main';
+    const name = document.createElement('div');
+    name.className = 'api-key-name';
+    name.textContent = k.name || 'API key';
+    const meta = document.createElement('div');
+    meta.className = 'api-key-meta';
+    const code = document.createElement('code');
+    code.textContent = (k.prefix || 'qfc_live_') + '…';
+    meta.appendChild(code);
+    meta.appendChild(document.createTextNode(
+      ` · Created ${apiDate(k.createdAt)} · ${k.lastUsedAt ? 'Last used ' + apiDate(k.lastUsedAt) : 'Never used'}`));
+    main.appendChild(name);
+    main.appendChild(meta);
+    const revoke = document.createElement('button');
+    revoke.className = 'api-key-revoke';
+    revoke.textContent = 'Revoke';
+    revoke.addEventListener('click', () => revokeApiKey(k));
+    row.appendChild(main);
+    row.appendChild(revoke);
+    list.appendChild(row);
+  });
+
+  const atMax = keys.length >= (data.maxKeys || 5);
+  const createBtn = document.getElementById('api-create-btn');
+  const nameInput = document.getElementById('api-key-name');
+  createBtn.disabled = atMax;
+  nameInput.disabled = atMax;
+  nameInput.placeholder = atMax ? `You have the most keys allowed (${data.maxKeys || 5}). Revoke one to add another.` : 'Key name, e.g. Website quote form';
+}
+
+async function createApiKey(){
+  const btn = document.getElementById('api-create-btn');
+  const nameInput = document.getElementById('api-key-name');
+  if(btn.disabled) return;
+  btn.disabled = true;
+  setApiStatus('Creating your key…');
+  const data = await apiKeysRequest({ action: 'create', name: nameInput.value });
+  btn.disabled = false;
+  if(data.error){ setApiStatus(data.error, true); return; }
+  nameInput.value = '';
+  renderApiSection(data);
+  document.getElementById('api-new-key-value').textContent = data.key;
+  document.getElementById('api-copy-btn').textContent = 'Copy';
+  document.getElementById('api-new-key').style.display = '';
+}
+
+async function copyNewApiKey(){
+  const value = document.getElementById('api-new-key-value').textContent;
+  const btn = document.getElementById('api-copy-btn');
+  try {
+    await navigator.clipboard.writeText(value);
+    btn.textContent = 'Copied ✓';
+  } catch(e){
+    // Clipboard blocked: select the key so it can be copied by hand.
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById('api-new-key-value'));
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    btn.textContent = 'Press Ctrl+C';
+  }
+}
+
+async function revokeApiKey(k){
+  if(!confirm(`Revoke "${k.name || 'API key'}"?\n\nAnything using this key will stop working right away. This can't be undone.`)) return;
+  setApiStatus('Revoking…');
+  const data = await apiKeysRequest({ action: 'revoke', keyId: k.id });
+  if(data.error){ setApiStatus(data.error, true); return; }
+  document.getElementById('api-new-key').style.display = 'none';
+  renderApiSection(data);
+  setApiStatus('Key revoked.');
+}
+
+function switchToApiPlan(){
+  const select = document.getElementById('sub-plan-select');
+  if(!select) return;
+  select.value = 'api';
+  handleSwitchPlan();
 }
 
 // ──────────────────────────────────────────────────────────────────────────
