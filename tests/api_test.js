@@ -21,7 +21,7 @@ function reset() {
       'u-api':    { is_active: true,  plan: 'api', created_at: '2026-12-01T00:00:00Z', billing_period_start: new Date(now - 3 * DAY).toISOString(), renews_at: new Date(now + 27 * DAY).toISOString() },
       'u-max':    { is_active: true,  plan: 'max', created_at: '2026-12-01T00:00:00Z', billing_period_start: null, renews_at: null },
       'u-gone':   { is_active: false, plan: 'api', created_at: '2026-12-01T00:00:00Z', billing_period_start: null, renews_at: null },
-      'u-legacy': { is_active: true,  plan: 'api', created_at: '2026-06-01T00:00:00Z', billing_period_start: null, renews_at: '2026-11-30T00:00:00Z' },
+      'u-legacy': { is_active: true,  plan: 'api', grandfathered: true, billing_period_start: null, renews_at: '2026-11-30T00:00:00Z' },
     },
     tokens: { 'tok-api': 'u-api', 'tok-max': 'u-max', 'tok-legacy': 'u-legacy' },
     keys: [],
@@ -173,11 +173,10 @@ async function test(name, fn) {
     const r = await call(LANE, { key: k });
     assert.strictEqual(r.status, 403); assert.strictEqual(r.body.error.code, 'plan_required');
   });
-  await test('subscriber from before the changes → API starts at renewal', async () => {
+  await test('original-plan subscriber who upgraded to the API plan → API works right away', async () => {
     const k = 'qfc_live_' + 'L'.repeat(32); addKey('u-legacy', k);
-    const r = await call(LANE, { key: k });
-    assert.strictEqual(r.status, 403); assert.strictEqual(r.body.error.code, 'starts_at_renewal');
-    assert.match(r.body.error.message, /2026-11-30/);
+    const r = await call({ ...LANE, miles: 166 }, { key: k });
+    assert.strictEqual(r.status, 200, JSON.stringify(r.body));
   });
 
   // ── Requests ──
@@ -324,11 +323,11 @@ async function test(name, fn) {
     const sixth = await keysCall({ action: 'create', accessToken: 'tok-api' });
     assert.strictEqual(sixth.status, 400); assert.match(sixth.body.error, /up to 5/);
   });
-  await test('keys: other plans can\'t create; before-renewal subscribers are told when', async () => {
+  await test('keys: other plans can\'t create; the API plan can, whatever the history', async () => {
     const m = await keysCall({ action: 'create', accessToken: 'tok-max' });
     assert.strictEqual(m.status, 403);
     assert.strictEqual((await keysCall({ action: 'list', accessToken: 'tok-max' })).body.access, 'plan_required');
-    assert.strictEqual((await keysCall({ action: 'list', accessToken: 'tok-legacy' })).body.access, 'starts_at_renewal');
+    assert.strictEqual((await keysCall({ action: 'list', accessToken: 'tok-legacy' })).body.access, 'active');
   });
   await test('keys: can\'t revoke someone else\'s key; bad ids rejected', async () => {
     const other = addKey('u-max', 'qfc_live_' + 'O'.repeat(32));
