@@ -248,6 +248,19 @@ async function calculatorPDF(t, opts = {}) {
   t = await setup(browser, base, { pdfStyle: 'classic' }, { signedIn: true });
   tab = await multiStopPDF(t);
   check('Classic multi-stop: the original template', (await tab.textContent('body')).includes('Multi-Stop Rate Confirmation'));
+  const cms = await tab.evaluate(() => {
+    const cells = {};
+    document.querySelectorAll('.charges-grid .detail-cell').forEach((c) => {
+      cells[c.querySelector('.detail-cell-label').textContent.trim()] = c.querySelector('.detail-cell-value').textContent.trim();
+    });
+    return { cells, body: document.body.textContent.replace(/\s+/g, ' ') };
+  });
+  const cmsTotal = Number((await t.page.textContent('#ms-quote')).replace(/[^0-9]/g, ''));
+  const num = (v) => Number(String(v || '').replace(/[^0-9.]/g, ''));
+  check('Classic multi-stop: linehaul + stop charges add up to the total (margin spread)',
+    num(cms.cells['Linehaul']) + num(cms.cells['Stop Charges']) === cmsTotal, JSON.stringify(cms.cells) + ' total ' + cmsTotal);
+  check('Classic multi-stop: extra stops show what the customer pays ($150 + 15% = $172.50), never the $150 fee',
+    (cms.body.match(/\+\$172\.50 stop charge/g) || []).length === 2 && !cms.body.includes('$150 stop fee') && cms.cells['Stop Charges'] === '$345');
   await t.context.close();
 
   // ── Bulk ────────────────────────────────────────────────────────────────

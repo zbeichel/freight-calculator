@@ -1834,6 +1834,12 @@ function generateMultiStopPDF(){
   };
   const scheme = (window.QFCQuotePDF && QFCQuotePDF.classicScheme(profile)) || SCHEMES[profile.colorScheme] || SCHEMES.midnight;
   const stopFee = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
+  // Amounts on the PDF are as the customer pays them: your margin is spread
+  // across the charges so they add up to the total. (The page's own linehaul
+  // and stop-charge figures are before margin, so they're not used here.)
+  const markup = 1 + (msLastCalc ? msLastCalc.marginPct : (parseFloat(document.getElementById('ms-margin').value) || 0) / 100);
+  const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: Math.round(n * 100) % 100 ? 2 : 0, maximumFractionDigits: 2 });
+  let stopChargeSum = 0;
 
   // Timezone-safe date formatter for the PDF. Input is a YYYY-MM-DD string from
   // a <input type="date">; we anchor to noon local to avoid UTC off-by-one drift.
@@ -1896,11 +1902,13 @@ function generateMultiStopPDF(){
       if(overrideData?.type === 'permile'){
         const prevStop = stops[idx-1];
         const mi = legMiles[prevStop?.id] || 0;
-        const charge = mi * (overrideData.amount || 0);
-        chargeNote = charge > 0 ? `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+$${Math.round(charge).toLocaleString()} (${mi.toLocaleString()} mi × $${overrideData.amount}/mi)</span>` : '';
+        const charge = mi * (overrideData.amount || 0) * markup;
+        stopChargeSum += charge;
+        chargeNote = charge > 0 ? `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+${money(charge)} stop charge (${mi.toLocaleString()} mi)</span>` : '';
       } else {
-        const charge = overrideData?.amount !== undefined ? overrideData.amount : stopFee;
-        chargeNote = `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+$${charge} stop fee</span>`;
+        const charge = (overrideData?.amount !== undefined ? overrideData.amount : stopFee) * markup;
+        stopChargeSum += charge;
+        chargeNote = `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+${money(charge)} stop charge</span>`;
       }
     }
 
@@ -1924,10 +1932,14 @@ function generateMultiStopPDF(){
   const commodityKey = document.getElementById('ms-commodity')?.value || 'standard';
   const CLABELS_PDF  = {standard:'Standard',food:'Food / Perishable',hazmat:'Hazmat',highval:'High Value',oversized:'Oversized'};
   const commodityText = CLABELS_PDF[commodityKey] || commodityKey;
-  const linehaulAmt   = document.getElementById('ms-linehaul')?.textContent || '—';
-  const stopChgAmt    = document.getElementById('ms-stop-charges-total')?.textContent || '$0';
-  const extraDayRow   = document.getElementById('ms-day-charges-row');
-  const extraDayAmt   = (extraDayRow && extraDayRow.style.display !== 'none') ? document.getElementById('ms-extra-day-charges')?.textContent : null;
+  // Customer-facing charges that add up to the total; linehaul (with fuel)
+  // takes whatever the stop and extra-day charges don't.
+  const totalNum      = Number(String(total).replace(/[^0-9.]/g, '')) || 0;
+  const stopChgNum    = Math.round(stopChargeSum);
+  const extraDayNum   = msLastCalc && msLastCalc.extraDayTotal > 0 ? Math.round(msLastCalc.extraDayTotal * markup) : 0;
+  const linehaulAmt   = money(totalNum - stopChgNum - extraDayNum);
+  const stopChgAmt    = money(stopChgNum);
+  const extraDayAmt   = extraDayNum > 0 ? `${extraDays} day${extraDays > 1 ? 's' : ''} · ${money(extraDayNum)}` : null;
   const firstPickup   = stops.find(s => s.type==='pickup');
   const lastDelivery  = [...stops].reverse().find(s => s.type==='delivery');
 

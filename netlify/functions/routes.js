@@ -36,6 +36,8 @@ const MSG_UNAVAILABLE = 'Distance lookup is temporarily unavailable — please e
 //     250, Pro Max and API 1,000). Subscribers on the original Pro plan keep
 //     unlimited quotes until their first bill on or after January 1, 2027
 //     (legacyUnlimited).
+//   - Comp accounts (Pro granted without a Stripe subscription, e.g. coworkers):
+//     no limit.
 const { PLAN_DAILY_LIMIT, normalizePlan, legacyUnlimited } = require('../lib/plans.js');
 
 const FREE_DAILY_LIMIT = 5;
@@ -137,7 +139,7 @@ async function resolveIdentity(event, serviceKey) {
         const uid = user && user.id;
         if (uid) {
           const pResp = await fetch(
-            `${SUPABASE_URL}/rest/v1/pro_users?id=eq.${uid}&select=is_active,plan,grandfathered,billing_period_start`,
+            `${SUPABASE_URL}/rest/v1/pro_users?id=eq.${uid}&select=is_active,plan,grandfathered,billing_period_start,stripe_subscription_id`,
             { headers: supaHeaders(serviceKey) }
           );
           if (pResp.ok) {
@@ -148,6 +150,7 @@ async function resolveIdentity(event, serviceKey) {
               pro: isPro,
               plan: normalizePlan(isPro ? row.plan : 'pro'),
               grandfathered: row ? row.grandfathered === true : false,
+              comp: isPro && !row.stripe_subscription_id,
               billingPeriodStart: row ? row.billing_period_start : null,
               identity: `user:${uid}`,
             };
@@ -163,8 +166,9 @@ async function resolveIdentity(event, serviceKey) {
 }
 
 // Today's lane limit for this caller, or null for no limit.
-function dailyLaneLimit({ pro, plan, grandfathered, billingPeriodStart }) {
+function dailyLaneLimit({ pro, plan, grandfathered, billingPeriodStart, comp }) {
   if (!pro) return FREE_DAILY_LIMIT;
+  if (comp) return null;
   if (legacyUnlimited({ grandfathered, billing_period_start: billingPeriodStart })) return null;
   return PLAN_DAILY_LIMIT[normalizePlan(plan)];
 }

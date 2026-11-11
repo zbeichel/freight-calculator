@@ -89,7 +89,7 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   }
   const rpc = () => fcalls.filter((c) => c.url.includes('record_free_lane')).map((c) => JSON.parse(c.opts.body));
   const google = () => fcalls.filter((c) => c.url.startsWith('https://routes.googleapis.com/')).length;
-  const active = (extra) => ({ is_active: true, plan: 'pro', grandfathered: false, billing_period_start: '2026-11-20T10:00:00Z', ...extra });
+  const active = (extra) => ({ is_active: true, plan: 'pro', grandfathered: false, billing_period_start: '2026-11-20T10:00:00Z', stripe_subscription_id: 'sub_1', ...extra });
 
   await run(null, '2026-11-21T15:00:00Z');
   ok(rpc()[0].p_limit === 5 && rpc()[0].p_identity === 'ip:198.51.100.7', 'free: 5 quotes a day, counted by IP');
@@ -119,6 +119,13 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   ok(rpc()[0].p_limit === 100, 'renewal never recorded: limited after the Feb 3 backstop');
   await run(original({ is_active: false }), '2026-11-20T15:00:00Z');
   ok(rpc()[0].p_limit === 5 && rpc()[0].p_identity === 'user:user-1', 'cancelled account: free limit');
+  const comp = { is_active: true, plan: 'pro', grandfathered: true, billing_period_start: null, stripe_subscription_id: null };
+  await run(comp, '2026-11-20T15:00:00Z');
+  ok(rpc().length === 0 && google() === 1, 'comp account (coworker): unlimited now');
+  await run(comp, '2027-03-01T15:00:00Z');
+  ok(rpc().length === 0 && google() === 1, 'comp account: still unlimited after January (no backstop)');
+  await run({ ...comp, is_active: false }, '2027-03-01T15:00:00Z');
+  ok(rpc()[0].p_limit === 5, 'comp access turned off: free limit');
 
   // ═══ create-checkout.js ═══════════════════════════════════════════════════
   const checkout = require(fn('create-checkout.js'));

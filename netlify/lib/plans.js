@@ -82,8 +82,9 @@ function planForPriceIds(priceIds) {
 //     new price and nothing is charged at the switch.
 //   - The webhook records billing_period_start at each renewal. Once a period
 //     starting on or after NEW_PLANS_START is recorded, the plan's daily limit
-//     applies. LEGACY_BACKSTOP ends it for anyone whose renewal wasn't recorded
-//     (and for comp accounts, which have no billing periods).
+//     applies. LEGACY_BACKSTOP ends it for anyone whose renewal wasn't recorded.
+// Comp accounts (Pro granted without a Stripe subscription, e.g. coworkers)
+// are outside all of this: no daily limit (routes.js) and every plan feature.
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NEW_PLANS_START = Date.parse('2027-01-01T05:00:00Z'); // midnight Eastern, Jan 1 2027
 const LEGACY_BACKSTOP = NEW_PLANS_START + 33 * DAY_MS;
