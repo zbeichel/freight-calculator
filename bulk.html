@@ -125,6 +125,9 @@ footer a:hover{color:var(--accent)}
   line-height:1.4;
 }
 .field.invalid .field-error{display:block}
+/* Which place a location box was matched to (e.g. "📍 Vernon County, WI") */
+.field-note{font-size:11px;color:var(--text3);margin-top:4px;line-height:1.4}
+.field-note:empty,.field.invalid .field-note{display:none}
 
 /* ── Miles status row — shown below loaded-miles while we look up routes ── */
 .miles-status-row{
@@ -696,6 +699,85 @@ let lastLookedUpOrig = '';
 let lastLookedUpDest = '';
 const ROUTE_CACHE = {};
 function routeCacheKey(a, b){ return a.toLowerCase().trim() + '||' + b.toLowerCase().trim(); }
+// A checked place is keyed by its coordinates, so it never shares a cache entry
+// with the same text routed unchecked.
+function routeEndKey(addr, latLng){
+  return latLng ? `@${latLng.lat.toFixed(5)},${latLng.lng.toFixed(5)}` : addr;
+}
+
+// ── Checked places (this page visit only) — same approach as index.html ────
+// Each box remembers the place its last check confirmed, so the route uses that
+// place's exact coordinates and an unchanged box isn't checked again; the same
+// text entered again reuses the earlier check. Nothing is kept after the page
+// closes (Google's terms only allow temporary caching).
+const PLACE_MEMO     = new Map();     // normalized text → geocode result
+const PLACE_PENDING  = new Map();     // normalized text → geocode request in flight
+const VERIFIED_PLACE = new WeakMap(); // input → { name, lat, lon }
+const LOCATION_CHECK = new WeakMap(); // input → promise of the check in flight
+
+function placeKey(text){
+  return String(text || '').toLowerCase().replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function rememberPlace(text, data){
+  if(!data) return;
+  // Outages and quota errors aren't remembered — the next check should retry.
+  if(data.error && data.error !== 'No results') return;
+  PLACE_MEMO.set(placeKey(text), data);
+  if(!data.error && data.name) PLACE_MEMO.set(placeKey(data.name), data);
+}
+
+function fetchPlace(text){
+  const key = placeKey(text);
+  let pending = PLACE_PENDING.get(key);
+  if(!pending){
+    pending = fetch(`/.netlify/functions/geocode?address=${encodeURIComponent(text)}`)
+      .then(resp => resp.json())
+      .finally(() => PLACE_PENDING.delete(key));
+    PLACE_PENDING.set(key, pending);
+  }
+  return pending;
+}
+
+function forgetPlace(input){
+  VERIFIED_PLACE.delete(input);
+  setLocationNote(input, '');
+}
+
+function verifiedCoords(input){
+  const place = input && VERIFIED_PLACE.get(input);
+  if(!place || place.name !== input.value.trim()) return null;
+  if(typeof place.lat !== 'number' || typeof place.lon !== 'number') return null;
+  return { lat: place.lat, lng: place.lon };
+}
+
+function placeNote(data){
+  return data && data.county && data.state ? `📍 ${data.county}, ${data.state}` : '';
+}
+
+function setLocationNote(input, text){
+  const field = input.closest('.field');
+  if(!field) return;
+  let note = field.querySelector('.field-note');
+  if(!note){
+    if(!text) return;
+    note = document.createElement('div');
+    note.className = 'field-note';
+    field.appendChild(note);
+  }
+  note.textContent = text;
+}
+
+async function waitForLocationChecks(ids){
+  let pending;
+  while((pending = ids.map(id => LOCATION_CHECK.get(document.getElementById(id))).filter(Boolean)).length){
+    await Promise.all(pending);
+  }
+}
+
+function laneInputFocused(ids){
+  return ids.includes(document.activeElement && document.activeElement.id);
+}
 
 function setLocationError(input, message){
   const field = input.closest('.field');
@@ -708,7 +790,10 @@ function setLocationError(input, message){
   input.setAttribute('aria-invalid', 'true');
 }
 
+// Also forgets the place the box was matched to: every edit comes through here,
+// and a check that succeeds sets it again afterwards.
 function clearLocationError(input){
+  forgetPlace(input);
   const field = input.closest('.field');
   if(!field) return;
   field.classList.remove('invalid');
@@ -746,12 +831,26 @@ function normalizeLocationInput(raw){
   return val;
 }
 
-async function validateLocation(input){
+// Runs the location check for a box; tryLookupMiles waits on the promise kept
+// in LOCATION_CHECK so it never routes a value that's still being checked.
+function validateLocation(input){
+  const check = runLocationCheck(input)
+    .catch(() => {})
+    .finally(() => { if(LOCATION_CHECK.get(input) === check) LOCATION_CHECK.delete(input); });
+  LOCATION_CHECK.set(input, check);
+  return check;
+}
+
+async function runLocationCheck(input){
   const raw = input.value.trim();
   if(!raw){
     clearLocationError(input);
     return;
   }
+
+  // Already confirmed and not edited since — nothing to look up.
+  const known = VERIFIED_PLACE.get(input);
+  if(known && known.name === raw) return;
 
   const normalized = normalizeLocationInput(raw);
   if(normalized !== input.value) input.value = normalized;
@@ -762,20 +861,26 @@ async function validateLocation(input){
 
   const userTypedZip = /^\d{5}(-\d{4})?$/.test(normalized);
 
-  let data;
-  try {
-    const resp = await fetch(`/.netlify/functions/geocode?address=${encodeURIComponent(normalized)}`);
-    data = await resp.json();
-  } catch(e){
-    if(LOCATION_VALIDATION_IN_FLIGHT.get(input) === requestId){
-      clearLocationError(input);
+  // Same text already checked on this page? Reuse it instead of asking Google.
+  let data = PLACE_MEMO.get(placeKey(normalized));
+  if(!data){
+    try {
+      data = await fetchPlace(normalized);
+    } catch(e){
+      if(LOCATION_VALIDATION_IN_FLIGHT.get(input) === requestId){
+        clearLocationError(input);
+        // Lookup service unreachable — still try the miles on the text as typed.
+        scheduleLookup();
+      }
+      return;
     }
-    return;
+    rememberPlace(normalized, data);
   }
 
   if(LOCATION_VALIDATION_IN_FLIGHT.get(input) !== requestId) return;
 
   if(!isAcceptableGeocodeResult(data, userTypedZip)){
+    forgetPlace(input);
     setLocationError(
       input,
       userTypedZip
@@ -787,11 +892,13 @@ async function validateLocation(input){
 
   clearLocationError(input);
 
-  // Google's canonical form: "City, ST ZIP"
+  // Google's canonical form: "City, ST" ("City, ST ZIP" when a ZIP was typed)
   const canonical = data.name;
   if(canonical && canonical !== input.value){
     input.value = canonical;
   }
+  VERIFIED_PLACE.set(input, { name: input.value.trim(), lat: data.lat, lon: data.lon });
+  setLocationNote(input, placeNote(data));
 
   // Recalc (region might have shifted)
   calc();
@@ -802,12 +909,14 @@ async function validateLocation(input){
 
 function onLocationInput(input){
   // User is typing — clear the error state and reset the "last looked up" cache so
-  // a re-typed value gets a fresh route lookup.
+  // a re-typed value gets a fresh route lookup. The lookup itself waits until the
+  // box has been left and checked (validateLocation schedules it), so half-typed
+  // text never goes to Google.
   clearLocationError(input);
   manualMiles = false;
   lastLookedUpOrig = '';
   lastLookedUpDest = '';
-  scheduleLookup();
+  clearTimeout(lookupTimer);
   calc();
 }
 
@@ -857,6 +966,11 @@ function fmtDuration(seconds){
 
 async function tryLookupMiles(){
   if(manualMiles) return;
+  // Wait for a location check that's still running, so the route is for the
+  // place the box ends up showing and uses its exact coordinates.
+  await waitForLocationChecks(['origin','dest']);
+  // Back in one of the boxes? Leaving it again schedules the lookup.
+  if(manualMiles || laneInputFocused(['origin','dest'])) return;
   if(!isLocationFieldValid('origin') || !isLocationFieldValid('dest')) return;
 
   const orig = document.getElementById('origin').value.trim();
@@ -865,6 +979,8 @@ async function tryLookupMiles(){
 
   const origAddr = orig + ', USA';
   const destAddr = dest + ', USA';
+  const origLatLng = verifiedCoords(document.getElementById('origin'));
+  const destLatLng = verifiedCoords(document.getElementById('dest'));
 
   // Skip if this exact pair was already looked up
   const origKey = origAddr.toLowerCase();
@@ -872,7 +988,7 @@ async function tryLookupMiles(){
   if(origKey === lastLookedUpOrig && destKey === lastLookedUpDest) return;
 
   // Route cache hit
-  const cKey = routeCacheKey(origAddr, destAddr);
+  const cKey = routeCacheKey(routeEndKey(origAddr, origLatLng), routeEndKey(destAddr, destLatLng));
   if(ROUTE_CACHE[cKey]){
     const cached = ROUTE_CACHE[cKey];
     lastLookedUpOrig = origKey; lastLookedUpDest = destKey;
@@ -899,7 +1015,9 @@ async function tryLookupMiles(){
         headers: _h,
         body: JSON.stringify({
           origin: origAddr,
-          destination: destAddr
+          destination: destAddr,
+          originLatLng: origLatLng,
+          destinationLatLng: destLatLng
         })
       }
     );

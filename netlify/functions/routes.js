@@ -5,6 +5,8 @@
 // - Routes are not cached: Google's Routes API terms only allow temporary
 //   caching of lat/lng, not distances or durations, so every lookup goes to
 //   Google. The free-tier daily limit below still caps anonymous usage.
+// - Each end is routed on the verified coordinates the page sends
+//   (originLatLng / destinationLatLng) when it has them, else on the text.
 // - Google's raw error bodies are NEVER forwarded to the client. Failures come
 //   back as a short, user-safe message; the real reason is logged server-side.
 
@@ -51,6 +53,33 @@ function norm(s) {
     .replace(/[.,]/g, ' ')                          // commas/periods → space
     .replace(/\s+/g, ' ')                           // collapse whitespace
     .trim();
+}
+
+// Optional verified coordinates for an end of the lane: { lat, lng }. The pages
+// send these once the geocode function has confirmed a place, and we route to
+// exactly that point. Routing on the text alone lets Google re-read the name and
+// it can land on a different same-named place than the one the page showed
+// (e.g. "Franklin, WI" → the city near Milwaukee instead of the Vernon County
+// town the page matched), so text is only the fallback for unverified values.
+function toLatLng(value) {
+  if (!value || typeof value !== 'object') return null;
+  const lat = Number(value.lat);
+  const lng = Number(value.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { latitude: lat, longitude: lng };
+}
+
+function waypoint(address, latLng) {
+  return latLng ? { location: { latLng } } : { address };
+}
+
+// One end of the lane for the free-tier counter: the rounded coordinates when we
+// have them (so the same place always counts as the same lane, and coordinates
+// can't be varied under a fixed label), otherwise the normalized text.
+function laneEnd(address, latLng) {
+  if (latLng) return `@${latLng.latitude.toFixed(2)},${latLng.longitude.toFixed(2)}`;
+  return norm(address);
 }
 
 function supaHeaders(serviceKey) {
@@ -161,6 +190,8 @@ exports.handler = async (event) => {
     return json(400, { error: 'origin and destination are required' });
   }
   const includeLegs = body.includeLegs === true;
+  const originLatLng = toLatLng(body.originLatLng);
+  const destLatLng = toLatLng(body.destinationLatLng);
 
   // Free-tier limit. Pro users are exempt; everyone else gets FREE_DAILY_LIMIT
   // distinct lanes/day. The lane key is legs-agnostic so the same lane counts
@@ -169,7 +200,7 @@ exports.handler = async (event) => {
   if (!pro) {
     const laneKey = crypto
       .createHash('sha256')
-      .update(`${norm(originAddr)}|${norm(destAddr)}`)
+      .update(`${laneEnd(originAddr, originLatLng)}|${laneEnd(destAddr, destLatLng)}`)
       .digest('hex');
     const allowed = await withinFreeLimit(identity, laneKey, serviceKey);
     if (!allowed) {
@@ -189,8 +220,8 @@ exports.handler = async (event) => {
         'X-Goog-FieldMask': fieldMask,
       },
       body: JSON.stringify({
-        origin: { address: originAddr },
-        destination: { address: destAddr },
+        origin: waypoint(originAddr, originLatLng),
+        destination: waypoint(destAddr, destLatLng),
         travelMode: 'DRIVE',
         routingPreference: 'TRAFFIC_UNAWARE', // Essentials tier — stays in free cap
         units: 'IMPERIAL',
