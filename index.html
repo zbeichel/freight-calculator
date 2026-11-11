@@ -3030,12 +3030,20 @@ async function _verifyProAuthBackground(){
         }));
 
         const p = rows[0];
+        // Quote numbers advance in this browser as PDFs are made; keep the
+        // higher of the two counters so a number is never reused here.
+        let prev = {};
+        try { prev = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
         localStorage.setItem('qfc_pro_profile', JSON.stringify({
           companyName: p.company_name, contactName: p.contact_name,
           email: p.email, phone: p.phone, mcNumber: p.mc_number,
           dotNumber: p.dot_number, footerText: p.footer_text,
-          quotePrefix: p.quote_prefix, quoteStart: p.quote_counter,
+          quotePrefix: p.quote_prefix,
+          quoteStart: Math.max(Number(p.quote_counter) || 0, Number(prev.quoteStart) || 0) || undefined,
           colorScheme: p.color_scheme, logoBase64: p.logo_base64,
+          hideLogo: p.hide_logo === true,
+          pdfStyle: p.pdf_style === 'classic' ? 'classic' : 'modern',
+          pdfBreakdown: p.pdf_breakdown !== false,
         }));
         if(p.rate_profiles && Array.isArray(p.rate_profiles)){
           // Key matches PROFILES_KEY in lanes.html — keep them in sync.
@@ -3803,6 +3811,30 @@ function generateQuotePDF(){
   const weightDisplay = weight ? parseInt(weight).toLocaleString() + ' lbs' : '—';
   const transitDays = document.getElementById('transit-days-badge')?.textContent || '—';
 
+  // Modern design (pdf-quote.js) unless the Profile chose Classic — then the
+  // original template below, unchanged.
+  if(window.QFCQuotePDF && QFCQuotePDF.style(profile) === 'modern'){
+    const milesNum = parseFloat(document.getElementById('miles').value) || 0;
+    const markup = 1 + (parseFloat(document.getElementById('margin').value) || 0) / 100;
+    QFCQuotePDF.openModern({
+      total: Number(quote.replace(/[^0-9.]/g, '')) || 0,
+      ratePerMile: parseFloat(document.getElementById('r-rpm').textContent.replace(/[^0-9.]/g, '')) || null,
+      miles: milesNum || null,
+      origin: orig, destination: dest,
+      pickup: pickup !== '—' ? pickup : '', delivery: delivery !== '—' ? delivery : '',
+      trailer, commodity: commDisplay, weight: weight ? parseInt(weight) : null,
+      transit: pickup !== '—' && delivery !== '—' ? transitDays : '',
+      notes,
+      // Fuel and extra-day charges as the customer pays them (with your margin),
+      // so the lines add up to the total without showing the margin itself.
+      breakdown: {
+        fuel: getDieselFSC() * milesNum * markup,
+        extra: (transitChargeAdded ? transitChargeAmount : 0) * markup,
+      },
+    }, profile);
+    return;
+  }
+
   // Quote number
   const now = new Date();
   const prefix  = (profile.quotePrefix || 'QFC').toUpperCase();
@@ -4057,6 +4089,20 @@ function generateQuotePDFFromLog(id){
 
   let profile = {};
   try { profile = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}'); } catch(e){}
+
+  // Modern design (pdf-quote.js) unless the Profile chose Classic.
+  if(window.QFCQuotePDF && QFCQuotePDF.style(profile) === 'modern'){
+    QFCQuotePDF.openModern({
+      total: Number(q.quote) || 0,
+      ratePerMile: parseFloat(String(q.rpm || '').replace(/[^0-9.]/g, '')) || null,
+      miles: Number(q.miles) || null,
+      origin: q.orig || '—', destination: q.dest || '—',
+      pickup: q.pickup || '', delivery: q.delivery || '',
+      trailer: q.trailer, commodity: q.commodity, weight: q.weight ? parseInt(q.weight) : null,
+      transit: '', notes: q.notes || '', breakdown: null,
+    }, profile);
+    return;
+  }
 
   // Scheme config — mirrors profile.html. headerText/Soft/Faint define text
   // colors for the header so light-header schemes remain legible.
@@ -8281,5 +8327,6 @@ window.addEventListener('resize', () => {
 
 <!-- Notice to current Pro subscribers about the plan changes (see pro-notice.js) -->
 <script src="/pro-notice.js" defer></script>
+<script src="/pdf-quote.js" defer></script>
 </body>
 </html>

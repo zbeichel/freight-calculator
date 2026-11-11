@@ -155,6 +155,19 @@ a.brand-name:hover span{opacity:.8}
 .api-foot a{color:var(--accent);text-decoration:none}
 #api-status{font-size:12px;margin-top:10px;line-height:1.5}
 
+/* ── PDF quote style ── */
+.pdf-style-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pdf-style-option{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:start;padding:14px 16px;border:1px solid var(--border2);border-radius:10px;cursor:pointer;background:var(--card);transition:border-color .15s,background .15s}
+.pdf-style-option:has(input:checked){border-color:var(--accent);background:var(--accentbg)}
+.pdf-style-option input{accent-color:var(--accent);margin:3px 0 0;grid-row:span 2}
+.pdf-style-name{font-size:13px;font-weight:700;color:var(--text)}
+.pdf-style-desc{font-size:11.5px;color:var(--text3);line-height:1.5}
+.pdf-style-extra{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px}
+.pdf-style-extra label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text2)}
+.pdf-style-extra input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+.pdf-preview-btn{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:8px 16px;border-radius:8px;cursor:pointer;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent)}
+@media(max-width:700px){.pdf-style-grid{grid-template-columns:1fr}}
+
 /* ── Logo upload ── */
 .logo-upload-wrap{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap}
 .logo-preview-box{
@@ -499,6 +512,36 @@ footer a:hover{color:var(--accent)}
       </div>
     </div>
 
+    <!-- ── PDF quote style ── -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-icon">📄</span>
+        <span class="section-title">PDF Quote Style</span>
+        <span class="section-sub">How your quotes look</span>
+      </div>
+      <div class="section-body">
+        <div class="pdf-style-grid" role="radiogroup" aria-label="PDF quote style">
+          <label class="pdf-style-option">
+            <input type="radio" name="pdf-style" value="modern" checked onchange="selectPdfStyle(this.value)" />
+            <span class="pdf-style-name">Modern <span style="color:var(--accent);font-size:11px;font-weight:600">New</span></span>
+            <span class="pdf-style-desc">Clean letterhead, the all-in rate with rate per mile, a "valid until" time and signature lines.</span>
+          </label>
+          <label class="pdf-style-option">
+            <input type="radio" name="pdf-style" value="classic" onchange="selectPdfStyle(this.value)" />
+            <span class="pdf-style-name">Classic</span>
+            <span class="pdf-style-desc">The original design with the colored header — exactly as before.</span>
+          </label>
+        </div>
+        <div class="pdf-style-extra">
+          <label id="pdf-breakdown-wrap">
+            <input type="checkbox" id="pdf-breakdown" checked />
+            Show linehaul, fuel surcharge and extra-day charges separately when a quote has them
+          </label>
+          <button type="button" class="pdf-preview-btn" id="pdf-sample-btn" onclick="previewSamplePDF()">Preview a sample quote</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Color Scheme ── -->
     <div class="section-card">
       <div class="section-header">
@@ -802,6 +845,7 @@ footer a:hover{color:var(--accent)}
 <!-- Toast -->
 <div class="toast" id="toast">✓ Profile saved successfully</div>
 
+<script src="/pdf-quote.js"></script>
 <script>
 // ── Color schemes ─────────────────────────────────────────────────────────
 // Each scheme defines a PDF header background + text colors. The text colors
@@ -897,6 +941,23 @@ function selectScheme(id){
 
 function updatePreview(){
   const s = SCHEMES.find(x => x.id === currentScheme) || SCHEMES[0];
+  // Modern: white letterhead with the scheme's ink and accent (pdf-quote.js).
+  const m = currentPdfStyle === 'modern' && window.QFCQuotePDF
+    ? (QFCQuotePDF.schemes[currentScheme] || QFCQuotePDF.schemes.midnight) : null;
+  if(m){
+    document.getElementById('preview-header').style.background = '#ffffff';
+    document.getElementById('preview-bar').style.background = m.accent;
+    document.getElementById('preview-accent-text').style.color = m.accent;
+    const set = (id, color, text) => { const el = document.getElementById(id); if(el){ el.style.color = color; if(text) el.textContent = text; } };
+    set('preview-brand-name', m.ink);
+    set('preview-brand-sub', '#6b7280');
+    set('preview-title', m.ink, 'Freight Quote');
+    set('preview-quote-num', '#6b7280');
+    updatePreviewLogo();
+    return;
+  }
+  const titleEl = document.getElementById('preview-title');
+  if(titleEl) titleEl.textContent = 'Rate Confirmation';
   document.getElementById('preview-header').style.background = s.header;
   document.getElementById('preview-bar').style.background = s.bar;
   document.getElementById('preview-accent-text').style.color = s.accent;
@@ -911,7 +972,10 @@ function updatePreview(){
   if(brandSub)  brandSub.style.color  = s.headerTextSoft;
   if(title)     title.style.color     = s.headerText;
   if(quoteNum)  quoteNum.style.color  = s.headerTextFaint;
+  updatePreviewLogo();
+}
 
+function updatePreviewLogo(){
   // Logo in preview
   const logoArea = document.getElementById('preview-logo-area');
   if(logoBase64){
@@ -919,6 +983,55 @@ function updatePreview(){
   } else {
     logoArea.innerHTML = `<span class="pdf-mini-brand-emoji" id="preview-emoji">🚛</span>`;
   }
+}
+
+// ── PDF quote style ───────────────────────────────────────────────────────
+// 'modern' (pdf-quote.js, the default) or 'classic' (the original template).
+let currentPdfStyle = 'modern';
+function selectPdfStyle(style){
+  currentPdfStyle = style === 'classic' ? 'classic' : 'modern';
+  document.querySelectorAll('input[name="pdf-style"]').forEach(r => { r.checked = r.value === currentPdfStyle; });
+  const modern = currentPdfStyle === 'modern';
+  const wrap = document.getElementById('pdf-breakdown-wrap');
+  const btn = document.getElementById('pdf-sample-btn');
+  if(wrap) wrap.style.display = modern ? '' : 'none';
+  if(btn) btn.style.display = modern ? '' : 'none';
+  updatePreview();
+}
+
+// The profile as the form shows it right now (unsaved changes included).
+function profileFromForm(){
+  return {
+    companyName: document.getElementById('company-name').value.trim(),
+    contactName: document.getElementById('contact-name').value.trim(),
+    email:       document.getElementById('contact-email').value.trim(),
+    phone:       document.getElementById('contact-phone').value.trim(),
+    mcNumber:    document.getElementById('mc-number').value.trim(),
+    dotNumber:   document.getElementById('dot-number').value.trim(),
+    footerText:  document.getElementById('footer-text').value.trim(),
+    quotePrefix: document.getElementById('quote-prefix').value.trim() || 'QFC',
+    quoteStart:  parseInt(document.getElementById('quote-start').value) || 1001,
+    colorScheme: currentScheme,
+    logoBase64:  logoBase64,
+    hideLogo:    document.getElementById('hide-logo').checked,
+    pdfStyle:    currentPdfStyle,
+    pdfBreakdown: document.getElementById('pdf-breakdown').checked,
+  };
+}
+
+// A sample Modern quote with your branding (doesn't use up a quote number).
+function previewSamplePDF(){
+  if(!window.QFCQuotePDF) return;
+  const profile = profileFromForm();
+  const meta = QFCQuotePDF.nextQuoteNumber(profile, false);
+  QFCQuotePDF.openHTML(QFCQuotePDF.modernHTML({
+    total: 3842, ratePerMile: 3.69, miles: 1042,
+    origin: 'Hastings, FL', destination: 'Lancaster, PA',
+    pickup: 'Mon, Nov 16', delivery: 'Wed, Nov 18',
+    trailer: 'reefer', commodity: 'Food / Perishable', weight: 42000, transit: '2 days',
+    notes: 'Sample quote. Keep at 34°F. Appointment required at delivery.',
+    breakdown: { fuel: 512, extra: 0 },
+  }, profile, meta));
 }
 
 // ── Logo upload ────────────────────────────────────────────────────────────
@@ -1352,6 +1465,8 @@ async function saveProfile(){
     colorScheme:  currentScheme,
     logoBase64:   logoBase64,
     hideLogo:     document.getElementById('hide-logo').checked,
+    pdfStyle:     currentPdfStyle,
+    pdfBreakdown: document.getElementById('pdf-breakdown').checked,
     savedAt:      new Date().toISOString(),
   };
 
@@ -1382,6 +1497,9 @@ async function saveProfile(){
           quote_counter: profile.quoteStart,
           color_scheme:  profile.colorScheme,
           logo_base64:   profile.logoBase64,
+          hide_logo:     profile.hideLogo,
+          pdf_style:     profile.pdfStyle,
+          pdf_breakdown: profile.pdfBreakdown,
           updated_at:    new Date().toISOString(),
         })
       });
@@ -1433,6 +1551,9 @@ async function loadProfile(){
           quoteStart:  p.quote_counter,
           colorScheme: p.color_scheme,
           logoBase64:  p.logo_base64,
+          hideLogo:    p.hide_logo === true,
+          pdfStyle:    p.pdf_style,
+          pdfBreakdown: p.pdf_breakdown !== false,
         });
         // Update header with user name
         updateHeaderUser(p.contact_name || p.company_name || session.user.email);
@@ -1974,7 +2095,9 @@ function populateForm(p){
   if(p.quotePrefix) document.getElementById('quote-prefix').value = p.quotePrefix;
   if(p.quoteStart)  document.getElementById('quote-start').value = p.quoteStart;
   if(p.colorScheme) currentScheme = p.colorScheme;
-  if(p.hideLogo) document.getElementById('hide-logo').checked = true;
+  document.getElementById('hide-logo').checked = p.hideLogo === true;
+  document.getElementById('pdf-breakdown').checked = p.pdfBreakdown !== false;
+  selectPdfStyle(p.pdfStyle);
   if(p.logoBase64){
     // Reuse applyLogo so the preview state (remove + adjust buttons) stays in
     // sync with the upload path — no duplicated show/hide logic.
