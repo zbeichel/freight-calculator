@@ -1,5 +1,5 @@
-// tests/pdf_test.js — the Modern / Classic quote PDFs and their Profile
-// settings, in a real browser (needs Playwright with Chromium). Network calls
+// tests/pdf_test.js — the Modern / Classic quote PDFs (calculator, quote log,
+// multi-stop and bulk), custom colors and their Profile settings, in a real browser (needs Playwright with Chromium). Network calls
 // other than this site are stubbed. Run from the repository root:
 //   node tests/pdf_test.js [folder for screenshots and a sample PDF]
 const http = require('http');
@@ -43,7 +43,7 @@ async function setup(browser, base, profileOverrides, opts = {}) {
   await context.route('**/*', async (route) => {
     const url = route.request().url();
     const json = (b) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(b) });
-    if (url.startsWith(base) || url.startsWith('blob:')) return route.continue();
+    if (url.startsWith('blob:') || (url.startsWith(base) && !url.includes('/.netlify/functions/'))) return route.continue();
     if (url.includes('/rest/v1/pro_users')) {
       if (route.request().method() === 'PATCH') { supa.patches.push(JSON.parse(route.request().postData())); return route.fulfill({ status: 204, body: '' }); }
       return json(supa.row ? [supa.row] : []);
@@ -192,6 +192,163 @@ async function calculatorPDF(t, opts = {}) {
   const synced = await t.page.evaluate(() => JSON.parse(localStorage.getItem('qfc_pro_profile')));
   check('sync keeps the higher counter (2050, not 2041)', synced.quoteStart === 2050, String(synced.quoteStart));
   check('sync brings Classic + hide logo from the account', synced.pdfStyle === 'classic' && synced.hideLogo === true);
+  await t.context.close();
+
+  // ── Multi-stop ──────────────────────────────────────────────────────────
+  const multiStopPDF = async (t) => {
+    await t.page.goto(base + '/multistop.html');
+    await t.page.waitForFunction(() => typeof calcTotal === 'function' && window.QFCQuotePDF);
+    await t.page.waitForTimeout(800);
+    await t.page.evaluate(() => {
+      stops = [
+        { id: 1, type: 'pickup', location: 'Hastings, FL', miles: 0, weight: '20000', date: '2026-11-16' },
+        { id: 2, type: 'pickup', location: 'Palatka, FL', miles: 0, weight: '18000', date: '2026-11-16' },
+        { id: 3, type: 'delivery', location: 'Lancaster, PA', miles: 0, weight: '', date: '2026-11-18' },
+        { id: 4, type: 'delivery', location: 'Allentown, PA', miles: 0, weight: '', date: '2026-11-18' },
+      ];
+      stopIdCounter = 4;
+      legMiles = { 1: 25, 2: 1010, 3: 80 };
+      document.getElementById('ms-diesel-enabled').checked = true;
+      document.getElementById('ms-diesel-price').value = 3.85;
+      document.getElementById('ms-load-notes').value = 'Two pickups, two drops.';
+      calcTotal();
+    });
+    const [tb] = await Promise.all([t.context.waitForEvent('page'), t.page.evaluate(() => generateMultiStopPDF())]);
+    await tb.waitForLoadState('load');
+    await tb.waitForTimeout(300);
+    return tb;
+  };
+
+  console.log('\n=== Multi-stop: Modern ===');
+  t = await setup(browser, base, {}, { signedIn: true });
+  tab = await multiStopPDF(t);
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  const msTotal = await t.page.textContent('#ms-quote');
+  check('Modern multi-stop: title, all four stops in order', text.includes('Multi-Stop Freight Quote')
+    && /Hastings, FL.*Palatka, FL.*Lancaster, PA.*Allentown, PA/.test(text));
+  check('totals: 1,115 mi, 38,000 lbs, 4 stops (2 pickups, 2 deliveries)', text.includes('Total miles')
+    && text.includes('1,115 mi') && text.includes('38,000 lbs') && text.includes('4 stops · 2 pickups · 2 deliveries'));
+  check('the two extra stops are marked', (await tab.$$('.s-chip')).length === 2);
+  check('all-in rate matches the page', text.includes(msTotal), msTotal);
+  const msLines = await tab.$$eval('.line-item', (els) => els.map((e) => Number(e.lastElementChild.textContent.replace(/[^0-9]/g, ''))));
+  const msLabels = await tab.$$eval('.line-item', (els) => els.map((e) => e.firstElementChild.textContent));
+  check('linehaul + fuel + stop charges add up to the total (margin spread, not shown)',
+    msLabels.join('|') === 'Linehaul|Fuel surcharge|Stop charges' && msLines.reduce((a, b) => a + b, 0) === Number(msTotal.replace(/[^0-9]/g, '')),
+    msLabels.join('|') + ' ' + msLines.join('+'));
+  check('quote numbered in sequence (not random)', /KPL-\d{8}-2041/.test(text));
+  await tab.screenshot({ path: path.join(SHOTS, 'modern_multistop.png'), fullPage: true });
+  await tab.emulateMedia({ media: 'print' });
+  await tab.pdf({ path: path.join(SHOTS, 'modern_multistop.pdf'), format: 'Letter', printBackground: true });
+  const msPages = (fs.readFileSync(path.join(SHOTS, 'modern_multistop.pdf')).toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+  check('a 4-stop quote prints on one Letter page', msPages === 1, msPages + ' pages');
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
+  console.log('\n=== Multi-stop: Classic ===');
+  t = await setup(browser, base, { pdfStyle: 'classic' }, { signedIn: true });
+  tab = await multiStopPDF(t);
+  check('Classic multi-stop: the original template', (await tab.textContent('body')).includes('Multi-Stop Rate Confirmation'));
+  await t.context.close();
+
+  // ── Bulk ────────────────────────────────────────────────────────────────
+  const bulkPDF = async (t) => {
+    await t.page.goto(base + '/bulk.html');
+    await t.page.waitForFunction(() => typeof generateBulkPDF === 'function' && window.QFCQuotePDF);
+    await t.page.waitForTimeout(800);
+    await t.page.evaluate(() => {
+      const set = (id, v) => { document.getElementById(id).value = v; };
+      set('origin', 'Presque Isle, ME'); set('dest', 'Hanover, PA'); set('loaded-miles', 712); set('deadhead-miles', 40);
+      set('cwt', 450); set('target-rpm', 2.5); set('offered-rate', 4.35);
+      calc();
+    });
+    const [tb] = await Promise.all([t.context.waitForEvent('page'), t.page.evaluate(() => generateBulkPDF())]);
+    await tb.waitForLoadState('load');
+    await tb.waitForTimeout(300);
+    return tb;
+  };
+
+  console.log('\n=== Bulk: Modern ===');
+  t = await setup(browser, base, {}, { signedIn: true });
+  tab = await bulkPDF(t);
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  check('Modern bulk: title, B-numbered quote, lane and deadhead', text.includes('Bulk Load Quote') && /KPL-B-\d{8}-2041/.test(text)
+    && text.includes('Presque Isle, ME') && text.includes('Hanover, PA') && text.includes('712 loaded mi') && text.includes('40 mi deadhead'));
+  check('rate per cwt, base and fuel lines, total load revenue', text.includes('$4.35 / cwt') && text.includes('Base rate')
+    && text.includes('$4.35 × 450 cwt') && text.includes('Fuel surcharge') && text.includes('Total load revenue'));
+  check('target comparison like the Classic one', text.includes('Target comparison') && /profit margin over target|short of target/.test(text));
+  check('no "valid until" or signatures on the bulk sheet (same as Classic)', !text.includes('Valid until') && !text.includes('Accepted by'));
+  await tab.screenshot({ path: path.join(SHOTS, 'modern_bulk.png'), fullPage: true });
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
+  console.log('\n=== Bulk: Classic ===');
+  t = await setup(browser, base, { pdfStyle: 'classic' }, { signedIn: true });
+  tab = await bulkPDF(t);
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  check('Classic bulk: the original template', text.includes('Total Load Revenue') && text.includes('Calculation Settings'));
+  await t.context.close();
+
+  // ── Custom colors ───────────────────────────────────────────────────────
+  console.log('\n=== Custom colors ===');
+  const custom = { colorScheme: 'custom', pdfAccent: '#7c3aed', pdfInk: '#123456' };
+  t = await setup(browser, base, custom);
+  await t.page.goto(base + '/index.html');
+  await t.page.waitForFunction(() => typeof regionalRates !== 'undefined' && regionalRates !== null && window.QFCQuotePDF);
+  tab = await calculatorPDF(t, { diesel: true });
+  check('Modern: your accent on the rule, your heading color on the title',
+    (await tab.$eval('.rule', (e) => getComputedStyle(e).backgroundColor)) === 'rgb(124, 58, 237)'
+    && (await tab.$eval('.title', (e) => getComputedStyle(e).color)) === 'rgb(18, 52, 86)');
+  await tab.screenshot({ path: path.join(SHOTS, 'modern_custom.png'), fullPage: true });
+  await t.context.close();
+  t = await setup(browser, base, { ...custom, pdfStyle: 'classic' });
+  await t.page.goto(base + '/index.html');
+  await t.page.waitForFunction(() => typeof regionalRates !== 'undefined' && regionalRates !== null && window.QFCQuotePDF);
+  tab = await calculatorPDF(t, { diesel: true });
+  check('Classic: header bar in your heading color, accent bar in your accent',
+    (await tab.$eval('.doc-header', (e) => getComputedStyle(e).backgroundColor)) === 'rgb(18, 52, 86)'
+    && (await tab.$eval('.accent-bar', (e) => getComputedStyle(e).backgroundImage)).includes('rgb(124, 58, 237)'));
+  await tab.screenshot({ path: path.join(SHOTS, 'classic_custom.png'), fullPage: true });
+  await t.context.close();
+  t = await setup(browser, base, { colorScheme: 'custom', pdfAccent: 'red;}</style><script>window.__x=1</script>', pdfInk: '#f5f5f5' });
+  await t.page.goto(base + '/index.html');
+  await t.page.waitForFunction(() => typeof regionalRates !== 'undefined' && regionalRates !== null && window.QFCQuotePDF);
+  tab = await calculatorPDF(t, {});
+  check('a bad color value is ignored (default accent), never added to the page',
+    (await tab.$eval('.rule', (e) => getComputedStyle(e).backgroundColor)) === 'rgb(240, 165, 0)'
+    && !(await tab.content()).includes('window.__x') && !(await tab.evaluate(() => window.__x)));
+  check('a heading color too light for paper falls back to near-black on Modern',
+    (await tab.$eval('.title', (e) => getComputedStyle(e).color)) === 'rgb(31, 41, 55)');
+  await t.context.close();
+
+  console.log('\n=== Profile: custom color pickers ===');
+  t = await setup(browser, base, {}, { signedIn: true, row: { id: 'user-1', is_active: true, plan: 'pro', stripe_customer_id: 'cus_1',
+    company_name: 'Keystone Produce Logistics', color_scheme: 'midnight' } });
+  await t.page.goto(base + '/profile.html'); await t.page.waitForTimeout(1800);
+  check('pickers hidden until Custom is chosen', !(await t.page.isVisible('#custom-colors')));
+  await t.page.click('#scheme-custom');
+  check('Custom card shows the pickers', await t.page.isVisible('#custom-colors') && await t.page.$eval('#scheme-custom', (e) => e.classList.contains('active')));
+  await t.page.evaluate(() => {
+    const a = document.getElementById('pdf-accent'); a.value = '#0f766e'; a.dispatchEvent(new Event('input', { bubbles: true }));
+    const i = document.getElementById('pdf-ink'); i.value = '#3b0764'; i.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await t.page.waitForTimeout(450);
+  check('live preview uses the picked colors (Modern)', (await t.page.$eval('#preview-bar', (e) => getComputedStyle(e).backgroundColor)) === 'rgb(15, 118, 110)'
+    && (await t.page.$eval('#preview-title', (e) => getComputedStyle(e).color)) === 'rgb(59, 7, 100)');
+  check('hex codes shown under the pickers', (await t.page.textContent('#pdf-accent-hex')) === '#0F766E' && (await t.page.textContent('#pdf-ink-hex')) === '#3B0764');
+  await t.page.click('input[name="pdf-style"][value="classic"]');
+  await t.page.waitForTimeout(450);
+  check('live preview uses them for Classic too', (await t.page.$eval('#preview-header', (e) => getComputedStyle(e).backgroundColor)) === 'rgb(59, 7, 100)');
+  await t.page.locator('.section-card:has(#scheme-grid)').screenshot({ path: path.join(SHOTS, 'profile_custom_colors.png') });
+  await t.page.click('.save-btn'); await t.page.waitForTimeout(800);
+  const cpatch = t.supa.patches.at(-1) || {};
+  check('save sends Custom with both colors', cpatch.color_scheme === 'custom' && cpatch.pdf_accent === '#0f766e' && cpatch.pdf_ink === '#3b0764', JSON.stringify(cpatch));
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+  t = await setup(browser, base, {}, { signedIn: true, row: { id: 'user-1', is_active: true, plan: 'pro', stripe_customer_id: 'cus_1',
+    color_scheme: 'custom', pdf_accent: '#0f766e', pdf_ink: '#3b0764' } });
+  await t.page.goto(base + '/profile.html'); await t.page.waitForTimeout(1800);
+  check('loads saved custom colors from the account', await t.page.$eval('#scheme-custom', (e) => e.classList.contains('active'))
+    && (await t.page.inputValue('#pdf-accent')) === '#0f766e' && (await t.page.inputValue('#pdf-ink')) === '#3b0764');
   await t.context.close();
 
   await browser.close();

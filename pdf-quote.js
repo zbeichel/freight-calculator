@@ -137,8 +137,8 @@
       '.meta td:first-child{color:#6b7280}\n' +
       '.contact{margin-top:14px;font-size:11.5px;color:#4b5563}\n' +
       '.contact .dot{color:#c7ced8;margin:0 8px}\n' +
-      '.rule{height:3px;background:' + s.accent + ';border-radius:2px;margin:18px 0 30px;-webkit-print-color-adjust:exact;print-color-adjust:exact}\n' +
-      '.lane{display:flex;align-items:center;gap:18px;margin-bottom:26px}\n' +
+      '.rule{height:3px;background:' + s.accent + ';border-radius:2px;margin:18px 0 26px;-webkit-print-color-adjust:exact;print-color-adjust:exact}\n' +
+      '.lane{display:flex;align-items:center;gap:18px;margin-bottom:22px}\n' +
       '.stop{flex:1;min-width:0}\n' +
       '.stop.right{text-align:right}\n' +
       '.city{font-size:22px;font-weight:700;color:#111827;letter-spacing:-.01em;line-height:1.25;overflow-wrap:anywhere}\n' +
@@ -149,11 +149,11 @@
       '.leg .track{position:relative;height:2px;background:' + s.accent + ';margin:8px 4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}\n' +
       '.leg .track:before,.leg .track:after{content:"";position:absolute;top:-4px;width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid ' + s.accent + '}\n' +
       '.leg .track:before{left:-6px}.leg .track:after{right:-6px;background:' + s.accent + '}\n' +
-      '.facts{display:flex;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;margin-bottom:26px}\n' +
+      '.facts{display:flex;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;margin-bottom:22px}\n' +
       '.fact{flex:1;padding:14px 16px 14px 0}\n' +
       '.fact + .fact{padding-left:16px;border-left:1px solid #e5e7eb}\n' +
       '.fact .v{font-size:14px;font-weight:600;color:#111827}\n' +
-      '.rate{border:1px solid #e5e7eb;border-left:4px solid ' + s.accent + ';border-radius:8px;padding:18px 22px;margin-bottom:26px;-webkit-print-color-adjust:exact;print-color-adjust:exact}\n' +
+      '.rate{border:1px solid #e5e7eb;border-left:4px solid ' + s.accent + ';border-radius:8px;padding:18px 22px;margin-bottom:22px;-webkit-print-color-adjust:exact;print-color-adjust:exact}\n' +
       '.line-item{display:flex;justify-content:space-between;gap:16px;font-size:13px;color:#374151;padding:4px 0}\n' +
       '.line-item span:last-child{font-variant-numeric:tabular-nums;white-space:nowrap}\n' +
       '.line-item small{display:block;font-size:11px;color:#6b7280}\n' +
@@ -164,24 +164,23 @@
       '.rpm{font-size:13px;color:#4b5563;text-align:right}\n' +
       '.rpm strong{display:block;font-size:16px;color:#111827}\n' +
       '.rpm em{display:block;font-style:normal;font-size:11px;color:#6b7280;margin-top:4px}\n' +
-      '.section{margin-bottom:26px}\n' +
-      '.stops{position:relative;margin-left:6px}\n' +
-      '.s-item{position:relative;padding:0 0 4px 26px}\n' +
-      '.s-item:before{content:"";position:absolute;left:0;top:4px;width:12px;height:12px;border-radius:50%;border:2px solid ' + s.accent + ';background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}\n' +
-      '.s-item.delivery:before{background:' + s.accent + '}\n' +
-      '.s-item:not(:last-child):after{content:"";position:absolute;left:6px;top:20px;bottom:-2px;width:2px;background:#e5e7eb}\n' +
-      '.s-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}\n' +
-      '.s-kind{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#6b7280}\n' +
-      '.s-chip{font-size:10px;font-weight:600;color:' + s.ink + ';border:1px solid ' + s.accent + ';border-radius:10px;padding:1px 8px}\n' +
-      '.s-place{font-size:15px;font-weight:700;color:#111827;margin-top:1px;overflow-wrap:anywhere}\n' +
-      '.s-meta{font-size:12px;color:#4b5563;margin-top:1px}\n' +
-      '.s-leg{font-size:11px;color:#6b7280;margin:6px 0 10px}\n' +
+      '.section{margin-bottom:22px}\n' +
+      '.stops{border-top:1px solid #e5e7eb}\n' +
+      '.s-row{display:grid;grid-template-columns:14px 104px minmax(0,1fr) auto;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #eef0f3}\n' +
+      '.s-dot{width:12px;height:12px;border-radius:50%;border:2px solid ' + s.accent + ';background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}\n' +
+      '.s-row.delivery .s-dot{background:' + s.accent + '}\n' +
+      '.s-kind{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#6b7280;line-height:1.3}\n' +
+      '.s-place{font-size:14px;font-weight:700;color:#111827;overflow-wrap:anywhere}\n' +
+      '.s-chip{display:inline-block;font-size:9.5px;font-weight:600;color:' + s.ink + ';border:1px solid ' + s.accent + ';border-radius:10px;padding:0 7px;margin-left:8px;vertical-align:2px}\n' +
+      '.s-meta{font-size:11.5px;color:#4b5563;margin-top:1px}\n' +
+      '.s-leg{font-size:11.5px;color:#4b5563;text-align:right;white-space:nowrap}\n' +
+      '.s-leg small{display:block;font-size:10px;color:#9ca3af}\n' +
       '.status{border-radius:8px;padding:12px 16px;font-size:12.5px;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact}\n' +
       '.status strong{display:block;font-size:14px;margin-bottom:2px}\n' +
       '.status.good{background:#ecfdf3;color:#14532d;border:1px solid #a7e3bd}\n' +
       '.status.short{background:#fff8eb;color:#7a4b00;border:1px solid #f3d38a}\n' +
       '.notes-text{font-size:13px;line-height:1.6;color:#374151;background:#f9fafb;border-radius:8px;padding:12px 16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}\n' +
-      '.terms{font-size:11.5px;color:#6b7280;line-height:1.6;margin-bottom:30px}\n' +
+      '.terms{font-size:11.5px;color:#6b7280;line-height:1.6;margin-bottom:26px}\n' +
       '.sign{display:flex;gap:36px;margin-top:auto;margin-bottom:28px}\n' +
       '.sig{flex:1}\n' +
       '.sig .line{border-bottom:1px solid #111827;height:34px}\n' +
@@ -194,7 +193,7 @@
       '  body{background:#fff;padding:0}\n' +
       '  .controls{display:none!important}\n' +
       '  .doc{box-shadow:none;border-radius:0;max-width:none;min-height:100vh;padding:0.55in 0.6in 0.45in}\n' +
-      '  .lane,.facts,.rate,.section,.sign,.s-item{break-inside:avoid;page-break-inside:avoid}\n' +
+      '  .lane,.facts,.rate,.sign,.s-row{break-inside:avoid;page-break-inside:avoid}\n' +
       '}\n';
   }
 
@@ -331,35 +330,38 @@
     var s = colorsFor(profile);
     var total = Math.round(d.total);
     var stops = d.stops || [];
-    var first = stops.filter(function (x) { return x.type === 'pickup'; })[0] || stops[0] || {};
-    var last = stops.filter(function (x) { return x.type === 'delivery'; }).slice(-1)[0] || stops[stops.length - 1] || {};
     var pickups = stops.filter(function (x) { return x.type === 'pickup'; }).length;
     var c = d.charges || {};
     var lines = rateLines(total, [['Fuel surcharge', c.fuel], ['Stop charges', c.stops], ['Extra transit days', c.extra]], profile);
     var miles = d.totalMiles ? Number(d.totalMiles).toLocaleString('en-US') + ' mi' : '';
 
+    // One row per stop: marker, stop number and type, place (with date and
+    // weight), and the miles on to the next stop.
     var stopItems = stops.map(function (x, i) {
       var kind = x.type === 'pickup' ? 'Pickup' : 'Delivery';
       var meta2 = [x.date, x.type === 'pickup' && x.weight ? Number(x.weight).toLocaleString('en-US') + ' lbs' : ''].filter(Boolean).join(' · ');
-      return '<div class="s-item ' + (x.type === 'pickup' ? 'pickup' : 'delivery') + '">' +
-        '<div class="s-head"><span class="s-kind">Stop ' + (i + 1) + ' · ' + kind + '</span>' +
-        (x.extra ? '<span class="s-chip">Extra stop</span>' : '') + '</div>' +
-        '<div class="s-place">' + esc(x.location || '—') + '</div>' +
-        (meta2 ? '<div class="s-meta">' + esc(meta2) + '</div>' : '') +
-        (i < stops.length - 1 ? '<div class="s-leg">↓ ' + (x.legMiles ? Number(x.legMiles).toLocaleString('en-US') + ' mi' : '— mi') + '</div>' : '') +
+      var next = i < stops.length - 1
+        ? (x.legMiles ? Number(x.legMiles).toLocaleString('en-US') + ' mi' : '— mi') + '<small>to next stop</small>'
+        : '';
+      return '<div class="s-row ' + (x.type === 'pickup' ? 'pickup' : 'delivery') + '">' +
+        '<span class="s-dot"></span>' +
+        '<span class="s-kind">Stop ' + (i + 1) + '<br>' + kind + '</span>' +
+        '<div><div class="s-place">' + esc(x.location || '—') + (x.extra ? '<span class="s-chip">Extra stop</span>' : '') + '</div>' +
+        (meta2 ? '<div class="s-meta">' + esc(meta2) + '</div>' : '') + '</div>' +
+        '<span class="s-leg">' + next + '</span>' +
         '</div>';
     }).join('');
 
+    var drops = stops.length - pickups;
+    var counts = pickups + ' pickup' + (pickups === 1 ? '' : 's') + ' · ' + drops + ' deliver' + (drops === 1 ? 'y' : 'ies');
     var body = letterhead(profile, s, 'Multi-Stop Freight Quote', meta) +
-      laneBlock('First pickup', first.location || '—', first.date, 'Last delivery', last.location || '—', last.date, miles,
-        stops.length + ' stops') +
       factsBlock([
         ['Equipment', d.trailer],
         ['Total weight', d.totalWeight ? Number(d.totalWeight).toLocaleString('en-US') + ' lbs' : ''],
         ['Commodity', d.commodity],
-        ['Stops', stops.length ? pickups + ' pickup' + (pickups === 1 ? '' : 's') + ', ' + (stops.length - pickups) + ' deliver' + (stops.length - pickups === 1 ? 'y' : 'ies') : ''],
+        ['Total miles', miles],
       ]) +
-      '<section class="section"><div class="k">Stops</div><div class="stops">' + stopItems + '</div></section>\n' +
+      '<section class="section"><div class="k">' + stops.length + ' stops · ' + counts + '</div><div class="stops">' + stopItems + '</div></section>\n' +
       rateBlock('All-in rate', dollars(total), lines,
         d.totalMiles ? ['Rate per mile', cents(total / d.totalMiles), miles + ' total'] : null) +
       notesBlock(d.notes) +
