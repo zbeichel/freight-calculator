@@ -630,7 +630,7 @@ footer a:hover{color:var(--accent)}
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
           <div>
             <div id="sub-plan-name" style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">QuickFreightCalc Pro</div>
-            <div id="sub-plan-detail" style="font-size:12px;color:var(--text3)">$4.99/month · Unlimited quotes* · Cancel anytime</div>
+            <div id="sub-plan-detail" style="font-size:12px;color:var(--text3)">$4.99/month · Automatic miles on 100 quotes per day · Cancel anytime</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button id="sub-plan-switch" onclick="handleSwitchPlan()" style="
@@ -654,7 +654,7 @@ footer a:hover{color:var(--accent)}
         </div>
         <div id="sub-plan-status" role="status" style="display:none;font-size:12px;margin-top:10px;line-height:1.5"></div>
         <div id="sub-plan-footnote" style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
-          * Fair use: automatic distance lookups cover up to 100 lanes a day, and you can always type the miles in yourself. Pro Unlimited ($49.99/month) has no daily limit.
+          Need more than 100 quotes a day? Pro Unlimited ($49.99/month) gives you automatic miles on every quote with no daily limit.
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
           Clicking "Manage / Cancel" opens the Stripe billing portal where you can update your payment method or cancel your subscription. Cancellation takes effect at the end of your current billing period.
@@ -1377,7 +1377,7 @@ function applySubscriptionCardState(stripeCustomerId, plan, isActive){
   applyPlanState(plan === 'unlimited' ? 'unlimited' : 'pro', isActive === true);
 }
 
-// Which Pro plan the account is on: 'pro' ($4.99, fair-use daily lane limit)
+// Which Pro plan the account is on: 'pro' ($4.99, automatic miles on 100 quotes/day)
 // or 'unlimited' ($49.99, no daily limit). The switch button only shows for an
 // active subscription.
 let currentPlan = 'pro';
@@ -1387,8 +1387,8 @@ function applyPlanState(plan, isActive){
   const setText = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
   setText('sub-plan-name', unlimited ? 'QuickFreightCalc Pro Unlimited' : 'QuickFreightCalc Pro');
   setText('sub-plan-detail', unlimited
-    ? '$49.99/month · No daily limit on automatic miles · Cancel anytime'
-    : '$4.99/month · Unlimited quotes* · Cancel anytime');
+    ? '$49.99/month · Automatic miles on every quote — no daily limit · Cancel anytime'
+    : '$4.99/month · Automatic miles on 100 quotes per day · Cancel anytime');
   setText('comp-plan-name', unlimited ? 'QuickFreightCalc Pro Unlimited · Active' : 'QuickFreightCalc Pro · Active');
   const footnote = document.getElementById('sub-plan-footnote');
   if(footnote) footnote.style.display = unlimited ? 'none' : '';
@@ -1410,8 +1410,8 @@ function setPlanStatus(text, isError){
 async function handleSwitchPlan(){
   const target = currentPlan === 'unlimited' ? 'pro' : 'unlimited';
   const question = target === 'unlimited'
-    ? 'Switch to Pro Unlimited for $49.99/month?\n\nYou\'ll be charged the prorated difference today, and automatic miles will have no daily limit.'
-    : 'Switch back to Pro for $4.99/month?\n\nAutomatic miles go back to 100 lanes a day, and the unused part of Unlimited is credited on your next invoice.';
+    ? 'Switch to Pro Unlimited for $49.99/month?\n\nYou\'ll be charged the prorated difference today, and you\'ll get automatic miles on every quote with no daily limit.'
+    : 'Switch back to Pro for $4.99/month?\n\nAutomatic miles go back to 100 quotes per day, and the unused part of Unlimited is credited on your next invoice.';
   if(!confirm(question)) return;
 
   const session = await getSessionRefreshed();

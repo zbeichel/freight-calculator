@@ -144,8 +144,8 @@ function buildWelcomeEmail(siteUrl, plan){
     ? "Welcome to QuickFreightCalc Pro Unlimited — you're all set"
     : "Welcome to QuickFreightCalc Pro — you're all set";
   const lookupsText = unlimited
-    ? 'Automatic miles with no daily limit (Pro Unlimited)'
-    : 'Unlimited quotes, with automatic miles on up to 100 lanes a day';
+    ? 'Automatic miles on every quote, with no daily limit (Pro Unlimited)'
+    : 'Automatic miles on 100 quotes per day';
 
   // Plain-text version (fallback for clients that don't render HTML)
   const text = `Thanks for signing up — your Pro${unlimited ? ' Unlimited' : ''} account is active.

@@ -1,6 +1,6 @@
 // netlify/functions/change-plan.js
 // Switches an existing Stripe subscription between the two Pro plans:
-//   'pro'       → STRIPE_PRICE_ID           ($4.99/mo, fair-use daily lane limit)
+//   'pro'       → STRIPE_PRICE_ID           ($4.99/mo, automatic miles on 100 quotes/day)
 //   'unlimited' → STRIPE_PRICE_ID_UNLIMITED ($49.99/mo, no daily limit)
 //
 // POST { userId, accessToken, plan: 'unlimited' | 'pro' }

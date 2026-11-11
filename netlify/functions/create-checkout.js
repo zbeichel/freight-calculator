@@ -1,6 +1,6 @@
 // netlify/functions/create-checkout.js
 // Creates a Stripe checkout session for a new subscription:
-//   plan 'pro'       → STRIPE_PRICE_ID           ($4.99/mo, fair-use daily lane limit)
+//   plan 'pro'       → STRIPE_PRICE_ID           ($4.99/mo, automatic miles on 100 quotes/day)
 //   plan 'unlimited' → STRIPE_PRICE_ID_UNLIMITED ($49.99/mo, no daily limit)
 // Someone who already has an active subscription is sent to change-plan
 // instead, so nobody ends up paying for two subscriptions.

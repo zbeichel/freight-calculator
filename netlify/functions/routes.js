@@ -4,8 +4,8 @@
 // - The API key never leaves the server.
 // - Routes are not cached: Google's Routes API terms only allow temporary
 //   caching of lat/lng, not distances or durations, so every lookup goes to
-//   Google. The daily lane limits below (free 5, Pro fair use 100, Pro
-//   Unlimited none) cap how many lanes each caller can look up.
+//   Google. The daily lane limits below (free 5, Pro 100, Pro Unlimited
+//   none) cap how many lanes each caller can look up.
 // - Each end is routed on the verified coordinates the page sends
 //   (originLatLng / destinationLatLng) when it has them, else on the text.
 // - Google's raw error bodies are NEVER forwarded to the client. Failures come
@@ -27,20 +27,21 @@ const MAX_ADDR_LEN = 120;
 const MSG_BUSY = 'Distance lookup is busy right now — please enter the miles manually.';
 const MSG_UNAVAILABLE = 'Distance lookup is temporarily unavailable — please enter the miles manually.';
 
-// Daily limits on automatic distance lookups, counted in distinct lanes
-// (origin→destination pairs) per UTC day. Re-pricing a lane you already ran
-// today is free, and miles can always be entered by hand.
+// Daily limits on automatic miles ("quotes per day" on the site), counted in
+// distinct lanes (origin→destination pairs) per UTC day: each new pair priced
+// is one quote. Re-pricing a lane you already ran today is free, and miles can
+// always be entered by hand.
 //   - Free (not signed in, or signed in without Pro): FREE_DAILY_LIMIT
-//   - Pro: PRO_DAILY_LIMIT — the "fair use" behind "Unlimited quotes*"
+//   - Pro: PRO_DAILY_LIMIT ("Automatic miles on 100 quotes per day")
 //   - Pro Unlimited (pro_users.plan = 'unlimited'): no limit
 const FREE_DAILY_LIMIT = 5;
 const PRO_DAILY_LIMIT = 100;
 const MSG_LIMIT =
-  "You've hit today's free limit of 5 auto-distance lookups. Upgrade to Pro for up to 100 lanes a day — or enter the miles manually.";
+  "You've used today's 5 free quotes with automatic miles. Upgrade to Pro for 100 a day — or enter the miles manually.";
 const MSG_PRO_LIMIT =
-  "You've reached today's fair-use limit of 100 lanes with automatic miles. Pro Unlimited ($49.99/mo) has no daily limit — or enter the miles manually.";
+  "You've used today's 100 quotes with automatic miles. Pro Unlimited ($49.99/mo) has no daily limit — or enter the miles manually.";
 
-// Pro accounts that existed before the fair-use limit was added keep the old
+// Pro accounts that existed before the daily Pro limit was added keep the old
 // no-limit behavior until EXISTING_PRO_LIMIT_FROM: the Terms promise
 // subscribers 14 days' email notice of material changes. Accounts created on
 // or after FAIR_USE_ADDED are limited straight away.
