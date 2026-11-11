@@ -38,18 +38,30 @@ function supabaseRequest(path, method, data, serviceKey, preferExtra){
   });
 }
 
-// Verify Stripe webhook signature
-function verifySignature(payload, signature, secret){
-  const parts = signature.split(',').reduce((acc, part) => {
-    const [key, val] = part.split('=');
-    acc[key] = val;
-    return acc;
-  }, {});
-  const timestamp = parts.t;
-  const sig = parts.v1;
-  const signed = `${timestamp}.${payload}`;
-  const expected = crypto.createHmac('sha256', secret).update(signed).digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'));
+// Verify Stripe webhook signature. Events signed more than five minutes ago
+// are rejected (Stripe's recommended tolerance), so a captured event can't be
+// replayed later; Stripe signs every retry afresh. Accepts any of the v1
+// signatures Stripe sends while a signing secret is being rolled.
+const SIGNATURE_TOLERANCE_SECONDS = 300;
+function verifySignature(payload, signature, secret, now = Date.now()){
+  let timestamp = null;
+  const sigs = [];
+  for(const part of String(signature).split(',')){
+    const i = part.indexOf('=');
+    if(i < 0) continue;
+    const key = part.slice(0, i).trim();
+    const val = part.slice(i + 1).trim();
+    if(key === 't') timestamp = val;
+    else if(key === 'v1') sigs.push(val);
+  }
+  const t = Number(timestamp);
+  if(!timestamp || !Number.isFinite(t) || !sigs.length) return false;
+  if(Math.abs(now / 1000 - t) > SIGNATURE_TOLERANCE_SECONDS) return false;
+  const expected = Buffer.from(crypto.createHmac('sha256', secret).update(`${timestamp}.${payload}`).digest('hex'), 'hex');
+  return sigs.some(s => {
+    const got = Buffer.from(s, 'hex');
+    return got.length === expected.length && crypto.timingSafeEqual(got, expected);
+  });
 }
 
 const { PLANS, PLAN_NAME, normalizePlan, planForPriceIds, subscriptionPeriod } = require('../lib/plans.js');
