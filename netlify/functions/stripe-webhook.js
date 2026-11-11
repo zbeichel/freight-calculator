@@ -52,10 +52,10 @@ function verifySignature(payload, signature, secret){
   return crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'));
 }
 
-const { PLANS, normalizePlan, planForPriceIds, subscriptionPeriod } = require('../lib/plans.js');
+const { PLANS, PLAN_NAME, normalizePlan, planForPriceIds, subscriptionPeriod } = require('../lib/plans.js');
 
-// Which plan a subscription is on, from its price (Pro, Pro Plus or Pro
-// Unlimited — see netlify/lib/plans.js). Falls back to the metadata checkout
+// Which plan a subscription is on, from its price (Pro, Pro Plus, Pro Max or
+// API — see netlify/lib/plans.js). Falls back to the metadata checkout
 // set when the items aren't in the event.
 function planFromSubscription(subscription){
   const priceIds = (subscription.items?.data || []).map(i => i.price?.id).filter(Boolean);
@@ -145,12 +145,13 @@ function sendResendEmail({ apiKey, from, to, subject, html, text }){
 }
 
 function buildWelcomeEmail(siteUrl, plan){
-  const planName = { pro: 'Pro', plus: 'Pro Plus', unlimited: 'Pro Unlimited' }[normalizePlan(plan)];
+  const planName = PLAN_NAME[normalizePlan(plan)];
   const subject = `Welcome to QuickFreightCalc ${planName} — you're all set`;
   const lookupsText = {
     pro: 'Automatic miles on 100 quotes per day',
     plus: 'Automatic miles on 250 quotes per day (Pro Plus)',
-    unlimited: 'Automatic miles on every quote, with no daily limit (Pro Unlimited)',
+    max: 'Automatic miles on 1,000 quotes per day (Pro Max)',
+    api: 'API access with 5,000 quotes a month, plus automatic miles on 1,000 quotes per day on the site — create your API key on your Profile page',
   }[normalizePlan(plan)];
 
   // Plain-text version (fallback for clients that don't render HTML)

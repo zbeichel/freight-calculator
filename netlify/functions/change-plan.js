@@ -1,10 +1,11 @@
 // netlify/functions/change-plan.js
 // Switches an existing Stripe subscription between the paid plans:
-//   'pro'       → STRIPE_PRICE_ID           ($9.99/mo, automatic miles on 100 quotes/day)
-//   'plus'      → STRIPE_PRICE_ID_PLUS      ($19.99/mo, 250 quotes/day)
-//   'unlimited' → STRIPE_PRICE_ID_UNLIMITED ($49.99/mo, no daily limit)
+//   'pro'  → STRIPE_PRICE_ID      ($9.99/mo, automatic miles on 100 quotes/day)
+//   'plus' → STRIPE_PRICE_ID_PLUS ($19.99/mo, 250 quotes/day)
+//   'max'  → STRIPE_PRICE_ID_MAX  ($49.99/mo, 1,000 quotes/day)
+//   'api'  → STRIPE_PRICE_ID_API  ($199/mo, Pro Max + API access)
 //
-// POST { userId, accessToken, plan: 'pro' | 'plus' | 'unlimited' }
+// POST { userId, accessToken, plan: 'pro' | 'plus' | 'max' | 'api' }
 //  - Subscribers from before the plan changes (still on unlimited until they
 //    renew): the new price starts at their next renewal, nothing is charged
 //    now (proration_behavior=none). Response has atRenewal: true.
@@ -22,9 +23,7 @@
 // Errors: { error: '<code>', message: '<user-safe text>' } with a 4xx/5xx status.
 
 const https = require('https');
-const { PLANS, PLAN_RANK, priceIdFor, planForPriceIds, legacyUnlimited, subscriptionPeriod } = require('../lib/plans.js');
-
-const PLAN_NAME = { pro: 'Pro', plus: 'Pro Plus', unlimited: 'Pro Unlimited' };
+const { PLANS, PLAN_NAME, PLAN_RANK, priceIdFor, planForPriceIds, legacyUnlimited, subscriptionPeriod } = require('../lib/plans.js');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const CONTACT = 'email info@quickfreightcalc.com and we\'ll switch it for you';

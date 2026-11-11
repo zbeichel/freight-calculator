@@ -1,15 +1,14 @@
 // netlify/functions/create-checkout.js
 // Creates a Stripe checkout session for a new subscription:
-//   plan 'pro'       → STRIPE_PRICE_ID           ($9.99/mo, automatic miles on 100 quotes/day)
-//   plan 'plus'      → STRIPE_PRICE_ID_PLUS      ($19.99/mo, 250 quotes/day)
-//   plan 'unlimited' → STRIPE_PRICE_ID_UNLIMITED ($49.99/mo, no daily limit)
+//   plan 'pro'  → STRIPE_PRICE_ID      ($9.99/mo, automatic miles on 100 quotes/day)
+//   plan 'plus' → STRIPE_PRICE_ID_PLUS ($19.99/mo, 250 quotes/day)
+//   plan 'max'  → STRIPE_PRICE_ID_MAX  ($49.99/mo, 1,000 quotes/day)
+//   plan 'api'  → STRIPE_PRICE_ID_API  ($199/mo, Pro Max + API access)
 // Someone who already has an active subscription is sent to change-plan
 // instead, so nobody ends up paying for two subscriptions.
 
 const https = require('https');
-const { PLANS, normalizePlan, priceIdFor } = require('../lib/plans.js');
-
-const PLAN_NAME = { pro: 'Pro', plus: 'Pro Plus', unlimited: 'Pro Unlimited' };
+const { PLANS, PLAN_NAME, normalizePlan, priceIdFor } = require('../lib/plans.js');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 

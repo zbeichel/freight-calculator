@@ -241,10 +241,16 @@ a.brand-name:hover span{opacity:.8}
             <span class="plan-detail">Automatic miles on 250 quotes per day</span>
           </label>
           <label class="plan-option">
-            <input type="radio" name="su-plan" value="unlimited" />
-            <span class="plan-name">Pro Unlimited</span>
+            <input type="radio" name="su-plan" value="max" />
+            <span class="plan-name">Pro Max</span>
             <span class="plan-price"><strong>$49.99</strong>/month</span>
-            <span class="plan-detail">Everything in Pro, with automatic miles on every quote — no daily limit</span>
+            <span class="plan-detail">Automatic miles on 1,000 quotes per day</span>
+          </label>
+          <label class="plan-option">
+            <input type="radio" name="su-plan" value="api" />
+            <span class="plan-name">API</span>
+            <span class="plan-price"><strong>$199</strong>/month</span>
+            <span class="plan-detail">Everything in Pro Max, plus API access to quote from your own site — 5,000 quotes per month · <a href="/api.html" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">API docs</a></span>
           </label>
         </div>
         <div class="plan-footnote">
@@ -551,9 +557,9 @@ async function handleRecoverySubmit(){
 }
 
 // ── Plan choice ────────────────────────────────────────────────────────────
-// 'pro', 'plus' or 'unlimited'. /signup.html?plan=plus (or =unlimited)
-// preselects that plan (the calculator's upgrade buttons link here).
-const SIGNUP_PLANS = ['pro', 'plus', 'unlimited'];
+// 'pro', 'plus', 'max' or 'api'. /signup.html?plan=plus (or =max, =api)
+// preselects that plan (the calculator's upgrade buttons and the API docs link here).
+const SIGNUP_PLANS = ['pro', 'plus', 'max', 'api'];
 function getSelectedPlan(){
   const el = document.querySelector('input[name="su-plan"]:checked');
   return el && SIGNUP_PLANS.includes(el.value) ? el.value : 'pro';

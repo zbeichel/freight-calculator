@@ -5,7 +5,7 @@
 // - Routes are not cached: Google's Routes API terms only allow temporary
 //   caching of lat/lng, not distances or durations, so every lookup goes to
 //   Google. The daily lane limits below (free 5, Pro 100, Pro Plus 250,
-//   Pro Unlimited none) cap how many lanes each caller can look up.
+//   Pro Max / API 1,000) cap how many lanes each caller can look up.
 // - Each end is routed on the verified coordinates the page sends
 //   (originLatLng / destinationLatLng) when it has them, else on the text.
 // - Google's raw error bodies are NEVER forwarded to the client. Failures come
@@ -33,16 +33,20 @@ const MSG_UNAVAILABLE = 'Distance lookup is temporarily unavailable — please e
 // always be entered by hand.
 //   - Free (not signed in, or signed in without Pro): FREE_DAILY_LIMIT
 //   - Paid plans: PLAN_DAILY_LIMIT in netlify/lib/plans.js (Pro 100, Pro Plus
-//     250, Pro Unlimited none). Subscribers from before the plan changes keep
-//     unlimited quotes until they renew (legacyUnlimited).
+//     250, Pro Max and API 1,000). Subscribers from before the plan changes
+//     keep unlimited quotes until they renew (legacyUnlimited).
 const { PLAN_DAILY_LIMIT, normalizePlan, legacyUnlimited } = require('../lib/plans.js');
 
 const FREE_DAILY_LIMIT = 5;
 const MSG_LIMIT =
   "You've used today's 5 free quotes with automatic miles. Upgrade to Pro for 100 a day — or enter the miles manually.";
+const MSG_TOP_LIMIT =
+  "You've used today's 1,000 quotes with automatic miles — enter the miles manually for the rest of today.";
 const MSG_PLAN_LIMIT = {
-  pro: "You've used today's 100 quotes with automatic miles. Pro Plus ($19.99/mo) gives you 250 a day and Pro Unlimited ($49.99/mo) has no limit — or enter the miles manually.",
-  plus: "You've used today's 250 quotes with automatic miles. Pro Unlimited ($49.99/mo) has no daily limit — or enter the miles manually.",
+  pro: "You've used today's 100 quotes with automatic miles. Pro Plus ($19.99/mo) gives you 250 a day and Pro Max ($49.99/mo) 1,000 — or enter the miles manually.",
+  plus: "You've used today's 250 quotes with automatic miles. Pro Max ($49.99/mo) gives you 1,000 a day — or enter the miles manually.",
+  max: MSG_TOP_LIMIT,
+  api: MSG_TOP_LIMIT,
 };
 
 function isAllowedOrigin(origin) {
@@ -221,8 +225,8 @@ exports.handler = async (event) => {
   const originLatLng = toLatLng(body.originLatLng);
   const destLatLng = toLatLng(body.destinationLatLng);
 
-  // Daily lane limit: FREE_DAILY_LIMIT without Pro, PRO_DAILY_LIMIT on Pro,
-  // none on Pro Unlimited. The lane key is legs-agnostic so the same lane counts
+  // Daily lane limit: FREE_DAILY_LIMIT without Pro, PLAN_DAILY_LIMIT by plan (100, 250,
+  // 1,000 on Pro Max / API). The lane key is legs-agnostic so the same lane counts
   // once no matter which page (calculator, profitability, etc.) requested it.
   // `plan` in the limit response tells the page which upgrade to offer.
   const caller = await resolveIdentity(event, serviceKey);

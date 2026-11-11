@@ -642,7 +642,8 @@ footer a:hover{color:var(--accent)}
           ">
             <option value="pro">Pro — $9.99/mo · 100 quotes/day</option>
             <option value="plus">Pro Plus — $19.99/mo · 250 quotes/day</option>
-            <option value="unlimited">Pro Unlimited — $49.99/mo · no limit</option>
+            <option value="max">Pro Max — $49.99/mo · 1,000 quotes/day</option>
+            <option value="api">API — $199/mo · Pro Max + 5,000 API quotes/mo</option>
           </select>
           <button id="sub-plan-switch" onclick="handleSwitchPlan()" style="
             display:none;
@@ -665,7 +666,7 @@ footer a:hover{color:var(--accent)}
         </div>
         <div id="sub-plan-status" role="status" style="display:none;font-size:12px;margin-top:10px;line-height:1.5"></div>
         <div id="sub-plan-footnote" style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
-          Pro $9.99/month: automatic miles on 100 quotes per day · Pro Plus $19.99/month: 250 per day · Pro Unlimited $49.99/month: no daily limit.
+          Pro $9.99/month: automatic miles on 100 quotes per day · Pro Plus $19.99/month: 250 per day · Pro Max $49.99/month: 1,000 per day · API $199/month: Pro Max plus 5,000 API quotes per month.
           <a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">What counts as a quote?</a>
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
@@ -1393,13 +1394,15 @@ function applySubscriptionCardState(stripeCustomerId, plan, isActive){
 }
 
 // Paid plans: Pro ($9.99, automatic miles on 100 quotes/day), Pro Plus
-// ($19.99, 250/day) and Pro Unlimited ($49.99, no daily limit).
+// ($19.99, 250/day), Pro Max ($49.99, 1,000/day) and API ($199, Pro Max plus
+// 5,000 API quotes per month). Same names and limits as netlify/lib/plans.js.
 const PROFILE_PLANS = {
-  pro:       { name: 'Pro',           price: '$9.99',  detail: 'Automatic miles on 100 quotes per day' },
-  plus:      { name: 'Pro Plus',      price: '$19.99', detail: 'Automatic miles on 250 quotes per day' },
-  unlimited: { name: 'Pro Unlimited', price: '$49.99', detail: 'Automatic miles on every quote — no daily limit' },
+  pro:  { name: 'Pro',      price: '$9.99',  detail: 'Automatic miles on 100 quotes per day' },
+  plus: { name: 'Pro Plus', price: '$19.99', detail: 'Automatic miles on 250 quotes per day' },
+  max:  { name: 'Pro Max',  price: '$49.99', detail: 'Automatic miles on 1,000 quotes per day' },
+  api:  { name: 'API',      price: '$199',   detail: 'Pro Max plus 5,000 API quotes per month' },
 };
-const PROFILE_PLAN_RANK = { pro: 1, plus: 2, unlimited: 3 };
+const PROFILE_PLAN_RANK = { pro: 1, plus: 2, max: 3, api: 4 };
 function normalizeProfilePlan(plan){ return PROFILE_PLANS[plan] ? plan : 'pro'; }
 
 function formatRenewal(iso){

@@ -4,16 +4,24 @@
 // netlify/functions so Netlify doesn't publish it as an endpoint; the
 // functions bundle it through require().
 //
-//   pro       Pro            $9.99/mo   automatic miles on 100 quotes per day
-//   plus      Pro Plus       $19.99/mo  automatic miles on 250 quotes per day
-//   unlimited Pro Unlimited  $49.99/mo  automatic miles on every quote
+//   pro   Pro       $9.99/mo   automatic miles on 100 quotes per day
+//   plus  Pro Plus  $19.99/mo  automatic miles on 250 quotes per day
+//   max   Pro Max   $49.99/mo  automatic miles on 1,000 quotes per day
+//   api   API       $199/mo    Pro Max on the site + API access with
+//                              API_MONTHLY_QUOTES automatic-miles quotes per
+//                              billing month (see api-quote.js)
 //
 // A "quote" is a distinct origin→destination pair priced with automatic miles
 // in a UTC day; re-pricing the same pair that day or typing miles is free.
 
-const PLANS = ['pro', 'plus', 'unlimited'];
-const PLAN_DAILY_LIMIT = { pro: 100, plus: 250, unlimited: null };
-const PLAN_RANK = { pro: 1, plus: 2, unlimited: 3 };
+const PLANS = ['pro', 'plus', 'max', 'api'];
+const PLAN_NAME = { pro: 'Pro', plus: 'Pro Plus', max: 'Pro Max', api: 'API' };
+const PLAN_DAILY_LIMIT = { pro: 100, plus: 250, max: 1000, api: 1000 };
+const PLAN_RANK = { pro: 1, plus: 2, max: 3, api: 4 };
+
+// API plan: automatic-miles quotes per billing month, and requests per minute per key.
+const API_MONTHLY_QUOTES = 5000;
+const API_PER_MINUTE = 60;
 
 function normalizePlan(plan) {
   return PLANS.includes(plan) ? plan : 'pro';
@@ -24,16 +32,19 @@ function priceIdFor(plan) {
   return {
     pro: process.env.STRIPE_PRICE_ID,
     plus: process.env.STRIPE_PRICE_ID_PLUS,
-    unlimited: process.env.STRIPE_PRICE_ID_UNLIMITED,
+    max: process.env.STRIPE_PRICE_ID_MAX,
+    api: process.env.STRIPE_PRICE_ID_API,
   }[plan];
 }
 
-// Plan for a subscription's price ids. Anything that isn't the Plus or
-// Unlimited price (including the old $4.99 price) is Pro.
+// Plan for a subscription's price ids. Anything that isn't the Plus, Max or
+// API price (including the old $4.99 price) is Pro.
 function planForPriceIds(priceIds) {
   const ids = (priceIds || []).filter(Boolean);
-  if (process.env.STRIPE_PRICE_ID_UNLIMITED && ids.includes(process.env.STRIPE_PRICE_ID_UNLIMITED)) return 'unlimited';
-  if (process.env.STRIPE_PRICE_ID_PLUS && ids.includes(process.env.STRIPE_PRICE_ID_PLUS)) return 'plus';
+  for (const plan of ['api', 'max', 'plus']) {
+    const price = priceIdFor(plan);
+    if (price && ids.includes(price)) return plan;
+  }
   return 'pro';
 }
 
@@ -71,8 +82,11 @@ function subscriptionPeriod(subscription) {
 
 module.exports = {
   PLANS,
+  PLAN_NAME,
   PLAN_DAILY_LIMIT,
   PLAN_RANK,
+  API_MONTHLY_QUOTES,
+  API_PER_MINUTE,
   normalizePlan,
   priceIdFor,
   planForPriceIds,

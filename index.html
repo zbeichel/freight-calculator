@@ -430,7 +430,7 @@ header .header-auth{ justify-self:end; }
 /* Which place a location box was matched to (e.g. "📍 Vernon County, WI") */
 .field-note{font-size:11px;color:var(--text3);line-height:1.4}
 .field-note:empty,.field.invalid .field-note{display:none}
-/* Plan options in the upgrade modal (Pro Plus / Pro Unlimited) */
+/* Plan options in the upgrade modal (Pro Plus / Pro Max) */
 .upg-option{
   display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;row-gap:2px;align-items:center;
   border:1px solid var(--border2);border-radius:10px;padding:10px 12px;cursor:pointer;background:var(--card2);
@@ -7909,7 +7909,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
           font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
           background:none;border:none;cursor:pointer;color:#f0a500;
         ">
-          Need more quotes? Pro Plus $19.99 · Unlimited $49.99
+          Need more quotes? Pro Plus $19.99 · Pro Max $49.99
         </button>
       </div>
       <div style="text-align:center;margin-top:6px;font-size:12px">
@@ -7929,8 +7929,8 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
   </div>
 </div>
 
-<!-- ── Upgrade Modal ── offers Pro Plus and Pro Unlimited: when a Pro or Pro
-     Plus account uses its quotes for the day, or from the link in the Pro modal ── -->
+<!-- ── Upgrade Modal ── offers Pro Plus and Pro Max: when a Pro or Pro Plus
+     account uses its quotes for the day, or from the link in the Pro modal ── -->
 <div id="upg-modal-overlay" style="
   display:none;position:fixed;inset:0;z-index:10000;
   background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
@@ -7966,11 +7966,11 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
           <span class="upg-price"><strong>$19.99</strong>/month</span>
           <span class="upg-detail">Automatic miles on 250 quotes per day</span>
         </label>
-        <label class="upg-option" id="upg-option-unlimited">
-          <input type="radio" name="upg-plan" value="unlimited" onchange="updateUpgradeButton()" />
-          <span class="upg-name">Pro Unlimited</span>
+        <label class="upg-option" id="upg-option-max">
+          <input type="radio" name="upg-plan" value="max" onchange="updateUpgradeButton()" />
+          <span class="upg-name">Pro Max</span>
           <span class="upg-price"><strong>$49.99</strong>/month</span>
-          <span class="upg-detail">Automatic miles on every quote — no daily limit</span>
+          <span class="upg-detail">Automatic miles on 1,000 quotes per day</span>
         </label>
       </div>
       <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">
@@ -8006,26 +8006,28 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
 </div>
 
 <script>
-const PLAN_LABEL = { pro: 'Pro', plus: 'Pro Plus', unlimited: 'Pro Unlimited' };
+const PLAN_LABEL = { pro: 'Pro', plus: 'Pro Plus', max: 'Pro Max', api: 'API' };
 
 // The routes function reports a daily lane limit with the caller's plan:
-// free accounts are offered Pro; Pro (100/day) is offered Plus or Unlimited;
-// Plus (250/day) is offered Unlimited.
+// free accounts are offered Pro; Pro (100/day) is offered Plus or Max;
+// Plus (250/day) is offered Max; Max and API (1,000/day) are at the top.
 function showLaneLimit(data, setStatus){
-  if(data && (data.plan === 'pro' || data.plan === 'plus')){
+  if(data && (data.plan === 'max' || data.plan === 'api')){
+    setStatus('🔒', data.error || "You've used today's 1,000 quotes with automatic miles — enter the miles manually for the rest of today.");
+  } else if(data && (data.plan === 'pro' || data.plan === 'plus')){
     const used = data.plan === 'plus' ? 250 : 100;
     setStatus('🔒', `You've used today's ${used} quotes with automatic miles — enter miles manually or upgrade.`);
-    showUpgradeModal(data.error, data.plan === 'plus' ? ['unlimited'] : ['plus', 'unlimited']);
+    showUpgradeModal(data.error, data.plan === 'plus' ? ['max'] : ['plus', 'max']);
   } else {
     setStatus('🔒', 'Daily free limit reached — upgrade to Pro or enter miles manually.');
     showProModal("You've used today's 5 free quotes with automatic miles. Upgrade to Pro for 100 a day.");
   }
 }
 
-// `plans`: which upgrades to offer (default Plus and Unlimited); the first is preselected.
+// `plans`: which upgrades to offer (default Plus and Max); the first is preselected.
 function showUpgradeModal(desc, plans){
-  const offer = plans && plans.length ? plans : ['plus', 'unlimited'];
-  ['plus', 'unlimited'].forEach(p => {
+  const offer = plans && plans.length ? plans : ['plus', 'max'];
+  ['plus', 'max'].forEach(p => {
     const option = document.getElementById('upg-option-' + p);
     option.style.display = offer.includes(p) ? '' : 'none';
     option.querySelector('input').checked = p === offer[0];
