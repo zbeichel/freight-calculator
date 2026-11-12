@@ -71,6 +71,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
 <link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/lane.css">
 <script src="/site.js"></script>
 <style>
 /* Colors (dark and light), radius and shadows come from site.css. */
@@ -2435,6 +2436,7 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="result-hero-label">Quote to Customer</div>
         <div class="result-hero-val" id="r-quote">—</div>
         <div class="result-hero-rpm" id="r-rpm">— per mile</div>
+        <a href="#lane-view" class="lane-jump" id="lane-jump" hidden>Lane details: map and rate history ↓</a>
         <div id="rate-disclaimer" style="font-size:10px;color:var(--text3);line-height:1.5;margin-top:8px;padding:0 4px">
           This quote is based on current <strong style="color:var(--text2)">US AVERAGE</strong> market rates and can be inflated. If you know the current rate per mile for your region/lane, please adjust it in the <strong style="color:var(--text2)">Base Rates ($/mi)</strong> box accordingly.
         </div>
@@ -2548,6 +2550,10 @@ html.light .hos-day-header{background:var(--card2)}
       </div>
     </div>
   </div>
+
+  <!-- Lane details (lane.js): market rate now and over time, your quotes on the
+       lane, the route on Google's map, markets at both ends, trip and fuel -->
+  <section class="lane-view" id="lane-view" aria-label="Lane details" hidden></section>
 
   <!-- Quote Log — Pro only -->
   <div class="log-card" style="grid-column:1/-1;margin-top:0" id="quote-log-card">
@@ -3448,6 +3454,7 @@ const ACC = {
 
 function setShipType(t){
   shipType=t;
+  if(window.QFCLane) QFCLane.refresh();
   document.getElementById('btn-ftl').classList.toggle('active',t==='ftl');
   document.getElementById('btn-ltl').classList.toggle('active',t==='ltl');
   // Profitability button — highlights when active, normal border when not
@@ -6703,7 +6710,9 @@ function initMarketPanic(){
 }
 
 
+let lastFtlQuote = { quote: 0, rpm: 0 };   // for the lane view
 function calc(){
+  if(window.QFCLane) QFCLane.refresh();     // redraws shortly after, from laneForView()
   if(shipType==='ltl'){ calcLTL(); return; }
   const miles=parseFloat(document.getElementById('miles').value)||0;
   const weight=parseFloat(document.getElementById('weight').value)||0;
@@ -6741,6 +6750,7 @@ function calc(){
   const transitAdj = transitChargeAdded ? transitChargeAmount : 0;
   const quote=(cost+transitAdj)*(1+marginPct);
   const qRpm=miles>0?quote/miles:0;
+  lastFtlQuote = { quote, rpm: qRpm };
 
   // Hero
   document.getElementById('r-quote').textContent=miles?fmtInt(quote):'—';
@@ -6788,6 +6798,36 @@ function calc(){
 
   // Schedule anonymous lane data capture if quote is complete
   if(miles && orig && dest) scheduleLaneCapture();
+}
+
+// ── Lane details (lane.js) ────────────────────────────────────────────────
+// The lane on the calculator, for the lane view under the quote; null when
+// there's no full-truckload lane with miles to show.
+function laneForView(){
+  if(shipType !== 'ftl') return null;
+  const origEl = document.getElementById('origin'), destEl = document.getElementById('dest');
+  const orig = origEl.value.trim(), dest = destEl.value.trim();
+  const miles = parseFloat(document.getElementById('miles').value) || 0;
+  if(!orig || !dest || !(miles > 0)) return null;
+  const trailer = document.getElementById('trailer').value;
+  const google = /google/i.test(document.getElementById('miles-source')?.textContent || '');
+  return {
+    orig, dest, mapOrig: lanePlaceForMap(origEl), mapDest: lanePlaceForMap(destEl),
+    trailer, miles, milesSource: google ? 'google' : 'manual', driveSecs: google ? lastDriveSecs : 0,
+    distMult: dMult(miles, trailer).m,
+    quoteTotal: lastFtlQuote.quote, quoteRpm: lastFtlQuote.rpm,
+    quotes: isProUser ? quoteLog : [],
+    tier: accountTier(),
+  };
+}
+// Google's map gets the place the miles were routed to: "Franklin, WI" goes as
+// "Franklin, Vernon County, WI" when the checked place names its county.
+function lanePlaceForMap(input){
+  const text = input.value.trim();
+  const place = VERIFIED_PLACE.get(input);
+  const m = place && place.name === text && typeof place.note === 'string' ? place.note.match(/^📍\s*(.+?),\s*([A-Z]{2})$/) : null;
+  const city = text.replace(/\s*\b\d{5}(?:-\d{4})?\b/g, '').split(',')[0].trim();
+  return m && city && !/^\d+$/.test(city) ? `${city}, ${m[1]}, ${m[2]}` : text;
 }
 
 // ── Save/load quote log ───────────────────────────────────────────────────
@@ -7685,6 +7725,7 @@ function exportCSV(){
 }
 
 function renderLog(){
+  if(window.QFCLane) QFCLane.refresh();   // "Your quotes on this lane"
   const tbody = document.getElementById('log-body');
   if(!tbody) return;
   const allowed = winLossAllowed();
@@ -7870,6 +7911,8 @@ function loadRates(){
         buildRegionMap(data.regions);
         applyRegionalRates();
         renderGlance(data);
+        window.QFC_RATES = data;   // history and load-to-truck for the lane view
+        if(window.QFCLane) QFCLane.refresh();
       } else {
         // Legacy flat format fallback
         if(data.van)    document.getElementById('rate-van').value=parseFloat(data.van).toFixed(2);
@@ -8854,5 +8897,6 @@ window.addEventListener('resize', () => {
 <script src="/pro-notice.js" defer></script>
 <script src="/pdf-quote.js" defer></script>
 <script src="/customers.js" defer></script>
+<script src="/lane.js" defer></script>
 </body>
 </html>

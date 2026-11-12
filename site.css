@@ -34,6 +34,13 @@
          radial-gradient(800px 420px at 85% -5%,rgba(96,165,250,.10),transparent 60%);
   --font:'Space Grotesk',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --nav-h:64px;
+  /* Chart colors (validated: pass the colorblind and contrast checks on these
+     surfaces in both modes). A region is always blue, national always amber. */
+  --series-national:#c98500;
+  --series-region:#3987e5;
+  --series-other:rgba(148,163,184,.30);
+  --grid:rgba(148,163,184,.14);
+  --axis:rgba(148,163,184,.30);
 }
 html.light{
   color-scheme:light;
@@ -62,6 +69,11 @@ html.light{
   --shadow-lg:0 20px 60px rgba(15,23,42,.12);
   --glow:radial-gradient(900px 420px at 15% -10%,rgba(245,165,36,.12),transparent 60%),
          radial-gradient(800px 420px at 85% -5%,rgba(59,130,246,.08),transparent 60%);
+  --series-national:#d48200;
+  --series-region:#2a78d6;
+  --series-other:rgba(100,116,139,.28);
+  --grid:#e7ecf2;
+  --axis:#cbd5e1;
 }
 
 /* Links to a section, and scrollIntoView, stop below the sticky navigation. */

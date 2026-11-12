@@ -13,24 +13,14 @@
 <link rel="stylesheet" href="/site.css">
 <script src="/site.js"></script>
 <style>
-/* Chart colors (validated: lines pass the colorblind and contrast checks on
-   these surfaces in both modes; the map ramp is one hue, light to dark,
-   reversed in dark mode so low values recede toward the surface). */
+/* Line colors (national, region, other, grid, axis) come from site.css. The map
+   ramp is one hue, light to dark, reversed in dark mode so low values recede
+   toward the surface. */
 :root{
-  --series-national:#c98500;
-  --series-region:#3987e5;
-  --series-other:rgba(148,163,184,.30);
-  --grid:rgba(148,163,184,.14);
-  --axis:rgba(148,163,184,.30);
   --spark:rgba(148,163,184,.35);
   --map-stroke:#141c28;
 }
 html.light{
-  --series-national:#d48200;
-  --series-region:#2a78d6;
-  --series-other:rgba(100,116,139,.28);
-  --grid:#e7ecf2;
-  --axis:#cbd5e1;
   --spark:#cbd5e1;
   --map-stroke:#ffffff;
 }

@@ -1,0 +1,133 @@
+/* lane.css — "Lane details" under the calculator (lane.js): the lane's market
+   rate now and over time, your quotes on it, the route on Google's map, the
+   markets at both ends, and trip and fuel. Colors come from site.css. */
+
+.lane-view{grid-column:1/-1;margin:2px 0 18px}
+.lane-view[hidden]{display:none}
+.lv-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);overflow:hidden;
+  font-family:var(--font);color:var(--text)}
+
+/* Header: the lane, trailer, miles and the per load / per mile switch */
+.lv-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 24px;padding:20px 22px 18px;
+  border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(245,165,36,.06),transparent 120px)}
+.lv-kicker{font:600 11px/1 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.lv-title{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin-top:8px;font-size:clamp(19px,2.3vw,25px);font-weight:700;
+  letter-spacing:-.02em;line-height:1.2}
+.lv-title .lv-arrow{color:var(--text3);font-weight:500}
+.lv-title .lv-eq{font:600 11px/1 var(--font);letter-spacing:.05em;text-transform:uppercase;padding:5px 9px;border-radius:999px;
+  color:var(--accent);background:var(--accentbg);border:1px solid rgba(245,165,36,.3)}
+.lv-sub{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:8px;font-size:13px;color:var(--text2)}
+.lv-sub b{color:var(--text);font-weight:600}
+.lv-seg{display:inline-flex;background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:3px;flex-shrink:0}
+.lv-seg button{font:600 12.5px/1 var(--font);padding:9px 14px;border-radius:8px;border:0;background:transparent;color:var(--text2);cursor:pointer}
+.lv-seg button[aria-pressed="true"]{background:var(--card3);color:var(--text)}
+html.light .lv-seg button[aria-pressed="true"]{background:#fff;box-shadow:var(--shadow)}
+
+/* Rate tiles */
+.lv-tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding:16px 22px 4px}
+.lv-tile{background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:14px 14px 13px;min-width:0}
+.lv-tile small{display:block;font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lv-tile b{display:block;margin-top:7px;font-size:22px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lv-tile b em{font-style:normal;font-size:13px;font-weight:500;color:var(--text3);margin-left:2px}
+.lv-tile span{display:flex;align-items:center;gap:4px;margin-top:5px;font-size:12px;color:var(--text2);font-variant-numeric:tabular-nums}
+.lv-tile span svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.lv-tile.lv-you{background:var(--accentbg);border-color:rgba(245,165,36,.42)}
+.lv-note{padding:8px 22px 0;font-size:12px;color:var(--text3);line-height:1.6}
+
+/* Body: chart and your quotes; map, markets, trip on the side */
+.lv-body{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(0,1fr);gap:14px;padding:16px 22px 22px;align-items:start}
+.lv-main,.lv-side{display:grid;gap:14px;min-width:0}
+.lv-panel{border:1px solid var(--border);border-radius:14px;padding:16px;background:var(--card);min-width:0}
+.lv-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.lv-panel h3{font-size:14px;font-weight:700;color:var(--text);letter-spacing:-.005em}
+.lv-panel h3 small{font-weight:500;color:var(--text3);font-size:12px;margin-left:6px}
+.lv-link{font:600 12.5px/1 var(--font);color:var(--accent);background:none;border:0;cursor:pointer;text-decoration:none;padding:4px 0;white-space:nowrap}
+.lv-link:hover{color:var(--accent2)}
+
+/* History chart */
+.lv-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--text2);margin-bottom:8px}
+.lv-legend span{display:inline-flex;align-items:center;gap:6px}
+.lv-legend i{display:inline-block;width:14px;height:3px;border-radius:2px}
+.lv-legend .dot{width:9px;height:9px;border-radius:50%;background:var(--text)}
+.lv-legend .ring{width:9px;height:9px;border-radius:50%;border:2px solid var(--text);background:transparent;box-sizing:border-box}
+.lv-legend .open{width:8px;height:8px;border-radius:50%;background:var(--text3)}
+.lv-chart{position:relative;user-select:none;-webkit-user-select:none}
+.lv-chart svg{display:block;width:100%;overflow:visible}
+.lv-chart svg text{font:500 11px var(--font);fill:var(--text3)}
+.lv-chart svg text.lbl{font-weight:600;fill:var(--text2)}
+.lv-chart .lv-q{cursor:pointer}
+.lv-tip{position:absolute;z-index:5;pointer-events:none;min-width:190px;max-width:260px;padding:11px 13px;border-radius:12px;background:var(--panel);
+  border:1px solid var(--border2);box-shadow:var(--shadow-lg);font-size:12.5px;color:var(--text2);line-height:1.45}
+.lv-tip[hidden]{display:none}
+.lv-tip b{display:block;font-size:13.5px;color:var(--text);margin-bottom:4px}
+.lv-tip .row{display:flex;justify-content:space-between;gap:14px}
+.lv-tip .row strong{color:var(--text);font-variant-numeric:tabular-nums}
+.lv-tip i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:7px;vertical-align:3px}
+.lv-table-wrap{overflow-x:auto;margin-top:6px}
+.lv-table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.lv-table th{font:600 10.5px/1.2 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--text3);text-align:left;padding:8px 10px;
+  border-bottom:1px solid var(--border);white-space:nowrap}
+.lv-table td{padding:9px 10px;border-bottom:1px solid var(--border);color:var(--text2);white-space:nowrap}
+.lv-table tr:last-child td{border-bottom:0}
+.lv-table td.num,.lv-table th.num{text-align:right}
+.lv-table td.strong{color:var(--text);font-weight:600}
+.lv-table td.wrap{white-space:normal;min-width:120px}
+
+/* Your quotes on this lane */
+.lv-stats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.lv-stat{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:8px 11px;font-size:12px;color:var(--text3)}
+.lv-stat b{display:block;font-size:15px;color:var(--text);font-variant-numeric:tabular-nums;margin-top:2px}
+.lv-result{font:700 10px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;padding:4px 7px;border-radius:6px;border:1px solid var(--border2);color:var(--text3)}
+.lv-result.won{color:var(--green);border-color:currentColor;background:var(--greenbg)}
+.lv-result.lost{color:var(--red);border-color:currentColor;background:var(--redbg)}
+.lv-empty{font-size:13px;color:var(--text2);line-height:1.6}
+.lv-empty .qf-btn{margin-top:12px}
+.lv-muted{font-size:12px;color:var(--text3);margin-top:8px;line-height:1.55}
+
+/* Route map */
+.lv-map{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:var(--card2);aspect-ratio:4/3}
+.lv-map iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.lv-map-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:100%;padding:18px;text-align:center}
+.lv-map-empty .qf-icon{width:28px;height:28px;color:var(--accent)}
+.lv-map-empty p{font-size:13px;color:var(--text2);line-height:1.5}
+.lv-credit{font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5}
+
+/* Markets at both ends */
+.lv-mkt + .lv-mkt{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.lv-mkt-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.lv-mkt-top small{font-size:11.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.lv-mkt-top b{font-size:16px;font-variant-numeric:tabular-nums}
+.lv-mkt-place{font-size:13px;color:var(--text);font-weight:600;margin-top:3px}
+.lv-meter{position:relative;height:6px;border-radius:3px;margin:12px 0 6px;background:var(--card3)}
+html.light .lv-meter{background:var(--border2)}
+.lv-meter::before{content:'';position:absolute;left:50%;top:-4px;width:1px;height:14px;background:var(--text3);opacity:.7}
+.lv-meter i{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--text);border:3px solid var(--card)}
+.lv-meter-scale{display:flex;justify-content:space-between;font-size:10.5px;color:var(--text3)}
+.lv-mkt p{font-size:12.5px;color:var(--text2);line-height:1.55;margin-top:6px}
+
+/* Trip and fuel */
+.lv-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 16px}
+.lv-facts div{min-width:0}
+.lv-facts small{display:block;font-size:11.5px;color:var(--text3)}
+.lv-facts b{display:block;font-size:16px;margin-top:3px;font-variant-numeric:tabular-nums}
+.lv-facts span{display:block;font-size:11.5px;color:var(--text3);margin-top:2px}
+
+/* Result card link */
+.lane-jump{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font:600 12.5px/1 var(--font);color:var(--accent);text-decoration:none;
+  padding:8px 12px;border-radius:999px;border:1px solid rgba(245,165,36,.35);background:var(--accentbg)}
+.lane-jump:hover{color:var(--accent2)}
+.lane-jump[hidden]{display:none}
+
+@media (max-width:1100px){.lv-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:900px){.lv-body{grid-template-columns:1fr}}
+@media (max-width:640px){
+  .lv-head{padding:16px}
+  .lv-tiles{grid-template-columns:1fr 1fr;padding:14px 16px 2px}
+  .lv-tiles .lv-tile:last-child{grid-column:1/-1}
+  .lv-note{padding:8px 16px 0}
+  .lv-body{padding:14px 16px 16px}
+  .lv-facts{grid-template-columns:1fr 1fr}
+  .lv-panel{padding:14px}
+  .lv-tile b{font-size:19px}
+  .lv-map{aspect-ratio:1/1}
+}
