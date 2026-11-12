@@ -5,14 +5,19 @@
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#1a1d24",
-  "theme_color": "#1a1d24",
+  "background_color": "#0b1018",
+  "theme_color": "#0b1018",
   "scope": "/",
   "icons": [
     {
       "src": "/favicon.ico",
-      "sizes": "32x32 48x48",
+      "sizes": "16x16 32x32 48x48",
       "type": "image/x-icon"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     },
     {
       "src": "/apple-touch-icon.png",
@@ -30,8 +35,18 @@
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  "categories": ["business", "productivity", "finance"]
+  "categories": [
+    "business",
+    "productivity",
+    "finance"
+  ]
 }

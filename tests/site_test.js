@@ -278,6 +278,41 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   await t.page.waitForTimeout(300);
   const below = await t.page.evaluate(() => { const s = document.getElementById('quotes'); return s ? Math.round(s.getBoundingClientRect().top) : -1; });
   check('a link to a section lands below the navigation', below >= 64 && below <= 120, `${below}px`);
+
+  // The logo: a drawn truck mark (no tile), centered in its box; the same mark is the tab and app icon
+  const logo = await t.page.$eval('#qf-nav .qf-logo-mark', (m) => {
+    const r = m.getBoundingClientRect(), g = m.querySelector('svg g').getBoundingClientRect();
+    return { dx: (g.left + g.width / 2) - (r.left + r.width / 2), dy: (g.top + g.height / 2) - (r.top + r.height / 2), fill: g.width / r.width };
+  });
+  check('the logo mark is centered in its box and fills it well', Math.abs(logo.dx) <= 0.5 && Math.abs(logo.dy) <= 0.5 && logo.fill > 0.9, JSON.stringify(logo));
+  const logoColors = () => t.page.$eval('#qf-nav .qf-logo-mark', (m) => {
+    const fill = (sel) => getComputedStyle(m.querySelector(sel)).fill;
+    return { tile: getComputedStyle(m).backgroundImage, truck: fill('.qf-logo-truck'), calc: fill('.qf-logo-calc'), lit: fill('.qf-logo-lit'),
+      word: getComputedStyle(document.querySelector('#qf-nav .qf-logo-text b')).color };
+  });
+  const darkLogo = await logoColors();
+  await t.page.evaluate(() => QFCNav.setTheme(true));
+  const lightLogo = await logoColors();
+  await t.page.evaluate(() => QFCNav.setTheme(false));
+  check('no tile: an amber truck that matches "Freight" in both themes, a black calculator, light keys',
+    darkLogo.tile === 'none' && darkLogo.truck === 'rgb(245, 165, 36)' && darkLogo.truck === darkLogo.word && lightLogo.truck === 'rgb(212, 130, 0)'
+      && lightLogo.truck === lightLogo.word && darkLogo.calc === 'rgb(13, 13, 13)' && lightLogo.calc === darkLogo.calc && darkLogo.lit === 'rgb(255, 244, 218)',
+    JSON.stringify({ darkLogo, lightLogo }));
+  check('the footer uses the same mark', (await t.page.$$('.qf-footer .qf-logo-mark svg.qf-logo-svg')).length === 1);
+  // The files, fetched from this site's server (the browser's own favicon handling skips test interception)
+  const status = (u) => new Promise((res) => http.get(base + u, (r) => { r.resume(); res(r.statusCode); }).on('error', () => res(0)));
+  const icons = { links: await t.page.$$eval('link[rel="icon"]', (ls) => ls.map((l) => l.getAttribute('href'))), files: {},
+    manifest: JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8')).icons.map((i) => i.src + ' ' + (i.purpose || '')) };
+  for (const f of ['/favicon.svg', '/favicon.ico', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png']) icons.files[f] = await status(f);
+  check('the tab icon is the mark (SVG, with an .ico fallback), not the emoji', JSON.stringify(icons.links) === JSON.stringify(['/favicon.ico', '/favicon.svg']), JSON.stringify(icons.links));
+  check('every icon file is there and the app manifest lists them, with a separate maskable icon',
+    Object.values(icons.files).every((c) => c === 200) && icons.manifest.includes('/icon-maskable-512.png maskable') && icons.manifest.includes('/favicon.ico '), JSON.stringify(icons));
+  const pagesWithEmoji = [];
+  for (const f of fs.readdirSync(ROOT).filter((n) => n.endsWith('.html'))) {
+    const html = fs.readFileSync(path.join(ROOT, f), 'utf8');
+    if (html.includes('font-size=\'90\'>🚛') || !html.includes('<link rel="icon" href="/favicon.svg" type="image/svg+xml">')) pagesWithEmoji.push(f);
+  }
+  check('every page uses the new tab icon', pagesWithEmoji.length === 0, pagesWithEmoji.join(', '));
   await t.page.goto(base + '/profile.html');
   await t.page.waitForSelector('#qf-nav .qf-acct-btn');
   await t.page.click('#qf-nav .qf-theme');
