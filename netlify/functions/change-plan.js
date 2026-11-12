@@ -1,6 +1,7 @@
 // netlify/functions/change-plan.js
-// Switches an existing Stripe subscription between the paid plans:
-//   'pro'  → STRIPE_PRICE_ID      ($9.99/mo, automatic miles on 100 quotes/day)
+// Switches an existing Stripe subscription between the paid plans (each
+// variable holds a Stripe price ID, price_…, not a product ID, prod_…):
+//   'pro'  → STRIPE_PRICE_ID_PRO  ($9.99/mo, automatic miles on 100 quotes/day)
 //   'plus' → STRIPE_PRICE_ID_PLUS ($19.99/mo, 250 quotes/day)
 //   'max'  → STRIPE_PRICE_ID_MAX  ($49.99/mo, 1,000 quotes/day)
 //   'api'  → STRIPE_PRICE_ID_API  ($199/mo, Pro Max + API access)

@@ -30,6 +30,7 @@ function normalizePlan(plan) {
 
 // Stripe prices (Netlify env vars) for the new plans:
 //   STRIPE_PRICE_ID_PRO ($9.99), _PLUS ($19.99), _MAX ($49.99), _API ($199).
+// Each holds the monthly price's ID (price_…), not the product's ID (prod_…).
 // STRIPE_PRICE_ID stays the original $4.99 Pro price that current subscribers
 // pay; any subscription on a price that isn't one of these new ones is on the
 // original plan (see "Subscribers on the original Pro plan" below).

@@ -1,6 +1,8 @@
 // netlify/functions/create-checkout.js
-// Creates a Stripe checkout session for a new subscription:
-//   plan 'pro'  → STRIPE_PRICE_ID      ($9.99/mo, automatic miles on 100 quotes/day)
+// Creates a Stripe checkout session for a new subscription. Each variable
+// holds a Stripe price ID (price_…), not a product ID (prod_…):
+//   plan 'pro'  → STRIPE_PRICE_ID_PRO  ($9.99/mo, automatic miles on 100 quotes/day;
+//                 falls back to STRIPE_PRICE_ID, the original $4.99 price, until set)
 //   plan 'plus' → STRIPE_PRICE_ID_PLUS ($19.99/mo, 250 quotes/day)
 //   plan 'max'  → STRIPE_PRICE_ID_MAX  ($49.99/mo, 1,000 quotes/day)
 //   plan 'api'  → STRIPE_PRICE_ID_API  ($199/mo, Pro Max + API access)
