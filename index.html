@@ -282,9 +282,14 @@ html.light .hero h1 em{-webkit-text-fill-color:#d48200;color:#d48200}
   display:grid;
   grid-template-columns:1fr 380px;
   gap:20px;
-  align-items:start;
+  align-items:stretch;
 }
 .main>*{min-width:0}
+/* The form box and the quote box end level: each column stretches to the
+   row and its box fills it. The quote's contents stay in view below the
+   navigation while a longer form scrolls past (.result-inner). */
+.calc-col{display:flex;flex-direction:column;min-width:0}
+.calc-col > .card,.calc-col > .result-card{flex:1 0 auto}
 
 /* ── Google AdSense ad units ──────────────────────────────────────────────
    Side rails are fixed to the viewport edges and vertically centred. They
@@ -761,9 +766,9 @@ html.light .hero h1 em{-webkit-text-fill-color:#d48200;color:#d48200}
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
   overflow:hidden;
-  position:sticky;
-  top:20px;
+  overflow:clip;   /* rounds the corners without stopping .result-inner from sticking */
 }
+.result-inner{position:sticky;top:calc(var(--nav-h, 64px) + 16px)}
 .result-hero{
   padding:28px 24px 24px;
   text-align:center;
@@ -1409,6 +1414,7 @@ html.light .hos-day-header{background:var(--card2)}
   .hero-sub{font-size:13px}
   .main{grid-template-columns:1fr;padding:0 12px 40px;gap:14px}
   .result-card{position:static}
+  .result-inner{position:static}
   .log-card{margin-top:0}
   .card-body{padding:12px}
   .card-header{padding:10px 12px}
@@ -1571,7 +1577,7 @@ html.light .hos-day-header{background:var(--card2)}
 <div class="main">
 
   <!-- LEFT: Form -->
-  <div>
+  <div class="calc-col">
     <div class="card">
       <div class="card-header">
         <span class="card-title">Load Details</span>
@@ -2341,7 +2347,7 @@ html.light .hos-day-header{background:var(--card2)}
     </div>
 
     <!-- HOS Trip Plan -->
-    <div class="hos-card" id="hos-card">
+    <div class="hos-card" id="hos-card" data-lane-slot="main">
       <div class="hos-header">
         <div class="hos-header-left">
           <span class="card-title">HOS Trip Plan</span>
@@ -2375,7 +2381,7 @@ html.light .hos-day-header{background:var(--card2)}
     </div>
 
     <!-- Weather Card -->
-    <div class="weather-card" id="weather-card">
+    <div class="weather-card" id="weather-card" data-lane-slot="side">
       <div class="weather-header">
         <div style="display:flex;align-items:center;gap:8px">
           <span class="card-title">Trip Weather Outlook</span>
@@ -2430,8 +2436,9 @@ html.light .hos-day-header{background:var(--card2)}
   </div>
 
   <!-- RIGHT: Results -->
-  <div>
+  <div class="calc-col">
     <div class="result-card">
+      <div class="result-inner">
       <div class="result-hero">
         <div class="result-hero-label">Quote to Customer</div>
         <div class="result-hero-val" id="r-quote">—</div>
@@ -2461,9 +2468,9 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="pill"><div class="pill-label">Pickup Day</div><div class="pill-val" id="m-day">—</div></div>
         <div class="pill"><div class="pill-label">Diesel</div><div class="pill-val" id="m-diesel" style="color:var(--text3)">off</div></div>
         <div class="pill"><div class="pill-label">Capacity</div><div class="pill-val" id="m-cap" style="color:var(--text3)">off</div></div>
-        <div class="pill" style="grid-column:1/-1"><div class="pill-label">Seasonal</div><div class="pill-val" id="m-seas">—</div></div>
-        <div class="pill" style="grid-column:1/-1"><div class="pill-label">Holidays / Events</div><div class="pill-val" id="m-hol" style="color:var(--text3)">off</div></div>
-        <div class="pill" style="grid-column:1/-1"><div class="pill-label">Market Panic</div><div class="pill-val" id="m-mp">—</div></div>
+        <div class="pill"><div class="pill-label">Seasonal</div><div class="pill-val" id="m-seas">—</div></div>
+        <div class="pill" title="Holidays and events"><div class="pill-label">Holidays</div><div class="pill-val" id="m-hol" style="color:var(--text3)">off</div></div>
+        <div class="pill"><div class="pill-label">Market Panic</div><div class="pill-val" id="m-mp">—</div></div>
       </div>
 
       <!-- Market Panic slider — drag to nudge the quote based on current market conditions -->
@@ -2497,10 +2504,12 @@ html.light .hos-day-header{background:var(--card2)}
         </button>
         <div id="pro-upgrade-note" style="font-size:10px;color:var(--text3);text-align:center;margin-top:6px">Pro feature · <a href="#" onclick="event.preventDefault();showProModal('Download Quote PDF is a Pro feature. Upgrade to generate branded PDF quotes with your logo, colors, and contact info.')" style="color:var(--accent);text-decoration:none">Upgrade to unlock</a></div>
       </div>
+      </div>
     </div>
 
     <!-- Profitability result panel — shown when in prof mode -->
     <div class="result-card" id="prof-result-card" style="display:none">
+      <div class="result-inner">
       <div class="result-hero" id="prof-hero">
         <div class="result-hero-label">Is this load worth it?</div>
         <div class="result-hero-val" id="p-profit-val">—</div>
@@ -2548,11 +2557,13 @@ html.light .hos-day-header{background:var(--card2)}
       <div style="padding:14px 20px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);line-height:1.6;text-align:center">
         Defaults: $0.58 fuel · $0.55 driver · $0.30 fixed · Adjust to your actual costs
       </div>
+      </div>
     </div>
   </div>
 
   <!-- Lane details (lane.js): market rate now and over time, your quotes on the
-       lane, the route on Google's map, markets at both ends, trip and fuel -->
+       lane, the route on Google's map, markets at both ends, trip and fuel, and
+       the HOS trip plan and weather (moved in from under the form) -->
   <section class="lane-view" id="lane-view" aria-label="Lane details" hidden></section>
 
   <!-- Quote Log — Pro only -->
@@ -6663,13 +6674,14 @@ function updateMarketPanicReadout(){
   if(mPill){
     const mult = getMarketPanicMult();
     if(marketPanicActive()){
-      mPill.textContent = `${mult.toFixed(3)}× (${(mpValue>0?'+':'')+mpValue.toFixed(0)}%)`;
+      mPill.textContent = `${mult.toFixed(3)}×`;
       mPill.style.color = zone.color;
     } else {
-      mPill.textContent = '1.000× (baseline)';
+      mPill.textContent = '1.000×';
       mPill.style.color = 'var(--text2)';
     }
-    mPill.title = `Market: ${zone.label}`;
+    // The pill is a third of a row; the percent and zone are in its tooltip and in the meter below.
+    mPill.title = `Market: ${zone.label}` + (marketPanicActive() ? ` (${(mpValue>0?'+':'')+mpValue.toFixed(0)}%)` : ' (baseline)');
   }
 }
 

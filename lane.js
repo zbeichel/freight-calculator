@@ -19,6 +19,11 @@
      route is only drawn on Google's own map; until there's a key the panel
      links to the route on Google Maps.
 
+   The page's own HOS trip plan and weather cards (marked data-lane-slot="main"
+   or "side") move into the view's columns and keep their ids, so the code that
+   fills them works as before. They wait inside the hidden view until a lane
+   shows, so they never flash under the form.
+
    The calculator supplies the lane:
      QFCLane.init({ container, jump, getLane })   once
      QFCLane.refresh()                             whenever the quote changes
@@ -31,7 +36,6 @@
   const EQ_NAME = { van: 'Van', reefer: 'Reefer', flatbed: 'Flatbed' };
   const MPG = 6.5;           // the calculator's fuel surcharge assumption (DOE_FSC_MPG)
   const FSC_BASE = 1.25;     // DOE fuel surcharge baseline, $/gal
-  const HOS_HOURS = 11;      // FMCSA daily driving limit
   const WINLOSS = ['plus', 'max', 'api', 'comp'];
   const MODE_KEY = 'qfc_lane_mode';
   const DAY = 86400000;
@@ -46,6 +50,7 @@
   let mapsKey;               // undefined: not asked yet · null: none set · 'key'
   let current = null;        // the model on screen
   let mapShown = '';         // what the route panel shows, so the map isn't reloaded needlessly
+  let adopted = [];          // the page's cards placed in the view: [{ el, slot }]
   const parts = {};
 
   const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -401,20 +406,19 @@
       one('Pickup', k.origin, false) + one('Delivery', k.dest, true) + lt;
   }
 
+  // Miles and fuel. Drive time and driving days are in the HOS trip plan below
+  // (the calculator's own card, shown whenever Google gave a drive time).
   function tripHTML(m) {
     const t = m.trip;
-    const days = t.driveSecs ? Math.max(1, Math.ceil(t.driveSecs / 3600 / HOS_HOURS)) : null;
     const gal = t.miles / MPG;
     const fuel = diesel && diesel.price > 0 ? diesel : null;
     const period = fuel && fuel.period ? new Date(fuel.period + 'T12:00:00') : null;
     const fact = (label, value, sub) => `<div><small>${label}</small><b>${value}</b>${sub ? `<span>${sub}</span>` : ''}</div>`;
     return `<div class="lv-panel-head"><h3>Trip and fuel</h3></div><div class="lv-facts">` +
       fact('Miles', Math.round(t.miles).toLocaleString('en-US'), t.source === 'google' ? 'Google Maps' : 'Entered by you') +
-      fact('Drive time', t.driveSecs ? duration(t.driveSecs) : '—', t.driveSecs ? 'Google Maps' : 'With Google miles') +
-      fact('Driving days', days ? String(days) : '—', days ? `At ${HOS_HOURS} hours a day` : '') +
       fact('Fuel', `${Math.round(gal).toLocaleString('en-US')} gal`, `At ${MPG} mpg`) +
       fact('Fuel cost', fuel ? money0(gal * fuel.price) : diesel === undefined ? '…' : '—',
-        fuel ? `${money2(fuel.price)}/gal${period && isFinite(period) ? ' · EIA, week of ' + period.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}` : 'Diesel price unavailable') +
+        fuel ? `${money2(fuel.price)}/gal${period && isFinite(period) ? ' · EIA ' + period.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}` : 'Diesel price unavailable') +
       fact('Fuel surcharge', fuel ? money2(Math.max(0, (fuel.price - FSC_BASE) / MPG)) + '/mi' : '—', fuel ? 'DOE method, $1.25 base' : '') +
       '</div>';
   }
@@ -467,6 +471,7 @@
   // ── Render ──────────────────────────────────────────────────────────────
   function skeleton() {
     if (parts.head) return;
+    adopted.forEach((a) => a.el.remove());   // kept, and put back below
     host.innerHTML = `<div class="lv-card">
       <div class="lv-head" data-part="head"></div>
       <div class="lv-tiles" data-part="tiles"></div>
@@ -477,6 +482,8 @@
         <div class="lv-side"><section class="lv-panel lv-map-panel" data-part="map"></section><section class="lv-panel" data-part="markets"></section></div>
       </div></div>`;
     host.querySelectorAll('[data-part]').forEach((el) => { parts[el.dataset.part] = el; });
+    const cols = { main: host.querySelector('.lv-main'), side: host.querySelector('.lv-side') };
+    adopted.forEach((a) => (cols[a.slot] || cols.main).appendChild(a.el));
   }
 
   function render() {
@@ -517,6 +524,9 @@
     if (!host) return;
     host.hidden = true;
     if (jump) jump.hidden = true;
+    adopted = [...document.querySelectorAll('[data-lane-slot]')].filter((el) => !host.contains(el))
+      .map((el) => ({ el, slot: el.dataset.laneSlot }));
+    adopted.forEach((a) => host.appendChild(a.el));   // hidden with the view until a lane shows
     host.addEventListener('click', (e) => {
       const b = e.target.closest('[data-mode]');
       if (b) { setMode(b.dataset.mode); return; }
