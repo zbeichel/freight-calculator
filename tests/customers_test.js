@@ -340,6 +340,8 @@ async function newTab(t, fn) {
   const qp = t.db.quotePatches.at(-1);
   check('the result saves the customer and its link', qp.id === 201 && qp.body.customer === 'Keystone Produce' && qp.body.customer_id === 2, JSON.stringify(qp));
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await Promise.all([t.page.waitForURL('**/customers.html'), t.page.click('#customers-btn')]);
+  check('the Customers button opens the Customers page', t.page.url().endsWith('/customers.html'));
   await t.context.close();
 
   // ── Pro: just the name ──────────────────────────────────────────────────
