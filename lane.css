@@ -4,6 +4,9 @@
      1. a solid title bar: the lane, trailer, miles, drive time, both markets,
         and the per load / per mile switch
      2. rate cards: this month, last month, 3-month average, range, your quote
+   Colors stay with the site's own: a charcoal bar, amber accents, neutral
+   edges. Blue is only the lane's line in the chart (as on the Market Rates
+   page).
      3. rows of panels that line up, each with a header strip and an icon:
           market rate history | route
           markets at both ends | weather at both ends
@@ -15,12 +18,14 @@
 
 .lane-view{
   grid-column:1/-1;margin:4px 0 22px;font-family:var(--font);color:var(--text);
-  --lv-bar:#16294a;
+  --lv-bar:#1c2635;          /* the title bar: the site's own dark, a step above the panels */
+  --lv-edge:var(--text3);    /* top edge of the market rate cards */
   --lv-shadow:0 1px 2px rgba(0,0,0,.35),0 10px 28px rgba(0,0,0,.22);
   --lv-head:var(--card2);
 }
 html.light .lane-view{
-  --lv-bar:#0f2242;
+  --lv-bar:#141c28;
+  --lv-edge:#141c28;
   --lv-shadow:0 1px 2px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.07);
   --lv-head:#f6f8fb;
 }
@@ -44,11 +49,11 @@ html.light .lane-view{
 .lv-seg{display:inline-flex;padding:4px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);flex-shrink:0}
 .lv-seg button{font:600 13px/1 var(--font);padding:10px 16px;border-radius:9px;border:0;background:transparent;color:rgba(255,255,255,.78);cursor:pointer}
 .lv-seg button:hover{color:#fff}
-.lv-seg button[aria-pressed="true"]{background:#fff;color:#0f2242}
+.lv-seg button[aria-pressed="true"]{background:#fff;color:#141c28}
 
 /* ── 2. Rate cards ────────────────────────────────────────────────────── */
 .lv-tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:14px}
-.lv-tile{position:relative;background:var(--card);border:1px solid var(--border2);border-top:3px solid var(--series-region);border-radius:14px;
+.lv-tile{position:relative;background:var(--card);border:1px solid var(--border2);border-top:3px solid var(--lv-edge);border-radius:14px;
   padding:14px 16px 15px;box-shadow:var(--lv-shadow);min-width:0}
 .lv-tile-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px;min-height:24px}
 .lv-tile-title{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap}
@@ -158,7 +163,9 @@ html.light .lv-meter{background:var(--border2)}
 /* The calculator's HOS trip plan, flat inside: stats in a row, then a simple timeline */
 .lane-view .hos-card:not(.visible){display:none}
 .lane-view .hos-card.visible{display:flex}
-.lane-view .hos-badge{font-size:10px}
+.lane-view .hos-badge{font-size:10px;color:var(--text2);background:var(--card2);border-color:var(--border2)}
+.lane-view .hos-day .hos-day-num{background:var(--accent-fill);color:var(--accent-ink)}
+.lane-view .hos-event-bar{background:var(--accent-fill)!important;opacity:.55!important}   /* the calculator sets these inline */
 .lane-view #hos-route-label{display:none}
 .lane-view .hos-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;background:none;border-bottom:1px solid var(--border)}
 .lane-view .hos-stats .hos-stat{background:none;padding:14px 8px}

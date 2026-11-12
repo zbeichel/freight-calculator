@@ -8337,7 +8337,7 @@ function calcHOS(totalDriveSecs, googleDriveText, origin, dest){
     const hasRest   = events.some(e=>e.type==='rest');
     const dayLabel  = driveSecs < 60
       ? 'Rest day'
-      : `Drive ${fmtHrs(driveSecs)}`+(hasRest?' · Rest 10h':'· Arrive');
+      : `Drive ${fmtHrs(driveSecs)}`+(hasRest?' · Rest 10h':' · Arrive');
 
     const evHTML = events.map(e=>{
       const barW = Math.round((e.dur / HOS.MAX_DRIVE) * 100);
