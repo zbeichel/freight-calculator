@@ -19,6 +19,11 @@
      route is only drawn on Google's own map; until there's a key the panel
      links to the route on Google Maps.
 
+   The page's own HOS trip plan and weather cards (marked data-lane-slot="hos"
+   and "weather") move into their places in the view and keep their ids, so the
+   code that fills them works as before. They wait inside the hidden view until a lane
+   shows, so they never flash under the form.
+
    The calculator supplies the lane:
      QFCLane.init({ container, jump, getLane })   once
      QFCLane.refresh()                             whenever the quote changes
@@ -31,7 +36,6 @@
   const EQ_NAME = { van: 'Van', reefer: 'Reefer', flatbed: 'Flatbed' };
   const MPG = 6.5;           // the calculator's fuel surcharge assumption (DOE_FSC_MPG)
   const FSC_BASE = 1.25;     // DOE fuel surcharge baseline, $/gal
-  const HOS_HOURS = 11;      // FMCSA daily driving limit
   const WINLOSS = ['plus', 'max', 'api', 'comp'];
   const MODE_KEY = 'qfc_lane_mode';
   const DAY = 86400000;
@@ -46,6 +50,8 @@
   let mapsKey;               // undefined: not asked yet · null: none set · 'key'
   let current = null;        // the model on screen
   let mapShown = '';         // what the route panel shows, so the map isn't reloaded needlessly
+  let adopted = [];          // the page's cards placed in the view: [{ el, slot }]
+  let weatherFor = '';       // the lane the weather outlook was last asked for
   const parts = {};
 
   const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -58,8 +64,19 @@
     up: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
     down: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>',
   };
-  const ICON_ROUTE = '<svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.2"/>' +
-    '<path d="M8.2 6H15a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6.8"/><circle cx="18" cy="18" r="2.2"/></svg>';
+  const svg = (d) => `<svg class="lv-icon" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+  const ICON = {
+    chart: svg('<path d="M4 19.5h16"/><path d="m5.5 15 4-4.5 3.5 3 5.5-6.5"/><path d="M15 7h3.5v3.5"/>'),
+    route: svg('<circle cx="6" cy="6" r="2.2"/><path d="M8.2 6H15a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6.8"/><circle cx="18" cy="18" r="2.2"/>'),
+    markets: svg('<path d="M4 8h13M13 4l4 4-4 4"/><path d="M20 16H7M11 12l-4 4 4 4"/>'),
+    fuel: svg('<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M3 21h12M7 7h4"/><path d="M14 10h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V8l-3-3"/>'),
+    quotes: svg('<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/>'),
+    clock: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+    pin: svg('<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>'),
+    flag: svg('<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>'),
+  };
+  const panelHead = (icon, title, sub, extra) => `<div class="lv-panel-head"><h3><span class="lv-ico">${icon}</span>${title}` +
+    `${sub ? `<small>${sub}</small>` : ''}</h3>${extra || ''}</div>`;
 
   // ── Places and markets ──────────────────────────────────────────────────
   // The state from "Hastings, FL", "Hastings, FL 32145" or "Hastings, FL, USA",
@@ -167,14 +184,14 @@
 
   function headHTML(m) {
     const t = m.trip;
-    return `<div>
+    const chip = (icon, html) => `<span class="lv-chip">${icon}${html}</span>`;
+    return `<div class="lv-bar-main">
       <div class="lv-kicker">Lane details</div>
       <div class="lv-title"><span>${esc(placeLabel(m.lane.orig))}</span><span class="lv-arrow">→</span><span>${esc(placeLabel(m.lane.dest))}</span>
         <span class="lv-eq">${EQ_NAME[m.eq]}</span></div>
-      <div class="lv-sub"><span><b>${Math.round(m.miles).toLocaleString('en-US')}</b> mi</span>
-        ${t.driveSecs ? `<span><b>${duration(t.driveSecs)}</b> drive</span>` : ''}
-        <span>Pickup market <b>${REGION_NAME[m.oRegion]}</b></span>
-        <span>Delivery market <b>${REGION_NAME[m.dRegion]}</b></span></div>
+      <div class="lv-chips">${chip(ICON.route, `<b>${Math.round(m.miles).toLocaleString('en-US')}</b> mi`)}` +
+        (t.driveSecs ? chip(ICON.clock, `<b>${duration(t.driveSecs)}</b> drive`) : '') +
+        chip(ICON.pin, `Pickup <b>${REGION_NAME[m.oRegion]}</b>`) + chip(ICON.flag, `Delivery <b>${REGION_NAME[m.dRegion]}</b>`) + `</div>
     </div>
     <div class="lv-seg" role="group" aria-label="Show rates">
       <button type="button" data-mode="load" aria-pressed="${perLoad()}">Per load</button>
@@ -185,27 +202,30 @@
   function change(now, before, label) {
     if (!before) return '';
     const d = now / before - 1;
-    if (Math.abs(d) < 0.0005) return `<span>Flat vs ${esc(label)}</span>`;
-    return `<span>${d > 0 ? ARROW.up : ARROW.down}${d > 0 ? 'Up' : 'Down'} ${pctAbs(d)} vs ${esc(label)}</span>`;
+    if (Math.abs(d) < 0.0005) return `Flat vs ${label}`;
+    return `${d > 0 ? ARROW.up : ARROW.down}${d > 0 ? 'Up' : 'Down'} ${pctAbs(d)} vs ${label}`;
   }
 
   function tilesHTML(m) {
     const mi = m.miles, last = m.last, prev = m.prev, first = m.months[0];
-    const tile = (label, rpm, extra, cls) => `<div class="lv-tile${cls ? ' ' + cls : ''}"><small>${label}</small>
-      <b>${showVal(rpm, mi)}${unit()}</b><span>${other(rpm, mi)}</span>${extra || ''}</div>`;
-    const range = perLoad() ? `${money0(m.lo * mi)}–${money0(m.hi * mi)}` : `${money2(m.lo)}–${money2(m.hi)}`;
-    const rangeOther = perLoad() ? `${money2(m.lo)}–${money2(m.hi)}/mi` : `${money0(m.lo * mi)}–${money0(m.hi * mi)} per load`;
+    const short = (p) => esc(String(p.label).replace(/\s+\d{4}$/, ''));
+    const tile = ({ title, tag, val, sub, foot, cls, small }) => `<div class="lv-tile${cls ? ' ' + cls : ''}">
+      <div class="lv-tile-head"><span class="lv-tile-title">${title}</span>${tag ? `<span class="lv-tile-tag">${tag}</span>` : ''}</div>
+      <b class="lv-tile-val${small ? ' small' : ''}">${val}</b><span class="lv-tile-sub">${sub}</span>${foot ? `<div class="lv-tile-foot">${foot}</div>` : ''}</div>`;
     const q = m.quote;
     const vs = q.total > 0 && last.lane > 0 ? q.total / (last.lane * mi) - 1 : null;
-    const short = (p) => esc(String(p.label).replace(/\s+\d{4}$/, ''));
-    return tile(`This month · ${esc(last.label)}`, last.lane, prev ? change(last.lane, prev.lane, short(prev)) : '') +
-      (prev ? tile(`Last month · ${esc(prev.label)}`, prev.lane) : '') +
-      tile(`${m.months.length >= 3 ? '3-month' : `${m.months.length}-month`} average`, m.avg3,
-        `<span>${esc(m.months.slice(-3).map((p) => monthShort(p.t)).filter((x, i, a) => i === 0 || i === a.length - 1).join('–'))}</span>`) +
-      `<div class="lv-tile"><small>Range since ${esc(first.label)}</small><b style="font-size:18px">${range}</b><span>${rangeOther}</span></div>` +
-      (q.total > 0 ? `<div class="lv-tile lv-you"><small>Your quote</small><b>${perLoad() ? money0(q.total) : money2(q.rpm)}${unit()}</b>
-        <span>${perLoad() ? money2(q.rpm) + '/mi' : money0(q.total) + ' per load'}</span>
-        ${vs !== null ? `<span>${signed(vs)} vs this month's market</span>` : ''}</div>` : '');
+    const recent = m.months.slice(-3).map((p) => monthShort(p.t));
+    return tile({ title: 'This month', tag: short(last), val: showVal(last.lane, mi) + unit(), sub: other(last.lane, mi),
+        foot: prev ? change(last.lane, prev.lane, short(prev)) : '' }) +
+      (prev ? tile({ title: 'Last month', tag: short(prev), val: showVal(prev.lane, mi) + unit(), sub: other(prev.lane, mi) }) : '') +
+      tile({ title: m.months.length >= 3 ? '3-month avg' : `${m.months.length}-month avg`,
+        tag: esc(recent.length > 1 ? recent[0] + '–' + recent[recent.length - 1] : recent[0] || ''),
+        val: showVal(m.avg3, mi) + unit(), sub: other(m.avg3, mi) }) +
+      tile({ title: 'Range', tag: 'Since ' + short(first), small: true,
+        val: perLoad() ? `${money0(m.lo * mi)}–${money0(m.hi * mi)}` : `${money2(m.lo)}–${money2(m.hi)}`,
+        sub: perLoad() ? `${money2(m.lo)}–${money2(m.hi)}/mi` : `${money0(m.lo * mi)}–${money0(m.hi * mi)} per load` }) +
+      (q.total > 0 ? tile({ title: 'Your quote', cls: 'lv-you', val: (perLoad() ? money0(q.total) : money2(q.rpm)) + unit(),
+        sub: perLoad() ? money2(q.rpm) + '/mi' : money0(q.total) + ' per load', foot: vs !== null ? `${signed(vs)} vs this month's market` : '' }) : '');
   }
 
   function noteHTML(m) {
@@ -223,12 +243,15 @@
         : `<span><i class="open"></i>Your quotes</span>`) : '');
     const rows = m.months.slice().reverse().map((p) => `<tr><td>${esc(p.label)}</td><td class="num strong">${showVal(p.lane, m.miles)}</td>` +
       `<td class="num">${showVal(p.national, m.miles)}</td></tr>`).join('');
-    return `<div class="lv-panel-head"><h3>Market rate history<small>${EQ_NAME[m.eq]} · ${perLoad() ? 'per load' : 'per mile'}</small></h3>
-        <button type="button" class="lv-link" data-act="table" aria-expanded="${showTable}">${showTable ? 'Show chart' : 'Show as table'}</button></div>
-      <div class="lv-legend">${legend}</div>
-      <div class="lv-chart"${showTable ? ' hidden' : ''}><div class="lv-tip" hidden></div></div>
-      <div class="lv-table-wrap"${showTable ? '' : ' hidden'}><table class="lv-table"><thead><tr><th scope="col">Month</th>
-        <th scope="col" class="num">This lane</th><th scope="col" class="num">National, same distance</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    return panelHead(ICON.chart, 'Market rate history', `${EQ_NAME[m.eq]} · ${perLoad() ? 'per load' : 'per mile'}`,
+        `<button type="button" class="lv-link" data-act="table" aria-expanded="${showTable}">${showTable ? 'Show chart' : 'Show as table'}</button>`) +
+      `<div class="lv-panel-body">
+        <div class="lv-legend">${legend}</div>
+        <div class="lv-chart"${showTable ? ' hidden' : ''}><div class="lv-tip" hidden></div></div>
+        <div class="lv-table-wrap"${showTable ? '' : ' hidden'}><table class="lv-table"><thead><tr><th scope="col">Month</th>
+          <th scope="col" class="num">This lane</th><th scope="col" class="num">National, same distance</th></tr></thead><tbody>${rows}</tbody></table></div>
+      </div>
+      <div class="lv-panel-foot">${noteHTML(m)}</div>`;
   }
 
   function niceScale(lo, hi) {
@@ -338,15 +361,16 @@
   }
 
   function quotesHTML(m) {
-    const head = (extra) => `<div class="lv-panel-head"><h3>Your quotes on this lane<small>${EQ_NAME[m.eq]}</small></h3>${extra || ''}</div>`;
+    const head = (extra) => panelHead(ICON.quotes, 'Your quotes on this lane', EQ_NAME[m.eq], extra);
+    const body = (html) => `<div class="lv-panel-body">${html}</div>`;
     if (!m.signedIn) {
-      return head() + `<div class="lv-empty">Pro saves every quote you send. The next time you price this lane, your past quotes, and with
-        Pro Plus what they booked at, show up here next to the market rate.<br><a class="qf-btn qf-btn-primary" href="/signup.html">See plans</a></div>`;
+      return head() + body(`<div class="lv-empty">Pro saves every quote you send. The next time you price this lane, your past quotes, and with
+        Pro Plus what they booked at, show up here next to the market rate.<br><a class="qf-btn qf-btn-primary" href="/signup.html">See plans</a></div>`);
     }
     const others = m.otherTrailers ? `<div class="lv-muted">${m.otherTrailers} more on ${m.otherTrailers === 1 ? 'another trailer' : 'other trailers'}.</div>` : '';
     if (!m.points.length) {
-      return head() + `<div class="lv-empty">No saved ${EQ_NAME[m.eq].toLowerCase()} quotes on this lane yet. Save this quote to the quote log and it shows up here,
-        next to the market rate, the next time you pull up the lane.</div>${others}`;
+      return head() + body(`<div class="lv-empty">No saved ${EQ_NAME[m.eq].toLowerCase()} quotes on this lane yet. Save this quote to the quote log and it shows up here,
+        next to the market rate, the next time you pull up the lane.</div>${others}`);
     }
     const s = m.stats;
     const stat = (label, value) => `<div class="lv-stat">${label}<b>${value}</b></div>`;
@@ -366,57 +390,59 @@
     }).join('');
     const more = m.points.length > ROWS
       ? `<button type="button" class="lv-link" data-act="more">${showAllQuotes ? 'Show fewer' : `Show all ${m.points.length}`}</button>` : '';
-    return head(more) + `<div class="lv-stats">${stats}</div>
+    return head(more) + body(`<div class="lv-stats">${stats}</div>
       <div class="lv-table-wrap"><table class="lv-table"><thead><tr><th scope="col">Date</th><th scope="col">Customer</th><th scope="col" class="num">Quoted</th>
         <th scope="col" class="num">Per mile</th>${m.winLoss ? '<th scope="col">Result</th><th scope="col" class="num">Final rate</th>' : ''}</tr></thead>
         <tbody>${rows}</tbody></table></div>${others}` +
-      (m.winLoss ? '' : `<div class="lv-muted">Mark quotes won or lost with Pro Plus to see your win rate and booked rates here.</div>`);
+      (m.winLoss ? '' : `<div class="lv-muted">Mark quotes won or lost with Pro Plus to see your win rate and booked rates here.</div>`));
   }
 
   function marketsHTML(m) {
     const k = m.markets, nat = k.national;
-    const one = (label, end, isDest) => {
-      if (!end.rate || !nat) return '';
-      const d = end.rate / nat - 1;
+    const end = (label, e, isDest) => {
+      if (!e.rate || !nat) return '';
+      const d = e.rate / nat - 1;
       const pos = 50 + Math.max(-1, Math.min(1, d / 0.25)) * 50;
-      const where = end.region === 'national' ? 'the US' : 'the ' + REGION_NAME[end.region];
+      const where = e.region === 'national' ? 'the US' : 'the ' + REGION_NAME[e.region];
       let read = Math.abs(d) < 0.03 ? `Trucks leaving ${where} earn about the national rate.`
         : `Trucks leaving ${where} earn ${pctAbs(d, 0)} ${d > 0 ? 'more' : 'less'} than the national rate.`;
       if (isDest && Math.abs(d) >= 0.03) read += d < 0 ? ' A weaker reload: carriers may ask more to deliver here.' : ' A strong reload: carriers may take less to get here.';
-      return `<div class="lv-mkt">
-        <div class="lv-mkt-top"><small>${label}</small><b>${money2(end.rate)}<span style="font-size:12px;color:var(--text3);font-weight:500">/mi out</span></b></div>
-        <div class="lv-mkt-place">${esc(end.place)} · ${REGION_NAME[end.region]}</div>
+      return `<div class="lv-end">
+        <div class="lv-end-label">${label}</div>
+        <div class="lv-end-place">${esc(e.place)}</div>
+        <div class="lv-end-region">${REGION_NAME[e.region]} market</div>
+        <div class="lv-end-rate">${money2(e.rate)}<em>/mi out</em></div>
         <div class="lv-meter" role="img" aria-label="${pctAbs(d)} ${d >= 0 ? 'above' : 'below'} the national rate"><i style="left:${pos.toFixed(1)}%"></i></div>
-        <div class="lv-meter-scale"><span>Below national</span><span>${money2(nat)}</span><span>Above</span></div>
+        <div class="lv-meter-scale"><span>Below</span><span>National ${money2(nat)}</span><span>Above</span></div>
         <p>${read}</p></div>`;
     };
     let lt = '';
     if (k.lt) {
       const d = k.lt.current / k.lt.base - 1;
       const word = d > 0.1 ? 'tight' : d < -0.1 ? 'loose' : 'balanced';
-      lt = `<div class="lv-muted">${EQ_NAME[m.eq]} load-to-truck nationally: <b style="color:var(--text)">${k.lt.current}</b> loads per truck,
-        ${pctAbs(d, 0)} ${d >= 0 ? 'above' : 'below'} usual (${k.lt.base}): a ${word} market.</div>`;
+      lt = `${EQ_NAME[m.eq]} load-to-truck nationally: <b style="color:var(--text)">${k.lt.current}</b> loads per truck,
+        ${pctAbs(d, 0)} ${d >= 0 ? 'above' : 'below'} usual (${k.lt.base}): a ${word} market.`;
     }
-    return `<div class="lv-panel-head"><h3>Markets at both ends<small>${EQ_NAME[m.eq]}</small></h3></div>` +
-      one('Pickup', k.origin, false) + one('Delivery', k.dest, true) + lt;
+    return panelHead(ICON.markets, 'Markets at both ends', EQ_NAME[m.eq]) +
+      `<div class="lv-panel-body"><div class="lv-ends">${end('Pickup', k.origin, false)}${end('Delivery', k.dest, true)}</div></div>` +
+      (lt ? `<div class="lv-panel-foot">${lt}</div>` : '');
   }
 
+  // Miles and fuel. Drive time and driving days are in the HOS trip plan below
+  // (the calculator's own card, shown whenever Google gave a drive time).
   function tripHTML(m) {
     const t = m.trip;
-    const days = t.driveSecs ? Math.max(1, Math.ceil(t.driveSecs / 3600 / HOS_HOURS)) : null;
     const gal = t.miles / MPG;
     const fuel = diesel && diesel.price > 0 ? diesel : null;
     const period = fuel && fuel.period ? new Date(fuel.period + 'T12:00:00') : null;
     const fact = (label, value, sub) => `<div><small>${label}</small><b>${value}</b>${sub ? `<span>${sub}</span>` : ''}</div>`;
-    return `<div class="lv-panel-head"><h3>Trip and fuel</h3></div><div class="lv-facts">` +
+    return panelHead(ICON.fuel, 'Trip and fuel') + `<div class="lv-panel-body"><div class="lv-facts">` +
       fact('Miles', Math.round(t.miles).toLocaleString('en-US'), t.source === 'google' ? 'Google Maps' : 'Entered by you') +
-      fact('Drive time', t.driveSecs ? duration(t.driveSecs) : '—', t.driveSecs ? 'Google Maps' : 'With Google miles') +
-      fact('Driving days', days ? String(days) : '—', days ? `At ${HOS_HOURS} hours a day` : '') +
       fact('Fuel', `${Math.round(gal).toLocaleString('en-US')} gal`, `At ${MPG} mpg`) +
       fact('Fuel cost', fuel ? money0(gal * fuel.price) : diesel === undefined ? '…' : '—',
-        fuel ? `${money2(fuel.price)}/gal${period && isFinite(period) ? ' · EIA, week of ' + period.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}` : 'Diesel price unavailable') +
+        fuel ? `${money2(fuel.price)}/gal${period && isFinite(period) ? ' · EIA ' + period.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}` : 'Diesel price unavailable') +
       fact('Fuel surcharge', fuel ? money2(Math.max(0, (fuel.price - FSC_BASE) / MPG)) + '/mi' : '—', fuel ? 'DOE method, $1.25 base' : '') +
-      '</div>';
+      '</div></div>';
   }
 
   function renderMap(m) {
@@ -427,13 +453,13 @@
     const q = (s) => encodeURIComponent(s);
     const dir = `https://www.google.com/maps/dir/?api=1&origin=${q(o)}&destination=${q(d)}&travelmode=driving`;
     const embed = mapsKey ? `https://www.google.com/maps/embed/v1/directions?key=${q(mapsKey)}&origin=${q(o)}&destination=${q(d)}&mode=driving&units=imperial` : '';
-    parts.map.innerHTML = `<div class="lv-panel-head"><h3>Route</h3>
-        <a class="lv-link" href="${esc(dir)}" target="_blank" rel="noopener">Open in Google Maps ↗</a></div>
-      <div class="lv-map">${embed
+    parts.map.innerHTML = panelHead(ICON.route, 'Route', '',
+        `<a class="lv-link" href="${esc(dir)}" target="_blank" rel="noopener">Open in Google Maps ↗</a>`) + `
+      <div class="lv-panel-body"><div class="lv-map">${embed
         ? `<iframe title="Route from ${esc(placeLabel(o))} to ${esc(placeLabel(d))} on Google Maps" src="${esc(embed)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`
-        : `<div class="lv-map-empty">${ICON_ROUTE}<p>See the route from ${esc(placeLabel(o))} to ${esc(placeLabel(d))} on Google Maps.</p>
-            <a class="qf-btn qf-btn-ghost" href="${esc(dir)}" target="_blank" rel="noopener">Open the route ↗</a></div>`}</div>
-      <div class="lv-credit">${m.trip.source === 'google' ? 'Miles and drive time from Google Maps.' : 'Miles entered by you; Google Maps may route differently.'}</div>`;
+        : `<div class="lv-map-empty">${ICON.route}<p>See the route from ${esc(placeLabel(o))} to ${esc(placeLabel(d))} on Google Maps.</p>
+            <a class="qf-btn qf-btn-ghost" href="${esc(dir)}" target="_blank" rel="noopener">Open the route ↗</a></div>`}</div></div>
+      <div class="lv-panel-foot lv-credit">${m.trip.source === 'google' ? 'Miles and drive time from Google Maps.' : 'Miles entered by you; Google Maps may route differently.'}</div>`;
   }
 
   // ── Data the view fetches itself: diesel and the map key, once each ────
@@ -467,16 +493,22 @@
   // ── Render ──────────────────────────────────────────────────────────────
   function skeleton() {
     if (parts.head) return;
-    host.innerHTML = `<div class="lv-card">
-      <div class="lv-head" data-part="head"></div>
+    adopted.forEach((a) => a.el.remove());   // kept, and put back below
+    host.innerHTML = `<div class="lv-bar" data-part="head"></div>
       <div class="lv-tiles" data-part="tiles"></div>
-      <div class="lv-note" data-part="note"></div>
-      <div class="lv-body">
-        <div class="lv-main"><section class="lv-panel" data-part="chart"></section><section class="lv-panel" data-part="quotes"></section>
-          <section class="lv-panel" data-part="trip"></section></div>
-        <div class="lv-side"><section class="lv-panel lv-map-panel" data-part="map"></section><section class="lv-panel" data-part="markets"></section></div>
-      </div></div>`;
+      <div class="lv-grid">
+        <div class="lv-row lv-row-wide"><section class="lv-panel" data-part="chart"></section><section class="lv-panel" data-part="map"></section></div>
+        <div class="lv-row"><section class="lv-panel" data-part="markets"></section><div data-slot="weather"></div></div>
+        <div class="lv-row"><div data-slot="hos"></div><section class="lv-panel" data-part="trip"></section></div>
+        <section class="lv-panel" data-part="quotes"></section>
+      </div>`;
     host.querySelectorAll('[data-part]').forEach((el) => { parts[el.dataset.part] = el; });
+    adopted.forEach((a) => {
+      const slot = host.querySelector(`[data-slot="${a.slot}"]`);
+      if (slot) slot.replaceWith(a.el);
+      else host.querySelector('.lv-grid').appendChild(a.el);
+    });
+    host.querySelectorAll('[data-slot]').forEach((el) => el.remove());   // slots with no card
   }
 
   function render() {
@@ -490,10 +522,11 @@
     skeleton();
     const m = build(lane, rates);
     if (current && placeKey(current.lane.orig) + '>' + placeKey(current.lane.dest) + current.eq !== placeKey(lane.orig) + '>' + placeKey(lane.dest) + m.eq) showAllQuotes = false;
+    const laneKey = placeKey(lane.orig) + '>' + placeKey(lane.dest);
+    if (laneKey !== weatherFor && typeof window.triggerWeatherUpdate === 'function') { weatherFor = laneKey; window.triggerWeatherUpdate(); }
     current = m;
     parts.head.innerHTML = headHTML(m);
     parts.tiles.innerHTML = tilesHTML(m);
-    parts.note.innerHTML = noteHTML(m);
     parts.chart.innerHTML = chartPanelHTML(m);
     drawChart(m);
     parts.quotes.innerHTML = quotesHTML(m);
@@ -517,6 +550,9 @@
     if (!host) return;
     host.hidden = true;
     if (jump) jump.hidden = true;
+    adopted = [...document.querySelectorAll('[data-lane-slot]')].filter((el) => !host.contains(el))
+      .map((el) => ({ el, slot: el.dataset.laneSlot }));
+    adopted.forEach((a) => host.appendChild(a.el));   // hidden with the view until a lane shows
     host.addEventListener('click', (e) => {
       const b = e.target.closest('[data-mode]');
       if (b) { setMode(b.dataset.mode); return; }

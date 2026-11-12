@@ -1,53 +1,96 @@
-/* lane.css — "Lane details" under the calculator (lane.js): the lane's market
-   rate now and over time, your quotes on it, the route on Google's map, the
-   markets at both ends, and trip and fuel. Colors come from site.css. */
+/* lane.css — "Lane details" under the calculator (lane.js).
 
-.lane-view{grid-column:1/-1;margin:2px 0 18px}
+   Layout, top to bottom, so the eye can find each kind of information:
+     1. a solid title bar: the lane, trailer, miles, drive time, both markets,
+        and the per load / per mile switch
+     2. rate cards: this month, last month, 3-month average, range, your quote
+   Colors stay with the site's own: a charcoal bar, amber accents, neutral
+   edges. Blue is only the lane's line in the chart (as on the Market Rates
+   page).
+     3. rows of panels that line up, each with a header strip and an icon:
+          market rate history | route
+          markets at both ends | weather at both ends
+          HOS trip plan | trip and fuel
+          your quotes on this lane (full width)
+   No outer box: the panels sit on the page, one level deep. The calculator's
+   HOS and weather cards are restyled here to match (flat inside: no boxes in
+   boxes). Colors come from site.css. */
+
+.lane-view{
+  grid-column:1/-1;margin:4px 0 22px;font-family:var(--font);color:var(--text);
+  --lv-bar:#1c2635;          /* the title bar: the site's own dark, a step above the panels */
+  --lv-edge:var(--text3);    /* top edge of the market rate cards */
+  --lv-shadow:0 1px 2px rgba(0,0,0,.35),0 10px 28px rgba(0,0,0,.22);
+  --lv-head:var(--card2);
+}
+html.light .lane-view{
+  --lv-bar:#141c28;
+  --lv-edge:#141c28;
+  --lv-shadow:0 1px 2px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.07);
+  --lv-head:#f6f8fb;
+}
 .lane-view[hidden]{display:none}
-.lv-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);overflow:hidden;
-  font-family:var(--font);color:var(--text)}
+.lv-icon{width:18px;height:18px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 
-/* Header: the lane, trailer, miles and the per load / per mile switch */
-.lv-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 24px;padding:20px 22px 18px;
-  border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(245,165,36,.06),transparent 120px)}
-.lv-kicker{font:600 11px/1 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
-.lv-title{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin-top:8px;font-size:clamp(19px,2.3vw,25px);font-weight:700;
-  letter-spacing:-.02em;line-height:1.2}
-.lv-title .lv-arrow{color:var(--text3);font-weight:500}
-.lv-title .lv-eq{font:600 11px/1 var(--font);letter-spacing:.05em;text-transform:uppercase;padding:5px 9px;border-radius:999px;
-  color:var(--accent);background:var(--accentbg);border:1px solid rgba(245,165,36,.3)}
-.lv-sub{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:8px;font-size:13px;color:var(--text2)}
-.lv-sub b{color:var(--text);font-weight:600}
-.lv-seg{display:inline-flex;background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:3px;flex-shrink:0}
-.lv-seg button{font:600 12.5px/1 var(--font);padding:9px 14px;border-radius:8px;border:0;background:transparent;color:var(--text2);cursor:pointer}
-.lv-seg button[aria-pressed="true"]{background:var(--card3);color:var(--text)}
-html.light .lv-seg button[aria-pressed="true"]{background:#fff;box-shadow:var(--shadow)}
+/* ── 1. Title bar ─────────────────────────────────────────────────────── */
+.lv-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px 28px;padding:20px 24px;border-radius:18px;
+  background:var(--lv-bar);color:#fff;box-shadow:var(--lv-shadow)}
+.lv-kicker{font:700 11px/1 var(--font);letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.62)}
+.lv-title{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:clamp(20px,2.4vw,27px);font-weight:700;
+  letter-spacing:-.02em;line-height:1.2;color:#fff}
+.lv-title .lv-arrow{color:rgba(255,255,255,.45);font-weight:500}
+.lv-eq{font:700 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;padding:6px 10px;border-radius:999px;
+  color:var(--accent-ink);background:var(--accent-fill)}
+.lv-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.lv-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border-radius:999px;font-size:13px;color:rgba(255,255,255,.75);
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);white-space:nowrap}
+.lv-chip b{color:#fff;font-weight:600}
+.lv-chip .lv-icon{width:15px;height:15px;color:rgba(255,255,255,.65)}
+.lv-seg{display:inline-flex;padding:4px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);flex-shrink:0}
+.lv-seg button{font:600 13px/1 var(--font);padding:10px 16px;border-radius:9px;border:0;background:transparent;color:rgba(255,255,255,.78);cursor:pointer}
+.lv-seg button:hover{color:#fff}
+.lv-seg button[aria-pressed="true"]{background:#fff;color:#141c28}
 
-/* Rate tiles */
-.lv-tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding:16px 22px 4px}
-.lv-tile{background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:14px 14px 13px;min-width:0}
-.lv-tile small{display:block;font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lv-tile b{display:block;margin-top:7px;font-size:22px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
-.lv-tile b em{font-style:normal;font-size:13px;font-weight:500;color:var(--text3);margin-left:2px}
-.lv-tile span{display:flex;align-items:center;gap:4px;margin-top:5px;font-size:12px;color:var(--text2);font-variant-numeric:tabular-nums}
-.lv-tile span svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-.lv-tile.lv-you{background:var(--accentbg);border-color:rgba(245,165,36,.42)}
-.lv-note{padding:8px 22px 0;font-size:12px;color:var(--text3);line-height:1.6}
+/* ── 2. Rate cards ────────────────────────────────────────────────────── */
+.lv-tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:14px}
+.lv-tile{position:relative;background:var(--card);border:1px solid var(--border2);border-top:3px solid var(--lv-edge);border-radius:14px;
+  padding:14px 16px 15px;box-shadow:var(--lv-shadow);min-width:0}
+.lv-tile-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px;min-height:24px}
+.lv-tile-title{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap}
+.lv-tile-tag{flex-shrink:0;font-size:11.5px;font-weight:600;color:var(--text2);padding:3px 8px;border-radius:999px;background:var(--card2);border:1px solid var(--border)}
+.lv-tile-val{display:block;margin-top:12px;font-size:28px;font-weight:700;letter-spacing:-.025em;line-height:1.05;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lv-tile-val.small{font-size:21px;padding-top:4px}
+.lv-tile-val em{font-style:normal;font-size:15px;font-weight:600;color:var(--text3);margin-left:2px}
+.lv-tile-sub{display:block;margin-top:6px;font-size:13px;color:var(--text2);font-variant-numeric:tabular-nums}
+.lv-tile-foot{display:flex;align-items:center;gap:5px;margin-top:10px;padding-top:9px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text2);
+  font-variant-numeric:tabular-nums}
+.lv-tile-foot svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.lv-tile.lv-you{border-color:rgba(245,165,36,.55);border-top-color:var(--accent-fill);background:linear-gradient(var(--accentbg),var(--accentbg)),var(--card)}
+.lv-tile.lv-you .lv-tile-tag{color:var(--accent-ink);background:var(--accent-fill);border-color:var(--accent-fill)}
 
-/* Body: chart and your quotes; map, markets, trip on the side */
-.lv-body{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(0,1fr);gap:14px;padding:16px 22px 22px;align-items:start}
-.lv-main,.lv-side{display:grid;gap:14px;min-width:0}
-.lv-panel{border:1px solid var(--border);border-radius:14px;padding:16px;background:var(--card);min-width:0}
-.lv-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-.lv-panel h3{font-size:14px;font-weight:700;color:var(--text);letter-spacing:-.005em}
-.lv-panel h3 small{font-weight:500;color:var(--text3);font-size:12px;margin-left:6px}
-.lv-link{font:600 12.5px/1 var(--font);color:var(--accent);background:none;border:0;cursor:pointer;text-decoration:none;padding:4px 0;white-space:nowrap}
+/* ── 3. Panels ────────────────────────────────────────────────────────── */
+.lv-grid{display:grid;gap:14px;margin-top:14px}
+.lv-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:14px;align-items:stretch}
+.lv-row-wide{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+.lv-panel,.lane-view .hos-card,.lane-view .weather-card{display:flex;flex-direction:column;min-width:0;margin:0;background:var(--card);
+  border:1px solid var(--border2);border-radius:16px;box-shadow:var(--lv-shadow);overflow:hidden}
+.lv-panel-head,.lane-view .hos-header,.lane-view .weather-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px;
+  padding:12px 16px;background:var(--lv-head);border-bottom:1px solid var(--border)}
+.lv-panel-head h3,.lane-view .hos-header .card-title,.lane-view .weather-header .card-title{display:flex;align-items:center;gap:10px;
+  font:700 15.5px/1.2 var(--font);letter-spacing:-.01em;text-transform:none;color:var(--text)}
+.lv-panel-head h3 small{font-size:12.5px;font-weight:500;color:var(--text3);letter-spacing:0}
+.lv-ico{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;color:var(--accent);background:var(--accentbg);
+  border:1px solid rgba(245,165,36,.25)}
+.lv-ico .lv-icon{width:17px;height:17px}
+.lv-panel-body{padding:16px;flex:1;min-width:0}
+.lv-panel-foot{padding:11px 16px;border-top:1px solid var(--border);font-size:12px;line-height:1.55;color:var(--text3)}
+.lv-link{font:600 13px/1 var(--font);color:var(--accent);background:none;border:0;cursor:pointer;text-decoration:none;padding:4px 0;white-space:nowrap}
 .lv-link:hover{color:var(--accent2)}
 
-/* History chart */
-.lv-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--text2);margin-bottom:8px}
+/* Market rate history */
+.lv-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--text2);margin-bottom:8px}
 .lv-legend span{display:inline-flex;align-items:center;gap:6px}
-.lv-legend i{display:inline-block;width:14px;height:3px;border-radius:2px}
+.lv-legend i{display:inline-block;width:16px;height:3px;border-radius:2px}
 .lv-legend .dot{width:9px;height:9px;border-radius:50%;background:var(--text)}
 .lv-legend .ring{width:9px;height:9px;border-radius:50%;border:2px solid var(--text);background:transparent;box-sizing:border-box}
 .lv-legend .open{width:8px;height:8px;border-radius:50%;background:var(--text3)}
@@ -63,71 +106,110 @@ html.light .lv-seg button[aria-pressed="true"]{background:#fff;box-shadow:var(--
 .lv-tip .row{display:flex;justify-content:space-between;gap:14px}
 .lv-tip .row strong{color:var(--text);font-variant-numeric:tabular-nums}
 .lv-tip i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:7px;vertical-align:3px}
-.lv-table-wrap{overflow-x:auto;margin-top:6px}
-.lv-table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
-.lv-table th{font:600 10.5px/1.2 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--text3);text-align:left;padding:8px 10px;
-  border-bottom:1px solid var(--border);white-space:nowrap}
-.lv-table td{padding:9px 10px;border-bottom:1px solid var(--border);color:var(--text2);white-space:nowrap}
+.lv-table-wrap{overflow-x:auto}
+.lv-table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.lv-table th{font:700 11px/1.2 var(--font);letter-spacing:.05em;text-transform:uppercase;color:var(--text3);text-align:left;padding:9px 10px;
+  border-bottom:1px solid var(--border2);white-space:nowrap}
+.lv-table td{padding:10px;border-bottom:1px solid var(--border);color:var(--text2);white-space:nowrap}
+.lv-table tbody tr:nth-child(even) td{background:var(--card2)}
 .lv-table tr:last-child td{border-bottom:0}
 .lv-table td.num,.lv-table th.num{text-align:right}
 .lv-table td.strong{color:var(--text);font-weight:600}
 .lv-table td.wrap{white-space:normal;min-width:120px}
 
-/* Your quotes on this lane */
-.lv-stats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
-.lv-stat{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:8px 11px;font-size:12px;color:var(--text3)}
-.lv-stat b{display:block;font-size:15px;color:var(--text);font-variant-numeric:tabular-nums;margin-top:2px}
-.lv-result{font:700 10px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;padding:4px 7px;border-radius:6px;border:1px solid var(--border2);color:var(--text3)}
-.lv-result.won{color:var(--green);border-color:currentColor;background:var(--greenbg)}
-.lv-result.lost{color:var(--red);border-color:currentColor;background:var(--redbg)}
-.lv-empty{font-size:13px;color:var(--text2);line-height:1.6}
-.lv-empty .qf-btn{margin-top:12px}
-.lv-muted{font-size:12px;color:var(--text3);margin-top:8px;line-height:1.55}
-
-/* Route map */
-.lv-map{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:var(--card2);aspect-ratio:4/3}
+/* Route */
+.lv-map{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--card2);aspect-ratio:4/3}
 .lv-map iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-.lv-map-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:100%;padding:18px;text-align:center}
-.lv-map-empty .qf-icon{width:28px;height:28px;color:var(--accent)}
-.lv-map-empty p{font-size:13px;color:var(--text2);line-height:1.5}
-.lv-credit{font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5}
+.lv-map-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;height:100%;padding:18px;text-align:center}
+.lv-map-empty .lv-icon{width:30px;height:30px;color:var(--accent)}
+.lv-map-empty p{font-size:13.5px;color:var(--text2);line-height:1.5}
 
-/* Markets at both ends */
-.lv-mkt + .lv-mkt{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
-.lv-mkt-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
-.lv-mkt-top small{font-size:11.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
-.lv-mkt-top b{font-size:16px;font-variant-numeric:tabular-nums}
-.lv-mkt-place{font-size:13px;color:var(--text);font-weight:600;margin-top:3px}
+/* Markets at both ends: pickup and delivery side by side */
+.lv-ends{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.lv-end{padding:0 16px 0 0;min-width:0}
+.lv-end + .lv-end{padding:0 0 0 16px;border-left:1px solid var(--border)}
+.lv-end-label{font:700 11px/1 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.lv-end-place{margin-top:7px;font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lv-end-region{margin-top:2px;font-size:12.5px;color:var(--text2)}
+.lv-end-rate{margin-top:12px;font-size:24px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.lv-end-rate em{font-style:normal;font-size:13px;font-weight:600;color:var(--text3);margin-left:2px}
 .lv-meter{position:relative;height:6px;border-radius:3px;margin:12px 0 6px;background:var(--card3)}
 html.light .lv-meter{background:var(--border2)}
 .lv-meter::before{content:'';position:absolute;left:50%;top:-4px;width:1px;height:14px;background:var(--text3);opacity:.7}
 .lv-meter i{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--text);border:3px solid var(--card)}
-.lv-meter-scale{display:flex;justify-content:space-between;font-size:10.5px;color:var(--text3)}
-.lv-mkt p{font-size:12.5px;color:var(--text2);line-height:1.55;margin-top:6px}
+.lv-meter-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--text3)}
+.lv-end p{margin-top:10px;font-size:13px;line-height:1.5;color:var(--text2)}
 
 /* Trip and fuel */
-.lv-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 16px}
-.lv-facts div{min-width:0}
-.lv-facts small{display:block;font-size:11.5px;color:var(--text3)}
-.lv-facts b{display:block;font-size:16px;margin-top:3px;font-variant-numeric:tabular-nums}
-.lv-facts span{display:block;font-size:11.5px;color:var(--text3);margin-top:2px}
+.lv-facts{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.lv-facts > div{padding:12px 4px 12px 0;min-width:0;border-bottom:1px solid var(--border)}
+.lv-facts > div:nth-child(even){padding-left:16px;border-left:1px solid var(--border)}
+.lv-facts > div:nth-last-child(-n+2){border-bottom:0}
+.lv-facts small{display:block;font:700 11px/1.2 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
+.lv-facts b{display:block;margin-top:6px;font-size:22px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.lv-facts span{display:block;margin-top:3px;font-size:12.5px;color:var(--text2)}
 
-/* Result card link */
+/* Your quotes on this lane */
+.lv-stats{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.lv-stat{min-width:120px;padding:10px 14px;border-radius:12px;background:var(--card2);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text3)}
+.lv-stat b{display:block;margin-top:3px;font-size:18px;color:var(--text);font-variant-numeric:tabular-nums}
+.lv-result{font:700 10.5px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:6px;border:1px solid var(--border2);color:var(--text3)}
+.lv-result.won{color:var(--green);border-color:currentColor;background:var(--greenbg)}
+.lv-result.lost{color:var(--red);border-color:currentColor;background:var(--redbg)}
+.lv-empty{font-size:14px;color:var(--text2);line-height:1.6;max-width:720px}
+.lv-empty .qf-btn{margin-top:12px}
+.lv-muted{font-size:12.5px;color:var(--text3);margin-top:10px;line-height:1.55}
+
+/* The calculator's HOS trip plan, flat inside: stats in a row, then a simple timeline */
+.lane-view .hos-card:not(.visible){display:none}
+.lane-view .hos-card.visible{display:flex}
+.lane-view .hos-badge{font-size:10px;color:var(--text2);background:var(--card2);border-color:var(--border2)}
+.lane-view .hos-day .hos-day-num{background:var(--accent-fill);color:var(--accent-ink)}
+.lane-view .hos-event-bar{background:var(--accent-fill)!important;opacity:.55!important}   /* the calculator sets these inline */
+.lane-view #hos-route-label{display:none}
+.lane-view .hos-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;background:none;border-bottom:1px solid var(--border)}
+.lane-view .hos-stats .hos-stat{background:none;padding:14px 8px}
+.lane-view .hos-stats .hos-stat + .hos-stat{border-left:1px solid var(--border)}
+.lane-view .hos-stat-val{font-size:22px}
+.lane-view .hos-days{padding:14px 16px 4px;flex:1}
+.lane-view .hos-day{border:0;border-radius:0;overflow:visible;margin:0 0 12px}
+.lane-view .hos-day .hos-day-header{background:none;border:0;padding:0 0 8px;font-size:13px}
+.lane-view .hos-events{margin-left:12px;padding:2px 0 2px 18px;border-left:2px solid var(--border2);gap:8px}
+.lane-view .hos-disclaimer{padding:10px 16px 14px;border-top:1px solid var(--border);font-size:11px}
+
+/* The calculator's weather outlook: pickup and delivery side by side, no boxes */
+.lane-view .weather-card,.lane-view .weather-card.visible{display:flex}
+.lane-view .weather-locations{gap:0;background:none;flex:1}
+.lane-view .weather-loc{background:none;padding:16px}
+.lane-view .weather-loc + .weather-loc{border-left:1px solid var(--border)}
+.lane-view #weather-body{flex:1;display:flex;flex-direction:column}
+.lane-view .weather-card > div:last-child{font-size:11px}
+
+/* The calculator's link to this view */
 .lane-jump{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font:600 12.5px/1 var(--font);color:var(--accent);text-decoration:none;
   padding:8px 12px;border-radius:999px;border:1px solid rgba(245,165,36,.35);background:var(--accentbg)}
 .lane-jump:hover{color:var(--accent2)}
 .lane-jump[hidden]{display:none}
 
 @media (max-width:1100px){.lv-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:900px){.lv-body{grid-template-columns:1fr}}
+@media (max-width:900px){.lv-row-wide{grid-template-columns:1fr}}
 @media (max-width:640px){
-  .lv-head{padding:16px}
-  .lv-tiles{grid-template-columns:1fr 1fr;padding:14px 16px 2px}
+  .lv-bar{padding:18px 16px;border-radius:16px}
+  .lv-seg{width:100%}
+  .lv-seg button{flex:1}
+  .lv-tiles{grid-template-columns:1fr 1fr;gap:10px}
   .lv-tiles .lv-tile:last-child{grid-column:1/-1}
-  .lv-note{padding:8px 16px 0}
-  .lv-body{padding:14px 16px 16px}
-  .lv-facts{grid-template-columns:1fr 1fr}
-  .lv-panel{padding:14px}
-  .lv-tile b{font-size:19px}
+  .lv-tile{padding:12px 13px 13px}
+  .lv-tile-val{font-size:23px}
+  .lv-tile-val.small{font-size:17px}
+  .lv-tile-title{font-size:13px}
+  .lv-panel-body{padding:14px}
+  .lv-ends{grid-template-columns:1fr}
+  .lv-end{padding:0}
+  .lv-end + .lv-end{padding:16px 0 0;margin-top:16px;border-left:0;border-top:1px solid var(--border)}
   .lv-map{aspect-ratio:1/1}
+  .lane-view .hos-stats{grid-template-columns:1fr 1fr}
+  .lane-view .hos-stats .hos-stat:nth-child(3){border-left:0}
+  .lane-view .hos-stats .hos-stat:nth-child(n+3){border-top:1px solid var(--border)}
 }
+@media (max-width:480px){.lane-view .weather-loc + .weather-loc{border-left:0;border-top:1px solid var(--border)}}

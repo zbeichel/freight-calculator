@@ -78,6 +78,10 @@ async function setup(browser, base, { plan = 'plus', signedIn = true, theme = 'd
       return json({ routes: [{ distanceMeters: 690 * 1609.34, duration: '37800s',
         legs: [{ startLocation: { latLng: { latitude: 40.0379, longitude: -76.3055 } }, endLocation: { latLng: { latitude: 33.749, longitude: -84.388 } } }] }] });
     }
+    if (url.includes('api.open-meteo.com/v1/forecast')) {
+      return json({ daily: { weathercode: [3], temperature_2m_max: [11.2], temperature_2m_min: [2.1], precipitation_sum: [0.4],
+        windspeed_10m_max: [18], precipitation_probability_max: [35], relative_humidity_2m_max: [78] } });
+    }
     if (url.includes('/.netlify/functions/verify-pro')) return json({ active: signedIn, plan, paid: true, unlimitedUntilRenewal: false });
     if (url.includes('/rest/v1/pro_users')) return json(signedIn ? [{ id: 'user-1', is_active: true, plan, stripe_customer_id: 'cus_1', stripe_subscription_id: 'sub_1',
       contact_name: 'Sam Rivera', company_name: 'Keystone Produce Logistics', email: 'sam@example.com' }] : []);
@@ -130,8 +134,9 @@ const tiles = (pg) => pg.$$eval('#lane-view .lv-tile', (els) => els.map((e) => e
   check('nothing shows before a lane is priced', await t.page.isHidden('#lane-view') && await t.page.isHidden('#lane-jump'));
   await priceLane(t, base, 8);
   check('the route lookup ran once', t.calls.routes === 1);
-  check('the lane, trailer, miles, drive time and both markets', (await text(t.page, '#lane-view .lv-head')).startsWith(
-    'LANE DETAILS Lancaster, PA → Atlanta, GA REEFER 690 mi 10 h 30 m drive Pickup market Northeast Delivery market Southeast'), await text(t.page, '#lane-view .lv-head'));
+  check('the title bar: lane, trailer, miles, drive time, both markets, per load / per mile', (await text(t.page, '#lane-view .lv-bar')) ===
+    'LANE DETAILS Lancaster, PA → Atlanta, GA REEFER 690 mi 10 h 30 m drive Pickup Northeast Delivery Southeast Per load Per mile', await text(t.page, '#lane-view .lv-bar'));
+  check('the title bar is a solid color', await t.page.$eval('#lane-view .lv-bar', (e) => { const c = getComputedStyle(e); return c.backgroundImage === 'none' && c.backgroundColor !== 'rgba(0, 0, 0, 0)'; }));
   check('"Lane details" link under the quote', await t.page.isVisible('#lane-jump') && (await t.page.getAttribute('#lane-jump', 'href')) === '#lane-view');
 
   const dm = await t.page.evaluate(() => dMult(690, 'reefer').m);
@@ -143,11 +148,13 @@ const tiles = (pg) => pg.$$eval('#lane-view .lv-tile', (els) => els.map((e) => e
       && tl[0].includes(`${trend > 0 ? 'Up' : 'Down'} ${Math.abs(trend * 100).toFixed(1)}% vs ${prev.label.replace(/\s+\d{4}$/, '')}`), tl[0]);
   check('it matches the calculator\'s regional base rate', Math.abs(RATES.regions.northeast.reefer - last.regions.northeast.reefer) < 1e-9
     && (await t.page.inputValue('#rate-reefer')) === RATES.regions.northeast.reefer.toFixed(2));
-  check('last month', tl[1].includes(`Last month · ${prev.label}`) && tl[1].includes(money0(ne(prev) * 690)), tl[1]);
+  const shortLabel = (h) => h.label.replace(/\s+\d{4}$/, '');
+  check('cards read at a glance: a title, then the month', tl[0].startsWith(`This month ${shortLabel(last)} `) && tl[1].startsWith(`Last month ${shortLabel(prev)} `), tl[0] + ' / ' + tl[1]);
+  check('last month', tl[1].includes(money0(ne(prev) * 690)), tl[1]);
   const avg3 = H.slice(-3).reduce((s, h) => s + ne(h), 0) / 3;
   check('3-month average', tl[2].includes(money0(avg3 * 690)) && tl[2].includes(money2(avg3) + '/mi'), tl[2]);
   const lows = H.map(ne);
-  check('range since the first month', tl[3].includes(`Range since ${H[0].label}`)
+  check('range since the first month', tl[3].startsWith(`Range Since ${shortLabel(H[0])}`)
     && tl[3].includes(`${money0(Math.min(...lows) * 690)}–${money0(Math.max(...lows) * 690)}`), tl[3]);
   const quoteText = await text(t.page, '#r-quote');
   const quoteVal = Number(quoteText.replace(/[$,]/g, ''));
@@ -196,20 +203,36 @@ const tiles = (pg) => pg.$$eval('#lane-view .lv-tile', (els) => els.map((e) => e
   check('the van quote is counted separately', (await text(t.page, '[data-part="quotes"] .lv-muted')).startsWith('1 more on another trailer'));
 
   console.log('\n=== Markets, trip and fuel ===');
-  const mk = await t.page.$$eval('#lane-view .lv-mkt', (els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
+  const mk = await t.page.$$eval('#lane-view .lv-end', (els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
   const natR = RATES.regions.national.reefer, neR = RATES.regions.northeast.reefer, seR = RATES.regions.southeast.reefer;
   const pd = (x) => Math.abs((x / natR - 1) * 100).toFixed(0);
-  check('pickup: Northeast reefer out vs national', mk[0].startsWith(`PICKUP ${money2(neR)}/mi out Lancaster, PA · Northeast`)
+  check('pickup: Northeast reefer out vs national', mk[0].startsWith(`PICKUP Lancaster, PA Northeast market ${money2(neR)}/mi out`)
     && mk[0].includes(`Trucks leaving the Northeast earn ${pd(neR)}% ${neR > natR ? 'more' : 'less'} than the national rate.`), mk[0]);
-  check('delivery: Southeast, and what it means for the reload', mk[1].startsWith(`DELIVERY ${money2(seR)}/mi out Atlanta, GA · Southeast`)
+  check('pickup and delivery side by side', mk.length === 2 && await t.page.$eval('#lane-view .lv-ends', (e) => getComputedStyle(e).gridTemplateColumns.split(' ').length) === 2);
+  check('delivery: Southeast, and what it means for the reload', mk[1].startsWith(`DELIVERY Atlanta, GA Southeast market ${money2(seR)}/mi out`)
     && mk[1].includes(seR < natR ? 'A weaker reload: carriers may ask more to deliver here.' : 'A strong reload'), mk[1]);
   const lt = RATES.loadToTruck.reefer;
-  check('load-to-truck for the trailer', (await text(t.page, '[data-part="markets"] .lv-muted')).startsWith(`Reefer load-to-truck nationally: ${lt.current} loads per truck`));
+  check('load-to-truck for the trailer', (await text(t.page, '[data-part="markets"] .lv-panel-foot')).startsWith(`Reefer load-to-truck nationally: ${lt.current} loads per truck`));
   const trip = await text(t.page, '[data-part="trip"]');
-  check('trip: miles and drive time from Google, driving days', trip.includes('Miles 690 Google Maps') && trip.includes('Drive time 10 h 30 m Google Maps')
-    && trip.includes('Driving days 1 At 11 hours a day'), trip);
-  check('fuel at the EIA price: gallons, cost and the DOE surcharge', trip.includes('Fuel 106 gal At 6.5 mpg') && trip.includes(`Fuel cost ${money0(690 / 6.5 * 3.851)} $3.85/gal · EIA, week of Nov 9`)
-    && trip.includes(`Fuel surcharge ${money2((3.851 - 1.25) / 6.5)}/mi DOE method`), trip);
+  check('trip: miles from Google', trip.includes('MILES 690 Google Maps') && !/drive time/i.test(trip), trip);
+  check('fuel at the EIA price: gallons, cost and the DOE surcharge', trip.includes('FUEL 106 gal At 6.5 mpg') && trip.includes(`FUEL COST ${money0(690 / 6.5 * 3.851)} $3.85/gal · EIA Nov 9`)
+    && trip.includes(`FUEL SURCHARGE ${money2((3.851 - 1.25) / 6.5)}/mi DOE method`), trip);
+  const hos = await t.page.evaluate(() => {
+    const c = document.getElementById('hos-card');
+    return { inLane: !!c.closest('#lane-view .lv-row') && c.nextElementSibling === document.querySelector('[data-part="trip"]'), shown: c.offsetParent !== null,
+      days: document.getElementById('hos-drive-days').textContent.trim(), total: document.getElementById('hos-total-time').textContent.trim() };
+  });
+  // 10 h 30 m of driving needs a 30-minute break after 8 hours: 11 hours in all, one day
+  check('the HOS trip plan sits in Lane details beside Trip and fuel, with the drive time', hos.inLane && hos.shown && hos.days === '1' && hos.total === '11h', JSON.stringify(hos));
+  await t.page.waitForSelector('#lane-view #weather-locations', { state: 'visible', timeout: 5000 }).catch(() => {});
+  const wx = await t.page.evaluate(() => {
+    const c = document.getElementById('weather-card');
+    return { inLane: !!c.closest('#lane-view .lv-row') && c.previousElementSibling === document.querySelector('[data-part="markets"]'), shown: c.offsetParent !== null,
+      temp: (document.getElementById('wo-temp') || {}).textContent || '' };
+  });
+  check('the weather outlook sits beside the markets, with the forecast', wx.inLane && wx.shown && /°F/.test(wx.temp), JSON.stringify(wx));
+  check('under the form there is nothing else now', await t.page.evaluate(() =>
+    [...document.querySelector('.main > .calc-col').children].every((c) => c.classList.contains('card') && !c.id)));
   check('diesel and the map key were each fetched once', t.calls.diesel === 1 && t.calls.maps === 1, JSON.stringify(t.calls));
 
   console.log('\n=== Route ===');
@@ -260,9 +283,39 @@ const tiles = (pg) => pg.$$eval('#lane-view .lv-tile', (els) => els.map((e) => e
   await t.page.waitForTimeout(400);
   const src2 = await t.page.getAttribute('[data-part="map"] iframe', 'src');
   check('a new destination reloads the map; a checked place goes with its county', src2.includes('&destination=Franklin%2C%20Vernon%20County%2C%20WI&')
-    && (await text(t.page, '#lane-view .lv-head')).includes('Lancaster, PA → Franklin, WI'), src2);
+    && (await text(t.page, '#lane-view .lv-bar')).includes('Lancaster, PA → Franklin, WI'), src2);
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
+
+  console.log('\n=== The form box and the quote box ===');
+  const level = (pg) => pg.evaluate(() => {
+    const cols = document.querySelectorAll('.main > .calc-col');
+    const box = (col) => [...col.children].find((c) => c.offsetParent !== null && (c.classList.contains('card') || c.classList.contains('result-card')));
+    const r = (e) => e.getBoundingClientRect();
+    return { left: Math.round(r(box(cols[0])).bottom), right: Math.round(r(box(cols[1])).bottom) };
+  });
+  for (const [label, opts, after] of [['free account', { signedIn: false }, null], ['Pro Plus', { plan: 'plus' }, null],
+    ['Advanced adjustments open', { plan: 'plus' }, (pg) => pg.evaluate(() => toggleAdv())], ['LTL', { plan: 'plus' }, (pg) => pg.click('#btn-ltl')]]) {
+    t = await setup(browser, base, opts);
+    await priceLane(t, base, opts.signedIn === false ? 0 : 8);
+    await t.page.evaluate(() => window.scrollTo(0, 0));
+    if (after) await after(t.page);
+    await t.page.waitForTimeout(300);
+    const lv = await level(t.page);
+    check(`${label}: the two boxes end level`, Math.abs(lv.left - lv.right) <= 1, JSON.stringify(lv));
+    if (label === 'Advanced adjustments open') {
+      // Scrolled well into the long form: the quote's contents stay in view below the navigation
+      const y = await t.page.evaluate(() => { const c = document.querySelector('.result-card'); return c.getBoundingClientRect().top + window.scrollY + 300; });
+      await t.page.evaluate((yy) => window.scrollTo(0, yy), y);
+      await t.page.waitForTimeout(200);
+      const pos = await t.page.evaluate(() => ({ card: Math.round(document.querySelector('.result-card').getBoundingClientRect().top),
+        inner: Math.round(document.querySelector('.result-card .result-inner').getBoundingClientRect().top),
+        nav: Math.round(document.getElementById('qf-nav').getBoundingClientRect().bottom) }));
+      check('scrolling a long form keeps the quote in view, below the navigation', pos.card < 0 && pos.inner >= pos.nav && pos.inner <= pos.nav + 24, JSON.stringify(pos));
+    }
+    check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+    await t.context.close();
+  }
 
   console.log('\n=== Pro, free, light, phone ===');
   t = await setup(browser, base, { plan: 'pro', theme: 'light' });
@@ -298,7 +351,7 @@ const tiles = (pg) => pg.$$eval('#lane-view .lv-tile', (els) => els.map((e) => e
   check('phone: no sideways scrolling', sideways <= 1, `${sideways}px`);
   const cols = await t.page.$eval('#lane-view .lv-tiles', (e) => getComputedStyle(e).gridTemplateColumns.split(' ').length);
   check('phone: tiles two across, panels stacked', cols === 2
-    && await t.page.$eval('#lane-view .lv-body', (e) => getComputedStyle(e).gridTemplateColumns.split(' ').length) === 1);
+    && await t.page.$eval('#lane-view .lv-row-wide', (e) => getComputedStyle(e).gridTemplateColumns.split(' ').length) === 1);
   await t.page.addStyleTag({ content: '.qf-nav{position:relative!important}' });
   await t.page.locator('#lane-view').screenshot({ path: path.join(SHOTS, 'lane_phone.png') });
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
