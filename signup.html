@@ -152,7 +152,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
   <section class="su-hero">
     <span class="qf-pill">Plans &amp; pricing</span>
     <h1>Plans for every size of freight desk</h1>
-    <p>Every plan includes branded PDF quotes, the quote log, the multi-stop and bulk calculators and the lane tracker. Higher plans add more automatic miles, sales tools and white-label PDFs.</p>
+    <p>Every plan includes branded PDF quotes, the quote log, the multi-stop and bulk calculators and the lane tracker. Higher plans add more automatic miles, sales tools, white-label PDFs and lane details.</p>
   </section>
 
   <section class="su-plans plan-picker" id="su-plans" role="radiogroup" aria-label="Plan"></section>
@@ -324,6 +324,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       [all, 'Multi-stop load builder'],
       [all, 'Bulk load calculator (per cwt)'],
       [all, 'Lane rate tracker'],
+      [from('max'), 'Lane details: rate history, route map, both markets'],
       [all, per({ pro: 'Quote log: 100 saved quotes', plus: 'Quote log: 1,000 saved quotes', max: 'Quote log: 5,000 saved quotes', api: 'Quote log: 5,000 saved quotes' })],
     ]],
     ['PDF quotes', [
