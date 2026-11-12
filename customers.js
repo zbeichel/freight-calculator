@@ -355,7 +355,8 @@
           delBtn.hidden = !existing;
           status.textContent = '';
           wrap.hidden = false;
-          setTimeout(() => (existing ? f.contactName : f.name).focus(), 30);
+          // Focus the first field to fill, unless the user is already typing in one
+          setTimeout(() => { if (!wrap.contains(document.activeElement)) (existing ? f.contactName : f.name).focus(); }, 30);
         });
       },
     };
