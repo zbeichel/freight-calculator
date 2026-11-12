@@ -3,6 +3,7 @@
 // Called from Pro pages on load to verify the user has an active subscription
 
 const https = require('https');
+const { normalizePlan, legacyUnlimited, NEW_PLANS_START } = require('../lib/plans.js');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 
@@ -81,16 +82,31 @@ exports.handler = async function(event){
 
     // Now check pro_users with service key — bypasses RLS, authoritative
     const resp = await supabaseRequest(
-      `/rest/v1/pro_users?id=eq.${userId}&select=is_active`,
+      `/rest/v1/pro_users?id=eq.${userId}&select=is_active,plan,next_plan,grandfathered,billing_period_start,renews_at,stripe_subscription_id`,
       serviceKey
     );
 
-    const isActive = resp.body?.[0]?.is_active === true;
+    const row = resp.body?.[0] || {};
+    const isActive = row.is_active === true;
+    const plan = normalizePlan(row.plan);
+    // Subscribers on the original Pro plan keep unlimited quotes until their
+    // first bill on or after January 1, 2027; the pages use this to show the
+    // change notice. nextPlan is the plan they move to then (Pro by default).
+    // Someone who has already moved to the API plan has nothing left to choose.
+    const unlimitedUntilRenewal = isActive && plan !== 'api' && legacyUnlimited(row);
 
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ active: isActive })
+      body: JSON.stringify({
+        active: isActive,
+        plan,
+        unlimitedUntilRenewal,
+        nextPlan: unlimitedUntilRenewal ? normalizePlan(row.next_plan) : null,
+        newPlansStart: new Date(NEW_PLANS_START).toISOString(),
+        paid: !!row.stripe_subscription_id,
+        renewsAt: row.renews_at || null,
+      })
     };
 
   } catch(err){

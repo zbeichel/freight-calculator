@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google AdSense — site ownership verification -->
+<meta name="google-adsense-account" content="ca-pub-5621259704181475">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5621259704181475" crossorigin="anonymous"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API — QuickFreightCalc</title>
+<meta name="description" content="Get QuickFreightCalc truckload quotes in your own website, TMS or spreadsheet with the QuickFreightCalc API.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0c10;--panel:#0f1318;--card:#151a22;--card2:#1a2030;
+  --border:#1e2a38;--border2:#243040;--text:#ffffff;--text2:#b0c4d8;
+  --text3:#6b7f94;--accent:#f0a500;--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif}
+.header{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:100}
+.brand-name{font-size:18px;font-weight:700;color:var(--text2);letter-spacing:-.02em}
+.brand-name span{color:var(--accent)}
+.back-link{font-size:12px;color:var(--text3);text-decoration:none;transition:color .15s}
+.back-link:hover{color:var(--accent)}
+.page{max-width:720px;margin:0 auto;padding:48px 24px 80px}
+.doc-title{font-size:32px;font-weight:700;letter-spacing:-.03em;margin-bottom:8px}
+.doc-subtitle{font-size:13px;color:var(--text3);margin-bottom:48px}
+.section{margin-bottom:36px;scroll-margin-top:84px}
+.section-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.section p{font-size:14px;color:var(--text2);line-height:1.8;margin-bottom:10px}
+.section p:last-child{margin-bottom:0}
+.section ul{margin:8px 0 10px 20px;display:flex;flex-direction:column;gap:6px}
+.section ul li{font-size:14px;color:var(--text2);line-height:1.7}
+.highlight{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:10px}
+.highlight p{color:var(--text2);font-size:13px;line-height:1.7;margin:0}
+.highlight strong{color:var(--text)}
+.contact-box{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:20px 24px;margin-top:48px}
+.contact-box p{font-size:13px;color:var(--text3);line-height:1.7}
+.contact-box strong{color:var(--text2)}
+footer-note{display:block;font-size:12px;color:var(--text3);text-align:center;margin-top:40px}
+.section h3{font-size:14px;font-weight:700;color:var(--text);margin:18px 0 8px}
+.section a{color:var(--accent)}
+.section code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;color:var(--text);background:var(--card);border:1px solid var(--border);border-radius:5px;padding:1px 5px}
+pre{background:var(--card);border:1px solid var(--border2);border-radius:10px;padding:14px 16px;overflow-x:auto;margin:8px 0 14px;line-height:1.55}
+pre code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;color:#d6e2ee;background:none !important;border:none !important;padding:0 !important;white-space:pre}
+.table-wrap{overflow-x:auto;margin:8px 0 14px;border:1px solid var(--border);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{text-align:left;vertical-align:top;font-size:13px;line-height:1.55;padding:9px 12px;border-top:1px solid var(--border);color:var(--text2)}
+th{border-top:none;background:var(--card);color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+td:first-child{white-space:nowrap}
+.steps{counter-reset:step;list-style:none;margin:8px 0 14px 0 !important;padding:0;display:flex;flex-direction:column;gap:10px}
+.steps li{counter-increment:step;position:relative;padding-left:34px !important;font-size:14px;color:var(--text2);line-height:1.7}
+.steps li strong{color:var(--text)}
+.steps li::before{content:counter(step);position:absolute;left:0;top:2px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#000;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.toc{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;margin:-28px 0 40px}
+.toc a{color:var(--text3);text-decoration:none}
+.toc a:hover{color:var(--accent)}
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 14px;font-size:13px}
+.flow span{background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;color:var(--text)}
+.flow b{color:var(--accent)}
+@media(max-width:600px){
+  .page{padding:32px 16px 64px}.doc-title{font-size:26px}.header{padding:14px 16px}
+  /* Tables stack on phones: name and type on one line, the description under them. */
+  table{min-width:0}
+  thead{display:none}
+  tr{display:block;padding:10px 12px;border-top:1px solid var(--border)}
+  tbody tr:first-child{border-top:none}
+  td{display:inline;border:none;padding:0}
+  td:nth-child(2){color:var(--text3);font-size:12px;margin-left:6px}
+  td:nth-child(3){display:block;margin-top:4px}
+  td:first-child{white-space:normal}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="/" class="back-link">← Back to Calculator</a>
+  <div class="brand-name">Quick<span>Freight</span>Calc</div>
+  <div style="width:120px"></div>
+</div>
+
+<div class="page">
+
+  <div class="doc-title">QuickFreightCalc API</div>
+  <div class="doc-subtitle">Truckload quotes in your own website, TMS or spreadsheet &nbsp;·&nbsp; API plan, $199.99/month</div>
+  <nav class="toc" aria-label="On this page">
+    <a href="#start">Getting started</a><a href="#request">Request</a><a href="#examples">Examples</a>
+    <a href="#response">Response</a><a href="#errors">Errors</a><a href="#limits">Limits</a>
+    <a href="#website">Quote form on your site</a><a href="#math">How quotes are figured</a>
+  </nav>
+
+  <div class="section">
+    <div class="section-title">What it does</div>
+    <p>Your software sends us a lane — pickup, delivery, trailer, weight — and gets back a quote: miles, rate per mile, total and a full breakdown. It's the same calculation as the <a href="/">calculator</a>, with this month's rates, so the API and the website always agree.</p>
+    <p>Common uses: a "Get a quote" form on your own website, suggested rates inside your TMS, or pricing a list of lanes from a spreadsheet or database.</p>
+    <div class="highlight"><p><strong>The API plan</strong> is $199.99/month and includes everything in Pro Max on the website, plus <strong>5,000 API quotes with automatic miles</strong> every billing month. Requests where you send your own miles don't count toward the 5,000.</p></div>
+  </div>
+
+  <div class="section" id="start">
+    <div class="section-title">Getting started</div>
+    <ol class="steps">
+      <li><strong>Get the API plan.</strong> Already subscribed? Choose <strong>API</strong> under Subscription on your <a href="/profile.html">Profile</a>. New here? <a href="/signup.html?plan=api">Sign up for the API plan</a>.</li>
+      <li><strong>Create a key.</strong> Profile → API Access → Create key. Copy it right away; it's shown only once. You can have up to 5 keys and revoke any of them.</li>
+      <li><strong>Call the API from your server</strong> with the key in the <code>Authorization</code> header, as in the examples below.</li>
+    </ol>
+    <div class="highlight"><p><strong>Keep your key on your server.</strong> Store it in an environment variable or secrets manager. Never put it in a web page, a mobile app or a public code repository: anyone who has it can use up your quotes. The API doesn't accept calls made directly from a browser on another website for the same reason.</p></div>
+  </div>
+
+  <div class="section" id="request">
+    <div class="section-title">Request</div>
+    <pre><code>POST https://quickfreightcalc.com/api/v1/quote
+Authorization: Bearer qfc_live_…
+Content-Type: application/json</code></pre>
+    <p>Send a JSON object. Only <code>origin</code> and <code>destination</code> are required; everything else defaults to what a first visit to the calculator uses.</p>
+    <div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>What it does</th></tr></thead><tbody><tr><td><code>origin</code></td><td>text, required</td><td>Pickup: a city and state (<code>"Lancaster, PA"</code>), a ZIP code or a street address. With your own miles, include the state so we can use that region's rates; without one we use national rates.</td></tr><tr><td><code>destination</code></td><td>text, required</td><td>Delivery, in the same formats.</td></tr><tr><td><code>miles</code></td><td>number</td><td>Your own miles (1–10,000). Leave it out and we look up driving miles with Google; that counts toward your 5,000 a month.</td></tr><tr><td><code>trailer</code></td><td>text</td><td><code>van</code> (default), <code>reefer</code> or <code>flatbed</code>.</td></tr><tr><td><code>weight</code></td><td>number</td><td>Pounds. Under 10,000: ×0.95 · 10,000–29,999: ×0.97 · 30,000–44,000: ×1.00 · over 44,000: ×1.08. Leave it out for ×1.00.</td></tr><tr><td><code>commodity</code></td><td>text</td><td><code>standard</code> (default), <code>food</code>, <code>hazmat</code>, <code>highval</code> or <code>oversized</code>.</td></tr><tr><td><code>pickupDate</code></td><td>date</td><td><code>YYYY-MM-DD</code>. Used by <code>season</code> and <code>extraDayRate</code>.</td></tr><tr><td><code>deliveryDate</code></td><td>date</td><td><code>YYYY-MM-DD</code>. With <code>extraDayRate</code>, adds a charge for days beyond normal transit (about 500 miles a day).</td></tr><tr><td><code>margin</code></td><td>number</td><td>Your margin in percent, 0–100. Default 15.</td></tr><tr><td><code>rates</code></td><td>text</td><td><code>regional</code> (default: this month's rate for the pickup state's region) or <code>national</code>.</td></tr><tr><td><code>baseRatePerMile</code></td><td>number</td><td>Your own base rate in dollars per mile, used instead of ours.</td></tr><tr><td><code>dieselPrice</code></td><td>number</td><td>Diesel in dollars per gallon. Adds a fuel surcharge of (price − $1.25) ÷ 6.5 per mile.</td></tr><tr><td><code>capacity</code></td><td>true / false</td><td>Adjust for this month's load-to-truck ratio (up to ±12%). Default false.</td></tr><tr><td><code>season</code></td><td>text</td><td>A seasonal profile, by pickup month: <code>fl</code>, <code>se</code>, <code>ca</code>, <code>pnw</code>, <code>tx</code>, <code>az</code>, <code>gl</code>, <code>ne_produce</code>, <code>storage</code>, <code>mw</code>, <code>ne</code>, <code>sw</code>, <code>national</code>. Same list as the calculator's Seasonality setting.</td></tr><tr><td><code>holidays</code></td><td>list</td><td>Any of <code>roadcheck</code>, <code>brake_week</code>, <code>memorial</code>, <code>july4</code>, <code>labor</code>, <code>thanksgiving</code>, <code>xmas_nye</code>, <code>mothers_day</code>.</td></tr><tr><td><code>market</code></td><td>number</td><td>Market adjustment in percent, −10 to 30. Default 0.</td></tr><tr><td><code>extraDayRate</code></td><td>number</td><td>Dollars per extra transit day, when both dates are sent.</td></tr></tbody></table></div>
+    <p>Field names are case-sensitive, and unknown fields are rejected so a typo can't quietly change a quote. Numbers can be sent as numbers or numeric strings.</p>
+  </div>
+
+  <div class="section" id="examples">
+    <div class="section-title">Examples</div>
+    <h3>curl</h3>
+    <pre><code>curl https://quickfreightcalc.com/api/v1/quote \
+  -H &quot;Authorization: Bearer $QFC_API_KEY&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#x27;{
+    &quot;origin&quot;: &quot;Lancaster, PA&quot;,
+    &quot;destination&quot;: &quot;New York, NY&quot;,
+    &quot;trailer&quot;: &quot;reefer&quot;,
+    &quot;weight&quot;: 42000,
+    &quot;commodity&quot;: &quot;food&quot;,
+    &quot;pickupDate&quot;: &quot;2026-11-20&quot;
+  }&#x27;</code></pre>
+    <h3>JavaScript (Node.js)</h3>
+    <pre><code>// Node.js 18 or newer, on your server
+const resp = await fetch(&#x27;https://quickfreightcalc.com/api/v1/quote&#x27;, {
+  method: &#x27;POST&#x27;,
+  headers: {
+    &#x27;Authorization&#x27;: `Bearer ${process.env.QFC_API_KEY}`,
+    &#x27;Content-Type&#x27;: &#x27;application/json&#x27;,
+  },
+  body: JSON.stringify({
+    origin: &#x27;Lancaster, PA&#x27;,
+    destination: &#x27;New York, NY&#x27;,
+    trailer: &#x27;reefer&#x27;,
+    weight: 42000,
+  }),
+});
+const data = await resp.json();
+if (!resp.ok) throw new Error(data.error.message);
+console.log(data.quote.total, data.lane.miles);</code></pre>
+    <h3>Python</h3>
+    <pre><code>import os
+import requests
+
+resp = requests.post(
+    &quot;https://quickfreightcalc.com/api/v1/quote&quot;,
+    headers={&quot;Authorization&quot;: f&quot;Bearer {os.environ[&#x27;QFC_API_KEY&#x27;]}&quot;},
+    json={
+        &quot;origin&quot;: &quot;Lancaster, PA&quot;,
+        &quot;destination&quot;: &quot;New York, NY&quot;,
+        &quot;trailer&quot;: &quot;reefer&quot;,
+        &quot;weight&quot;: 42000,
+    },
+    timeout=15,
+)
+data = resp.json()
+if resp.status_code != 200:
+    raise RuntimeError(data[&quot;error&quot;][&quot;message&quot;])
+print(data[&quot;quote&quot;][&quot;total&quot;], data[&quot;lane&quot;][&quot;miles&quot;])</code></pre>
+    <h3>PHP</h3>
+    <pre><code>&lt;?php
+// PHP (for example a WordPress site), on your server
+$ch = curl_init(&#x27;https://quickfreightcalc.com/api/v1/quote&#x27;);
+curl_setopt_array($ch, [
+    CURLOPT_POST =&gt; true,
+    CURLOPT_RETURNTRANSFER =&gt; true,
+    CURLOPT_TIMEOUT =&gt; 15,
+    CURLOPT_HTTPHEADER =&gt; [
+        &#x27;Authorization: Bearer &#x27; . getenv(&#x27;QFC_API_KEY&#x27;),
+        &#x27;Content-Type: application/json&#x27;,
+    ],
+    CURLOPT_POSTFIELDS =&gt; json_encode([
+        &#x27;origin&#x27; =&gt; &#x27;Lancaster, PA&#x27;,
+        &#x27;destination&#x27; =&gt; &#x27;New York, NY&#x27;,
+        &#x27;trailer&#x27; =&gt; &#x27;reefer&#x27;,
+        &#x27;weight&#x27; =&gt; 42000,
+    ]),
+]);
+$data = json_decode(curl_exec($ch), true);
+echo $data[&#x27;quote&#x27;][&#x27;total&#x27;] ?? $data[&#x27;error&#x27;][&#x27;message&#x27;];</code></pre>
+  </div>
+
+  <div class="section" id="response">
+    <div class="section-title">Response</div>
+    <p>A successful request returns HTTP 200:</p>
+    <pre><code>{
+  &quot;quote&quot;: {
+    &quot;total&quot;: 1075.48,
+    &quot;ratePerMile&quot;: 6.48,
+    &quot;currency&quot;: &quot;USD&quot;
+  },
+  &quot;lane&quot;: {
+    &quot;origin&quot;: {
+      &quot;input&quot;: &quot;Lancaster, PA&quot;,
+      &quot;name&quot;: &quot;Lancaster, PA&quot;,
+      &quot;city&quot;: &quot;Lancaster&quot;,
+      &quot;state&quot;: &quot;PA&quot;,
+      &quot;zip&quot;: &quot;&quot;,
+      &quot;county&quot;: &quot;Lancaster County&quot;,
+      &quot;lat&quot;: 40.0379,
+      &quot;lng&quot;: -76.3055,
+      &quot;partialMatch&quot;: false
+    },
+    &quot;destination&quot;: {
+      &quot;input&quot;: &quot;New York, NY&quot;,
+      &quot;name&quot;: &quot;New York, NY&quot;,
+      &quot;city&quot;: &quot;New York&quot;,
+      &quot;state&quot;: &quot;NY&quot;,
+      &quot;zip&quot;: &quot;&quot;,
+      &quot;county&quot;: &quot;New York County&quot;,
+      &quot;lat&quot;: 40.7128,
+      &quot;lng&quot;: -74.006,
+      &quot;partialMatch&quot;: false
+    },
+    &quot;miles&quot;: 166,
+    &quot;milesSource&quot;: &quot;google&quot;,
+    &quot;driveSeconds&quot;: 10620,
+    &quot;driveTime&quot;: &quot;2h 57m&quot;
+  },
+  &quot;shipment&quot;: {
+    &quot;trailer&quot;: &quot;reefer&quot;,
+    &quot;weight&quot;: 42000,
+    &quot;commodity&quot;: &quot;food&quot;,
+    &quot;pickupDate&quot;: &quot;2026-11-20&quot;,
+    &quot;deliveryDate&quot;: null
+  },
+  &quot;breakdown&quot;: {
+    &quot;rateRegion&quot;: &quot;northeast&quot;,
+    &quot;baseRatePerMile&quot;: 3.36,
+    &quot;multipliers&quot;: {
+      &quot;weight&quot;: 1,
+      &quot;distance&quot;: 1.5525,
+      &quot;commodity&quot;: 1.08,
+      &quot;capacity&quot;: 1,
+      &quot;season&quot;: 1,
+      &quot;holidays&quot;: 1,
+      &quot;market&quot;: 1
+    },
+    &quot;adjustedRatePerMile&quot;: 5.6337,
+    &quot;fuelSurchargePerMile&quot;: 0,
+    &quot;cost&quot;: 935.2,
+    &quot;extraDays&quot;: 0,
+    &quot;extraDayCharge&quot;: 0,
+    &quot;marginPercent&quot;: 15,
+    &quot;margin&quot;: 140.28
+  },
+  &quot;ratesUpdated&quot;: &quot;November 11, 2026&quot;,
+  &quot;usage&quot;: {
+    &quot;used&quot;: 128,
+    &quot;limit&quot;: 5000,
+    &quot;resetsAt&quot;: &quot;2026-12-08T14:02:11.000Z&quot;
+  },
+  &quot;attribution&quot;: &quot;Miles and drive time: Google Maps&quot;
+}</code></pre>
+    <ul>
+      <li><code>quote.total</code> is the price to quote, including your margin, to the cent. The calculator shows the same number rounded to whole dollars.</li>
+      <li><code>lane.origin</code> and <code>lane.destination</code> show the places we matched, so you can check them. <code>partialMatch: true</code> means Google matched only part of what was sent.</li>
+      <li><code>lane.milesSource</code> is <code>google</code> for automatic miles or <code>provided</code> for yours. With your own miles there's no <code>name</code>, coordinates or drive time.</li>
+      <li><code>breakdown</code> shows every step of the calculation (see <a href="#math">How quotes are figured</a>).</li>
+      <li><code>usage</code> shows this billing month's quotes with automatic miles, including this one.</li>
+      <li><code>attribution</code> appears when miles came from Google; see <a href="#showing">Showing quotes</a>.</li>
+    </ul>
+  </div>
+
+  <div class="section" id="errors">
+    <div class="section-title">Errors</div>
+    <p>Errors come back with an HTTP status and a body like this; <code>message</code> is written to be shown to a person.</p>
+    <pre><code>{
+  &quot;error&quot;: {
+    &quot;code&quot;: &quot;invalid_request&quot;,
+    &quot;field&quot;: &quot;trailer&quot;,
+    &quot;message&quot;: &quot;trailer must be one of: van, reefer, flatbed.&quot;
+  }
+}</code></pre>
+    <div class="table-wrap"><table><thead><tr><th>HTTP</th><th>code</th><th>Meaning</th></tr></thead><tbody><tr><td>400</td><td><code>invalid_request</code></td><td>A field is missing or not valid. <code>field</code> says which one.</td></tr><tr><td>400</td><td><code>invalid_json</code></td><td>The body isn't a JSON object.</td></tr><tr><td>401</td><td><code>missing_key</code>, <code>invalid_key</code></td><td>No key was sent, or it's wrong or revoked.</td></tr><tr><td>403</td><td><code>plan_required</code></td><td>The account isn't on the API plan.</td></tr><tr><td>403</td><td><code>subscription_inactive</code></td><td>The subscription has ended or its payment failed.</td></tr><tr><td>405</td><td><code>method_not_allowed</code></td><td>Use <code>POST</code>.</td></tr><tr><td>413</td><td><code>too_large</code></td><td>The body is over 4 KB.</td></tr><tr><td>422</td><td><code>location_not_found</code></td><td>We couldn't find a location; <code>field</code> says which. Counts toward the month.</td></tr><tr><td>422</td><td><code>no_route</code></td><td>There's no driving route between the two places. Counts toward the month.</td></tr><tr><td>422</td><td><code>same_location</code></td><td>The pickup and delivery are the same place. Counts toward the month.</td></tr><tr><td>429</td><td><code>rate_limited</code></td><td>More than 60 requests in a minute. Wait and try again (see the <code>Retry-After</code> header).</td></tr><tr><td>429</td><td><code>monthly_limit</code></td><td>This billing month's 5,000 quotes with automatic miles are used. Send <code>miles</code>, or wait for your next billing month.</td></tr><tr><td>503</td><td><code>miles_unavailable</code></td><td>Automatic miles are unavailable right now. Doesn't count. Try again shortly, or send <code>miles</code>.</td></tr><tr><td>503</td><td><code>unavailable</code></td><td>The API is temporarily unavailable. Try again shortly.</td></tr></tbody></table></div>
+  </div>
+
+  <div class="section" id="limits">
+    <div class="section-title">Limits</div>
+    <ul>
+      <li><strong>5,000 quotes with automatic miles per billing month.</strong> A request counts when we look up miles, including repeat requests for the same lane and lookups where a place or route can't be found. It doesn't count if the lookup fails on our side. Requests with your own <code>miles</code> never count.</li>
+      <li><strong>60 requests per minute</strong> per account, across all your keys.</li>
+      <li>Your Profile page shows this month's usage and when it resets, and every response includes <code>usage</code>.</li>
+      <li>If you reach 5,000, requests for automatic miles return <code>429 monthly_limit</code> until your next billing month; requests with your own miles keep working.</li>
+    </ul>
+  </div>
+
+  <div class="section" id="website">
+    <div class="section-title">A quote form on your website</div>
+    <p>Your web page can't call the API directly, because that would expose your key. Instead, the page sends the lane to your own server, your server asks us for the quote, and your server sends the price back to the page:</p>
+    <div class="flow"><span>Visitor's browser</span><b>→</b><span>Your server (holds the key)</span><b>→</b><span>QuickFreightCalc API</span></div>
+    <pre><code>// Your server (Node.js + Express). Your web page&#x27;s quote form posts
+// { origin, destination } here; the key never leaves your server.
+app.post(&#x27;/get-quote&#x27;, async (req, res) =&gt; {
+  const resp = await fetch(&#x27;https://quickfreightcalc.com/api/v1/quote&#x27;, {
+    method: &#x27;POST&#x27;,
+    headers: {
+      &#x27;Authorization&#x27;: `Bearer ${process.env.QFC_API_KEY}`,
+      &#x27;Content-Type&#x27;: &#x27;application/json&#x27;,
+    },
+    body: JSON.stringify({
+      origin: String(req.body.origin || &#x27;&#x27;),
+      destination: String(req.body.destination || &#x27;&#x27;),
+      trailer: &#x27;van&#x27;,
+      margin: 20, // your markup
+    }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) return res.status(400).json({ message: data.error.message });
+  res.json({ price: data.quote.total, miles: data.lane.miles });
+});</code></pre>
+    <p>A public form spends your monthly allowance for every visitor's lookup. Consider a CAPTCHA, a limit on how often one visitor can ask, or offering the form only to signed-in customers.</p>
+  </div>
+
+  <div class="section" id="math">
+    <div class="section-title">How quotes are figured</div>
+    <p>Exactly like the calculator:</p>
+    <pre><code>adjusted rate/mile = base rate × weight × distance × commodity × capacity × season × holidays × market
+cost               = (adjusted rate/mile + fuel surcharge/mile) × miles
+total              = (cost + extra-day charge) × (1 + margin)</code></pre>
+    <ul>
+      <li><strong>Base rate:</strong> this month's rate for the trailer type in the pickup state's region (Northeast, Southeast, Midwest, Southwest, West), or the national rate. <code>ratesUpdated</code> says which month's rates were used.</li>
+      <li><strong>Distance:</strong> short hauls cost more per mile and long hauls less, on the same curves the calculator uses.</li>
+      <li><strong>Defaults:</strong> no fuel surcharge, capacity, seasonality or holidays, a 0% market adjustment and a 15% margin, the same as a first visit to the calculator.</li>
+    </ul>
+  </div>
+
+  <div class="section" id="showing">
+    <div class="section-title">Showing quotes</div>
+    <ul>
+      <li>Quotes are estimates, not guaranteed rates. See section 3 of the <a href="/terms.html">Terms</a>.</li>
+      <li>Automatic miles and drive times come from Google Maps. If you show them to anyone outside your company, credit Google Maps; the <code>attribution</code> field has text you can use.</li>
+      <li>Use the API to quote freight. Don't store or resell the miles, drive times or locations on their own. The full rules are in <a href="/terms.html#api">section 6 of the Terms</a>.</li>
+    </ul>
+  </div>
+
+  <div class="contact-box">
+    <p><strong>Questions or need a higher limit?</strong><br>
+    Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent)">info@quickfreightcalc.com</a>.</p>
+  </div>
+
+</div>
+
+</body>
+</html>

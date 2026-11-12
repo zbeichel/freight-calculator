@@ -67,7 +67,7 @@ a.brand-name:hover span{opacity:.8}
 .field-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
 .field{display:flex;flex-direction:column;gap:6px}
 .field label{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
-.field input,.field textarea{
+.field input,.field textarea,.field select{
   background:var(--card2);border:1px solid var(--border2);border-radius:8px;
   color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:14px;
   padding:9px 12px;outline:none;transition:border-color .15s;width:100%
@@ -116,6 +116,57 @@ a.brand-name:hover span{opacity:.8}
 @media (max-width:380px){
   .pw-rules{grid-template-columns:1fr}
 }
+
+/* ── API access ── */
+.api-copy{font-size:13px;color:var(--text2);line-height:1.6;margin:0 0 14px}
+.api-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.api-btn{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:8px 16px;border-radius:8px;cursor:pointer;
+  border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.api-btn.secondary{border-color:var(--border2);background:var(--card);color:var(--text2)}
+.api-btn:disabled{opacity:.6;cursor:default}
+.api-usage{background:var(--card2);border:1px solid var(--border2);border-radius:10px;padding:14px 16px;margin-bottom:18px}
+.api-usage-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-bottom:8px}
+.api-usage-top strong{color:var(--text);font-size:13px}
+.api-meter{height:8px;border-radius:4px;background:var(--card);overflow:hidden}
+.api-meter > div{height:100%;width:0;background:var(--accent);border-radius:4px;transition:width .3s}
+.api-meter > div.full{background:var(--red)}
+.api-usage-note{font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5}
+.api-new-key{border:1px solid var(--green);background:rgba(34,197,94,.08);border-radius:10px;padding:12px 14px;margin-bottom:18px}
+.api-new-key-title{font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px}
+.api-key-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.api-key-row code{flex:1;min-width:0;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
+  background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;color:var(--text)}
+.api-keys-title{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.api-key-item{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--border)}
+.api-key-item:first-child{border-top:none}
+.api-key-main{flex:1;min-width:180px}
+.api-key-name{font-size:13px;font-weight:600;color:var(--text);overflow-wrap:anywhere}
+.api-key-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.api-key-meta code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.api-key-revoke{font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:6px 12px;border-radius:7px;cursor:pointer;
+  border:1px solid var(--border2);background:var(--card);color:var(--text2)}
+.api-key-revoke:hover{border-color:var(--red);color:var(--red)}
+.api-empty{font-size:12px;color:var(--text3);padding:6px 0 4px}
+.api-create{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.api-create input{flex:1;min-width:180px;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);
+  font-family:'Space Grotesk',sans-serif;font-size:13px;padding:8px 12px;outline:none}
+.api-create input:focus{border-color:var(--accent)}
+.api-foot{font-size:11px;color:var(--text3);margin-top:14px;line-height:1.6}
+.api-foot a{color:var(--accent);text-decoration:none}
+#api-status{font-size:12px;margin-top:10px;line-height:1.5}
+
+/* ── PDF quote style ── */
+.pdf-style-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pdf-style-option{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:start;padding:14px 16px;border:1px solid var(--border2);border-radius:10px;cursor:pointer;background:var(--card);transition:border-color .15s,background .15s}
+.pdf-style-option:has(input:checked){border-color:var(--accent);background:var(--accentbg)}
+.pdf-style-option input{accent-color:var(--accent);margin:3px 0 0;grid-row:span 2}
+.pdf-style-name{font-size:13px;font-weight:700;color:var(--text)}
+.pdf-style-desc{font-size:11.5px;color:var(--text3);line-height:1.5}
+.pdf-style-extra{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px}
+.pdf-style-extra label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text2)}
+.pdf-style-extra input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+.pdf-preview-btn{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:8px 16px;border-radius:8px;cursor:pointer;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent)}
+@media(max-width:700px){.pdf-style-grid{grid-template-columns:1fr}}
 
 /* ── Logo upload ── */
 .logo-upload-wrap{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap}
@@ -280,6 +331,20 @@ a.brand-name:hover span{opacity:.8}
 .scheme-preview-line-short{height:5px;border-radius:2px;width:60%}
 .scheme-name{font-size:10px;font-weight:700;color:var(--text3);text-align:center;padding:6px;background:var(--card2)}
 .active .scheme-name{color:var(--accent)}
+.wl-locked{font-size:12.5px;color:var(--text2);line-height:1.6;background:var(--accentbg);border:1px solid var(--accent);border-radius:8px;padding:10px 12px;margin-bottom:14px}
+.wl-locked a{color:var(--accent);font-weight:600;text-decoration:none}
+.wl-check{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text);margin-bottom:16px}
+.wl-check input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+#wl-fields{transition:opacity .15s}
+#wl-fields .field + .field{margin-top:14px}
+.custom-colors{display:none;margin-top:14px;padding:14px 16px;border:1px solid var(--border2);border-radius:10px;background:var(--card)}
+.custom-colors.show{display:block}
+.custom-colors-row{display:flex;gap:18px;flex-wrap:wrap}
+.color-field{display:flex;align-items:center;gap:10px}
+.color-field input[type=color]{width:44px;height:34px;padding:2px;border:1px solid var(--border2);border-radius:8px;background:var(--card2);cursor:pointer}
+.color-field-label{font-size:12px;font-weight:600;color:var(--text)}
+.color-field-hex{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--text3)}
+.custom-colors-note{font-size:11px;color:var(--text3);line-height:1.5;margin-top:10px}
 
 /* ── Quote number preview ── */
 .quote-num-preview{
@@ -461,6 +526,72 @@ footer a:hover{color:var(--accent)}
       </div>
     </div>
 
+    <!-- ── PDF quote style ── -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-icon">📄</span>
+        <span class="section-title">PDF Quote Style</span>
+        <span class="section-sub">How your quotes look</span>
+      </div>
+      <div class="section-body">
+        <div class="pdf-style-grid" role="radiogroup" aria-label="PDF quote style">
+          <label class="pdf-style-option">
+            <input type="radio" name="pdf-style" value="modern" checked onchange="selectPdfStyle(this.value)" />
+            <span class="pdf-style-name">Modern <span style="color:var(--accent);font-size:11px;font-weight:600">New</span></span>
+            <span class="pdf-style-desc">Clean letterhead, the all-in rate with rate per mile, a "valid until" time and signature lines.</span>
+          </label>
+          <label class="pdf-style-option">
+            <input type="radio" name="pdf-style" value="classic" onchange="selectPdfStyle(this.value)" />
+            <span class="pdf-style-name">Classic</span>
+            <span class="pdf-style-desc">The original design with the colored header — exactly as before.</span>
+          </label>
+        </div>
+        <div class="pdf-style-extra">
+          <label id="pdf-breakdown-wrap">
+            <input type="checkbox" id="pdf-breakdown" checked />
+            Show linehaul, fuel surcharge and extra-day charges separately when a quote has them
+          </label>
+          <button type="button" class="pdf-preview-btn" id="pdf-sample-btn" onclick="previewSamplePDF()">Preview a sample quote</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── White-label PDFs (Pro Max, API and comp accounts) ── -->
+    <div class="section-card" id="white-label-card">
+      <div class="section-header">
+        <span class="section-icon">🏷</span>
+        <span class="section-title">White-Label PDFs</span>
+        <span class="section-sub">Pro Max and API</span>
+      </div>
+      <div class="section-body">
+        <div class="wl-locked" id="wl-locked" style="display:none">
+          White-label PDFs come with <strong>Pro Max</strong> ($49.99/month) and the <strong>API</strong> plan:
+          leave QuickFreightCalc off your quotes, choose how long quotes are valid, and print your own terms.
+          <a href="#subscription-paid">Change plan →</a>
+        </div>
+        <div id="wl-fields">
+          <label class="wl-check">
+            <input type="checkbox" id="pdf-white-label" />
+            Leave QuickFreightCalc off my PDFs (only your company shows)
+          </label>
+          <div class="field" style="max-width:260px">
+            <label for="pdf-valid-hours">Quotes are valid for</label>
+            <select id="pdf-valid-hours">
+              <option value="24">24 hours</option>
+              <option value="48">48 hours</option>
+              <option value="72">72 hours</option>
+              <option value="168">7 days</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pdf-terms">Your terms (optional)</label>
+            <textarea id="pdf-terms" maxlength="1000" rows="3" placeholder="Rates are subject to change and valid for 24 hours from issue."></textarea>
+            <div class="field-note">Printed at the bottom of every quote in place of the standard line. Up to 1,000 characters.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Color Scheme ── -->
     <div class="section-card">
       <div class="section-header">
@@ -471,6 +602,22 @@ footer a:hover{color:var(--accent)}
       <div class="section-body">
         <div class="scheme-grid" id="scheme-grid">
           <!-- Schemes rendered by JS -->
+        </div>
+        <div class="custom-colors" id="custom-colors">
+          <div class="custom-colors-row">
+            <label class="color-field">
+              <input type="color" id="pdf-accent" value="#f0a500" oninput="onCustomColorInput()" />
+              <span><span class="color-field-label">Accent color</span><br><span class="color-field-hex" id="pdf-accent-hex">#F0A500</span></span>
+            </label>
+            <label class="color-field">
+              <input type="color" id="pdf-ink" value="#1a1f2e" oninput="onCustomColorInput()" />
+              <span><span class="color-field-label">Heading color</span><br><span class="color-field-hex" id="pdf-ink-hex">#1A1F2E</span></span>
+            </label>
+          </div>
+          <div class="custom-colors-note">
+            Accent: the lines and highlights. Heading: your company name, the title and the total on Modern PDFs, and the header bar on Classic.
+            Dark heading colors read best on paper.
+          </div>
         </div>
 
         <!-- Live PDF preview -->
@@ -627,11 +774,32 @@ footer a:hover{color:var(--accent)}
         <span class="section-sub">Manage your Pro billing</span>
       </div>
       <div class="section-body">
+        <div id="sub-plan-legacy" style="display:none;font-size:12px;line-height:1.6;color:var(--text2);background:var(--accentbg);border:1px solid var(--accent);border-radius:8px;padding:10px 12px;margin-bottom:12px"></div>
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
           <div>
-            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">QuickFreightCalc Pro</div>
-            <div style="font-size:12px;color:var(--text3)">$4.99/month · Cancel anytime</div>
+            <div id="sub-plan-name" style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">QuickFreightCalc Pro</div>
+            <div id="sub-plan-detail" style="font-size:12px;color:var(--text3)">$9.99/month · Automatic miles on 100 quotes per day · Cancel anytime</div>
           </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <select id="sub-plan-select" aria-label="Plan" style="
+            display:none;
+            font-family:'Space Grotesk',sans-serif;font-size:12px;
+            padding:8px 10px;border-radius:8px;
+            border:1px solid var(--border2);background:var(--card);color:var(--text);
+          ">
+            <option value="pro">Pro — $9.99/mo · 100 quotes/day</option>
+            <option value="plus">Pro Plus — $19.99/mo · 250 quotes/day</option>
+            <option value="max">Pro Max — $49.99/mo · 1,000 quotes/day + white-label PDFs</option>
+            <option value="api">API — $199.99/mo · Pro Max + 5,000 API quotes/mo</option>
+          </select>
+          <button id="sub-plan-switch" onclick="handleSwitchPlan()" style="
+            display:none;
+            font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
+            padding:8px 18px;border-radius:8px;cursor:pointer;transition:all .15s;
+            border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);
+          ">
+            Change plan
+          </button>
           <button onclick="handleManageBilling()" style="
             font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
             padding:8px 18px;border-radius:8px;cursor:pointer;transition:all .15s;
@@ -641,6 +809,12 @@ footer a:hover{color:var(--accent)}
           onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">
             Manage / Cancel
           </button>
+          </div>
+        </div>
+        <div id="sub-plan-status" role="status" style="display:none;font-size:12px;margin-top:10px;line-height:1.5"></div>
+        <div id="sub-plan-footnote" style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
+          Pro $9.99/month: automatic miles on 100 quotes per day · Pro Plus $19.99/month: 250 per day · Pro Max $49.99/month: 1,000 per day and white-label PDFs · API $199.99/month: Pro Max plus 5,000 API quotes per month.
+          <a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">What counts as a quote?</a>
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
           Clicking "Manage / Cancel" opens the Stripe billing portal where you can update your payment method or cancel your subscription. Cancellation takes effect at the end of your current billing period.
@@ -659,12 +833,57 @@ footer a:hover{color:var(--accent)}
       <div class="section-body">
         <div style="display:flex;align-items:center;gap:12px">
           <div style="flex:1">
-            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">QuickFreightCalc Pro · Active</div>
+            <div id="comp-plan-name" style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">QuickFreightCalc Pro · Active</div>
             <div style="font-size:12px;color:var(--text3);line-height:1.6">
               Your account has Pro access without a paid subscription. Contact us if you have questions about your account.
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- API access — keys and usage for the API plan, or what the plan is
+         for everyone else. Filled in by loadApiSection() (api-keys function). -->
+    <div class="section-card" id="api-access" style="display:none">
+      <div class="section-header">
+        <span class="section-icon">🔌</span>
+        <span class="section-title">API Access</span>
+        <span class="section-sub">Quotes in your own website or software</span>
+      </div>
+      <div class="section-body">
+        <div id="api-upsell" style="display:none">
+          <p class="api-copy">Get QuickFreightCalc quotes inside your own website, TMS or spreadsheet. The <strong>API plan</strong> is $199.99/month: everything in Pro Max, plus 5,000 API quotes with automatic miles every billing month.</p>
+          <div class="api-actions">
+            <button class="api-btn" id="api-upsell-switch" onclick="switchToApiPlan()" style="display:none">Switch to the API plan</button>
+            <a class="api-btn secondary" href="/api.html" target="_blank" rel="noopener">Read the API docs →</a>
+          </div>
+        </div>
+        <div id="api-active" style="display:none">
+          <div class="api-usage">
+            <div class="api-usage-top"><span>Quotes with automatic miles this billing month</span><strong id="api-usage-count">—</strong></div>
+            <div class="api-meter"><div id="api-usage-bar"></div></div>
+            <div class="api-usage-note" id="api-usage-note"></div>
+          </div>
+          <div class="api-new-key" id="api-new-key" style="display:none">
+            <div class="api-new-key-title">Your new key. Copy it now: for your security it won't be shown again.</div>
+            <div class="api-key-row">
+              <code id="api-new-key-value"></code>
+              <button class="api-btn" id="api-copy-btn" onclick="copyNewApiKey()">Copy</button>
+            </div>
+          </div>
+          <div class="api-keys-title">Keys</div>
+          <div id="api-keys-list"></div>
+          <div class="api-create">
+            <input id="api-key-name" type="text" maxlength="40" placeholder="Key name, e.g. Website quote form" aria-label="Key name"
+              onkeydown="if(event.key==='Enter')createApiKey()" />
+            <button class="api-btn" id="api-create-btn" onclick="createApiKey()">Create key</button>
+          </div>
+          <div class="api-foot">
+            Use keys only from your own server, never in a web page or app that others can download.
+            <a href="/api.html" target="_blank" rel="noopener">API docs →</a>
+          </div>
+        </div>
+        <div id="api-status" role="status" style="display:none"></div>
       </div>
     </div>
 
@@ -692,6 +911,7 @@ footer a:hover{color:var(--accent)}
 <!-- Toast -->
 <div class="toast" id="toast">✓ Profile saved successfully</div>
 
+<script src="/pdf-quote.js"></script>
 <script>
 // ── Color schemes ─────────────────────────────────────────────────────────
 // Each scheme defines a PDF header background + text colors. The text colors
@@ -770,23 +990,76 @@ function renderSchemes(){
   const darkCards  = SCHEMES.filter(s => s.tone !== 'light').map(cardHTML).join('');
   const lightCards = SCHEMES.filter(s => s.tone === 'light').map(cardHTML).join('');
 
+  // Custom: the user's own accent and heading colors (pdf-quote.js).
+  const accent = customColorValue('pdf-accent', '#f0a500');
+  const ink = customColorValue('pdf-ink', '#1a1f2e');
+  const customCard = `
+    <div class="scheme-card ${currentScheme==='custom'?'active':''}" onclick="selectScheme('custom')" id="scheme-custom">
+      <div class="scheme-preview-header" style="background:${ink}">
+        <span class="scheme-preview-emoji">🎨</span>
+        <span class="scheme-preview-text" style="color:rgba(255,255,255,.7)">Your colors</span>
+      </div>
+      <div class="scheme-preview-bar" style="background:${accent}"></div>
+      <div class="scheme-preview-body">
+        <div class="scheme-preview-line" style="background:${accent};opacity:.5"></div>
+        <div class="scheme-preview-line-short" style="background:#e4e8ef"></div>
+        <div class="scheme-preview-line-short" style="background:#e4e8ef;width:40%;margin-top:3px"></div>
+      </div>
+      <div class="scheme-name">Custom</div>
+    </div>`;
+
   grid.innerHTML = `
     <div class="scheme-group-label">Dark headers</div>
     <div class="scheme-grid-row">${darkCards}</div>
     <div class="scheme-group-label">Light headers <span class="scheme-group-hint">— best for dark logos</span></div>
     <div class="scheme-grid-row">${lightCards}</div>
+    <div class="scheme-group-label">Your colors <span class="scheme-group-hint">— pick your own</span></div>
+    <div class="scheme-grid-row">${customCard}</div>
   `;
+  const panel = document.getElementById('custom-colors');
+  if(panel) panel.classList.toggle('show', currentScheme === 'custom');
+}
+
+// A custom color input's value, if it's a valid #rrggbb color.
+function customColorValue(id, fallback){
+  const el = document.getElementById(id);
+  const v = el ? el.value : '';
+  return /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
+}
+
+function onCustomColorInput(){
+  document.getElementById('pdf-accent-hex').textContent = customColorValue('pdf-accent', '#f0a500').toUpperCase();
+  document.getElementById('pdf-ink-hex').textContent = customColorValue('pdf-ink', '#1a1f2e').toUpperCase();
+  if(currentScheme !== 'custom'){ selectScheme('custom'); return; }
+  renderSchemes();
+  updatePreview();
 }
 
 function selectScheme(id){
   currentScheme = id;
-  document.querySelectorAll('.scheme-card').forEach(c => c.classList.remove('active'));
-  document.getElementById('scheme-'+id)?.classList.add('active');
+  renderSchemes();
   updatePreview();
 }
 
 function updatePreview(){
-  const s = SCHEMES.find(x => x.id === currentScheme) || SCHEMES[0];
+  const s = (currentScheme === 'custom' && window.QFCQuotePDF && QFCQuotePDF.classicScheme(profileFromForm()))
+    || SCHEMES.find(x => x.id === currentScheme) || SCHEMES[0];
+  // Modern: white letterhead with the scheme's ink and accent (pdf-quote.js).
+  const m = currentPdfStyle === 'modern' && window.QFCQuotePDF ? QFCQuotePDF.colorsFor(profileFromForm()) : null;
+  if(m){
+    document.getElementById('preview-header').style.background = '#ffffff';
+    document.getElementById('preview-bar').style.background = m.accent;
+    document.getElementById('preview-accent-text').style.color = m.accent;
+    const set = (id, color, text) => { const el = document.getElementById(id); if(el){ el.style.color = color; if(text) el.textContent = text; } };
+    set('preview-brand-name', m.ink);
+    set('preview-brand-sub', '#6b7280');
+    set('preview-title', m.ink, 'Freight Quote');
+    set('preview-quote-num', '#6b7280');
+    updatePreviewLogo();
+    return;
+  }
+  const titleEl = document.getElementById('preview-title');
+  if(titleEl) titleEl.textContent = 'Rate Confirmation';
   document.getElementById('preview-header').style.background = s.header;
   document.getElementById('preview-bar').style.background = s.bar;
   document.getElementById('preview-accent-text').style.color = s.accent;
@@ -801,7 +1074,10 @@ function updatePreview(){
   if(brandSub)  brandSub.style.color  = s.headerTextSoft;
   if(title)     title.style.color     = s.headerText;
   if(quoteNum)  quoteNum.style.color  = s.headerTextFaint;
+  updatePreviewLogo();
+}
 
+function updatePreviewLogo(){
   // Logo in preview
   const logoArea = document.getElementById('preview-logo-area');
   if(logoBase64){
@@ -809,6 +1085,84 @@ function updatePreview(){
   } else {
     logoArea.innerHTML = `<span class="pdf-mini-brand-emoji" id="preview-emoji">🚛</span>`;
   }
+}
+
+// ── White-label PDFs ──────────────────────────────────────────────────────
+// Pro Max, API and comp accounts (pdf-quote.js checks the same thing when it
+// builds a PDF). accountTier comes from the account row and plan changes.
+let accountTier = { plan: 'pro', comp: false };
+function applyWhiteLabelAccess(){
+  const allowed = accountTier.comp || accountTier.plan === 'max' || accountTier.plan === 'api';
+  const locked = document.getElementById('wl-locked');
+  if(locked) locked.style.display = allowed ? 'none' : '';
+  ['pdf-white-label', 'pdf-valid-hours', 'pdf-terms'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.disabled = !allowed;
+  });
+  const fields = document.getElementById('wl-fields');
+  if(fields) fields.style.opacity = allowed ? '1' : '.55';
+}
+
+function whiteLabelFromForm(){
+  return {
+    pdfWhiteLabel: document.getElementById('pdf-white-label').checked,
+    pdfValidHours: parseInt(document.getElementById('pdf-valid-hours').value, 10) || 24,
+    pdfTerms:      document.getElementById('pdf-terms').value.trim().slice(0, 1000),
+    plan:          accountTier.plan,
+    comp:          accountTier.comp,
+  };
+}
+
+// ── PDF quote style ───────────────────────────────────────────────────────
+// 'modern' (pdf-quote.js, the default) or 'classic' (the original template).
+let currentPdfStyle = 'modern';
+function selectPdfStyle(style){
+  currentPdfStyle = style === 'classic' ? 'classic' : 'modern';
+  document.querySelectorAll('input[name="pdf-style"]').forEach(r => { r.checked = r.value === currentPdfStyle; });
+  const modern = currentPdfStyle === 'modern';
+  const wrap = document.getElementById('pdf-breakdown-wrap');
+  const btn = document.getElementById('pdf-sample-btn');
+  if(wrap) wrap.style.display = modern ? '' : 'none';
+  if(btn) btn.style.display = modern ? '' : 'none';
+  updatePreview();
+}
+
+// The profile as the form shows it right now (unsaved changes included).
+function profileFromForm(){
+  return {
+    companyName: document.getElementById('company-name').value.trim(),
+    contactName: document.getElementById('contact-name').value.trim(),
+    email:       document.getElementById('contact-email').value.trim(),
+    phone:       document.getElementById('contact-phone').value.trim(),
+    mcNumber:    document.getElementById('mc-number').value.trim(),
+    dotNumber:   document.getElementById('dot-number').value.trim(),
+    footerText:  document.getElementById('footer-text').value.trim(),
+    quotePrefix: document.getElementById('quote-prefix').value.trim() || 'QFC',
+    quoteStart:  parseInt(document.getElementById('quote-start').value) || 1001,
+    colorScheme: currentScheme,
+    logoBase64:  logoBase64,
+    hideLogo:    document.getElementById('hide-logo').checked,
+    pdfStyle:    currentPdfStyle,
+    pdfBreakdown: document.getElementById('pdf-breakdown').checked,
+    pdfAccent:   customColorValue('pdf-accent', '#f0a500'),
+    pdfInk:      customColorValue('pdf-ink', '#1a1f2e'),
+    ...whiteLabelFromForm(),
+  };
+}
+
+// A sample Modern quote with your branding (doesn't use up a quote number).
+function previewSamplePDF(){
+  if(!window.QFCQuotePDF) return;
+  const profile = profileFromForm();
+  const meta = QFCQuotePDF.nextQuoteNumber(profile, false);
+  QFCQuotePDF.openHTML(QFCQuotePDF.modernHTML({
+    total: 3842, ratePerMile: 3.69, miles: 1042,
+    origin: 'Hastings, FL', destination: 'Lancaster, PA',
+    pickup: 'Mon, Nov 16', delivery: 'Wed, Nov 18',
+    trailer: 'reefer', commodity: 'Food / Perishable', weight: 42000, transit: '2 days',
+    notes: 'Sample quote. Keep at 34°F. Appointment required at delivery.',
+    breakdown: { fuel: 512, extra: 0 },
+  }, profile, meta));
 }
 
 // ── Logo upload ────────────────────────────────────────────────────────────
@@ -1242,6 +1596,11 @@ async function saveProfile(){
     colorScheme:  currentScheme,
     logoBase64:   logoBase64,
     hideLogo:     document.getElementById('hide-logo').checked,
+    pdfStyle:     currentPdfStyle,
+    pdfBreakdown: document.getElementById('pdf-breakdown').checked,
+    pdfAccent:    customColorValue('pdf-accent', '#f0a500'),
+    pdfInk:       customColorValue('pdf-ink', '#1a1f2e'),
+    ...whiteLabelFromForm(),
     savedAt:      new Date().toISOString(),
   };
 
@@ -1272,6 +1631,14 @@ async function saveProfile(){
           quote_counter: profile.quoteStart,
           color_scheme:  profile.colorScheme,
           logo_base64:   profile.logoBase64,
+          hide_logo:     profile.hideLogo,
+          pdf_style:     profile.pdfStyle,
+          pdf_breakdown: profile.pdfBreakdown,
+          pdf_accent:    profile.pdfAccent,
+          pdf_ink:       profile.pdfInk,
+          pdf_white_label: profile.pdfWhiteLabel,
+          pdf_valid_hours: profile.pdfValidHours,
+          pdf_terms:     profile.pdfTerms || null,
           updated_at:    new Date().toISOString(),
         })
       });
@@ -1323,12 +1690,22 @@ async function loadProfile(){
           quoteStart:  p.quote_counter,
           colorScheme: p.color_scheme,
           logoBase64:  p.logo_base64,
+          hideLogo:    p.hide_logo === true,
+          pdfStyle:    p.pdf_style,
+          pdfBreakdown: p.pdf_breakdown !== false,
+          pdfAccent:   p.pdf_accent,
+          pdfInk:      p.pdf_ink,
+          pdfWhiteLabel: p.pdf_white_label === true,
+          pdfValidHours: p.pdf_valid_hours,
+          pdfTerms:    p.pdf_terms,
         });
         // Update header with user name
         updateHeaderUser(p.contact_name || p.company_name || session.user.email);
         // Pick which subscription card to show based on whether they're a
         // paid subscriber (has Stripe customer ID) or a comp account.
-        applySubscriptionCardState(p.stripe_customer_id);
+        accountTier = { plan: normalizeProfilePlan(p.plan), comp: p.is_active === true && !p.stripe_subscription_id };
+        applySubscriptionCardState(p.stripe_customer_id, p.plan, p.is_active === true);
+        applyWhiteLabelAccess();
         // Pick which password card to show based on auth provider.
         applyChangePasswordCardState(session);
         return;
@@ -1354,12 +1731,310 @@ async function loadProfile(){
 // Pick which subscription card to show. Stripe customer ID present →
 // the paid card with the Manage/Cancel button. Otherwise → the
 // comp-account card. Anything truthy and non-empty counts as paid.
-function applySubscriptionCardState(stripeCustomerId){
+function applySubscriptionCardState(stripeCustomerId, plan, isActive){
   const hasStripe = !!(stripeCustomerId && String(stripeCustomerId).trim().length > 0);
   const paidCard = document.getElementById('subscription-paid');
   const compCard = document.getElementById('subscription-comp');
   if(paidCard) paidCard.style.display = hasStripe ? '' : 'none';
   if(compCard) compCard.style.display = hasStripe ? 'none' : '';
+  applyPlanState(normalizeProfilePlan(plan), isActive === true, false, null);
+  // Ask the server whether this subscriber still has unlimited quotes until
+  // they renew (the rule lives in netlify/lib/plans.js) and when they renew.
+  if(isActive === true) refreshPlanFromServer();
+  loadApiSection();
+}
+
+// Paid plans: Pro ($9.99, automatic miles on 100 quotes/day), Pro Plus
+// ($19.99, 250/day), Pro Max ($49.99, 1,000/day) and API ($199.99, Pro Max plus
+// 5,000 API quotes per month). Same names and limits as netlify/lib/plans.js.
+const PROFILE_PLANS = {
+  pro:  { name: 'Pro',      price: '$9.99',   detail: 'Automatic miles on 100 quotes per day' },
+  plus: { name: 'Pro Plus', price: '$19.99',  detail: 'Automatic miles on 250 quotes per day' },
+  max:  { name: 'Pro Max',  price: '$49.99',  detail: 'Automatic miles on 1,000 quotes per day and white-label PDFs' },
+  api:  { name: 'API',      price: '$199.99', detail: 'Pro Max plus 5,000 API quotes per month' },
+};
+const PROFILE_PLAN_RANK = { pro: 1, plus: 2, max: 3, api: 4 };
+function normalizeProfilePlan(plan){ return PROFILE_PLANS[plan] ? plan : 'pro'; }
+
+// onOriginal (verify-pro's unlimitedUntilRenewal): a subscriber on the original
+// Pro plan, who keeps unlimited quotes at their current price until their first
+// bill on or after January 1, 2027, then moves to `nextPlan` (Pro by default).
+let currentPlan = 'pro';
+let onOriginalPlan = false;
+let currentNextPlan = 'pro';
+function applyPlanState(plan, isActive, onOriginal, renewsAt, nextPlan){
+  currentPlan = plan;
+  onOriginalPlan = !!onOriginal;
+  currentNextPlan = normalizeProfilePlan(nextPlan);
+  accountTier.plan = plan;
+  applyWhiteLabelAccess();
+  const info = PROFILE_PLANS[plan];
+  const next = PROFILE_PLANS[currentNextPlan];
+  const setText = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
+  if(onOriginalPlan){
+    setText('sub-plan-name', 'QuickFreightCalc Pro · original plan');
+    setText('sub-plan-detail', 'Unlimited quotes with automatic miles until January 2027 · Cancel anytime');
+  } else {
+    setText('sub-plan-name', 'QuickFreightCalc ' + info.name);
+    setText('sub-plan-detail', `${info.price}/month · ${info.detail} · Cancel anytime`);
+  }
+  setText('comp-plan-name', `QuickFreightCalc ${info.name} · Active`);
+
+  const legacy = document.getElementById('sub-plan-legacy');
+  if(legacy){
+    if(onOriginalPlan){
+      legacy.textContent = 'Our plans change on January 1, 2027. You keep unlimited quotes with automatic miles at your current price ' +
+        `until your first bill on or after January 1. Then your subscription moves to ${next.name} at ${next.price}/month. ` +
+        'Choose a different plan below, or cancel anytime before then.';
+      legacy.style.display = '';
+    } else {
+      legacy.style.display = 'none';
+    }
+  }
+
+  const select = document.getElementById('sub-plan-select');
+  const btn = document.getElementById('sub-plan-switch');
+  if(select){ select.style.display = isActive ? '' : 'none'; select.value = onOriginalPlan ? currentNextPlan : plan; }
+  if(btn) btn.style.display = isActive ? '' : 'none';
+}
+
+async function refreshPlanFromServer(){
+  try {
+    const session = await getSessionRefreshed();
+    if(!session) return;
+    const resp = await fetch('/.netlify/functions/verify-pro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: session.user?.id || session.user?.sub, accessToken: session.access_token })
+    });
+    if(!resp.ok) return;
+    const data = await resp.json();
+    if(data.active) applyPlanState(normalizeProfilePlan(data.plan), true, data.unlimitedUntilRenewal, data.renewsAt, data.nextPlan);
+  } catch(e){}
+}
+
+function setPlanStatus(text, isError){
+  const el = document.getElementById('sub-plan-status');
+  if(!el) return;
+  el.textContent = text || '';
+  el.style.display = text ? 'block' : 'none';
+  el.style.color = isError ? 'var(--red)' : 'var(--text2)';
+}
+
+async function handleSwitchPlan(){
+  const select = document.getElementById('sub-plan-select');
+  const target = normalizeProfilePlan(select && select.value);
+  const info = PROFILE_PLANS[target];
+  if(target === currentPlan && !onOriginalPlan){
+    setPlanStatus(`You're already on ${info.name}.`);
+    return;
+  }
+  // From the original plan, Pro / Pro Plus / Pro Max start in January; the API
+  // plan is available now and is charged like any upgrade.
+  const question = onOriginalPlan && target !== 'api'
+    ? `Move to ${info.name} at ${info.price}/month from January 1, 2027?\n\nNothing changes or is charged now. You keep unlimited quotes until your first bill on or after January 1; from then it's ${info.price}/month.`
+    : onOriginalPlan || PROFILE_PLAN_RANK[target] > PROFILE_PLAN_RANK[currentPlan]
+      ? `Upgrade to ${info.name} for ${info.price}/month?\n\nYou'll be charged the prorated difference today${target === 'api' ? ', and API access starts right away' : ''}.`
+      : `Switch to ${info.name} for ${info.price}/month?\n\nThe unused part of your current plan is credited on your next invoice.`;
+  if(!confirm(question)) return;
+
+  const session = await getSessionRefreshed();
+  if(!session){ window.location.href = '/signup.html?login'; return; }
+  const btn = document.getElementById('sub-plan-switch');
+  if(btn) btn.disabled = true;
+  setPlanStatus('Switching your plan…');
+  try {
+    const resp = await fetch('/.netlify/functions/change-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: session.user?.id || session.user?.sub, accessToken: session.access_token, plan: target })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if(data.status === 'ok'){
+      const chosen = normalizeProfilePlan(data.plan);
+      if(data.atRenewal) applyPlanState(currentPlan, true, true, data.renewsAt, chosen);
+      else applyPlanState(chosen, true, false, data.renewsAt, chosen);
+      setPlanStatus(data.atRenewal
+        ? `✅ From your first bill on or after January 1, 2027, you'll be on ${PROFILE_PLANS[chosen].name}.`
+        : `✅ You're on ${PROFILE_PLANS[chosen].name}.`);
+      refreshPlanFromServer();
+      loadApiSection();
+      return;
+    }
+    if(data.status === 'needs_payment' && data.url && /^https:\/\/invoice\.stripe\.com\//.test(data.url)){
+      setPlanStatus('Your card needs attention — finish the payment to complete the upgrade.', true);
+      window.open(data.url, '_blank');
+      return;
+    }
+    setPlanStatus(data.message || 'Could not switch plans right now. Please try again.', true);
+  } catch(e){
+    setPlanStatus('Could not reach the server. Please try again.', true);
+  } finally {
+    if(btn) btn.disabled = false;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// API access — keys and usage (netlify/functions/api-keys.js). Key names come
+// from the user, so everything here is rendered with textContent.
+// ──────────────────────────────────────────────────────────────────────────
+let apiState = null;
+
+async function apiKeysRequest(payload){
+  const session = await getSessionRefreshed();
+  if(!session) return { error: 'Please sign in again.' };
+  try {
+    const resp = await fetch('/.netlify/functions/api-keys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ accessToken: session.access_token }, payload))
+    });
+    const data = await resp.json().catch(() => ({}));
+    if(!resp.ok) return { error: data.error || 'Something went wrong. Please try again.' };
+    return data;
+  } catch(e){
+    return { error: 'Could not reach the server. Please try again.' };
+  }
+}
+
+function setApiStatus(text, isError){
+  const el = document.getElementById('api-status');
+  if(!el) return;
+  el.textContent = text || '';
+  el.style.display = text ? 'block' : 'none';
+  el.style.color = isError ? 'var(--red)' : 'var(--text2)';
+}
+
+async function loadApiSection(){
+  const card = document.getElementById('api-access');
+  if(!card) return;
+  card.style.display = '';
+  const data = await apiKeysRequest({ action: 'list' });
+  if(data.error){ setApiStatus(data.error, true); return; }
+  renderApiSection(data);
+}
+
+function apiDate(iso){
+  const d = iso ? new Date(iso) : null;
+  return d && !isNaN(d) ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+}
+
+function renderApiSection(data){
+  apiState = data;
+  const show = (id, on) => { const el = document.getElementById(id); if(el) el.style.display = on ? '' : 'none'; };
+  show('api-upsell', data.access === 'plan_required');
+  show('api-active', data.access === 'active');
+  setApiStatus('');
+
+  // "Switch to the API plan" uses the plan switcher above, so it only shows
+  // for a paid subscription that can switch.
+  const select = document.getElementById('sub-plan-select');
+  const canSwitch = !!(select && select.style.display !== 'none' && document.getElementById('subscription-paid').style.display !== 'none');
+  show('api-upsell-switch', data.access === 'plan_required' && canSwitch);
+
+  if(data.access !== 'active') return;
+
+  const u = data.usage || {};
+  const used = Number.isFinite(u.used) ? u.used : 0;
+  const limit = u.limit || 5000;
+  document.getElementById('api-usage-count').textContent = `${used.toLocaleString('en-US')} of ${limit.toLocaleString('en-US')}`;
+  const bar = document.getElementById('api-usage-bar');
+  bar.style.width = Math.min(100, (used / limit) * 100) + '%';
+  bar.classList.toggle('full', used >= limit * 0.9);
+  const resets = apiDate(u.resetsAt);
+  document.getElementById('api-usage-note').textContent =
+    (resets ? `Resets ${resets}. ` : '') +
+    `Requests where you send the miles don't count. Up to ${u.perMinute || 60} requests a minute.`;
+
+  const list = document.getElementById('api-keys-list');
+  list.textContent = '';
+  const keys = data.keys || [];
+  if(!keys.length){
+    const empty = document.createElement('div');
+    empty.className = 'api-empty';
+    empty.textContent = 'No keys yet. Create one below to start using the API.';
+    list.appendChild(empty);
+  }
+  keys.forEach(k => {
+    const row = document.createElement('div');
+    row.className = 'api-key-item';
+    const main = document.createElement('div');
+    main.className = 'api-key-main';
+    const name = document.createElement('div');
+    name.className = 'api-key-name';
+    name.textContent = k.name || 'API key';
+    const meta = document.createElement('div');
+    meta.className = 'api-key-meta';
+    const code = document.createElement('code');
+    code.textContent = (k.prefix || 'qfc_live_') + '…';
+    meta.appendChild(code);
+    meta.appendChild(document.createTextNode(
+      ` · Created ${apiDate(k.createdAt)} · ${k.lastUsedAt ? 'Last used ' + apiDate(k.lastUsedAt) : 'Never used'}`));
+    main.appendChild(name);
+    main.appendChild(meta);
+    const revoke = document.createElement('button');
+    revoke.className = 'api-key-revoke';
+    revoke.textContent = 'Revoke';
+    revoke.addEventListener('click', () => revokeApiKey(k));
+    row.appendChild(main);
+    row.appendChild(revoke);
+    list.appendChild(row);
+  });
+
+  const atMax = keys.length >= (data.maxKeys || 5);
+  const createBtn = document.getElementById('api-create-btn');
+  const nameInput = document.getElementById('api-key-name');
+  createBtn.disabled = atMax;
+  nameInput.disabled = atMax;
+  nameInput.placeholder = atMax ? `You have the most keys allowed (${data.maxKeys || 5}). Revoke one to add another.` : 'Key name, e.g. Website quote form';
+}
+
+async function createApiKey(){
+  const btn = document.getElementById('api-create-btn');
+  const nameInput = document.getElementById('api-key-name');
+  if(btn.disabled) return;
+  btn.disabled = true;
+  setApiStatus('Creating your key…');
+  const data = await apiKeysRequest({ action: 'create', name: nameInput.value });
+  btn.disabled = false;
+  if(data.error){ setApiStatus(data.error, true); return; }
+  nameInput.value = '';
+  renderApiSection(data);
+  document.getElementById('api-new-key-value').textContent = data.key;
+  document.getElementById('api-copy-btn').textContent = 'Copy';
+  document.getElementById('api-new-key').style.display = '';
+}
+
+async function copyNewApiKey(){
+  const value = document.getElementById('api-new-key-value').textContent;
+  const btn = document.getElementById('api-copy-btn');
+  try {
+    await navigator.clipboard.writeText(value);
+    btn.textContent = 'Copied ✓';
+  } catch(e){
+    // Clipboard blocked: select the key so it can be copied by hand.
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById('api-new-key-value'));
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    btn.textContent = 'Press Ctrl+C';
+  }
+}
+
+async function revokeApiKey(k){
+  if(!confirm(`Revoke "${k.name || 'API key'}"?\n\nAnything using this key will stop working right away. This can't be undone.`)) return;
+  setApiStatus('Revoking…');
+  const data = await apiKeysRequest({ action: 'revoke', keyId: k.id });
+  if(data.error){ setApiStatus(data.error, true); return; }
+  document.getElementById('api-new-key').style.display = 'none';
+  renderApiSection(data);
+  setApiStatus('Key revoked.');
+}
+
+function switchToApiPlan(){
+  const select = document.getElementById('sub-plan-select');
+  if(!select) return;
+  select.value = 'api';
+  handleSwitchPlan();
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -1568,7 +2243,18 @@ function populateForm(p){
   if(p.quotePrefix) document.getElementById('quote-prefix').value = p.quotePrefix;
   if(p.quoteStart)  document.getElementById('quote-start').value = p.quoteStart;
   if(p.colorScheme) currentScheme = p.colorScheme;
-  if(p.hideLogo) document.getElementById('hide-logo').checked = true;
+  document.getElementById('hide-logo').checked = p.hideLogo === true;
+  document.getElementById('pdf-breakdown').checked = p.pdfBreakdown !== false;
+  const hex = v => /^#[0-9a-fA-F]{6}$/.test(v || '');
+  if(hex(p.pdfAccent)) document.getElementById('pdf-accent').value = p.pdfAccent.toLowerCase();
+  if(hex(p.pdfInk)) document.getElementById('pdf-ink').value = p.pdfInk.toLowerCase();
+  document.getElementById('pdf-accent-hex').textContent = customColorValue('pdf-accent', '#f0a500').toUpperCase();
+  document.getElementById('pdf-ink-hex').textContent = customColorValue('pdf-ink', '#1a1f2e').toUpperCase();
+  renderSchemes();
+  selectPdfStyle(p.pdfStyle);
+  document.getElementById('pdf-white-label').checked = p.pdfWhiteLabel === true;
+  document.getElementById('pdf-valid-hours').value = [24, 48, 72, 168].includes(Number(p.pdfValidHours)) ? String(p.pdfValidHours) : '24';
+  document.getElementById('pdf-terms').value = typeof p.pdfTerms === 'string' ? p.pdfTerms : '';
   if(p.logoBase64){
     // Reuse applyLogo so the preview state (remove + adjust buttons) stays in
     // sync with the upload path — no duplicated show/hide logic.
@@ -1627,6 +2313,7 @@ async function handleManageBilling(){
 loadProfile();
 renderSchemes();
 updatePreview();
+applyWhiteLabelAccess();
 updateQuotePreview();
 
 // Handle Stripe redirect back

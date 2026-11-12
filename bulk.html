@@ -1452,7 +1452,29 @@ function generateBulkPDF(){
     sand:     {header:'#ece3d3', accent:'#8b3a1f', headerText:'#4a2412', headerTextSoft:'rgba(74,36,18,.62)', headerTextFaint:'rgba(74,36,18,.5)',  bar:'linear-gradient(to right,#8b3a1f,#c26236,#8b3a1f)'},
     arctic:   {header:'#eef3f8', accent:'#0f3d4c', headerText:'#0b2d38', headerTextSoft:'rgba(11,45,56,.6)',  headerTextFaint:'rgba(11,45,56,.48)', bar:'linear-gradient(to right,#0f3d4c,#2a6b7f,#0f3d4c)'},
   };
-  const scheme = SCHEMES[profile.colorScheme] || SCHEMES.midnight;
+  const scheme = (window.QFCQuotePDF && QFCQuotePDF.classicScheme(profile)) || SCHEMES[profile.colorScheme] || SCHEMES.midnight;
+
+  // Modern design (pdf-quote.js) unless the Profile chose Classic — then the
+  // original template below, unchanged.
+  if(window.QFCQuotePDF && QFCQuotePDF.style(profile) === 'modern'){
+    QFCQuotePDF.openBulk({
+      origin: orig, destination: dest, loadedMiles, deadhead, cwt, ratePerCwt: offeredRate,
+      base: offeredBase, fuel: fscTotal, fuelNote: fscLine, total, rpmLoaded, rpmAll: rpmTotal,
+      meetsTarget,
+      statusText: meetsTarget
+        ? `$${dollarDelta.toFixed(2)} profit margin over target`
+        : `$${Math.abs(dollarDelta).toFixed(2)} short of target`,
+      statusDetail: meetsTarget
+        ? `Offered rate of $${offeredRate.toFixed(2)}/cwt beats minimum $${requiredRate.toFixed(2)}/cwt by $${rateDelta.toFixed(2)}/cwt.`
+        : `Offered rate of $${offeredRate.toFixed(2)}/cwt is $${Math.abs(rateDelta).toFixed(2)}/cwt below minimum of $${requiredRate.toFixed(2)}/cwt.`,
+      targetText: mileMode === 'all'
+        ? `$${targetRpm.toFixed(2)}/mi across all ${totalMiles.toLocaleString()} mi`
+        : `$${targetRpm.toFixed(2)}/mi on ${loadedMiles.toLocaleString()} loaded mi`,
+      fscMethod: fscMethod === 'permile' ? 'Per mile' : '% of base rate',
+      diesel: DIESEL_PRICE,
+    }, profile);
+    return;
+  }
 
   // ── Quote number (shares counter with FTL quotes; "B" suffix for bulk) ──
   const now = new Date();
@@ -1492,12 +1514,19 @@ function generateBulkPDF(){
       `).join('')}
     </div>` : '';
 
-  const footerLeft = profile.companyName
+  // White-label (pdf-quote.js; Pro Max, API and comp accounts): no
+  // QuickFreightCalc name, and the user's own terms or quote validity.
+  const wlFooter  = !!(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile));
+  const ownTerms  = window.QFCQuotePDF && QFCQuotePDF.customTerms(profile);
+  const termsLine = ownTerms ? escapeHTML(ownTerms).replace(/\n/g, '<br>') : 'Rates are subject to change and valid for 24 hours from issue.';
+  const footerLeft = wlFooter
+    ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName || '')}</div>`
+    : profile.companyName
     ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName)} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
     : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">🚛 <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
   const footerRight = profile.footerText
-    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>Rates are subject to change and valid for 24 hours from issue.</div>`
-    : `<div style="font-size:10px;color:#aab8c8;text-align:right">Rates are subject to change and valid for 24 hours from issue.</div>`;
+    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>${termsLine}</div>`
+    : `<div style="font-size:10px;color:#aab8c8;text-align:right">${termsLine}</div>`;
 
   const fmt$ = (n) => '$' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 
@@ -1708,5 +1737,8 @@ async function init(){
 init();
 </script>
 
+<!-- Notice to current Pro subscribers about the plan changes (see pro-notice.js) -->
+<script src="/pro-notice.js" defer></script>
+<script src="/pdf-quote.js" defer></script>
 </body>
 </html>

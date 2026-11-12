@@ -1032,6 +1032,7 @@ function adjustExtraDays(delta){
 }
 let legTimers = {};
 let stopChargeOverrides = {}; // stopId → { amount, type } where type is 'flat' or 'permile'
+let msLastCalc = null; // calcTotal()'s numbers, for the Modern PDF (pdf-quote.js)
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
@@ -1409,6 +1410,8 @@ async function lookupLegMiles(id){
           })
         });
         const data = await resp.json();
+        // Daily lane limit reached: show the server's message (it names the upgrade).
+        if(data?.limit) throw Object.assign(new Error('Limit'), { userMessage: data.error });
         const meters = data?.routes?.[0]?.distanceMeters;
         if(!meters) throw new Error('No route');
         return Math.round(meters / 1609.34);
@@ -1435,7 +1438,12 @@ async function lookupLegMiles(id){
     badge = document.getElementById(`leg-badge-${id}`);
     status = document.getElementById(`leg-status-${id}`);
     if(badge){ badge.className = 'leg-miles-badge'; badge.textContent = '— mi'; }
-    if(status){ status.className = 'miles-status err'; status.textContent = `⚠ ${e.message === 'No key' ? 'Could not load Maps key' : 'Could not look up miles'} — enter manually`; }
+    if(status){
+      status.className = 'miles-status err';
+      status.textContent = e.userMessage
+        ? `🔒 ${e.userMessage}`
+        : `⚠ ${e.message === 'No key' ? 'Could not load Maps key' : 'Could not look up miles'} — enter manually`;
+    }
   }
 }
 
@@ -1677,6 +1685,7 @@ function calcTotal(){
   const marginAmt = preMargin * marginPct;
   const total     = preMargin * (1 + marginPct);
   const rpm       = totalMiles > 0 ? total / totalMiles : 0;
+  msLastCalc = { totalMiles, totalWeight, fscPerMile, stopChargesTotal, extraDayTotal, marginPct };
 
   // Update result card
   const fmt = n => '$' + Math.round(n).toLocaleString();
@@ -1776,6 +1785,35 @@ function generateMultiStopPDF(){
   let profile = {};
   try { profile = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}'); } catch(e){}
 
+  // Modern design (pdf-quote.js) unless the Profile chose Classic — then the
+  // original template below, unchanged.
+  if(window.QFCQuotePDF && QFCQuotePDF.style(profile) === 'modern' && msLastCalc){
+    const c = msLastCalc;
+    const markup = 1 + c.marginPct;
+    // The first pickup and first delivery are included; other stops are extra.
+    const included = new Set([stops.find(s => s.type === 'pickup')?.id, stops.find(s => s.type === 'delivery')?.id]);
+    const trailerEl = document.getElementById('ms-trailer');
+    const COMMODITY = { standard:'Standard', food:'Food / Perishable', hazmat:'Hazmat', highval:'High Value', oversized:'Oversized' };
+    const day = ymd => {
+      if(!ymd) return '';
+      const d = new Date(ymd + 'T12:00:00');
+      return isNaN(d) ? ymd : d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+    };
+    QFCQuotePDF.openMultiStop({
+      total: Number(total.replace(/[^0-9.]/g, '')) || 0,
+      totalMiles: c.totalMiles,
+      totalWeight: c.totalWeight,
+      trailer: trailerEl ? trailerEl.options[trailerEl.selectedIndex].text : '',
+      commodity: COMMODITY[document.getElementById('ms-commodity')?.value] || '',
+      stops: stops.map(s => ({ type: s.type, location: s.location, date: day(s.date),
+        weight: parseFloat(s.weight) || null, legMiles: legMiles[s.id] || null, extra: !included.has(s.id) })),
+      // As the customer pays them (with your margin), so they add up to the total.
+      charges: { fuel: c.fscPerMile * c.totalMiles * markup, stops: c.stopChargesTotal * markup, extra: c.extraDayTotal * markup },
+      notes: document.getElementById('ms-load-notes')?.value.trim() || '',
+    }, profile);
+    return;
+  }
+
   // Scheme config — mirrors profile.html. headerText/Soft/Faint define text
   // colors for the dark header so light-header schemes remain legible.
   const DARK_TEXT  = { headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)', headerTextFaint:'rgba(255,255,255,.35)' };
@@ -1794,8 +1832,14 @@ function generateMultiStopPDF(){
     sand:     {header:'#ece3d3', accent:'#8b3a1f', headerText:'#4a2412', headerTextSoft:'rgba(74,36,18,.62)', headerTextFaint:'rgba(74,36,18,.5)',  bar:'linear-gradient(to right,#8b3a1f,#c26236,#8b3a1f)'},
     arctic:   {header:'#eef3f8', accent:'#0f3d4c', headerText:'#0b2d38', headerTextSoft:'rgba(11,45,56,.6)',  headerTextFaint:'rgba(11,45,56,.48)', bar:'linear-gradient(to right,#0f3d4c,#2a6b7f,#0f3d4c)'},
   };
-  const scheme = SCHEMES[profile.colorScheme] || SCHEMES.midnight;
+  const scheme = (window.QFCQuotePDF && QFCQuotePDF.classicScheme(profile)) || SCHEMES[profile.colorScheme] || SCHEMES.midnight;
   const stopFee = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
+  // Amounts on the PDF are as the customer pays them: your margin is spread
+  // across the charges so they add up to the total. (The page's own linehaul
+  // and stop-charge figures are before margin, so they're not used here.)
+  const markup = 1 + (msLastCalc ? msLastCalc.marginPct : (parseFloat(document.getElementById('ms-margin').value) || 0) / 100);
+  const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: Math.round(n * 100) % 100 ? 2 : 0, maximumFractionDigits: 2 });
+  let stopChargeSum = 0;
 
   // Timezone-safe date formatter for the PDF. Input is a YYYY-MM-DD string from
   // a <input type="date">; we anchor to noon local to avoid UTC off-by-one drift.
@@ -1858,11 +1902,13 @@ function generateMultiStopPDF(){
       if(overrideData?.type === 'permile'){
         const prevStop = stops[idx-1];
         const mi = legMiles[prevStop?.id] || 0;
-        const charge = mi * (overrideData.amount || 0);
-        chargeNote = charge > 0 ? `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+$${Math.round(charge).toLocaleString()} (${mi.toLocaleString()} mi × $${overrideData.amount}/mi)</span>` : '';
+        const charge = mi * (overrideData.amount || 0) * markup;
+        stopChargeSum += charge;
+        chargeNote = charge > 0 ? `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+${money(charge)} stop charge (${mi.toLocaleString()} mi)</span>` : '';
       } else {
-        const charge = overrideData?.amount !== undefined ? overrideData.amount : stopFee;
-        chargeNote = `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+$${charge} stop fee</span>`;
+        const charge = (overrideData?.amount !== undefined ? overrideData.amount : stopFee) * markup;
+        stopChargeSum += charge;
+        chargeNote = `<span style="font-size:10px;background:#fff8e6;border:1px solid #f0a500;color:#c07800;padding:2px 8px;border-radius:10px;margin-left:8px">+${money(charge)} stop charge</span>`;
       }
     }
 
@@ -1886,12 +1932,21 @@ function generateMultiStopPDF(){
   const commodityKey = document.getElementById('ms-commodity')?.value || 'standard';
   const CLABELS_PDF  = {standard:'Standard',food:'Food / Perishable',hazmat:'Hazmat',highval:'High Value',oversized:'Oversized'};
   const commodityText = CLABELS_PDF[commodityKey] || commodityKey;
-  const linehaulAmt   = document.getElementById('ms-linehaul')?.textContent || '—';
-  const stopChgAmt    = document.getElementById('ms-stop-charges-total')?.textContent || '$0';
-  const extraDayRow   = document.getElementById('ms-day-charges-row');
-  const extraDayAmt   = (extraDayRow && extraDayRow.style.display !== 'none') ? document.getElementById('ms-extra-day-charges')?.textContent : null;
+  // Customer-facing charges that add up to the total; linehaul (with fuel)
+  // takes whatever the stop and extra-day charges don't.
+  const totalNum      = Number(String(total).replace(/[^0-9.]/g, '')) || 0;
+  const stopChgNum    = Math.round(stopChargeSum);
+  const extraDayNum   = msLastCalc && msLastCalc.extraDayTotal > 0 ? Math.round(msLastCalc.extraDayTotal * markup) : 0;
+  const linehaulAmt   = money(totalNum - stopChgNum - extraDayNum);
+  const stopChgAmt    = money(stopChgNum);
+  const extraDayAmt   = extraDayNum > 0 ? `${extraDays} day${extraDays > 1 ? 's' : ''} · ${money(extraDayNum)}` : null;
   const firstPickup   = stops.find(s => s.type==='pickup');
   const lastDelivery  = [...stops].reverse().find(s => s.type==='delivery');
+  // White-label (pdf-quote.js; Pro Max, API and comp accounts): no
+  // QuickFreightCalc name, and the user's own terms or quote validity.
+  const msWhiteLabel = !!(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile));
+  const msOwnTerms   = window.QFCQuotePDF && QFCQuotePDF.customTerms(profile);
+  const msTerms      = msOwnTerms ? escapeHTML(msOwnTerms).replace(/\n/g, '<br>') : 'Rates subject to change · Valid 24 hours from issue';
 
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <title>Multi-Stop Quote ${qNum}</title>
@@ -2030,8 +2085,8 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
 
     </div>
     <div class="doc-footer">
-      <div style="font-size:11px;color:#b0c4d8">${profile.companyName?escapeHTML(profile.companyName):'🚛 QuickFreightCalc'} · ${profile.companyName?'Powered by QuickFreightCalc':'quickfreightcalc.com'}</div>
-      <div style="font-size:10px;color:#aab8c8">Rates subject to change · Valid 24 hours from issue</div>
+      <div style="font-size:11px;color:#b0c4d8">${msWhiteLabel ? escapeHTML(profile.companyName || '') : `${profile.companyName?escapeHTML(profile.companyName):'🚛 QuickFreightCalc'} · ${profile.companyName?'Powered by QuickFreightCalc':'quickfreightcalc.com'}`}</div>
+      <div style="font-size:10px;color:#aab8c8">${msTerms}</div>
     </div>
   </div>
 </div></body></html>`;
@@ -2516,5 +2571,8 @@ function showMsToast(msg){
 // ── Init ──────────────────────────────────────────────────────────────────
 initWithProCheck();
 </script>
+<!-- Notice to current Pro subscribers about the plan changes (see pro-notice.js) -->
+<script src="/pro-notice.js" defer></script>
+<script src="/pdf-quote.js" defer></script>
 </body>
 </html>

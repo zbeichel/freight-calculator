@@ -1,9 +1,39 @@
 // netlify/functions/create-checkout.js
-// Creates a Stripe checkout session for Pro subscription
+// Creates a Stripe checkout session for a new subscription. Each variable
+// holds a Stripe price ID (price_…), not a product ID (prod_…):
+//   plan 'pro'  → STRIPE_PRICE_ID_PRO  ($9.99/mo, automatic miles on 100 quotes/day;
+//                 falls back to STRIPE_PRICE_ID, the original $4.99 price, until set)
+//   plan 'plus' → STRIPE_PRICE_ID_PLUS ($19.99/mo, 250 quotes/day)
+//   plan 'max'  → STRIPE_PRICE_ID_MAX  ($49.99/mo, 1,000 quotes/day)
+//   plan 'api'  → STRIPE_PRICE_ID_API  ($199.99/mo, Pro Max + API access)
+// Someone who already has an active subscription is sent to change-plan
+// instead, so nobody ends up paying for two subscriptions.
 
 const https = require('https');
+const { PLANS, PLAN_NAME, normalizePlan, priceIdFor } = require('../lib/plans.js');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
+
+// The caller's pro_users row (service key — bypasses RLS), or null.
+function getProRow(userId){
+  return new Promise((resolve) => {
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if(!serviceKey){ resolve(null); return; }
+    const url = new URL(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${encodeURIComponent(userId)}&select=is_active,plan,stripe_subscription_id`);
+    https.get({
+      hostname: url.hostname,
+      path: url.pathname + url.search,
+      headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+    }, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => {
+        try { const rows = JSON.parse(d); resolve(Array.isArray(rows) ? rows[0] || null : null); }
+        catch(e){ resolve(null); }
+      });
+    }).on('error', () => resolve(null));
+  });
+}
 
 // Verify the Supabase access token and return the authenticated user id, or null.
 function verifyUser(accessToken){
@@ -58,10 +88,11 @@ exports.handler = async function(event){
     return { statusCode: 405, body: 'Method not allowed' };
   }
 
-  const { userId, email, accessToken } = JSON.parse(event.body || '{}');
+  const { userId, email, accessToken, plan: requestedPlan } = JSON.parse(event.body || '{}');
   if(!userId || !email || !accessToken){
     return { statusCode: 400, body: JSON.stringify({ error: 'Missing credentials' }) };
   }
+  const plan = PLANS.includes(requestedPlan) ? requestedPlan : 'pro';
 
   // A user may only start checkout for their own account.
   const verifiedId = await verifyUser(accessToken);
@@ -69,7 +100,30 @@ exports.handler = async function(event){
     return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
   }
 
-  const priceId = process.env.STRIPE_PRICE_ID;
+  // Already subscribed: switching plans goes through change-plan, never a
+  // second subscription.
+  const proRow = await getProRow(userId);
+  if(proRow && proRow.is_active === true){
+    return {
+      statusCode: 409,
+      body: JSON.stringify({
+        error: 'already_subscribed',
+        plan: normalizePlan(proRow.plan),
+        message: 'You already have Pro — switch plans from your Profile page.'
+      })
+    };
+  }
+
+  const priceId = priceIdFor(plan);
+  if(!priceId){
+    console.error(`create-checkout: no Stripe price configured for plan "${plan}"`);
+    return {
+      statusCode: 503,
+      body: JSON.stringify({ error: plan === 'pro'
+        ? 'Checkout is unavailable right now. Please try again later.'
+        : `${PLAN_NAME[plan]} isn't available yet — email info@quickfreightcalc.com and we'll set you up.` })
+    };
+  }
   const siteUrl = process.env.DEPLOY_URL && process.env.DEPLOY_URL.includes('dev--')
     ? process.env.DEPLOY_URL
     : 'https://quickfreightcalc.com';
@@ -85,7 +139,9 @@ exports.handler = async function(event){
       'success_url': `${siteUrl}/?checkout=success`,
       'cancel_url': `${siteUrl}/signup.html?checkout=cancelled`,
       'subscription_data[metadata][userId]': userId,
+      'subscription_data[metadata][plan]': plan,
       'metadata[userId]': userId,
+      'metadata[plan]': plan,
     });
 
     if(resp.body.error){

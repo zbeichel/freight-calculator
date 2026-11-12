@@ -25,7 +25,7 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Sp
 .page{max-width:720px;margin:0 auto;padding:48px 24px 80px}
 .doc-title{font-size:32px;font-weight:700;letter-spacing:-.03em;margin-bottom:8px}
 .doc-subtitle{font-size:13px;color:var(--text3);margin-bottom:48px}
-.section{margin-bottom:36px}
+.section{margin-bottom:36px;scroll-margin-top:84px}
 .section-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
 .section p{font-size:14px;color:var(--text2);line-height:1.8;margin-bottom:10px}
 .section p:last-child{margin-bottom:0}
@@ -51,7 +51,7 @@ footer-note{display:block;font-size:12px;color:var(--text3);text-align:center;ma
 <div class="page">
 
   <div class="doc-title">Terms of Service</div>
-  <div class="doc-subtitle">Last updated: October 2026 &nbsp;·&nbsp; QuickFreightCalc LLC</div>
+  <div class="doc-subtitle">Last updated: November 2026 &nbsp;·&nbsp; QuickFreightCalc LLC</div>
 
 <div class="section">
     <div class="section-title">1. Acceptance of Terms</div>
@@ -81,8 +81,12 @@ footer-note{display:block;font-size:12px;color:var(--text3);text-align:center;ma
 
   <div class="section">
     <div class="section-title">4. Pro Subscription Terms</div>
-    <p>Pro subscriptions are billed at $4.99 per month. By subscribing you authorize QuickFreightCalc LLC to charge your payment method on a recurring monthly basis until you cancel.</p>
+    <p>QuickFreightCalc offers four monthly plans: <strong>Pro</strong> at $9.99 per month, <strong>Pro Plus</strong> at $19.99 per month, <strong>Pro Max</strong> at $49.99 per month and <strong>API</strong> at $199.99 per month. By subscribing you authorize QuickFreightCalc LLC to charge your payment method on a recurring monthly basis until you cancel.</p>
     <ul>
+      <li><strong>Automatic miles:</strong> Pro includes automatic miles on 100 quotes per day, Pro Plus on 250 quotes per day, and Pro Max and API on 1,000 quotes per day. See <a href="#quotes" style="color:var(--accent)">What Counts as a Quote</a> below. You can always enter miles yourself.</li>
+      <li><strong>API access:</strong> The API plan includes everything in Pro Max, plus 5,000 API quotes with automatic miles per billing month. See <a href="#api" style="color:var(--accent)">API Access</a> below.</li>
+      <li><strong>Subscribers on the original Pro plan:</strong> these plans and prices start for you on January 1, 2027. Until your first billing date on or after January 1, 2027, you keep unlimited quotes with automatic miles at your current price. From that billing date your subscription continues on the plan you choose, at that plan's price; if you don't choose, it continues on Pro at $9.99 per month. The change is made automatically, with no extra charge. You may cancel at any time before then.</li>
+      <li><strong>Plan changes:</strong> When you move to a higher plan, you are charged the prorated difference for the rest of your current billing period right away; this includes moving from the original Pro plan to the API plan. When you move to a lower plan, the unused part of your current plan is credited toward your next invoice.</li>
       <li><strong>Cancellation:</strong> You may cancel your subscription at any time from your account profile page. Cancellation takes effect at the end of the current billing period. No partial refunds are issued for unused time.</li>
       <li><strong>Refunds:</strong> We do not offer refunds for subscription charges except where required by applicable law.</li>
       <li><strong>Price changes:</strong> We reserve the right to change subscription pricing with 30 days advance notice to your registered email address.</li>
@@ -90,55 +94,84 @@ footer-note{display:block;font-size:12px;color:var(--text3);text-align:center;ma
     </ul>
   </div>
 
+  <div class="section" id="quotes">
+    <div class="section-title">5. What Counts as a Quote</div>
+    <p>A <strong>quote</strong> is one pickup–delivery pair that we look up automatic miles (the driving distance) for. Every different pair counts separately. For example:</p>
+    <ul>
+      <li>Lancaster, PA → New York, NY is <strong>1 quote</strong>.</li>
+      <li>Keeping Lancaster, PA and changing the delivery to Charlotte, NC is a <strong>2nd quote</strong>.</li>
+      <li>Changing the pickup instead (say Harrisburg, PA → Charlotte, NC) is another quote.</li>
+      <li>Going back to Lancaster, PA → New York, NY later the same day does not count again.</li>
+      <li>Changing the weight, trailer, rate, margin or dates on a lane does not count.</li>
+      <li>On a multi-stop load, each leg (one stop to the next) counts as one quote.</li>
+      <li>Entering the miles yourself never counts.</li>
+    </ul>
+    <p>Quote counts reset every day at midnight UTC (7 p.m. Eastern Standard Time, 8 p.m. Eastern Daylight Time). Free accounts include automatic miles on 5 quotes per day. Quotes through the API are counted separately, by billing month — see <a href="#api" style="color:var(--accent)">API Access</a>.</p>
+  </div>
+
+  <div class="section" id="api">
+    <div class="section-title">6. API Access</div>
+    <p>The API plan lets you request quotes from your own website or systems with an API key. These terms apply in addition to the rest of these Terms.</p>
+    <ul>
+      <li><strong>Monthly allowance:</strong> Each API request that looks up automatic miles counts as one API quote, including repeat requests for the same lane and requests where a location or route can't be found. A request isn't counted if the lookup fails on our or our provider's side. The API plan includes 5,000 API quotes per billing month. Requests where you send the miles yourself don't count toward the allowance. When the allowance is used up, requests for automatic miles are declined until your next billing month begins; requests with your own miles still work.</li>
+      <li><strong>Rate limit:</strong> Each account may send up to 60 API requests per minute.</li>
+      <li><strong>Keys:</strong> Keep your API keys secret and use them only from your own server, never in a web page or app that others can download. You are responsible for all use of your keys. You can create up to 5 keys and revoke a key at any time from your Profile page.</li>
+      <li><strong>Permitted use:</strong> You may show quotes from the API to your own staff and customers. You may not resell or share access to the API, offer it as part of a service for others to build on, or use it to collect, store or resell driving distances, drive times or locations on their own.</li>
+      <li><strong>Attribution:</strong> Automatic miles come from Google Maps. If you show automatic miles or drive times to anyone outside your company, credit Google Maps as the source.</li>
+      <li><strong>Changes and suspension:</strong> We may change the API, its limits or its response format; we will give API subscribers at least 14 days' email notice of changes that could break an existing integration, unless a change is needed for security or to comply with a provider's terms. We may suspend a key or account that is used in breach of these Terms or in a way that harms the Service.</li>
+      <li><strong>Estimates only:</strong> Quotes from the API are estimates, the same as quotes on the site (see Section 3).</li>
+    </ul>
+  </div>
+
   <div class="section">
-    <div class="section-title">5. User Accounts</div>
+    <div class="section-title">7. User Accounts</div>
     <p>You are responsible for maintaining the confidentiality of your account credentials and for all activity that occurs under your account. You agree to notify us immediately of any unauthorized use of your account.</p>
     <p>We reserve the right to suspend or terminate accounts that violate these terms, engage in fraudulent activity, or are used in a manner that could harm the Service or other users.</p>
   </div>
 
   <div class="section">
-    <div class="section-title">6. Acceptable Use</div>
+    <div class="section-title">8. Acceptable Use</div>
     <p>You agree not to:</p>
     <ul>
       <li>Use the Service for any unlawful purpose</li>
       <li>Attempt to reverse engineer, scrape, or copy the Service</li>
-      <li>Use automated tools to make excessive requests to the Service</li>
+      <li>Use automated tools to make excessive requests to the Service, or to request quotes other than through the API as described in Section 6</li>
       <li>Misrepresent quotes generated by the Service as guaranteed rates</li>
       <li>Resell or redistribute access to the Service</li>
     </ul>
   </div>
 
   <div class="section">
-    <div class="section-title">7. Intellectual Property</div>
+    <div class="section-title">9. Intellectual Property</div>
     <p>All content, features, and functionality of the Service — including but not limited to the software, design, text, and graphics — are owned by QuickFreightCalc LLC and protected by applicable intellectual property laws.</p>
     <p>PDF quotes generated through the Service for your personal or business use are yours to use freely. You may not resell or redistribute the Service itself.</p>
   </div>
 
   <div class="section">
-    <div class="section-title">8. Third-Party Data and Services</div>
+    <div class="section-title">10. Third-Party Data and Services</div>
     <p>The Service uses data from third-party sources including the U.S. Energy Information Administration (EIA), Google Maps, and others. QuickFreightCalc LLC makes no warranties about the accuracy, completeness, or timeliness of third-party data.</p>
     <p>Payment processing is handled by Stripe. Your payment information is subject to Stripe's terms of service and privacy policy.</p>
   </div>
 
   <div class="section">
-    <div class="section-title">9. Disclaimers and Limitation of Liability</div>
+    <div class="section-title">11. Disclaimers and Limitation of Liability</div>
     <p>THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED. QUICKFREIGHTCALC LLC DOES NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, OR THAT RESULTS OBTAINED WILL BE ACCURATE OR RELIABLE.</p>
     <p>TO THE FULLEST EXTENT PERMITTED BY LAW, QUICKFREIGHTCALC LLC SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOST PROFITS OR BUSINESS LOSSES, ARISING FROM YOUR USE OF THE SERVICE.</p>
     <p>Our total liability to you for any claim arising from use of the Service shall not exceed the amount you paid to us in the three months preceding the claim.</p>
   </div>
 
   <div class="section">
-    <div class="section-title">10. Governing Law and Disputes</div>
+    <div class="section-title">12. Governing Law and Disputes</div>
     <p>These Terms are governed by the laws of the Commonwealth of Pennsylvania, without regard to conflict of law principles. Any disputes arising from these Terms or your use of the Service shall be resolved in the courts of Lancaster County, Pennsylvania.</p>
   </div>
 
   <div class="section">
-    <div class="section-title">11. Changes to These Terms</div>
+    <div class="section-title">13. Changes to These Terms</div>
     <p>We reserve the right to update these Terms at any time. We will notify Pro subscribers of material changes via email at least 14 days before they take effect. Continued use of the Service after changes take effect constitutes acceptance of the updated Terms.</p>
   </div>
 
   <div class="section">
-    <div class="section-title">12. Contact</div>
+    <div class="section-title">14. Contact</div>
     <p>QuickFreightCalc LLC is a Pennsylvania limited liability company. For questions about these Terms, email us at <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent)">info@quickfreightcalc.com</a>.</p>
   </div>
 

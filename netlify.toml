@@ -8,6 +8,11 @@
 [functions]
   directory = "netlify/functions"
 
+# Moves subscribers on the original Pro plan to the new plans for
+# January 1, 2027 (see netlify/functions/apply-plan-changes.js).
+[functions."apply-plan-changes"]
+  schedule = "@hourly"
+
 # Redirect www to non-www (301 permanent — Google will update its index)
 [[redirects]]
   from = "https://www.quickfreightcalc.com/*"
@@ -19,6 +24,36 @@
   from = "http://www.quickfreightcalc.com/*"
   to = "https://quickfreightcalc.com/:splat"
   status = 301
+  force = true
+
+# The repository root is the publish directory, so server code, tests and
+# notes would otherwise be downloadable. They hold no secrets (keys live in
+# environment variables), but they aren't pages: answer "not found".
+# (/.netlify/functions/* is a different path and isn't affected.)
+[[redirects]]
+  from = "/netlify/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/tests/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/ADSENSE_SETUP.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+# Public API (API plan): POST https://quickfreightcalc.com/api/v1/quote.
+# Docs for customers are at /api.html.
+[[redirects]]
+  from = "/api/v1/quote"
+  to = "/.netlify/functions/api-quote"
+  status = 200
   force = true
 
 # Ensure rates.json is served with correct content type and no caching

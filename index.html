@@ -430,6 +430,17 @@ header .header-auth{ justify-self:end; }
 /* Which place a location box was matched to (e.g. "📍 Vernon County, WI") */
 .field-note{font-size:11px;color:var(--text3);line-height:1.4}
 .field-note:empty,.field.invalid .field-note{display:none}
+/* Plan options in the upgrade modal (Pro Plus / Pro Max) */
+.upg-option{
+  display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;row-gap:2px;align-items:center;
+  border:1px solid var(--border2);border-radius:10px;padding:10px 12px;cursor:pointer;background:var(--card2);
+}
+.upg-option:has(input:checked){border-color:var(--accent);background:var(--accentbg)}
+.upg-option input{accent-color:var(--accent);margin:0;grid-row:span 2}
+.upg-name{font-size:13px;font-weight:700;color:var(--text)}
+.upg-price{font-size:12px;color:var(--text2);text-align:right}
+.upg-price strong{color:var(--accent);font-size:14px}
+.upg-detail{grid-column:2 / 4;font-size:11px;color:var(--text3);line-height:1.4}
 .field select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
 .field select option{background:var(--card2)}
 
@@ -3019,12 +3030,23 @@ async function _verifyProAuthBackground(){
         }));
 
         const p = rows[0];
+        // Quote numbers advance in this browser as PDFs are made; keep the
+        // higher of the two counters so a number is never reused here.
+        let prev = {};
+        try { prev = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
         localStorage.setItem('qfc_pro_profile', JSON.stringify({
           companyName: p.company_name, contactName: p.contact_name,
           email: p.email, phone: p.phone, mcNumber: p.mc_number,
           dotNumber: p.dot_number, footerText: p.footer_text,
-          quotePrefix: p.quote_prefix, quoteStart: p.quote_counter,
+          quotePrefix: p.quote_prefix,
+          quoteStart: Math.max(Number(p.quote_counter) || 0, Number(prev.quoteStart) || 0) || undefined,
           colorScheme: p.color_scheme, logoBase64: p.logo_base64,
+          hideLogo: p.hide_logo === true,
+          pdfStyle: p.pdf_style === 'classic' ? 'classic' : 'modern',
+          pdfBreakdown: p.pdf_breakdown !== false,
+          pdfAccent: p.pdf_accent || '', pdfInk: p.pdf_ink || '',
+          pdfWhiteLabel: p.pdf_white_label === true, pdfValidHours: p.pdf_valid_hours || 24, pdfTerms: p.pdf_terms || '',
+          plan: p.plan, comp: p.is_active === true && !p.stripe_subscription_id,
         }));
         if(p.rate_profiles && Array.isArray(p.rate_profiles)){
           // Key matches PROFILES_KEY in lanes.html — keep them in sync.
@@ -3781,7 +3803,7 @@ function generateQuotePDF(){
     sand:     {header:'#ece3d3', accent:'#8b3a1f', headerText:'#4a2412', headerTextSoft:'rgba(74,36,18,.62)', headerTextFaint:'rgba(74,36,18,.5)',  bar:'linear-gradient(to right,#8b3a1f,#c26236,#8b3a1f)'},
     arctic:   {header:'#eef3f8', accent:'#0f3d4c', headerText:'#0b2d38', headerTextSoft:'rgba(11,45,56,.6)',  headerTextFaint:'rgba(11,45,56,.48)', bar:'linear-gradient(to right,#0f3d4c,#2a6b7f,#0f3d4c)'},
   };
-  const scheme = SCHEMES[profile.colorScheme] || SCHEMES.midnight;
+  const scheme = (window.QFCQuotePDF && QFCQuotePDF.classicScheme(profile)) || SCHEMES[profile.colorScheme] || SCHEMES.midnight;
 
   // Trailer / commodity / weight
   const trailerLabels = { van:'Dry Van', reefer:'Refrigerated (Reefer)', flatbed:'Flatbed' };
@@ -3791,6 +3813,30 @@ function generateQuotePDF(){
   const commDisplay = commLabels[commodity] || commodity;
   const weightDisplay = weight ? parseInt(weight).toLocaleString() + ' lbs' : '—';
   const transitDays = document.getElementById('transit-days-badge')?.textContent || '—';
+
+  // Modern design (pdf-quote.js) unless the Profile chose Classic — then the
+  // original template below, unchanged.
+  if(window.QFCQuotePDF && QFCQuotePDF.style(profile) === 'modern'){
+    const milesNum = parseFloat(document.getElementById('miles').value) || 0;
+    const markup = 1 + (parseFloat(document.getElementById('margin').value) || 0) / 100;
+    QFCQuotePDF.openModern({
+      total: Number(quote.replace(/[^0-9.]/g, '')) || 0,
+      ratePerMile: parseFloat(document.getElementById('r-rpm').textContent.replace(/[^0-9.]/g, '')) || null,
+      miles: milesNum || null,
+      origin: orig, destination: dest,
+      pickup: pickup !== '—' ? pickup : '', delivery: delivery !== '—' ? delivery : '',
+      trailer, commodity: commDisplay, weight: weight ? parseInt(weight) : null,
+      transit: pickup !== '—' && delivery !== '—' ? transitDays : '',
+      notes,
+      // Fuel and extra-day charges as the customer pays them (with your margin),
+      // so the lines add up to the total without showing the margin itself.
+      breakdown: {
+        fuel: getDieselFSC() * milesNum * markup,
+        extra: (transitChargeAdded ? transitChargeAmount : 0) * markup,
+      },
+    }, profile);
+    return;
+  }
 
   // Quote number
   const now = new Date();
@@ -3836,12 +3882,19 @@ function generateQuotePDF(){
     </div>` : '';
 
   // Footer text
-  const footerLeft = profile.companyName
+  // White-label (pdf-quote.js; Pro Max, API and comp accounts): no
+  // QuickFreightCalc name, and the user's own terms or quote validity.
+  const wlFooter  = !!(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile));
+  const ownTerms  = window.QFCQuotePDF && QFCQuotePDF.customTerms(profile);
+  const termsLine = ownTerms ? escapeHTML(ownTerms).replace(/\n/g, '<br>') : 'Rates are subject to change and valid for 24 hours from issue.';
+  const footerLeft = wlFooter
+    ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName || '')}</div>`
+    : profile.companyName
     ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName)} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
     : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">🚛 <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
   const footerRight = profile.footerText
-    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>Rates are subject to change and valid for 24 hours from issue.</div>`
-    : `<div style="font-size:10px;color:#aab8c8;text-align:right">Rates are subject to change and valid for 24 hours from issue.</div>`;
+    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>${termsLine}</div>`
+    : `<div style="font-size:10px;color:#aab8c8;text-align:right">${termsLine}</div>`;
 
   const notesHTML = notes
     ? `<div class="notes-text">${escapeHTML(notes).replace(/\n/g,'<br>')}</div>`
@@ -4047,6 +4100,20 @@ function generateQuotePDFFromLog(id){
   let profile = {};
   try { profile = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}'); } catch(e){}
 
+  // Modern design (pdf-quote.js) unless the Profile chose Classic.
+  if(window.QFCQuotePDF && QFCQuotePDF.style(profile) === 'modern'){
+    QFCQuotePDF.openModern({
+      total: Number(q.quote) || 0,
+      ratePerMile: parseFloat(String(q.rpm || '').replace(/[^0-9.]/g, '')) || null,
+      miles: Number(q.miles) || null,
+      origin: q.orig || '—', destination: q.dest || '—',
+      pickup: q.pickup || '', delivery: q.delivery || '',
+      trailer: q.trailer, commodity: q.commodity, weight: q.weight ? parseInt(q.weight) : null,
+      transit: '', notes: q.notes || '', breakdown: null,
+    }, profile);
+    return;
+  }
+
   // Scheme config — mirrors profile.html. headerText/Soft/Faint define text
   // colors for the header so light-header schemes remain legible.
   const DARK_TEXT = { headerText:'#ffffff', headerTextSoft:'rgba(255,255,255,.4)', headerTextFaint:'rgba(255,255,255,.35)' };
@@ -4065,7 +4132,7 @@ function generateQuotePDFFromLog(id){
     sand:     {header:'#ece3d3', accent:'#8b3a1f', headerText:'#4a2412', headerTextSoft:'rgba(74,36,18,.62)', headerTextFaint:'rgba(74,36,18,.5)',  bar:'linear-gradient(to right,#8b3a1f,#c26236,#8b3a1f)'},
     arctic:   {header:'#eef3f8', accent:'#0f3d4c', headerText:'#0b2d38', headerTextSoft:'rgba(11,45,56,.6)',  headerTextFaint:'rgba(11,45,56,.48)', bar:'linear-gradient(to right,#0f3d4c,#2a6b7f,#0f3d4c)'},
   };
-  const scheme = SCHEMES[profile.colorScheme] || SCHEMES.midnight;
+  const scheme = (window.QFCQuotePDF && QFCQuotePDF.classicScheme(profile)) || SCHEMES[profile.colorScheme] || SCHEMES.midnight;
 
   const trailerLabels = { van:'Dry Van', reefer:'Refrigerated (Reefer)', flatbed:'Flatbed' };
   const trailerDisplay = trailerLabels[q.trailer] || q.trailer || '—';
@@ -4107,12 +4174,19 @@ function generateQuotePDFFromLog(id){
       `).join('')}
     </div>` : '';
 
-  const footerLeft = profile.companyName
+  // White-label (pdf-quote.js; Pro Max, API and comp accounts): no
+  // QuickFreightCalc name, and the user's own terms or quote validity.
+  const wlFooter  = !!(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile));
+  const ownTerms  = window.QFCQuotePDF && QFCQuotePDF.customTerms(profile);
+  const termsLine = ownTerms ? escapeHTML(ownTerms).replace(/\n/g, '<br>') : 'Rates are subject to change and valid for 24 hours from issue.';
+  const footerLeft = wlFooter
+    ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName || '')}</div>`
+    : profile.companyName
     ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName)} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
     : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">🚛 <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
   const footerRight = profile.footerText
-    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>Rates are subject to change and valid for 24 hours from issue.</div>`
-    : `<div style="font-size:10px;color:#aab8c8;text-align:right">Rates are subject to change and valid for 24 hours from issue.</div>`;
+    ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>${termsLine}</div>`
+    : `<div style="font-size:10px;color:#aab8c8;text-align:right">${termsLine}</div>`;
 
   const notesHTML = q.notes
     ? `<div class="notes-text">${escapeHTML(q.notes).replace(/\n/g,'<br>')}</div>`
@@ -4762,10 +4836,11 @@ async function tryProfLookup(){
     });
     const data = await resp.json().catch(() => ({}));
     if(data.limit){
-      statusIcon.textContent = '🔒';
-      statusText.textContent = 'Daily free limit reached — upgrade to Pro or enter miles manually.';
-      statusText.style.color = 'var(--red)';
-      showProModal("You've used all 5 of your free quotes for today. Upgrade to Pro for unlimited quotes.");
+      showLaneLimit(data, (icon, text) => {
+        statusIcon.textContent = icon;
+        statusText.textContent = text;
+        statusText.style.color = 'var(--red)';
+      });
       return;
     }
     if(!resp.ok || data.error){
@@ -7506,8 +7581,7 @@ async function tryLookupMiles(){
     const data = await resp.json().catch(() => ({}));
 
     if(data.limit){
-      showMilesStatus('🔒', 'Daily free limit reached — upgrade to Pro or enter miles manually.', 'var(--red)');
-      showProModal("You've used all 5 of your free quotes for today. Upgrade to Pro for unlimited quotes.");
+      showLaneLimit(data, (icon, text) => showMilesStatus(icon, text, 'var(--red)'));
       return;
     }
 
@@ -7867,7 +7941,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
 
     <div style="padding:20px 28px;border-bottom:1px solid var(--border)">
       <div style="display:flex;flex-direction:column;gap:8px">
-        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">♾️</span> Unlimited quotes — no daily limit on auto-distance lookups</div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">📍</span> Automatic miles on 100 quotes per day</div>
         <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">🚫</span> No on-page ads — a clean, distraction-free workspace</div>
         <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">📄</span> Branded PDF quotes — your logo, colors & MC/DOT#</div>
         <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">📋</span> Quote log with notes — saved & synced across devices</div>
@@ -7881,7 +7955,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
 
     <div style="padding:20px 28px">
       <div style="text-align:center;font-size:13px;color:var(--text3);margin-bottom:14px">
-        <strong style="color:#f0a500;font-size:18px">$4.99</strong>/month &nbsp;·&nbsp; Cancel anytime
+        <strong style="color:#f0a500;font-size:18px">$9.99</strong>/month &nbsp;·&nbsp; Cancel anytime
       </div>
       <button onclick="handleProModalUpgrade()" style="
         display:block;width:100%;text-align:center;
@@ -7894,6 +7968,17 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
         Sign Up for Pro →
       </button>
       <div style="text-align:center;margin-top:10px">
+        <button onclick="closeProModal();showUpgradeModal()" style="
+          font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
+          background:none;border:none;cursor:pointer;color:#f0a500;
+        ">
+          Need more quotes? Pro Plus $19.99 · Pro Max $49.99
+        </button>
+      </div>
+      <div style="text-align:center;margin-top:6px;font-size:12px">
+        <a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--text3)">What counts as a quote?</a>
+      </div>
+      <div style="text-align:center;margin-top:6px">
         <button onclick="closeProModal();window.location.href='/signup.html?login'" style="
           font-family:'Space Grotesk',sans-serif;font-size:12px;
           background:none;border:none;cursor:pointer;
@@ -7907,7 +7992,199 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
   </div>
 </div>
 
+<!-- ── Upgrade Modal ── offers Pro Plus and Pro Max: when a Pro or Pro Plus
+     account uses its quotes for the day, or from the link in the Pro modal ── -->
+<div id="upg-modal-overlay" style="
+  display:none;position:fixed;inset:0;z-index:10000;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+  align-items:center;justify-content:center;padding:20px;
+">
+  <div style="
+    background:var(--panel);border:1px solid var(--border);border-radius:16px;
+    max-width:420px;width:100%;overflow:hidden;position:relative;
+    box-shadow:0 24px 60px rgba(0,0,0,.5);
+  ">
+    <button onclick="closeUpgradeModal()" aria-label="Close" style="
+      position:absolute;top:14px;right:14px;
+      font-family:'Space Grotesk',sans-serif;font-size:18px;line-height:1;
+      background:var(--card2);border:1px solid var(--border2);border-radius:8px;
+      color:var(--text3);cursor:pointer;width:30px;height:30px;
+      display:flex;align-items:center;justify-content:center;
+      transition:all .15s;z-index:1;
+    "
+    onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+    onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">✕</button>
+
+    <div style="background:linear-gradient(135deg,#1a1f2e 0%,#0f1318 100%);padding:28px 28px 24px;text-align:center;border-bottom:1px solid var(--border);-webkit-print-color-adjust:exact;print-color-adjust:exact">
+      <div style="font-size:32px;margin-bottom:8px">📈</div>
+      <div style="font-size:20px;font-weight:700;color:#f0f4f8;margin-bottom:6px">More quotes with <span style="color:#f0a500">automatic miles</span></div>
+      <div style="font-size:13px;color:#8fa3b8;line-height:1.5" id="upg-modal-desc">Pick the plan that fits how much you quote.</div>
+    </div>
+
+    <div style="padding:20px 28px;border-bottom:1px solid var(--border)">
+      <div role="radiogroup" aria-label="Plan" style="display:flex;flex-direction:column;gap:10px">
+        <label class="upg-option" id="upg-option-plus">
+          <input type="radio" name="upg-plan" value="plus" onchange="updateUpgradeButton()" />
+          <span class="upg-name">Pro Plus</span>
+          <span class="upg-price"><strong>$19.99</strong>/month</span>
+          <span class="upg-detail">Automatic miles on 250 quotes per day</span>
+        </label>
+        <label class="upg-option" id="upg-option-max">
+          <input type="radio" name="upg-plan" value="max" onchange="updateUpgradeButton()" />
+          <span class="upg-name">Pro Max</span>
+          <span class="upg-price"><strong>$49.99</strong>/month</span>
+          <span class="upg-detail">Automatic miles on 1,000 quotes per day, plus white-label PDFs</span>
+        </label>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">
+        Everything in Pro is included. <a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--accent)">What counts as a quote?</a>
+      </div>
+    </div>
+
+    <div style="padding:20px 28px">
+      <div id="upg-modal-billing" style="text-align:center;font-size:12px;color:var(--text3);margin-bottom:12px">Cancel anytime</div>
+      <button id="upg-modal-btn" onclick="handleUpgrade()" style="
+        display:block;width:100%;text-align:center;
+        font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;
+        padding:12px;border-radius:8px;border:none;
+        background:#f0a500;color:#000;
+        cursor:pointer;transition:opacity .15s;box-sizing:border-box;
+      "
+      onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+        Upgrade to Pro Plus →
+      </button>
+      <div id="upg-modal-status" role="status" style="display:none;text-align:center;font-size:12px;line-height:1.5;margin-top:10px"></div>
+      <div style="text-align:center;margin-top:10px">
+        <button onclick="closeUpgradeModal()" style="
+          font-family:'Space Grotesk',sans-serif;font-size:12px;
+          background:none;border:none;cursor:pointer;
+          color:var(--text3);text-decoration:underline;
+        "
+        onmouseover="this.style.color='#f0a500'" onmouseout="this.style.color='var(--text3)'">
+          Not now — I'll enter the miles myself
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
+const PLAN_LABEL = { pro: 'Pro', plus: 'Pro Plus', max: 'Pro Max', api: 'API' };
+
+// The routes function reports a daily lane limit with the caller's plan:
+// free accounts are offered Pro; Pro (100/day) is offered Plus or Max;
+// Plus (250/day) is offered Max; Max and API (1,000/day) are at the top.
+function showLaneLimit(data, setStatus){
+  if(data && (data.plan === 'max' || data.plan === 'api')){
+    setStatus('🔒', data.error || "You've used today's 1,000 quotes with automatic miles — enter the miles manually for the rest of today.");
+  } else if(data && (data.plan === 'pro' || data.plan === 'plus')){
+    const used = data.plan === 'plus' ? 250 : 100;
+    setStatus('🔒', `You've used today's ${used} quotes with automatic miles — enter miles manually or upgrade.`);
+    showUpgradeModal(data.error, data.plan === 'plus' ? ['max'] : ['plus', 'max']);
+  } else {
+    setStatus('🔒', 'Daily free limit reached — upgrade to Pro or enter miles manually.');
+    showProModal("You've used today's 5 free quotes with automatic miles. Upgrade to Pro for 100 a day.");
+  }
+}
+
+// `plans`: which upgrades to offer (default Plus and Max); the first is preselected.
+function showUpgradeModal(desc, plans){
+  const offer = plans && plans.length ? plans : ['plus', 'max'];
+  ['plus', 'max'].forEach(p => {
+    const option = document.getElementById('upg-option-' + p);
+    option.style.display = offer.includes(p) ? '' : 'none';
+    option.querySelector('input').checked = p === offer[0];
+  });
+  document.getElementById('upg-modal-desc').textContent =
+    desc || 'Pick the plan that fits how much you quote.';
+  document.getElementById('upg-modal-billing').textContent = isProUser
+    ? "You're charged the prorated difference today · Cancel anytime"
+    : 'Cancel anytime';
+  setUpgradeStatus('');
+  updateUpgradeButton();
+  document.getElementById('upg-modal-overlay').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeUpgradeModal(){
+  document.getElementById('upg-modal-overlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function selectedUpgradePlan(){
+  const el = document.querySelector('input[name="upg-plan"]:checked');
+  return el ? el.value : 'plus';
+}
+function updateUpgradeButton(){
+  document.getElementById('upg-modal-btn').textContent = `Upgrade to ${PLAN_LABEL[selectedUpgradePlan()]} →`;
+}
+function setUpgradeStatus(text, isError){
+  const el = document.getElementById('upg-modal-status');
+  el.textContent = text || '';
+  el.style.display = text ? 'block' : 'none';
+  el.style.color = isError ? 'var(--red)' : 'var(--text2)';
+}
+
+// Subscribers switch plans (change-plan); anyone else starts a new
+// subscription on the chosen plan through Stripe Checkout.
+async function handleUpgrade(){
+  const plan = selectedUpgradePlan();
+  const session = getProSession();
+  if(!session){ window.location.href = '/signup.html?plan=' + plan; return; }
+  const userId = session.user?.id || session.user?.sub;
+  const email  = session.user?.email;
+  const btn = document.getElementById('upg-modal-btn');
+  btn.disabled = true;
+  setUpgradeStatus('One moment…');
+  try {
+    if(!isProUser){
+      const resp = await fetch('/.netlify/functions/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, email, accessToken: session.access_token, plan })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if(data.url && /^https:\/\/checkout\.stripe\.com\//.test(data.url)){
+        localStorage.setItem('qfc_pending_checkout', JSON.stringify({ userId, email, ts: Date.now() }));
+        window.location.href = data.url;
+        return;
+      }
+      if(data.error !== 'already_subscribed'){
+        setUpgradeStatus(data.error || 'Could not start checkout. Please try again.', true);
+        return;
+      }
+      // Already subscribed after all — switch the plan below.
+    }
+    const resp = await fetch('/.netlify/functions/change-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, accessToken: session.access_token, plan })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if(data.status === 'ok'){
+      setUpgradeStatus(data.atRenewal
+        ? `✅ You'll move to ${PLAN_LABEL[plan]} at your first bill on or after January 1, 2027.`
+        : `✅ You're on ${PLAN_LABEL[plan]}.`);
+      setTimeout(() => { closeUpgradeModal(); retryLaneLookup(); }, 1200);
+      return;
+    }
+    if(data.status === 'needs_payment' && data.url && /^https:\/\/invoice\.stripe\.com\//.test(data.url)){
+      window.location.href = data.url; // finish paying the prorated invoice
+      return;
+    }
+    setUpgradeStatus(data.message || 'Could not upgrade right now. Please try again.', true);
+  } catch(e){
+    setUpgradeStatus('Could not reach the server. Please try again.', true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// After upgrading, look the lane up again on whichever calculator is open.
+function retryLaneLookup(){
+  if(shipType === 'prof'){ tryProfLookup(); return; }
+  lastLookedUpOrig = ''; lastLookedUpDest = '';
+  tryLookupMiles();
+}
+
 async function handleProModalUpgrade(){
   closeProModal();
   const session = getProSession();
@@ -7918,9 +8195,13 @@ async function handleProModalUpgrade(){
       const resp = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, email, accessToken: session.access_token })
+        body: JSON.stringify({ userId, email, accessToken: session.access_token, plan: 'pro' })
       });
       const data = await resp.json();
+      if(data.error === 'already_subscribed'){
+        window.location.href = '/profile.html';
+        return;
+      }
       // Defensive prefix check: even though our create-checkout function
       // returns Stripe's session.url, we never want to navigate to anything
       // outside the Stripe checkout domain in case the function or proxy
@@ -7947,7 +8228,10 @@ function closeProModal(){
 document.getElementById('pro-modal-overlay').addEventListener('click', function(e){
   if(e.target === this) closeProModal();
 });
-document.addEventListener('keydown', e => { if(e.key === 'Escape') closeProModal(); });
+document.getElementById('upg-modal-overlay').addEventListener('click', function(e){
+  if(e.target === this) closeUpgradeModal();
+});
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeProModal(); closeUpgradeModal(); } });
 </script>
 
 <!-- ════════════════════════════════════════════════════════════════════════
@@ -8058,5 +8342,8 @@ window.addEventListener('resize', () => {
 });
 </script>
 
+<!-- Notice to current Pro subscribers about the plan changes (see pro-notice.js) -->
+<script src="/pro-notice.js" defer></script>
+<script src="/pdf-quote.js" defer></script>
 </body>
 </html>
