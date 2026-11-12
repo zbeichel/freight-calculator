@@ -243,6 +243,48 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   check('no sideways scrolling', sw <= 1, `${sw}px`);
   await t.context.close();
 
+  // ── Every other page ─────────────────────────────────────────────────────
+  console.log('\n=== Every page has the shared look ===');
+  const PAGES = [['/profile.html', null], ['/multistop.html', 'Tools'], ['/bulk.html', 'Tools'], ['/lanes.html', 'Tools'],
+    ['/customers.html', 'Tools'], ['/api.html', 'Tools'], ['/terms.html', null], ['/privacy.html', null]];
+  for (const theme of ['dark', 'light']) {
+    t = await setup(browser, base, { signedIn: true, plan: 'plus', theme });
+    for (const [url, active] of PAGES) {
+      t.errors.length = 0;
+      await t.page.goto(base + url);
+      await t.page.waitForSelector('#qf-nav .qf-acct-btn');
+      await t.page.waitForSelector('.qf-footer .qf-footer-col');
+      await t.page.waitForTimeout(250);
+      const r = await t.page.evaluate(() => ({
+        path: location.pathname,
+        navs: document.querySelectorAll('header, .header').length,
+        oldTheme: !!document.getElementById('theme-btn') || typeof window.toggleTheme === 'function',
+        inlineVars: document.documentElement.style.length,
+        light: document.documentElement.classList.contains('light'),
+        bg: getComputedStyle(document.body).backgroundColor,
+        active: (document.querySelector('#qf-nav .qf-links .active') || {}).textContent || null,
+        footers: document.querySelectorAll('footer').length,
+      }));
+      const bg = theme === 'light' ? 'rgb(244, 246, 250)' : 'rgb(11, 16, 24)';
+      check(`${url} (${theme}): the nav and footer, the shared ${theme} colors, no old header or theme code`,
+        r.path === url && r.navs === 1 && r.footers === 1 && !r.oldTheme && r.inlineVars === 0 && r.light === (theme === 'light') && r.bg === bg
+          && (active ? r.active && r.active.startsWith(active) : r.active === null) && t.errors.length === 0, JSON.stringify(r) + ' ' + t.errors.join(' | '));
+    }
+    await t.context.close();
+  }
+  t = await setup(browser, base, { signedIn: true, plan: 'plus' });
+  await t.page.goto(base + '/terms.html#quotes');
+  await t.page.waitForSelector('#qf-nav .qf-acct-btn');
+  await t.page.waitForTimeout(300);
+  const below = await t.page.evaluate(() => { const s = document.getElementById('quotes'); return s ? Math.round(s.getBoundingClientRect().top) : -1; });
+  check('a link to a section lands below the navigation', below >= 64 && below <= 120, `${below}px`);
+  await t.page.goto(base + '/profile.html');
+  await t.page.waitForSelector('#qf-nav .qf-acct-btn');
+  await t.page.click('#qf-nav .qf-theme');
+  check('the theme button works on pages that had their own', await t.page.evaluate(() => document.documentElement.classList.contains('light')
+    && getComputedStyle(document.body).backgroundColor === 'rgb(244, 246, 250)'));
+  await t.context.close();
+
   // ── Calculator ───────────────────────────────────────────────────────────
   console.log('\n=== Calculator ===');
   t = await setup(browser, base);

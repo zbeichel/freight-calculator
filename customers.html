@@ -7,35 +7,26 @@
 <title>Customers — QuickFreightCalc</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+<script src="/site.js"></script>
 <style>
-:root{
-  --bg:#1a1d24;--panel:#1f2330;--card:#22262f;--card2:#272c38;
-  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#ffffff;--text2:#b0c4d8;
-  --text3:#8896a8;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
-  --green:#4ade80;--red:#f87171;--radius:12px;
-}
+/* Colors (dark and light), the navigation and the footer come from site.css and site.js. */
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif}
-.header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:100}
-.brand-name{font-size:17px;font-weight:700;color:var(--text2);letter-spacing:-.02em;text-decoration:none}
-.brand-name span{color:var(--accent)}
-.plan-badge{font-size:10px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);padding:2px 7px;border-radius:10px;letter-spacing:.06em;text-transform:uppercase;margin-left:6px;white-space:nowrap}
-.back-link{font-size:12px;font-weight:600;color:var(--text2);text-decoration:none;display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--card);transition:all .15s;white-space:nowrap}
-.back-link:hover{color:var(--accent);border-color:var(--accent);background:var(--accentbg)}
-.page-name{font-size:13px;font-weight:700;color:var(--text2)}
-.page{max-width:1100px;margin:0 auto;padding:28px 24px 80px}
-h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
-.sub{font-size:13px;color:var(--text3);line-height:1.6;margin-top:6px;max-width:680px}
+html,body{min-height:100%}
+body{background:var(--bg);background-image:var(--glow);background-repeat:no-repeat;color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased}
+.page{max-width:1100px;margin:0 auto;padding:44px 24px 64px}
+h1{font-size:clamp(28px,4vw,40px);font-weight:700;letter-spacing:-.03em;line-height:1.1;margin-top:14px}
+.sub{font-size:14.5px;color:var(--text2);line-height:1.65;margin-top:10px;max-width:680px}
 .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:22px 0 14px}
-.search{flex:1;min-width:200px;max-width:360px;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;padding:9px 12px;outline:none}
-.search:focus{border-color:var(--accent)}
+.search{flex:1;min-width:200px;max-width:360px;background:var(--card);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-family:inherit;font-size:13.5px;padding:10px 13px;outline:none}
+.search:focus{border-color:var(--accent-fill);box-shadow:0 0 0 3px rgba(245,165,36,.16)}
 .count{font-size:12px;color:var(--text3);margin-right:auto}
-.btn{font-family:inherit;font-size:12px;font-weight:700;padding:9px 16px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap;text-decoration:none;display:inline-block}
+.btn{font-family:inherit;font-size:12.5px;font-weight:700;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap;text-decoration:none;display:inline-block}
 .btn:hover{border-color:var(--accent);color:var(--accent)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:#000}
-.btn.primary:hover{opacity:.9;color:#000}
+.btn.primary{background:var(--accent-fill);border-color:var(--accent-fill);color:var(--accent-ink)}
+.btn.primary:hover{opacity:.9;color:var(--accent-ink)}
 .btn:disabled{opacity:.6;cursor:default}
-.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow)}
 .list-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
 thead th{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);padding:11px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
@@ -53,17 +44,14 @@ tbody td{padding:11px 14px;vertical-align:middle}
 .edit:hover{border-color:var(--accent);color:var(--accent)}
 .empty{padding:36px 24px;text-align:center;font-size:13px;color:var(--text3);line-height:1.7}
 .empty strong{color:var(--text)}
-.gate{margin-top:26px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:30px 28px;max-width:620px}
+.gate{margin-top:26px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:30px 28px;max-width:620px;box-shadow:var(--shadow)}
 .gate h2{font-size:17px;font-weight:700;margin-bottom:8px}
 .gate p{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px}
 .gate ul{font-size:13px;color:var(--text2);line-height:1.8;margin:0 0 18px 18px}
 .status{font-size:12px;color:var(--text3);margin-top:10px;min-height:16px}
 [hidden]{display:none!important}
-.theme-btn-float{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:30px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border2);background:var(--panel);color:var(--text2);box-shadow:0 4px 16px rgba(0,0,0,.35)}
 @media (max-width:720px){
-  .header{padding:12px 16px}
-  .page-name{display:none}
-  .page{padding:22px 16px 80px}
+  .page{padding:30px 16px 56px}
   .hide-sm{display:none}
   .search{max-width:none}
   .count{width:100%;order:3}
@@ -72,20 +60,8 @@ tbody td{padding:11px 14px;vertical-align:middle}
 </head>
 <body>
 
-<div class="header">
-  <a href="/" class="back-link">← Calculator</a>
-  <div style="display:flex;align-items:center">
-    <a href="/" class="brand-name">Quick<span>Freight</span>Calc</a>
-    <div class="plan-badge">Pro Plus</div>
-  </div>
-  <div class="page-name">Customers</div>
-</div>
-
-<button id="theme-btn" class="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode">
-  <span id="theme-icon">☀️</span><span id="theme-label">Light Mode</span>
-</button>
-
 <main class="page">
+  <span class="qf-pill">Pro Plus</span>
   <h1>Customers</h1>
   <p class="sub">Save a customer once. Pick them on the calculator, multi-stop or bulk page and their contact details print under “Prepared for” on your PDF quotes. Win/loss results show for each customer.</p>
 
@@ -123,6 +99,8 @@ tbody td{padding:11px 14px;vertical-align:middle}
   </div>
 </main>
 
+<footer data-qf-footer></footer>
+
 <script src="/customers.js"></script>
 <script>
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
@@ -141,24 +119,6 @@ function session(){
   }
   return null;
 }
-
-// ── Theme (same setting as the other pages) ──
-function applyTheme(theme){
-  const r = document.documentElement;
-  const light = theme === 'light';
-  const v = light
-    ? { bg:'#f0f4f8', panel:'#ffffff', card:'#f8fafc', card2:'#eef2f7', border:'#dde3ed', border2:'#c8d4e0', text:'#0f172a', text2:'#334155', text3:'#64748b', green:'#15803d', red:'#b91c1c' }
-    : { bg:'#1a1d24', panel:'#1f2330', card:'#22262f', card2:'#272c38', border:'rgba(255,255,255,0.07)', border2:'rgba(255,255,255,0.12)', text:'#ffffff', text2:'#b0c4d8', text3:'#8896a8', green:'#4ade80', red:'#f87171' };
-  Object.keys(v).forEach((k) => r.style.setProperty('--' + k, v[k]));
-  document.getElementById('theme-icon').textContent = light ? '🌙' : '☀️';
-  document.getElementById('theme-label').textContent = light ? 'Dark Mode' : 'Light Mode';
-}
-function toggleTheme(){
-  let next = 'light';
-  try { next = (localStorage.getItem('qfc_theme') || 'dark') === 'dark' ? 'light' : 'dark'; localStorage.setItem('qfc_theme', next); } catch(e){}
-  applyTheme(next);
-}
-try { applyTheme(localStorage.getItem('qfc_theme') || 'dark'); } catch(e){ applyTheme('dark'); }
 
 // ── Saved quotes, for each customer's numbers ──
 async function loadQuotes(){

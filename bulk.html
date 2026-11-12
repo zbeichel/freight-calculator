@@ -9,48 +9,21 @@
 <title>Bulk Load Calculator — QuickFreightCalc Pro</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+<script src="/site.js"></script>
 <style>
-:root {
-  --bg:#1a1d24;--panel:#1f2330;--card:#22262f;--card2:#272c38;
-  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#ffffff;--text2:#b0c4d8;
-  --text3:#8896a8;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
-  --green:#4ade80;--greenbg:rgba(74,222,128,.10);
-  --red:#f87171;--redbg:rgba(248,113,113,.10);
-  --blue:#60a5fa;--radius:12px;
-}
+/* Colors (dark and light), the navigation and the footer come from site.css and site.js. */
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif}
+html,body{min-height:100%}
+body{background:var(--bg);background-image:var(--glow);background-repeat:no-repeat;color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased}
 
-/* ── Header (matches multistop / lanes pattern) ── */
-.header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:100}
-.brand-name{font-size:17px;font-weight:700;color:var(--text2);letter-spacing:-.02em}
-.brand-name span{color:var(--accent)}
-a.brand-name:hover span{opacity:.8}
-.pro-badge{font-size:10px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);padding:2px 7px;border-radius:10px;letter-spacing:.06em;text-transform:uppercase;margin-left:6px}
-.back-link{font-size:12px;font-weight:600;color:var(--text2);text-decoration:none;display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--card);transition:all .15s;white-space:nowrap}
-.back-link:hover{color:var(--accent);border-color:var(--accent);background:var(--accentbg)}
 
-/* ── Footer (matches lanes / multistop / profile pattern) ── */
-footer{text-align:center;padding:24px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);margin-top:32px}
-footer a{color:var(--text2);text-decoration:none}
-footer a:hover{color:var(--accent)}
 
-/* ── Floating theme button ── */
-.theme-btn-float{
-  position:fixed;bottom:24px;right:24px;z-index:999;
-  display:flex;align-items:center;gap:7px;
-  background:var(--card);border:1px solid var(--border2);border-radius:20px;
-  padding:8px 14px 8px 10px;cursor:pointer;
-  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:var(--text2);
-  transition:all .15s;box-shadow:0 4px 16px rgba(0,0,0,.3);
-}
-.theme-btn-float:hover{border-color:var(--accent);color:var(--text)}
-.theme-icon-wrap{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)}
 
 /* ── Page layout ── */
-.page{max-width:760px;margin:0 auto;padding:24px 20px 100px}
-.page-title{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:0 0 4px}
-.page-sub{font-size:13px;color:var(--text2);margin:0 0 20px}
+.page{max-width:760px;margin:0 auto;padding:40px 20px 24px}
+.page-title{font-size:clamp(28px,4vw,40px);font-weight:700;letter-spacing:-.03em;line-height:1.1;margin:14px 0 8px;text-wrap:balance}
+.page-sub{font-size:14.5px;color:var(--text2);line-height:1.6;margin:0 0 24px}
 
 /* ── Card / section ── */
 .section{
@@ -202,7 +175,7 @@ footer a:hover{color:var(--accent)}
   cursor:pointer;
   transition:all .15s;
 }
-.mile-mode-pill.on{background:var(--accent);color:#000}
+.mile-mode-pill.on{background:var(--accent-fill);color:#000}
 
 /* ── Required-rate hero ── */
 .required-rate-box{
@@ -288,36 +261,15 @@ footer a:hover{color:var(--accent)}
   display:flex;align-items:center;gap:10px;
 }
 
-/* Background ambient */
-body::before{
-  content:'';position:fixed;inset:0;
-  background:radial-gradient(ellipse at top,rgba(240,165,0,.04),transparent 60%);
-  pointer-events:none;z-index:0;
-}
-.page,.header{position:relative;z-index:1}
+.page{position:relative;z-index:1}
 </style>
 </head>
 <body>
 
-<!-- ── Header (back link / wordmark+Pro / page name) ── -->
-<div class="header">
-  <a href="/" class="back-link">← Calculator</a>
-  <div style="display:flex;align-items:center">
-    <a href="/" class="brand-name" style="text-decoration:none">Quick<span>Freight</span>Calc</a>
-    <div class="pro-badge">Pro</div>
-  </div>
-  <div style="font-size:13px;font-weight:700;color:var(--text2)">Bulk Calculator</div>
-</div>
-
-<!-- ── Floating theme button ── -->
-<button id="theme-btn" class="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode">
-  <span class="theme-icon-wrap" id="theme-icon">☀️</span>
-  <span id="theme-label">Light Mode</span>
-</button>
-
 <div class="page">
 
-  <h1 class="page-title">Bulk Load Calculator</h1>
+  <span class="qf-pill">Pro</span>
+  <h1 class="page-title">Bulk load calculator</h1>
   <p class="page-sub">
     Per-cwt rate calculator for bulk haulers. Set your target, then compare any offer against it.
   </p>
@@ -538,8 +490,7 @@ body::before{
 </div>
 
 <!-- ── Footer (matches lanes / multistop / profile pattern) ── -->
-<footer>
-  <p style="margin-bottom:8px">Questions or problems? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent)">info@quickfreightcalc.com</a></p>
+<footer data-qf-footer>
   <p>By using QuickFreightCalc you agree to our <a href="/terms.html" target="_blank" rel="noopener noreferrer">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a>. Rates are estimates only — not guaranteed quotes.</p>
 </footer>
 
@@ -562,53 +513,6 @@ let fscMethod = 'permile';        // 'permile' or 'percent'
 let mileMode = 'loaded';          // 'loaded' or 'all'
 let mileModeAuto = true;          // true until user manually picks
 let fscPctManual = false;         // true once the user types in the FSC% field
-
-// ── Theme (matches multistop / lanes) ─────────────────────────────────────
-function applyTheme(theme){
-  const r = document.documentElement;
-  if(theme === 'light'){
-    r.style.setProperty('--bg','#f0f4f8');r.style.setProperty('--panel','#ffffff');
-    r.style.setProperty('--card','#f8fafc');r.style.setProperty('--card2','#eef2f7');
-    r.style.setProperty('--border','#dde3ed');r.style.setProperty('--border2','#c8d4e0');
-    r.style.setProperty('--text','#0f172a');r.style.setProperty('--text2','#334155');
-    r.style.setProperty('--text3','#64748b');
-    document.getElementById('theme-icon').textContent = '🌙';
-    document.getElementById('theme-label').textContent = 'Dark Mode';
-  } else {
-    r.style.setProperty('--bg','#1a1d24');r.style.setProperty('--panel','#1f2330');
-    r.style.setProperty('--card','#22262f');r.style.setProperty('--card2','#272c38');
-    r.style.setProperty('--border','#1e2a38');r.style.setProperty('--border2','#243040');
-    r.style.setProperty('--text','#e2e8f0');r.style.setProperty('--text2','#9aafc4');
-    r.style.setProperty('--text3','#8896a8');
-    document.getElementById('theme-icon').textContent = '☀️';
-    document.getElementById('theme-label').textContent = 'Light Mode';
-  }
-  updateThemeBtn(theme);
-}
-// Inverts the floating theme button's styling so it always contrasts with the
-// page. In light mode the button is dark (showing "Dark Mode"); in dark mode
-// it's cream (showing "Light Mode"). Mirrors the lanes / multistop pattern.
-function updateThemeBtn(theme){
-  const btn = document.getElementById('theme-btn');
-  if(!btn) return;
-  if(theme === 'light'){
-    btn.style.setProperty('background', '#1a1d24', 'important');
-    btn.style.setProperty('border-color', '#1a1d24', 'important');
-    btn.style.setProperty('color', '#e2e8f0', 'important');
-    btn.style.setProperty('box-shadow', '0 4px 16px rgba(0,0,0,.5)', 'important');
-  } else {
-    btn.style.setProperty('background', '#f0ede8', 'important');
-    btn.style.setProperty('border-color', '#c8c4bc', 'important');
-    btn.style.setProperty('color', '#1a1d24', 'important');
-    btn.style.setProperty('box-shadow', '0 4px 12px rgba(0,0,0,.15)', 'important');
-  }
-}
-function toggleTheme(){
-  const next = (localStorage.getItem('qfc_theme')||'dark') === 'dark' ? 'light' : 'dark';
-  localStorage.setItem('qfc_theme', next);
-  applyTheme(next);
-}
-applyTheme(localStorage.getItem('qfc_theme') || 'dark');
 
 // ── Rates.json load + state→region map ────────────────────────────────────
 // Builds STATE_TO_REGION at startup so we can look up regional reefer

@@ -1190,6 +1190,9 @@ html.light .hos-day-header{background:var(--card2)}
 .ship-toggle{display:flex;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:3px;margin-bottom:18px;width:100%;overflow:hidden}
 .ship-btn{flex:1;min-width:0;padding:8px 6px;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;letter-spacing:.04em;border:none;border-radius:9px;background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px;overflow:hidden;white-space:nowrap}
 .ship-btn.active{background:var(--accent-fill);color:#000}
+.ship-btn .qf-icon{width:16px;height:16px}
+#prof-btn-icon{display:inline-flex}
+#prof-btn-icon .qf-icon{width:16px;height:16px}
 /* ── Profitability ── */
 .prof-metric{background:var(--card2);border-radius:var(--radius);padding:14px 16px;min-width:0}
 .prof-metric-label{font-size:11px;color:var(--text2);font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
@@ -1578,12 +1581,12 @@ html.light .hos-day-header{background:var(--card2)}
         <!-- FTL / LTL toggle -->
         <div class="ship-toggle">
           <button class="ship-btn active" id="btn-ftl" onclick="setShipType('ftl')">
-            <span class="ship-label-long">🚛 FTL — Full Truckload</span>
-            <span class="ship-label-short">🚛 FTL</span>
+            <svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5h10.5v9H3z"/><path d="M13.5 9.5H17l3.5 3.5v2.5h-7z"/><circle cx="7" cy="17" r="1.8"/><circle cx="17" cy="17" r="1.8"/></svg><span class="ship-label-long">FTL — Full Truckload</span>
+            <span class="ship-label-short">FTL</span>
           </button>
           <button class="ship-btn" id="btn-ltl" onclick="setShipType('ltl')">
-            <span class="ship-label-long">📦 LTL — Less Than Truckload</span>
-            <span class="ship-label-short">📦 LTL</span>
+            <svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg><span class="ship-label-long">LTL — Less Than Truckload</span>
+            <span class="ship-label-short">LTL</span>
           </button>
         </div>
 
@@ -1594,9 +1597,9 @@ html.light .hos-day-header{background:var(--card2)}
 
         <!-- Profitability calculator toggle button -->
         <button id="btn-prof" onclick="setShipType(shipType==='prof'?'ftl':'prof')"
-          style="width:100%;margin-bottom:10px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em">
-          <span id="prof-btn-icon">💰</span>
-          <span id="prof-btn-label">Profitability Calculator</span>
+          style="width:100%;margin-bottom:10px;padding:10px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em">
+          <span id="prof-btn-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5h16"/><path d="M7 16v-4M12 16V8M17 16v-6"/></svg></span>
+          <span id="prof-btn-label">Profitability calculator</span>
         </button>
 
         <!-- Pro tools (also in the navigation's Tools menu) -->
@@ -3454,12 +3457,12 @@ function setShipType(t){
     profBtn.style.background='var(--accentbg)';
     profBtn.style.borderColor='var(--accent)';
     profBtn.style.color='var(--accent)';
-    profLabel.textContent='✕ Close Profitability';
+    profLabel.textContent='Close profitability calculator';
   } else {
     profBtn.style.background='transparent';
     profBtn.style.borderColor='var(--border)';
     profBtn.style.color='var(--text2)';
-    profLabel.textContent='Profitability Calculator';
+    profLabel.textContent='Profitability calculator';
   }
   // Form sections
   document.getElementById('ftl-fields').classList.toggle('hide',t!=='ftl');

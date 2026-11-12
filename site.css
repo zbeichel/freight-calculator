@@ -64,6 +64,9 @@ html.light{
          radial-gradient(800px 420px at 85% -5%,rgba(59,130,246,.08),transparent 60%);
 }
 
+/* Links to a section, and scrollIntoView, stop below the sticky navigation. */
+html{scroll-padding-top:calc(var(--nav-h) + 16px)}
+
 /* ── Buttons, pills, cards ─────────────────────────────────────────────── */
 .qf-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 16px;border-radius:10px;
   font:600 13px/1 var(--font);letter-spacing:.01em;text-decoration:none;cursor:pointer;border:1px solid transparent;
