@@ -20,6 +20,12 @@
 // customers (quote_log_enforce_plan, customers_enforce_plan); the pages show
 // the same limits.
 //
+// Comp accounts (free, every feature): active with no Stripe subscription.
+// pro_users.comp (set by an admin) keeps them that way: the database ignores
+// Stripe events for an old subscription that would switch them off or change
+// their plan (pro_users_keep_comp). A comp account on the 'api' plan also has
+// API access.
+//
 // A "quote" is a distinct origin→destination pair priced with automatic miles
 // in a UTC day; re-pricing the same pair that day or typing miles is free.
 
