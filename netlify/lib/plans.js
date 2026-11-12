@@ -6,16 +6,25 @@
 //
 //   pro   Pro       $9.99/mo    automatic miles on 100 quotes per day
 //   plus  Pro Plus  $19.99/mo   automatic miles on 250 quotes per day, plus
-//                               win/loss tracking (index.html; comp accounts too)
-//   max   Pro Max   $49.99/mo   automatic miles on 1,000 quotes per day, win/loss
-//                               tracking and white-label PDFs (pdf-quote.js)
+//                               win/loss tracking (index.html) and the customer
+//                               list (customers.js); comp accounts too
+//   max   Pro Max   $49.99/mo   everything in Pro Plus, automatic miles on 1,000
+//                               quotes per day and white-label PDFs (pdf-quote.js)
 //   api   API       $199.99/mo  Pro Max on the site + API access with
 //                               API_MONTHLY_QUOTES automatic-miles quotes per
 //                               billing month (see api-quote.js)
 //
 // Saved quotes in the quote log: Pro 100, Pro Plus 1,000, Pro Max / API /
-// comp 5,000. The database enforces these and who can record win/loss results
-// (quote_log_enforce_plan); index.html shows the same limits.
+// comp 5,000. Saved customers: Pro Plus 1,000, Pro Max / API / comp 5,000.
+// The database enforces these and who can record win/loss results or save
+// customers (quote_log_enforce_plan, customers_enforce_plan); the pages show
+// the same limits.
+//
+// Comp accounts (free, every feature): active with no Stripe subscription.
+// pro_users.comp (set by an admin) keeps them that way: the database ignores
+// Stripe events for an old subscription that would switch them off or change
+// their plan (pro_users_keep_comp). A comp account on the 'api' plan also has
+// API access.
 //
 // A "quote" is a distinct origin→destination pair priced with automatic miles
 // in a UTC day; re-pricing the same pair that day or typing miles is free.

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Customers — QuickFreightCalc</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1a1d24;--panel:#1f2330;--card:#22262f;--card2:#272c38;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#ffffff;--text2:#b0c4d8;
+  --text3:#8896a8;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
+  --green:#4ade80;--red:#f87171;--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif}
+.header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:100}
+.brand-name{font-size:17px;font-weight:700;color:var(--text2);letter-spacing:-.02em;text-decoration:none}
+.brand-name span{color:var(--accent)}
+.plan-badge{font-size:10px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);padding:2px 7px;border-radius:10px;letter-spacing:.06em;text-transform:uppercase;margin-left:6px;white-space:nowrap}
+.back-link{font-size:12px;font-weight:600;color:var(--text2);text-decoration:none;display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--card);transition:all .15s;white-space:nowrap}
+.back-link:hover{color:var(--accent);border-color:var(--accent);background:var(--accentbg)}
+.page-name{font-size:13px;font-weight:700;color:var(--text2)}
+.page{max-width:1100px;margin:0 auto;padding:28px 24px 80px}
+h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.sub{font-size:13px;color:var(--text3);line-height:1.6;margin-top:6px;max-width:680px}
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:22px 0 14px}
+.search{flex:1;min-width:200px;max-width:360px;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;padding:9px 12px;outline:none}
+.search:focus{border-color:var(--accent)}
+.count{font-size:12px;color:var(--text3);margin-right:auto}
+.btn{font-family:inherit;font-size:12px;font-weight:700;padding:9px 16px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap;text-decoration:none;display:inline-block}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#000}
+.btn.primary:hover{opacity:.9;color:#000}
+.btn:disabled{opacity:.6;cursor:default}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.list-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);padding:11px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+th.num,td.num{text-align:right}
+tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--accentbg)}
+tbody td{padding:11px 14px;vertical-align:middle}
+.c-name{font-weight:700;color:var(--text);overflow-wrap:anywhere}
+.c-sub{font-size:11px;color:var(--text3);margin-top:2px;overflow-wrap:anywhere}
+.dim{color:var(--text3)}
+.won{color:var(--green)}
+.lost{color:var(--red)}
+.edit{font-family:inherit;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer}
+.edit:hover{border-color:var(--accent);color:var(--accent)}
+.empty{padding:36px 24px;text-align:center;font-size:13px;color:var(--text3);line-height:1.7}
+.empty strong{color:var(--text)}
+.gate{margin-top:26px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:30px 28px;max-width:620px}
+.gate h2{font-size:17px;font-weight:700;margin-bottom:8px}
+.gate p{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px}
+.gate ul{font-size:13px;color:var(--text2);line-height:1.8;margin:0 0 18px 18px}
+.status{font-size:12px;color:var(--text3);margin-top:10px;min-height:16px}
+[hidden]{display:none!important}
+.theme-btn-float{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:30px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border2);background:var(--panel);color:var(--text2);box-shadow:0 4px 16px rgba(0,0,0,.35)}
+@media (max-width:720px){
+  .header{padding:12px 16px}
+  .page-name{display:none}
+  .page{padding:22px 16px 80px}
+  .hide-sm{display:none}
+  .search{max-width:none}
+  .count{width:100%;order:3}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="/" class="back-link">← Calculator</a>
+  <div style="display:flex;align-items:center">
+    <a href="/" class="brand-name">Quick<span>Freight</span>Calc</a>
+    <div class="plan-badge">Pro Plus</div>
+  </div>
+  <div class="page-name">Customers</div>
+</div>
+
+<button id="theme-btn" class="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode">
+  <span id="theme-icon">☀️</span><span id="theme-label">Light Mode</span>
+</button>
+
+<main class="page">
+  <h1>Customers</h1>
+  <p class="sub">Save a customer once. Pick them on the calculator, multi-stop or bulk page and their contact details print under “Prepared for” on your PDF quotes. Win/loss results show for each customer.</p>
+
+  <div id="gate" class="gate" hidden></div>
+
+  <div id="app" hidden>
+    <div class="toolbar">
+      <input id="search" class="search" type="search" placeholder="Search by name, contact or email" autocomplete="off" />
+      <span id="count" class="count"></span>
+      <button id="import-btn" class="btn" hidden></button>
+      <button id="add-btn" class="btn primary">+ New customer</button>
+    </div>
+    <div class="card">
+      <div class="list-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th class="hide-sm">Contact</th>
+              <th class="num">Quotes</th>
+              <th class="num hide-sm">Won</th>
+              <th class="num hide-sm">Lost</th>
+              <th class="num">Win rate</th>
+              <th class="hide-sm">Last quote</th>
+              <th class="num hide-sm" title="Default margin, set when you pick this customer on the calculator">Margin</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div id="empty" class="empty" hidden></div>
+    </div>
+    <div id="status" class="status" role="status"></div>
+  </div>
+</main>
+
+<script src="/customers.js"></script>
+<script>
+const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
+let quotes = [];   // saved quotes: customer, customer_id, outcome, created_at
+let query = '';
+
+const esc = (s) => (s === null || s === undefined ? '' : String(s))
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+const key = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+function session(){
+  const keys = Object.keys(localStorage).filter((k) => k.indexOf('sb-') === 0).concat('qfc_session');
+  for(const k of keys){
+    try { const v = JSON.parse(localStorage.getItem(k) || '{}'); if(v && v.access_token) return v; } catch(e){}
+  }
+  return null;
+}
+
+// ── Theme (same setting as the other pages) ──
+function applyTheme(theme){
+  const r = document.documentElement;
+  const light = theme === 'light';
+  const v = light
+    ? { bg:'#f0f4f8', panel:'#ffffff', card:'#f8fafc', card2:'#eef2f7', border:'#dde3ed', border2:'#c8d4e0', text:'#0f172a', text2:'#334155', text3:'#64748b', green:'#15803d', red:'#b91c1c' }
+    : { bg:'#1a1d24', panel:'#1f2330', card:'#22262f', card2:'#272c38', border:'rgba(255,255,255,0.07)', border2:'rgba(255,255,255,0.12)', text:'#ffffff', text2:'#b0c4d8', text3:'#8896a8', green:'#4ade80', red:'#f87171' };
+  Object.keys(v).forEach((k) => r.style.setProperty('--' + k, v[k]));
+  document.getElementById('theme-icon').textContent = light ? '🌙' : '☀️';
+  document.getElementById('theme-label').textContent = light ? 'Dark Mode' : 'Light Mode';
+}
+function toggleTheme(){
+  let next = 'light';
+  try { next = (localStorage.getItem('qfc_theme') || 'dark') === 'dark' ? 'light' : 'dark'; localStorage.setItem('qfc_theme', next); } catch(e){}
+  applyTheme(next);
+}
+try { applyTheme(localStorage.getItem('qfc_theme') || 'dark'); } catch(e){ applyTheme('dark'); }
+
+// ── Saved quotes, for each customer's numbers ──
+async function loadQuotes(){
+  const s = session();
+  const uid = s && s.user && (s.user.id || s.user.sub);
+  if(!uid) return;
+  let rows = [];
+  for(let offset = 0; offset < 5000; offset += 1000){
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/quote_log?user_id=eq.${encodeURIComponent(uid)}&select=id,customer,customer_id,outcome,created_at&order=created_at.desc&limit=1000&offset=${offset}`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + s.access_token } });
+    const page = await resp.json();
+    if(!Array.isArray(page)) break;
+    rows = rows.concat(page);
+    if(page.length < 1000) break;
+  }
+  quotes = rows;
+}
+
+// A customer's saved quotes: linked to it, or carrying its name.
+function statsFor(c){
+  const k = key(c.name);
+  const list = quotes.filter((q) => q.customer_id ? String(q.customer_id) === String(c.id) : key(q.customer) === k);
+  const won = list.filter((q) => q.outcome === 'won').length;
+  const lost = list.filter((q) => q.outcome === 'lost').length;
+  return { quotes: list.length, won, lost, winRate: won + lost ? won / (won + lost) : null, last: list.length ? list[0].created_at : null };
+}
+
+// Names on saved quotes that aren't in the list yet (first spelling wins).
+function unlistedNames(){
+  const seen = new Set();
+  const names = [];
+  quotes.forEach((q) => {
+    const k = key(q.customer);
+    if(!k || q.customer_id || seen.has(k) || QFCCustomers.byName(q.customer)) return;
+    seen.add(k);
+    names.push(String(q.customer).trim().replace(/\s+/g, ' '));
+  });
+  return names;
+}
+
+function render(){
+  const all = QFCCustomers.all();
+  const k = key(query);
+  const list = k ? all.filter((c) => [c.name, c.contactName, c.email, c.phone].some((v) => key(v).includes(k))) : all;
+  document.getElementById('count').textContent =
+    `${all.length.toLocaleString()} / ${QFCCustomers.limit().toLocaleString()} customers`;
+
+  const names = unlistedNames();
+  const imp = document.getElementById('import-btn');
+  imp.hidden = !names.length;
+  imp.textContent = `Add ${names.length.toLocaleString()} from saved quotes`;
+  imp.title = names.slice(0, 12).join(', ') + (names.length > 12 ? '…' : '');
+
+  const date = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+  document.getElementById('rows').innerHTML = list.map((c) => {
+    const st = statsFor(c);
+    const sub = [c.email, c.phone].filter(Boolean).join(' · ');
+    return `<tr data-id="${esc(c.id)}">
+      <td><div class="c-name">${esc(c.name)}</div>${sub ? `<div class="c-sub">${esc(sub)}</div>` : ''}</td>
+      <td class="hide-sm">${c.contactName ? esc(c.contactName) : '<span class="dim">—</span>'}</td>
+      <td class="num">${st.quotes.toLocaleString()}</td>
+      <td class="num won hide-sm">${st.won.toLocaleString()}</td>
+      <td class="num lost hide-sm">${st.lost.toLocaleString()}</td>
+      <td class="num"><strong>${st.winRate === null ? '<span class="dim">—</span>' : Math.round(st.winRate * 100) + '%'}</strong></td>
+      <td class="hide-sm dim">${date(st.last)}</td>
+      <td class="num hide-sm">${c.defaultMargin === null ? '<span class="dim">—</span>' : esc(c.defaultMargin) + '%'}</td>
+      <td class="num"><button class="edit" type="button">Edit</button></td>
+    </tr>`;
+  }).join('');
+
+  const empty = document.getElementById('empty');
+  if(!all.length){
+    empty.innerHTML = names.length
+      ? `No customers saved yet. Your saved quotes name <strong>${names.length.toLocaleString()}</strong>; add them all with <strong>Add from saved quotes</strong>, or add one with <strong>+ New customer</strong>.`
+      : 'No customers saved yet. Add one with <strong>+ New customer</strong>, or save one from the Customer box on the calculator.';
+  } else if(!list.length){
+    empty.textContent = `No customers match “${query.trim()}”.`;
+  } else {
+    empty.textContent = '';
+  }
+  empty.hidden = !empty.textContent;
+}
+
+async function importFromQuotes(){
+  const names = unlistedNames();
+  if(!names.length) return;
+  const room = QFCCustomers.limit() - QFCCustomers.all().length;
+  const take = names.slice(0, Math.max(0, room));
+  if(!take.length){ setStatus("You've saved as many customers as your plan allows."); return; }
+  if(!confirm(`Add ${take.length.toLocaleString()} customer${take.length === 1 ? '' : 's'} from your saved quotes? You can add contact details to each afterwards.`)) return;
+  const btn = document.getElementById('import-btn');
+  btn.disabled = true;
+  let added = 0, failed = 0;
+  for(const name of take){
+    setStatus(`Adding ${added + failed + 1} of ${take.length}…`);
+    try { await QFCCustomers.save({ name }); added++; } catch(e){ failed++; }
+  }
+  btn.disabled = false;
+  setStatus(`Added ${added.toLocaleString()} customer${added === 1 ? '' : 's'}` + (failed ? `; ${failed} couldn't be added.` : '.'));
+}
+
+function setStatus(text){ document.getElementById('status').textContent = text || ''; }
+
+function showGate(kind){
+  const gate = document.getElementById('gate');
+  gate.innerHTML = kind === 'signin'
+    ? `<h2>Sign in to see your customers</h2><p>The customer list is part of your QuickFreightCalc account.</p><a class="btn primary" href="/signup.html?login">Sign in</a>`
+    : `<h2>The customer list comes with Pro Plus</h2>
+       <ul>
+         <li>Save customers once, with contact, email, phone and address.</li>
+         <li>Pick them on the calculator, multi-stop or bulk page; their details print under “Prepared for” on your PDFs.</li>
+         <li>Give a customer a default margin, used when you pick them.</li>
+         <li>See each customer's quotes, wins and losses.</li>
+       </ul>
+       <p>Pro Plus is $19.99/month and also includes win/loss tracking and 1,000 saved quotes.</p>
+       ${kind === 'upgrade'
+         ? '<a class="btn primary" href="/profile.html#subscription-paid">Change plan</a>'
+         : '<a class="btn primary" href="/signup.html?plan=plus">Get Pro Plus</a>'}`;
+  gate.hidden = false;
+}
+
+(async function init(){
+  if(!session()){ showGate('signin'); return; }
+  await QFCCustomers.ready();
+  const tier = QFCCustomers.tier();
+  if(!QFCCustomers.allowed()){ showGate(tier === 'none' ? 'join' : 'upgrade'); return; }
+  document.getElementById('app').hidden = false;
+  render();
+  try { await loadQuotes(); } catch(e){}
+  render();
+  QFCCustomers.onChange(render);
+  document.getElementById('search').addEventListener('input', (e) => { query = e.target.value; render(); });
+  document.getElementById('add-btn').addEventListener('click', () => QFCCustomers.openEditor({ name: query.trim() }));
+  document.getElementById('import-btn').addEventListener('click', importFromQuotes);
+  document.getElementById('rows').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr[data-id]');
+    if(tr) QFCCustomers.openEditor(QFCCustomers.byId(tr.dataset.id));
+  });
+})();
+</script>
+</body>
+</html>

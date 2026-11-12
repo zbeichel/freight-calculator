@@ -168,6 +168,9 @@
       '.contact{margin-top:14px;font-size:11.5px;color:#4b5563}\n' +
       '.contact .dot{color:#c7ced8;margin:0 8px}\n' +
       '.rule{height:3px;background:' + s.accent + ';border-radius:2px;margin:18px 0 26px;-webkit-print-color-adjust:exact;print-color-adjust:exact}\n' +
+      '.prepared{margin:-8px 0 22px}\n' +
+      '.pf-name{font-size:15px;font-weight:700;color:#111827;overflow-wrap:anywhere}\n' +
+      '.pf-line{font-size:12px;color:#4b5563;margin-top:2px;overflow-wrap:anywhere}\n' +
       '.lane{display:flex;align-items:center;gap:18px;margin-bottom:22px}\n' +
       '.stop{flex:1;min-width:0}\n' +
       '.stop.right{text-align:right}\n' +
@@ -255,6 +258,36 @@
       '<div class="rule"></div>\n';
   }
 
+  // "Prepared for": the customer the quote is for. c: { name, contactName,
+  // email, phone, address } (customers.js forPDF) or null for none.
+  function customerLines(c) {
+    var name = c && String(c.name || '').trim();
+    if (!name) return null;
+    return {
+      name: name,
+      contact: [c.contactName ? 'Attn: ' + c.contactName : '', c.email, c.phone].filter(Boolean).join('  ·  '),
+      address: String(c.address || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean).join(', '),
+    };
+  }
+  function preparedFor(c) {
+    var l = customerLines(c);
+    if (!l) return '';
+    return '<section class="prepared"><div class="k">Prepared for</div><div class="pf-name">' + esc(l.name) + '</div>' +
+      (l.contact ? '<div class="pf-line">' + esc(l.contact) + '</div>' : '') +
+      (l.address ? '<div class="pf-line">' + esc(l.address) + '</div>' : '') + '</section>\n';
+  }
+  // The same for the Classic templates (inline styles, their gray palette).
+  function classicPreparedFor(c) {
+    var l = customerLines(c);
+    if (!l) return '';
+    return '<div style="margin-bottom:16px;padding:10px 14px;border:1px solid #e4e8ef;border-radius:8px;page-break-inside:avoid;break-inside:avoid">' +
+      '<div style="font-size:9px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Prepared For</div>' +
+      '<div style="font-size:14px;font-weight:700;color:#1a2332;overflow-wrap:anywhere">' + esc(l.name) + '</div>' +
+      (l.contact ? '<div style="font-size:11px;color:#4a6070;margin-top:2px;overflow-wrap:anywhere">' + esc(l.contact) + '</div>' : '') +
+      (l.address ? '<div style="font-size:11px;color:#4a6070;margin-top:2px;overflow-wrap:anywhere">' + esc(l.address) + '</div>' : '') +
+      '</div>';
+  }
+
   // Line items that add up to the total: `extras` are [label, amount] pairs
   // as the customer pays them; Linehaul takes the rest. None when there are
   // no extras or the profile turned the breakdown off.
@@ -333,13 +366,14 @@
   // ── Single lane (calculator and quote log) ─────────────────────────────────
   // q: { total, ratePerMile, miles, origin, destination, pickup, delivery,
   //      trailer, commodity, weight, transit, notes,
-  //      breakdown: { fuel, extra } | null }   (money in dollars, as charged)
+  //      breakdown: { fuel, extra } | null, customer }   (money in dollars, as charged)
   function modernHTML(q, profile, meta) {
     var s = colorsFor(profile);
     var total = Math.round(q.total);
     var b = q.breakdown || {};
     var lines = rateLines(total, [['Fuel surcharge', b.fuel], ['Extra transit days', b.extra]], profile);
     var body = letterhead(profile, s, 'Freight Quote', meta) +
+      preparedFor(q.customer) +
       laneBlock('Pickup', q.origin, q.pickup, 'Delivery', q.destination, q.delivery,
         q.miles ? Number(q.miles).toLocaleString('en-US') + ' mi' : '') +
       factsBlock([
@@ -357,7 +391,7 @@
   // ── Multi-stop ─────────────────────────────────────────────────────────────
   // d: { total, totalMiles, totalWeight, trailer (text), commodity (text),
   //      stops: [{ type: 'pickup'|'delivery', location, date, weight, legMiles, extra }],
-  //      charges: { fuel, stops, extra } (as charged), notes }
+  //      charges: { fuel, stops, extra } (as charged), notes, customer }
   function multiStopHTML(d, profile, meta) {
     var s = colorsFor(profile);
     var total = Math.round(d.total);
@@ -387,6 +421,7 @@
     var drops = stops.length - pickups;
     var counts = pickups + ' pickup' + (pickups === 1 ? '' : 's') + ' · ' + drops + ' deliver' + (drops === 1 ? 'y' : 'ies');
     var body = letterhead(profile, s, 'Multi-Stop Freight Quote', meta) +
+      preparedFor(d.customer) +
       factsBlock([
         ['Equipment', d.trailer],
         ['Total weight', d.totalWeight ? Number(d.totalWeight).toLocaleString('en-US') + ' lbs' : ''],
@@ -404,7 +439,7 @@
   // ── Bulk load (rate per cwt) ───────────────────────────────────────────────
   // d: { origin, destination, loadedMiles, deadhead, cwt, ratePerCwt, base,
   //      fuel, fuelNote, total, rpmLoaded, rpmAll, meetsTarget, statusText,
-  //      statusDetail, targetText, fscMethod, diesel }
+  //      statusDetail, targetText, fscMethod, diesel, customer }
   function bulkHTML(d, profile, meta) {
     var s = colorsFor(profile);
     var totalMiles = (d.loadedMiles || 0) + (d.deadhead || 0);
@@ -413,6 +448,7 @@
       ['Fuel surcharge', cents(d.fuel), d.fuelNote],
     ];
     var body = letterhead(profile, s, 'Bulk Load Quote', meta) +
+      preparedFor(d.customer) +
       laneBlock('Origin', d.origin, '', 'Destination', d.destination, '',
         d.loadedMiles.toLocaleString('en-US') + ' loaded mi',
         d.deadhead > 0 ? '+ ' + d.deadhead.toLocaleString('en-US') + ' mi deadhead' : '') +
@@ -458,7 +494,7 @@
   window.QFCQuotePDF = {
     schemes: SCHEMES, style: style, colorsFor: colorsFor, classicScheme: classicScheme, isHex: function (v) { return HEX.test(v || ''); },
     whiteLabelAllowed: whiteLabelAllowed, whiteLabel: whiteLabel, validHours: validHours, customTerms: customTerms, termsText: termsText,
-    nextQuoteNumber: nextQuoteNumber, modernHTML: modernHTML, multiStopHTML: multiStopHTML, bulkHTML: bulkHTML,
+    nextQuoteNumber: nextQuoteNumber, preparedFor: preparedFor, classicPreparedFor: classicPreparedFor, modernHTML: modernHTML, multiStopHTML: multiStopHTML, bulkHTML: bulkHTML,
     openHTML: openHTML, openModern: openModern, openMultiStop: openMultiStop, openBulk: openBulk,
   };
 })();
