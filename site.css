@@ -108,7 +108,7 @@ html.light .qf-nav{background:rgba(255,255,255,.82)}
 .qf-logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);flex-shrink:0}
 .qf-logo-mark{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--accent-ink);
   background:linear-gradient(135deg,#ffc04d,#f5a524 55%,#e08e0b);box-shadow:0 6px 18px rgba(245,165,36,.3)}
-.qf-logo-mark .qf-icon{width:19px;height:19px;stroke-width:2.1}
+.qf-logo-mark .qf-logo-svg{width:100%;height:100%;display:block}
 .qf-logo-text{font-size:17px;font-weight:700;letter-spacing:-.02em;color:var(--text)}
 .qf-logo-text b{color:var(--accent);font-weight:700}
 html.light .qf-logo-text b{color:#d48200}

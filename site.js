@@ -40,6 +40,11 @@
     menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     close: '<path d="M6 6l12 12M18 6 6 18"/>',
   };
+  // The logo mark: a box truck on a 32-unit grid, centered on its own box
+  // (favicon.svg and the app icons use the same drawing).
+  var LOGO = '<svg class="qf-logo-svg" viewBox="0 0 32 32" aria-hidden="true">' +
+    '<g transform="translate(-1.25 -.9)"><path fill="currentColor" fill-rule="evenodd" d="M6.5 8.5H19A2 2 0 0 1 21 10.5V11.5H25.4A2 2 0 0 1 27 12.3L29.6 15.8A2 2 0 0 1 30 17V20.5A1.5 1.5 0 0 1 28.5 22H28.3A3.5 3.5 0 0 0 21.7 22H14.3A3.5 3.5 0 0 0 7.7 22H6A1.5 1.5 0 0 1 4.5 20.5V10.5A2 2 0 0 1 6.5 8.5ZM22.6 13.2H25.1L27.1 16H22.6Z"/><circle cx="11" cy="22.6" r="2.7" fill="currentColor"/><circle cx="25" cy="22.6" r="2.7" fill="currentColor"/><circle cx="11" cy="22.6" r=".9" fill="#f5a524"/><circle cx="25" cy="22.6" r=".9" fill="#f5a524"/></g></svg>';
+
   function icon(name, cls) {
     return '<svg class="qf-icon' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" aria-hidden="true">' + ICONS[name] + '</svg>';
   }
@@ -112,7 +117,7 @@
       return '<a href="' + x[0] + '">' + icon(x[1]) + esc(x[2]) + '</a>';
     }).join('');
     return '<div class="qf-nav-inner">' +
-      '<a class="qf-logo" href="/" aria-label="QuickFreightCalc home"><span class="qf-logo-mark">' + icon('truck') + '</span>' +
+      '<a class="qf-logo" href="/" aria-label="QuickFreightCalc home"><span class="qf-logo-mark">' + LOGO + '</span>' +
       '<span class="qf-logo-text">Quick<b>Freight</b>Calc</span></a>' +
       '<nav class="qf-links" aria-label="Main">' +
       '<a href="/"' + (here(['/', '/index.html']) ? ' class="active" aria-current="page"' : '') + '>Calculator</a>' +
@@ -217,7 +222,7 @@
       var year = new Date().getFullYear();
       el.className = 'qf-footer';
       el.innerHTML = '<div class="qf-footer-inner"><div class="qf-footer-top">' +
-        '<div class="qf-footer-brand"><a class="qf-logo" href="/"><span class="qf-logo-mark">' + icon('truck') + '</span>' +
+        '<div class="qf-footer-brand"><a class="qf-logo" href="/"><span class="qf-logo-mark">' + LOGO + '</span>' +
         '<span class="qf-logo-text">Quick<b>Freight</b>Calc</span></a>' +
         '<p>Truckload rate quotes in seconds for brokers, dispatchers and owner-operators — van, reefer and flatbed, anywhere in the US.</p></div>' +
         '<div class="qf-footer-col"><h4>Quote</h4><a href="/">Rate calculator</a><a href="/multistop.html">Multi-stop builder</a>' +
