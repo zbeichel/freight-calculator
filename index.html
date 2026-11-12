@@ -3220,6 +3220,7 @@ function handleBulkClick(e){
 }
 
 function updateProUI(){
+  if(window.QFCLane) QFCLane.refresh();   // lane details: your quotes (Pro), won/lost (Pro Plus and up)
   const notesField = document.getElementById('load-notes-field');
   const quickSave  = document.getElementById('quick-save-quote-btn');
   const dlBtn      = document.getElementById('btn-download-quote');

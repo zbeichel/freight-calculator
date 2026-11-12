@@ -274,6 +274,14 @@ const tiles = (pg) => pg.$$eval('#lane-view .lv-tile', (els) => els.map((e) => e
   check('light mode', await t.page.evaluate(() => document.documentElement.classList.contains('light')) && t.errors.length === 0, t.errors.join(' | '));
   await t.page.addStyleTag({ content: '.qf-nav{position:relative!important}' });
   await t.page.locator('#lane-view').screenshot({ path: path.join(SHOTS, 'lane_light_pro.png') });
+  // The plan changing after the lane is drawn (e.g. an upgrade): won/lost appear
+  await t.page.evaluate(() => {
+    const p = JSON.parse(localStorage.getItem('qfc_pro_profile')); p.plan = 'plus';
+    localStorage.setItem('qfc_pro_profile', JSON.stringify(p)); updateProUI();
+  });
+  await t.page.waitForTimeout(400);
+  check('moving up to Pro Plus redraws it with won and lost', (await t.page.$$('[data-part="quotes"] .lv-result')).length === 6
+    && (await text(t.page, '#lane-view .lv-legend')) === 'This lane National, same distance Won Lost Open');
   await t.context.close();
 
   t = await setup(browser, base, { signedIn: false });
