@@ -73,7 +73,7 @@
         '<li><strong style="color:var(--text,#fff)">Pro Max</strong> — $49.99/month · automatic miles on 1,000 quotes per day and white-label PDFs</li>' +
       '</ul>' +
       '<p style="margin:0 0 12px">If you don\'t choose, you\'ll move to Pro. You can choose a plan or cancel anytime before then from your Profile.</p>' +
-      '<p style="margin:0 0 4px"><strong style="color:var(--text,#fff)">New: API access</strong> — $199/month · get quotes on your own website or system, 5,000 quotes per month, and everything in Pro Max. ' +
+      '<p style="margin:0 0 4px"><strong style="color:var(--text,#fff)">New: API access</strong> — $199.99/month · get quotes on your own website or system, 5,000 quotes per month, and everything in Pro Max. ' +
         '<a href="/api.html" target="_blank" rel="noopener" style="color:var(--accent,#f0a500)">API docs</a></p>' +
       '<p style="margin:0"><a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--accent,#f0a500)">What counts as a quote?</a></p>');
 

@@ -4,13 +4,13 @@
 // the API functions. Lives outside netlify/functions so Netlify doesn't
 // publish it as an endpoint; the functions bundle it through require().
 //
-//   pro   Pro       $9.99/mo   automatic miles on 100 quotes per day
-//   plus  Pro Plus  $19.99/mo  automatic miles on 250 quotes per day
-//   max   Pro Max   $49.99/mo  automatic miles on 1,000 quotes per day, plus
-//                              white-label PDFs (pdf-quote.js; comp accounts too)
-//   api   API       $199/mo    Pro Max on the site + API access with
-//                              API_MONTHLY_QUOTES automatic-miles quotes per
-//                              billing month (see api-quote.js)
+//   pro   Pro       $9.99/mo    automatic miles on 100 quotes per day
+//   plus  Pro Plus  $19.99/mo   automatic miles on 250 quotes per day
+//   max   Pro Max   $49.99/mo   automatic miles on 1,000 quotes per day, plus
+//                               white-label PDFs (pdf-quote.js; comp accounts too)
+//   api   API       $199.99/mo  Pro Max on the site + API access with
+//                               API_MONTHLY_QUOTES automatic-miles quotes per
+//                               billing month (see api-quote.js)
 //
 // A "quote" is a distinct origin→destination pair priced with automatic miles
 // in a UTC day; re-pricing the same pair that day or typing miles is free.
@@ -29,7 +29,7 @@ function normalizePlan(plan) {
 }
 
 // Stripe prices (Netlify env vars) for the new plans:
-//   STRIPE_PRICE_ID_PRO ($9.99), _PLUS ($19.99), _MAX ($49.99), _API ($199).
+//   STRIPE_PRICE_ID_PRO ($9.99), _PLUS ($19.99), _MAX ($49.99), _API ($199.99).
 // Each holds the monthly price's ID (price_…), not the product's ID (prod_…).
 // STRIPE_PRICE_ID stays the original $4.99 Pro price that current subscribers
 // pay; any subscription on a price that isn't one of these new ones is on the

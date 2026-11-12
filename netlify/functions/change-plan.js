@@ -4,7 +4,7 @@
 //   'pro'  → STRIPE_PRICE_ID_PRO  ($9.99/mo, automatic miles on 100 quotes/day)
 //   'plus' → STRIPE_PRICE_ID_PLUS ($19.99/mo, 250 quotes/day)
 //   'max'  → STRIPE_PRICE_ID_MAX  ($49.99/mo, 1,000 quotes/day)
-//   'api'  → STRIPE_PRICE_ID_API  ($199/mo, Pro Max + API access)
+//   'api'  → STRIPE_PRICE_ID_API  ($199.99/mo, Pro Max + API access)
 //
 // POST { userId, accessToken, plan: 'pro' | 'plus' | 'max' | 'api' }
 //  - Subscribers still on the original Pro plan choosing Pro, Pro Plus or Pro

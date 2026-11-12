@@ -5,7 +5,7 @@
 //                 falls back to STRIPE_PRICE_ID, the original $4.99 price, until set)
 //   plan 'plus' → STRIPE_PRICE_ID_PLUS ($19.99/mo, 250 quotes/day)
 //   plan 'max'  → STRIPE_PRICE_ID_MAX  ($49.99/mo, 1,000 quotes/day)
-//   plan 'api'  → STRIPE_PRICE_ID_API  ($199/mo, Pro Max + API access)
+//   plan 'api'  → STRIPE_PRICE_ID_API  ($199.99/mo, Pro Max + API access)
 // Someone who already has an active subscription is sent to change-plan
 // instead, so nobody ends up paying for two subscriptions.
 

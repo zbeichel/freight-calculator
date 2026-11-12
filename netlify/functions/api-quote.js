@@ -236,7 +236,7 @@ exports.handler = async function (event) {
     return fail(403, 'subscription_inactive', 'Your QuickFreightCalc subscription isn\'t active. Restart the API plan from your Profile page.');
   }
   if (normalizePlan(sub.plan) !== 'api') {
-    return fail(403, 'plan_required', 'API access is part of the API plan ($199/month). Switch plans from your Profile page.');
+    return fail(403, 'plan_required', 'API access is part of the API plan ($199.99/month). Switch plans from your Profile page.');
   }
 
   // ── What they asked for ──

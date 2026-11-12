@@ -118,7 +118,7 @@ exports.handler = async function (event) {
 
     if (action === 'create') {
       if (accessFor(sub) !== 'active') {
-        return reply(403, { error: 'API keys need the API plan ($199/month). Switch plans above.' });
+        return reply(403, { error: 'API keys need the API plan ($199.99/month). Switch plans above.' });
       }
       const countResp = await rest(serviceKey, `/rest/v1/api_keys?user_id=eq.${userId}&revoked_at=is.null&select=id`);
       if (Array.isArray(countResp.data) && countResp.data.length >= MAX_KEYS) {
