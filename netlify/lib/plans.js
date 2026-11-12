@@ -5,12 +5,17 @@
 // publish it as an endpoint; the functions bundle it through require().
 //
 //   pro   Pro       $9.99/mo    automatic miles on 100 quotes per day
-//   plus  Pro Plus  $19.99/mo   automatic miles on 250 quotes per day
-//   max   Pro Max   $49.99/mo   automatic miles on 1,000 quotes per day, plus
-//                               white-label PDFs (pdf-quote.js; comp accounts too)
+//   plus  Pro Plus  $19.99/mo   automatic miles on 250 quotes per day, plus
+//                               win/loss tracking (index.html; comp accounts too)
+//   max   Pro Max   $49.99/mo   automatic miles on 1,000 quotes per day, win/loss
+//                               tracking and white-label PDFs (pdf-quote.js)
 //   api   API       $199.99/mo  Pro Max on the site + API access with
 //                               API_MONTHLY_QUOTES automatic-miles quotes per
 //                               billing month (see api-quote.js)
+//
+// Saved quotes in the quote log: Pro 100, Pro Plus 1,000, Pro Max / API /
+// comp 5,000. The database enforces these and who can record win/loss results
+// (quote_log_enforce_plan); index.html shows the same limits.
 //
 // A "quote" is a distinct origin→destination pair priced with automatic miles
 // in a UTC day; re-pricing the same pair that day or typing miles is free.
