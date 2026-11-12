@@ -1,9 +1,8 @@
 // tests/lane_test.js — "Lane details" under the calculator (lane.js): the
 // lane's market rate tiles and history chart, your quotes on the lane, the
 // route on Google's map (or a link to it), the markets at both ends, trip and
-// fuel, per load / per mile, phones, and the maps-config function. Lane details
-// are for Pro Max, API and comp accounts; every other plan gets a locked card
-// that looks nothing up. In a real browser (needs Playwright with Chromium); network calls
+// fuel, per load / per mile, what each plan sees, phones, and the maps-config
+// function. In a real browser (needs Playwright with Chromium); network calls
 // other than this site are stubbed. Run from the repository root:
 //   node tests/lane_test.js [folder for screenshots]
 const http = require('http');
@@ -51,12 +50,12 @@ const QUOTES = [
   Q(8, 5, { destination: 'Boston, MA', quote: 1500 }),
 ];
 
-async function setup(browser, base, { plan = 'max', signedIn = true, theme = 'dark', phone = false, mapsKey = null, quotes = QUOTES, comp = false } = {}) {
+async function setup(browser, base, { plan = 'plus', signedIn = true, theme = 'dark', phone = false, mapsKey = null, quotes = QUOTES } = {}) {
   const context = await browser.newContext(phone
     ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
     : { viewport: { width: 1440, height: 900 } });
   const calls = { routes: 0, maps: 0, diesel: 0, embeds: [] };
-  await context.addInitScript(([s, p, th, c]) => {
+  await context.addInitScript(([s, p, th]) => {
     if (localStorage.getItem('__seeded')) return;
     localStorage.setItem('__seeded', '1');
     localStorage.setItem('qfc_theme', th);
@@ -64,9 +63,9 @@ async function setup(browser, base, { plan = 'max', signedIn = true, theme = 'da
     if (s) {
       localStorage.setItem('sb-xgrmbhmgcsbnazupfybd-auth-token', JSON.stringify({ access_token: 'tok', refresh_token: 'r',
         expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: 'user-1', email: 'sam@example.com' } }));
-      localStorage.setItem('qfc_pro_profile', JSON.stringify({ contactName: 'Sam Rivera', companyName: 'Keystone Produce Logistics', plan: p, comp: c }));
+      localStorage.setItem('qfc_pro_profile', JSON.stringify({ contactName: 'Sam Rivera', companyName: 'Keystone Produce Logistics', plan: p }));
     }
-  }, [signedIn, plan, theme, comp]);
+  }, [signedIn, plan, theme]);
   await context.route('**/*', async (route) => {
     const req = route.request();
     const url = req.url();
@@ -79,8 +78,8 @@ async function setup(browser, base, { plan = 'max', signedIn = true, theme = 'da
       return json({ routes: [{ distanceMeters: 690 * 1609.34, duration: '37800s',
         legs: [{ startLocation: { latLng: { latitude: 40.0379, longitude: -76.3055 } }, endLocation: { latLng: { latitude: 33.749, longitude: -84.388 } } }] }] });
     }
-    if (url.includes('/.netlify/functions/verify-pro')) return json({ active: signedIn, plan, paid: !comp, unlimitedUntilRenewal: false });
-    if (url.includes('/rest/v1/pro_users')) return json(signedIn ? [{ id: 'user-1', is_active: true, plan, comp, stripe_customer_id: comp ? null : 'cus_1', stripe_subscription_id: comp ? null : 'sub_1',
+    if (url.includes('/.netlify/functions/verify-pro')) return json({ active: signedIn, plan, paid: true, unlimitedUntilRenewal: false });
+    if (url.includes('/rest/v1/pro_users')) return json(signedIn ? [{ id: 'user-1', is_active: true, plan, stripe_customer_id: 'cus_1', stripe_subscription_id: 'sub_1',
       contact_name: 'Sam Rivera', company_name: 'Keystone Produce Logistics', email: 'sam@example.com' }] : []);
     if (url.includes('/rest/v1/quote_log')) return json(signedIn && req.method() === 'GET' ? quotes : []);
     if (url.includes('/.netlify/functions/')) return json({});
@@ -109,7 +108,7 @@ async function priceLane(t, base, quoteCount, { trailer = 'reefer' } = {}) {
     applyRegionalRates();
     await tryLookupMiles();
   }, trailer);
-  await t.page.waitForSelector('#lane-view:not([hidden]) .lv-card');
+  await t.page.waitForSelector('#lane-view:not([hidden]) .lv-tile');
   await t.page.waitForTimeout(400);
 }
 const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').trim()).catch(() => '');
@@ -122,9 +121,9 @@ const tiles = (pg) => pg.$$eval('#lane-view .lv-tile', (els) => els.map((e) => e
   const H = RATES.history.slice().sort((a, b) => a.date.localeCompare(b.date));
   const last = H[H.length - 1], prev = H[H.length - 2];
 
-  // ── Pro Max with saved quotes ────────────────────────────────────────────
-  console.log('\n=== Pricing a lane (Pro Max) ===');
-  let t = await setup(browser, base, { plan: 'max' });
+  // ── Pro Plus with saved quotes ───────────────────────────────────────────
+  console.log('\n=== Pricing a lane ===');
+  let t = await setup(browser, base, { plan: 'plus' });
   await t.page.goto(base + '/index.html');
   await t.page.waitForFunction(() => typeof quoteLog !== 'undefined' && quoteLog.length === 8 && window.QFC_RATES && window.QFCLane);
   await t.page.waitForTimeout(400);
@@ -239,7 +238,7 @@ const tiles = (pg) => pg.$$eval('#lane-view .lv-tile', (els) => els.map((e) => e
   await t.context.close();
 
   console.log('\n=== Route on Google\'s map (with a key) ===');
-  t = await setup(browser, base, { plan: 'max', mapsKey: KEY });
+  t = await setup(browser, base, { plan: 'plus', mapsKey: KEY });
   await priceLane(t, base, 8);
   await t.page.waitForSelector('[data-part="map"] iframe');
   const src = await t.page.getAttribute('[data-part="map"] iframe', 'src');
@@ -265,57 +264,27 @@ const tiles = (pg) => pg.$$eval('#lane-view .lv-tile', (els) => els.map((e) => e
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
 
-  console.log('\n=== Who gets lane details ===');
-  for (const [plan, opts, label] of [['plus', {}, 'Pro Plus'], ['pro', {}, 'Pro'], [null, { signedIn: false }, 'free']]) {
-    t = await setup(browser, base, Object.assign({ plan: plan || 'pro', mapsKey: KEY }, opts));
-    await priceLane(t, base, plan ? 8 : 0);
-    const card = await text(t.page, '#lane-view');
-    check(`${label}: a locked card naming the lane and what Pro Max adds, no numbers`, !!(await t.page.$('#lane-view .lv-locked'))
-      && card.startsWith('LANE DETAILS · PRO MAX Lancaster, PA → Atlanta, GA') && card.includes('Also included with the API plan')
-      && !(await t.page.$('#lane-view .lv-tile')) && !/\$\d/.test(card), card);
-    check(`${label}: nothing looked up (no diesel, no map key, no map)`, t.calls.diesel === 0 && t.calls.maps === 0 && t.calls.embeds.length === 0, JSON.stringify(t.calls));
-    check(`${label}: the link under the quote says Pro Max`, (await text(t.page, '#lane-jump')) === 'Lane details with Pro Max ↓');
-    if (label === 'Pro Plus') {
-      await t.page.addStyleTag({ content: '.qf-nav{position:relative!important}' });
-      await t.page.locator('#lane-view').screenshot({ path: path.join(SHOTS, 'lane_locked.png') });
-    }
-    await t.page.click('#lane-view [data-act="upgrade"]');
-    check(`${label}: Get Pro Max opens the upgrade window with only Pro Max`, await t.page.isVisible('#upg-modal-overlay')
-      && await t.page.isVisible('#upg-option-max') && await t.page.isHidden('#upg-option-plus')
-      && (await text(t.page, '#upg-modal-desc')).startsWith('Lane details come with Pro Max'));
-    check('no page errors', t.errors.length === 0, t.errors.join(' | '));
-    await t.context.close();
-  }
-  for (const [plan, comp, label] of [['api', false, 'API'], ['api', true, 'comp']]) {
-    t = await setup(browser, base, { plan, comp, theme: 'light' });
-    await priceLane(t, base, 8);
-    check(`${label}: the full lane view`, (await tiles(t.page)).length === 5 && (await t.page.$$('#lane-view .lv-q')).length === 6
-      && await t.page.evaluate(() => accountTier()) === (comp ? 'comp' : 'api'));
-    check('light mode, no page errors', await t.page.evaluate(() => document.documentElement.classList.contains('light')) && t.errors.length === 0, t.errors.join(' | '));
-    if (!comp) {
-      await t.page.addStyleTag({ content: '.qf-nav{position:relative!important}' });
-      await t.page.locator('#lane-view').screenshot({ path: path.join(SHOTS, 'lane_light.png') });
-    }
-    await t.context.close();
-  }
-  // The plan changing after the page has drawn the lane: Pro Plus locks it, Pro Max unlocks it
-  t = await setup(browser, base, { plan: 'max' });
+  console.log('\n=== Pro, free, light, phone ===');
+  t = await setup(browser, base, { plan: 'pro', theme: 'light' });
   await priceLane(t, base, 8);
-  const setPlan = (pl) => t.page.evaluate((x) => {
-    const p = JSON.parse(localStorage.getItem('qfc_pro_profile')); p.plan = x; localStorage.setItem('qfc_pro_profile', JSON.stringify(p)); updateProUI();
-  }, pl);
-  await setPlan('plus');
-  await t.page.waitForTimeout(400);
-  const lockedNow = !!(await t.page.$('#lane-view .lv-locked'));
-  await setPlan('max');
-  await t.page.waitForTimeout(400);
-  check('changing plans redraws it (Pro Plus locks, Pro Max unlocks)', lockedNow && (await tiles(t.page)).length === 5
-    && !!(await t.page.$('[data-part="map"] .lv-panel-head')));
+  const proQuotes = await text(t.page, '[data-part="quotes"]');
+  check('Pro: their quotes on the lane without won/lost', (await t.page.$$('[data-part="quotes"] tbody tr')).length === 6
+    && !(await t.page.$('[data-part="quotes"] .lv-result')) && proQuotes.includes('Mark quotes won or lost with Pro Plus')
+    && (await text(t.page, '#lane-view .lv-legend')) === 'This lane National, same distance Your quotes', proQuotes);
+  check('light mode', await t.page.evaluate(() => document.documentElement.classList.contains('light')) && t.errors.length === 0, t.errors.join(' | '));
+  await t.page.addStyleTag({ content: '.qf-nav{position:relative!important}' });
+  await t.page.locator('#lane-view').screenshot({ path: path.join(SHOTS, 'lane_light_pro.png') });
+  await t.context.close();
+
+  t = await setup(browser, base, { signedIn: false });
+  await priceLane(t, base, 0);
+  check('free: the market numbers, and plans for keeping their quotes', (await tiles(t.page)).length === 5
+    && (await text(t.page, '[data-part="quotes"]')).includes('Pro saves every quote you send')
+    && (await t.page.getAttribute('[data-part="quotes"] a.qf-btn', 'href')) === '/signup.html');
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
 
-  console.log('\n=== Phone ===');
-  t = await setup(browser, base, { plan: 'max', phone: true, mapsKey: KEY });
+  t = await setup(browser, base, { plan: 'plus', phone: true, mapsKey: KEY });
   await priceLane(t, base, 8);
   const sideways = await t.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   check('phone: no sideways scrolling', sideways <= 1, `${sideways}px`);

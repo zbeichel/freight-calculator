@@ -3220,7 +3220,6 @@ function handleBulkClick(e){
 }
 
 function updateProUI(){
-  if(window.QFCLane) QFCLane.refresh();   // lane details are for Pro Max, API and comp
   const notesField = document.getElementById('load-notes-field');
   const quickSave  = document.getElementById('quick-save-quote-btn');
   const dlBtn      = document.getElementById('btn-download-quote');
@@ -6820,10 +6819,6 @@ function laneForView(){
     quotes: isProUser ? quoteLog : [],
     tier: accountTier(),
   };
-}
-// The locked lane card's button (plans below Pro Max).
-function laneUpgrade(){
-  showUpgradeModal('Lane details come with Pro Max: the lane\'s market rate this month and over the year, your quotes on it and what they booked at, the route on Google\'s map, the markets at both ends, and trip and fuel cost.', ['max']);
 }
 // Google's map gets the place the miles were routed to: "Franklin, WI" goes as
 // "Franklin, Vernon County, WI" when the checked place names its county.

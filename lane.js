@@ -9,7 +9,8 @@
      for the trailer times the calculator's distance multiplier for the lane's
      miles (the same dMult the quote uses): the calculator before your load
      details and margin.
-   - Your quotes: the calculator's quote log, with won and lost.
+   - Your quotes: the calculator's quote log (Pro). Won and lost show for plans
+     with win/loss tracking (Pro Plus and up, comp).
    - Diesel: the EIA weekly price (diesel-price function), sharing the
      calculator's 30-minute cache (qfc_diesel_cache).
    - Route map: Google's Maps Embed API (free) once GMAPS_EMBED_KEY is set (the
@@ -18,18 +19,12 @@
      route is only drawn on Google's own map; until there's a key the panel
      links to the route on Google Maps.
 
-   Who sees it: Pro Max, API and comp accounts (FULL). Every other plan gets a
-   locked card naming the lane, with an upgrade button, and the view makes no
-   lookups for them (no diesel, no map key): the lane view's extra usage stays
-   with the top plans.
-
    The calculator supplies the lane:
      QFCLane.init({ container, jump, getLane })   once
      QFCLane.refresh()                             whenever the quote changes
    getLane() returns null when there's no full-truckload lane to show, or
      { orig, dest, mapOrig, mapDest, trailer, miles, milesSource ('google' |
-       'manual'), driveSecs, distMult, quoteTotal, quoteRpm, quotes, tier }
-   and window.laneUpgrade(), if defined, opens its upgrade window. */
+       'manual'), driveSecs, distMult, quoteTotal, quoteRpm, quotes, tier } */
 (function () {
   'use strict';
   const REGION_NAME = { northeast: 'Northeast', southeast: 'Southeast', midwest: 'Midwest', southwest: 'Southwest', west: 'West', national: 'National' };
@@ -37,7 +32,7 @@
   const MPG = 6.5;           // the calculator's fuel surcharge assumption (DOE_FSC_MPG)
   const FSC_BASE = 1.25;     // DOE fuel surcharge baseline, $/gal
   const HOS_HOURS = 11;      // FMCSA daily driving limit
-  const FULL = ['max', 'api', 'comp'];   // plans that get the lane view
+  const WINLOSS = ['plus', 'max', 'api', 'comp'];
   const MODE_KEY = 'qfc_lane_mode';
   const DAY = 86400000;
   const ROWS = 8;            // quotes listed before "Show all"
@@ -51,8 +46,6 @@
   let mapsKey;               // undefined: not asked yet · null: none set · 'key'
   let current = null;        // the model on screen
   let mapShown = '';         // what the route panel shows, so the map isn't reloaded needlessly
-  let built = '';            // 'full' or 'locked': which layout is on screen
-  let lockedFor = '';        // the lane the locked card names
   const parts = {};
 
   const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -128,12 +121,13 @@
 
     // Your saved quotes on this lane (same pickup and delivery; this trailer)
     const key = placeKey(lane.orig) + '>' + placeKey(lane.dest);
+    const winLoss = WINLOSS.includes(lane.tier);
     const onLane = (lane.quotes || []).filter((q) => q && placeKey(q.orig) + '>' + placeKey(q.dest) === key);
     const points = onLane.filter((q) => (q.trailer || 'van') === eq).map((q) => {
       const t = Date.parse(q.createdAt || '');
       const qMiles = Number(q.miles) > 0 ? Number(q.miles) : miles;
       const quoted = Number(q.quote) || 0;
-      const outcome = q.outcome === 'won' || q.outcome === 'lost' ? q.outcome : 'open';
+      const outcome = winLoss && (q.outcome === 'won' || q.outcome === 'lost') ? q.outcome : 'open';
       const final = Number(q.finalRate) > 0 ? Number(q.finalRate) : null;
       const booked = outcome === 'won' ? (final || quoted) : null;
       const value = booked || quoted;
@@ -150,7 +144,7 @@
       lane, eq, miles, dm, months, last, prev, avg3, lo: Math.min(...lanes), hi: Math.max(...lanes),
       oState, dState, oRegion, dRegion, updated: rates.updated || '',
       quote: { total: Number(lane.quoteTotal) || 0, rpm: Number(lane.quoteRpm) || 0 },
-      points, otherTrailers: onLane.length - points.length,
+      winLoss, signedIn: lane.tier && lane.tier !== 'none', points, otherTrailers: onLane.length - points.length,
       stats: { quotes: points.length, won: won.length, lost: lost.length,
         winRate: won.length + lost.length ? won.length / (won.length + lost.length) : null,
         avgQuoted: avg(points.map((p) => p.quotedMile)), avgBooked: avg(won.map((p) => p.mile)), vsMarket },
@@ -224,7 +218,9 @@
   function chartPanelHTML(m) {
     const legend = `<span><i style="background:var(--series-region)"></i>This lane</span>` +
       `<span><i style="background:var(--series-national)"></i>National, same distance</span>` +
-      (m.points.length ? `<span><i class="dot"></i>Won</span><span><i class="ring"></i>Lost</span><span><i class="open"></i>Open</span>` : '');
+      (m.points.length ? (m.winLoss
+        ? `<span><i class="dot"></i>Won</span><span><i class="ring"></i>Lost</span><span><i class="open"></i>Open</span>`
+        : `<span><i class="open"></i>Your quotes</span>`) : '');
     const rows = m.months.slice().reverse().map((p) => `<tr><td>${esc(p.label)}</td><td class="num strong">${showVal(p.lane, m.miles)}</td>` +
       `<td class="num">${showVal(p.national, m.miles)}</td></tr>`).join('');
     return `<div class="lv-panel-head"><h3>Market rate history<small>${EQ_NAME[m.eq]} · ${perLoad() ? 'per load' : 'per mile'}</small></h3>
@@ -315,7 +311,7 @@
       if (g) {
         const p = dots[Number(g.dataset.i)];
         const q = p.q;
-        const res = p.outcome === 'won' ? `Won${p.booked ? ' at ' + money0(p.booked) : ''}` : p.outcome === 'lost' ? `Lost${p.wentFor ? ' · went for ' + money0(p.wentFor) : ''}` : 'Open';
+        const res = p.outcome === 'won' ? `Won${p.booked ? ' at ' + money0(p.booked) : ''}` : p.outcome === 'lost' ? `Lost${p.wentFor ? ' · went for ' + money0(p.wentFor) : ''}` : (m.winLoss ? 'Open' : '');
         tip.innerHTML = `<b>${esc(dayLabel(p.t))}${q.customer ? ' · ' + esc(q.customer) : ''}</b>` +
           `<div class="row"><span>Quoted</span><strong>${money0(p.quoted)} · ${money2(p.quotedMile)}/mi</strong></div>` +
           (res ? `<div class="row"><span>Result</span><strong>${esc(res)}</strong></div>` : '') +
@@ -343,6 +339,10 @@
 
   function quotesHTML(m) {
     const head = (extra) => `<div class="lv-panel-head"><h3>Your quotes on this lane<small>${EQ_NAME[m.eq]}</small></h3>${extra || ''}</div>`;
+    if (!m.signedIn) {
+      return head() + `<div class="lv-empty">Pro saves every quote you send. The next time you price this lane, your past quotes, and with
+        Pro Plus what they booked at, show up here next to the market rate.<br><a class="qf-btn qf-btn-primary" href="/signup.html">See plans</a></div>`;
+    }
     const others = m.otherTrailers ? `<div class="lv-muted">${m.otherTrailers} more on ${m.otherTrailers === 1 ? 'another trailer' : 'other trailers'}.</div>` : '';
     if (!m.points.length) {
       return head() + `<div class="lv-empty">No saved ${EQ_NAME[m.eq].toLowerCase()} quotes on this lane yet. Save this quote to the quote log and it shows up here,
@@ -351,9 +351,9 @@
     const s = m.stats;
     const stat = (label, value) => `<div class="lv-stat">${label}<b>${value}</b></div>`;
     const stats = stat('Quotes', s.quotes.toLocaleString('en-US')) +
-      stat('Win rate', s.winRate === null ? '—' : `${Math.round(s.winRate * 100)}% <small style="font-size:11px;color:var(--text3);font-weight:500">${s.won} won · ${s.lost} lost</small>`) +
+      (m.winLoss ? stat('Win rate', s.winRate === null ? '—' : `${Math.round(s.winRate * 100)}% <small style="font-size:11px;color:var(--text3);font-weight:500">${s.won} won · ${s.lost} lost</small>`) : '') +
       stat('Avg quoted', s.avgQuoted ? money2(s.avgQuoted) + '/mi' : '—') +
-      stat('Avg booked', s.avgBooked ? money2(s.avgBooked) + '/mi' : '—') +
+      (m.winLoss ? stat('Avg booked', s.avgBooked ? money2(s.avgBooked) + '/mi' : '—') : '') +
       (s.vsMarket !== null ? stat('Quoted vs market', signed(s.vsMarket)) : '');
     const list = showAllQuotes ? m.points : m.points.slice(0, ROWS);
     const rows = list.map((p) => {
@@ -362,14 +362,15 @@
       const final = p.outcome === 'won' ? money0(p.booked) : p.outcome === 'lost' && p.wentFor ? 'went for ' + money0(p.wentFor) : '—';
       return `<tr><td>${isFinite(p.t) ? esc(dayLabel(p.t)) : esc(q.date || '')}</td><td class="wrap">${esc(q.customer || '—')}</td>` +
         `<td class="num strong">${money0(p.quoted)}</td><td class="num">${money2(p.quotedMile)}</td>` +
-        `<td>${result}</td><td class="num">${final}</td></tr>`;
+        (m.winLoss ? `<td>${result}</td><td class="num">${final}</td>` : '') + '</tr>';
     }).join('');
     const more = m.points.length > ROWS
       ? `<button type="button" class="lv-link" data-act="more">${showAllQuotes ? 'Show fewer' : `Show all ${m.points.length}`}</button>` : '';
     return head(more) + `<div class="lv-stats">${stats}</div>
       <div class="lv-table-wrap"><table class="lv-table"><thead><tr><th scope="col">Date</th><th scope="col">Customer</th><th scope="col" class="num">Quoted</th>
-        <th scope="col" class="num">Per mile</th><th scope="col">Result</th><th scope="col" class="num">Final rate</th></tr></thead>
-        <tbody>${rows}</tbody></table></div>${others}`;
+        <th scope="col" class="num">Per mile</th>${m.winLoss ? '<th scope="col">Result</th><th scope="col" class="num">Final rate</th>' : ''}</tr></thead>
+        <tbody>${rows}</tbody></table></div>${others}` +
+      (m.winLoss ? '' : `<div class="lv-muted">Mark quotes won or lost with Pro Plus to see your win rate and booked rates here.</div>`);
   }
 
   function marketsHTML(m) {
@@ -465,10 +466,7 @@
 
   // ── Render ──────────────────────────────────────────────────────────────
   function skeleton() {
-    if (built === 'full') return;
-    built = 'full';
-    mapShown = '';
-    Object.keys(parts).forEach((k) => delete parts[k]);
+    if (parts.head) return;
     host.innerHTML = `<div class="lv-card">
       <div class="lv-head" data-part="head"></div>
       <div class="lv-tiles" data-part="tiles"></div>
@@ -481,23 +479,6 @@
     host.querySelectorAll('[data-part]').forEach((el) => { parts[el.dataset.part] = el; });
   }
 
-  // Other plans: the lane's name and what Pro Max adds, with an upgrade button.
-  // No numbers, and nothing is looked up.
-  function lockedHTML(lane) {
-    const feat = ['Market rate this month and over the year', 'Your quotes on the lane, won and lost', 'The route on Google\'s map',
-      'Markets at both ends', 'Trip and fuel cost'];
-    return `<div class="lv-card lv-locked"><div class="lv-lock">
-      <div class="lv-lock-text"><div class="lv-kicker">Lane details · Pro Max</div>
-        <div class="lv-title"><span>${esc(placeLabel(lane.orig))}</span><span class="lv-arrow">→</span><span>${esc(placeLabel(lane.dest))}</span></div>
-        <p>See how this lane's market rate has moved, how your quotes on it compare and what they booked at, the route, and the markets at both ends.</p>
-        <ul class="lv-lock-list">${feat.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></div>
-      <div class="lv-lock-cta">${typeof window.laneUpgrade === 'function'
-        ? '<button type="button" class="qf-btn qf-btn-primary qf-btn-lg" data-act="upgrade">Get Pro Max</button>'
-        : '<a class="qf-btn qf-btn-primary qf-btn-lg" href="/signup.html?plan=max">Get Pro Max</a>'}
-        <small>Also included with the API plan</small></div>
-    </div></div>`;
-  }
-
   function render() {
     timer = null;
     const lane = getLane ? getLane() : null;
@@ -506,14 +487,6 @@
     host.hidden = !ok;
     if (jump) jump.hidden = !ok;
     if (!ok) { current = null; return; }
-    if (!FULL.includes(lane.tier)) {
-      current = null;
-      const key = placeLabel(lane.orig) + '>' + placeLabel(lane.dest);
-      if (built !== 'locked' || lockedFor !== key) { built = 'locked'; lockedFor = key; host.innerHTML = lockedHTML(lane); }
-      if (jump) jump.textContent = 'Lane details with Pro Max ↓';
-      return;
-    }
-    if (jump) jump.textContent = 'Lane details: map and rate history ↓';
     skeleton();
     const m = build(lane, rates);
     if (current && placeKey(current.lane.orig) + '>' + placeKey(current.lane.dest) + current.eq !== placeKey(lane.orig) + '>' + placeKey(lane.dest) + m.eq) showAllQuotes = false;
@@ -551,7 +524,6 @@
       if (!a) return;
       if (a.dataset.act === 'table') { showTable = !showTable; if (current) { parts.chart.innerHTML = chartPanelHTML(current); drawChart(current); } }
       if (a.dataset.act === 'more') { showAllQuotes = !showAllQuotes; if (current) parts.quotes.innerHTML = quotesHTML(current); }
-      if (a.dataset.act === 'upgrade' && typeof window.laneUpgrade === 'function') window.laneUpgrade();
     });
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer);

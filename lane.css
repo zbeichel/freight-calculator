@@ -131,14 +131,3 @@ html.light .lv-meter{background:var(--border2)}
   .lv-tile b{font-size:19px}
   .lv-map{aspect-ratio:1/1}
 }
-
-/* Locked: other plans see the lane and what Pro Max adds */
-.lv-locked{background:linear-gradient(135deg,rgba(245,165,36,.08),transparent 55%),var(--card)}
-.lv-lock{display:flex;align-items:center;justify-content:space-between;gap:20px 32px;padding:22px;flex-wrap:wrap}
-.lv-lock-text{flex:1 1 420px;min-width:0}
-.lv-lock-text p{font-size:14px;color:var(--text2);line-height:1.6;margin-top:8px;max-width:640px}
-.lv-lock-list{list-style:none;display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-.lv-lock-list li{font-size:12.5px;color:var(--text2);padding:6px 10px;border-radius:999px;background:var(--card2);border:1px solid var(--border)}
-.lv-lock-cta{display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0}
-.lv-lock-cta small{font-size:12px;color:var(--text3)}
-@media (max-width:640px){.lv-lock{padding:18px 16px}.lv-lock-cta{width:100%}.lv-lock-cta .qf-btn{width:100%}}
