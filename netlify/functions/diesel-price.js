@@ -52,13 +52,19 @@ exports.handler = async (event) => {
     const latest = rows[0];
     const price = parseFloat(latest.value);
     const period = latest.period;
+    // The week before, for the weekly change on the Market Rates page.
+    const before = rows[1] ? parseFloat(rows[1].value) : NaN;
 
     if (isNaN(price)) throw new Error('Invalid price');
 
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ price, period, region, seriesId }),
+      body: JSON.stringify({
+        price, period, region, seriesId,
+        previous: isNaN(before) ? null : before,
+        previousPeriod: rows[1] ? rows[1].period : null,
+      }),
     };
   } catch (err) {
     return {
