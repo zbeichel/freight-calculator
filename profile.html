@@ -788,8 +788,8 @@ footer a:hover{color:var(--accent)}
             border:1px solid var(--border2);background:var(--card);color:var(--text);
           ">
             <option value="pro">Pro — $9.99/mo · 100 quotes/day</option>
-            <option value="plus">Pro Plus — $19.99/mo · 250 quotes/day</option>
-            <option value="max">Pro Max — $49.99/mo · 1,000 quotes/day + white-label PDFs</option>
+            <option value="plus">Pro Plus — $19.99/mo · 250 quotes/day + win/loss tracking</option>
+            <option value="max">Pro Max — $49.99/mo · 1,000 quotes/day, win/loss + white-label PDFs</option>
             <option value="api">API — $199.99/mo · Pro Max + 5,000 API quotes/mo</option>
           </select>
           <button id="sub-plan-switch" onclick="handleSwitchPlan()" style="
@@ -813,7 +813,7 @@ footer a:hover{color:var(--accent)}
         </div>
         <div id="sub-plan-status" role="status" style="display:none;font-size:12px;margin-top:10px;line-height:1.5"></div>
         <div id="sub-plan-footnote" style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
-          Pro $9.99/month: automatic miles on 100 quotes per day · Pro Plus $19.99/month: 250 per day · Pro Max $49.99/month: 1,000 per day and white-label PDFs · API $199.99/month: Pro Max plus 5,000 API quotes per month.
+          Pro $9.99/month: automatic miles on 100 quotes per day · Pro Plus $19.99/month: 250 per day and win/loss tracking · Pro Max $49.99/month: 1,000 per day, win/loss tracking and white-label PDFs · API $199.99/month: Pro Max plus 5,000 API quotes per month.
           <a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">What counts as a quote?</a>
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
@@ -1749,8 +1749,8 @@ function applySubscriptionCardState(stripeCustomerId, plan, isActive){
 // 5,000 API quotes per month). Same names and limits as netlify/lib/plans.js.
 const PROFILE_PLANS = {
   pro:  { name: 'Pro',      price: '$9.99',   detail: 'Automatic miles on 100 quotes per day' },
-  plus: { name: 'Pro Plus', price: '$19.99',  detail: 'Automatic miles on 250 quotes per day' },
-  max:  { name: 'Pro Max',  price: '$49.99',  detail: 'Automatic miles on 1,000 quotes per day and white-label PDFs' },
+  plus: { name: 'Pro Plus', price: '$19.99',  detail: 'Automatic miles on 250 quotes per day and win/loss tracking' },
+  max:  { name: 'Pro Max',  price: '$49.99',  detail: 'Automatic miles on 1,000 quotes per day, win/loss tracking and white-label PDFs' },
   api:  { name: 'API',      price: '$199.99', detail: 'Pro Max plus 5,000 API quotes per month' },
 };
 const PROFILE_PLAN_RANK = { pro: 1, plus: 2, max: 3, api: 4 };

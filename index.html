@@ -1049,6 +1049,78 @@ td.dim{color:var(--text3)}
 .empty-log{text-align:center;color:var(--text3);padding:32px;font-size:13px}
 .del-btn{background:none;border:none;color:var(--text3);cursor:pointer;padding:2px 6px;border-radius:4px;transition:color .1s}
 .del-btn:hover{color:var(--red)}
+/* ── Win/loss tracking (quote log; Pro Plus and up) ── */
+.log-filters{display:flex;gap:4px;margin-left:auto;align-items:center;flex-wrap:wrap}
+.wl-chip{font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;white-space:nowrap}
+.wl-chip:hover{border-color:var(--accent);color:var(--accent)}
+.wl-chip.active{background:var(--accentbg);border-color:var(--accent);color:var(--accent)}
+.wl-pill{font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:700;letter-spacing:.03em;padding:3px 10px;border-radius:20px;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;white-space:nowrap;transition:all .15s}
+.wl-pill:hover{border-color:var(--accent);color:var(--accent)}
+.wl-pill.won{border-style:solid;background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.45);color:var(--green)}
+.wl-pill.lost{border-style:solid;background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.45);color:var(--red)}
+.wl-pill.locked{border-style:solid}
+.wl-cust{display:block;font-size:10px;color:var(--text3);margin-top:2px;max-width:170px;overflow:hidden;text-overflow:ellipsis}
+.log-more{padding:10px 20px;border-top:1px solid var(--border);text-align:center}
+.wl-panel{border-bottom:1px solid var(--border)}
+.wl-panel:empty{display:none}
+.wl-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 20px}
+.wl-toggle{display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:var(--text);padding:0}
+.wl-caret{color:var(--text3);font-size:11px;width:10px}
+.wl-head-sum{font-size:11px;font-weight:600;color:var(--accent)}
+.wl-chips{display:flex;gap:4px;flex-wrap:wrap}
+.wl-body{padding:0 20px 16px}
+.wl-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.wl-tile{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;min-width:0}
+.wl-tile-label{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
+.wl-tile-value{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:var(--text);margin-top:2px}
+.wl-tile-sub{font-size:11px;color:var(--text3);margin-top:2px;line-height:1.4}
+.wl-tables{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.wl-table-wrap{min-width:0;overflow-x:auto}
+.wl-table-title{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text2);margin-bottom:4px}
+.wl-table{font-size:11px}
+.wl-table thead th{padding:6px 8px;font-size:9px}
+.wl-table tbody td{padding:6px 8px}
+.wl-table td.wl-name{max-width:220px;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.wl-table td.wl-won{color:var(--green)}
+.wl-table td.wl-lost{color:var(--red)}
+.wl-more{margin-top:6px;background:none;border:none;color:var(--accent);font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;cursor:pointer;padding:2px 0}
+.wl-note{font-size:11px;color:var(--text3);line-height:1.6;margin-top:12px}
+.wl-note strong{color:var(--text2)}
+.wl-empty{font-size:12px;color:var(--text3);line-height:1.6;padding:0 20px 14px}
+.wl-table-wrap .wl-empty{padding:4px 0}
+.wl-teaser{display:flex;align-items:center;gap:12px;padding:12px 20px;font-size:12px;color:var(--text2);line-height:1.5}
+.wl-teaser-text{flex:1;min-width:0}
+.wl-teaser-text strong{color:var(--text)}
+.wl-teaser-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 6px}
+.wl-teaser-close:hover{color:var(--text)}
+.wl-modal{background:var(--panel);border:1px solid var(--border);border-radius:16px;max-width:440px;width:100%;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.wl-modal-head{padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.wl-modal-title{font-size:14px;font-weight:700;color:var(--text)}
+.wl-modal-sub{font-size:12px;color:var(--text3);margin-top:3px;line-height:1.4}
+.wl-modal-x{font-size:18px;line-height:1;background:none;border:none;color:var(--text3);cursor:pointer;padding:2px 6px;border-radius:6px}
+.wl-modal-body{padding:18px 22px 20px}
+.wl-modal-body label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin:14px 0 5px}
+.wl-modal-body input,.wl-modal-body select{width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;padding:8px 12px;outline:none}
+.wl-modal-body input:focus,.wl-modal-body select:focus{border-color:var(--accent)}
+.wl-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.wl-seg button{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;padding:9px 6px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all .15s}
+.wl-seg button.active[data-outcome="open"]{border-color:var(--text2);color:var(--text)}
+.wl-seg button.active[data-outcome="won"]{background:rgba(34,197,94,.12);border-color:var(--green);color:var(--green)}
+.wl-seg button.active[data-outcome="lost"]{background:rgba(239,68,68,.1);border-color:var(--red);color:var(--red)}
+.wl-money{display:flex;align-items:center;gap:6px}
+.wl-money span{color:var(--text3);font-size:13px}
+.wl-help{font-size:11px;color:var(--text3);margin-top:5px;line-height:1.5}
+.wl-modal-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:18px}
+.wl-modal-actions .wl-help{margin:0 auto 0 0;color:var(--red)}
+@media (max-width:760px){
+  .wl-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .wl-tables{grid-template-columns:1fr}
+  .log-filters{margin-left:0}
+  .wl-teaser{flex-wrap:wrap}
+  .wl-table thead th{white-space:normal;line-height:1.3;vertical-align:bottom}
+  .wl-table thead th,.wl-table tbody td{padding:6px 4px}
+  .wl-table td.wl-name{white-space:normal;max-width:none;min-width:96px}
+}
 
 /* ── Footer ── */
 footer{
@@ -2384,6 +2456,9 @@ html.light .hos-day-header{background:var(--card2)}
 
         <!-- Quick save to quote log — Pro only -->
         <div class="ftl-only" id="quick-save-quote-btn" style="display:none;margin-top:14px">
+          <label for="quote-customer" style="display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px">Customer <span style="font-size:10px;color:var(--text3);font-weight:400">(optional · saved with the quote, not printed on the PDF)</span></label>
+          <input type="text" id="quote-customer" maxlength="120" autocomplete="off" placeholder="e.g. Keystone Produce"
+            style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;padding:8px 12px;outline:none;margin-bottom:8px" />
           <button onclick="saveQuote()"
             style="width:100%;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;
             padding:9px 16px;border-radius:8px;border:1px solid var(--accent);
@@ -2632,15 +2707,18 @@ html.light .hos-day-header{background:var(--card2)}
         <button class="btn btn-primary" onclick="saveQuote()">+ Save Quote</button>
         <button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button>
         <button class="btn btn-danger" onclick="clearLog()">Clear All</button>
+        <div class="log-filters" id="log-filters"></div>
       </div>
+      <div class="wl-panel" id="wl-panel"></div>
       <div class="log-wrap">
         <table>
           <thead>
-            <tr><th title="Track in Lane Tracker">Track</th><th>Date</th><th>Route</th><th>Mi</th><th>Type</th><th>Commodity</th><th>Margin</th><th>Base RPM</th><th>Quote</th><th>RPM</th><th>Notes</th><th></th></tr>
+            <tr><th title="Track in Lane Tracker">Track</th><th>Date</th><th>Route</th><th>Mi</th><th>Type</th><th>Commodity</th><th>Margin</th><th>Base RPM</th><th>Quote</th><th>RPM</th><th title="Won or lost (Pro Plus and up)">Result</th><th>Notes</th><th></th></tr>
           </thead>
           <tbody id="log-body"></tbody>
         </table>
       </div>
+      <div class="log-more" id="log-more" style="display:none"></div>
     </div>
 
   </div>
@@ -2791,6 +2869,55 @@ function toggleSeoBlock(){
           font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
           padding:8px 18px;border-radius:8px;border:1px solid var(--accent);
           background:var(--accent);color:#000;cursor:pointer">Save Notes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quote result (win/loss) modal — Pro Plus and up -->
+<div id="wl-modal-overlay" style="
+  display:none;position:fixed;inset:0;z-index:10000;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+  align-items:center;justify-content:center;padding:20px;
+" onclick="if(event.target===this)closeOutcomeModal()">
+  <div class="wl-modal" role="dialog" aria-modal="true" aria-labelledby="wl-modal-title">
+    <div class="wl-modal-head">
+      <div>
+        <div class="wl-modal-title" id="wl-modal-title">Quote result</div>
+        <div class="wl-modal-sub" id="wl-modal-lane"></div>
+      </div>
+      <button class="wl-modal-x" onclick="closeOutcomeModal()" aria-label="Close">✕</button>
+    </div>
+    <div class="wl-modal-body">
+      <div class="wl-seg" role="radiogroup" aria-label="Result">
+        <button type="button" role="radio" data-outcome="open" onclick="selectOutcome('open')">Open</button>
+        <button type="button" role="radio" data-outcome="won" onclick="selectOutcome('won')">✓ Won</button>
+        <button type="button" role="radio" data-outcome="lost" onclick="selectOutcome('lost')">✕ Lost</button>
+      </div>
+      <div id="wl-won-fields" style="display:none">
+        <label for="wl-booked">Booked at</label>
+        <div class="wl-money"><span>$</span><input type="number" inputmode="decimal" id="wl-booked" min="1" step="1" /></div>
+        <div class="wl-help">Change it if the customer booked at a different rate than you quoted.</div>
+      </div>
+      <div id="wl-lost-fields" style="display:none">
+        <label for="wl-reason">Why it was lost</label>
+        <select id="wl-reason">
+          <option value="">Choose a reason (optional)</option>
+          <option value="price">Price too high</option>
+          <option value="capacity">No truck available</option>
+          <option value="timing">Timing / schedule</option>
+          <option value="no_response">No response</option>
+          <option value="other">Other</option>
+        </select>
+        <label for="wl-went-for">Went for (if you know)</label>
+        <div class="wl-money"><span>$</span><input type="number" inputmode="decimal" id="wl-went-for" min="1" step="1" placeholder="The rate they booked elsewhere" /></div>
+      </div>
+      <label for="wl-customer">Customer</label>
+      <input type="text" id="wl-customer" maxlength="120" autocomplete="off" placeholder="Who the quote was for" />
+      <div class="wl-modal-actions">
+        <span class="wl-help" id="wl-modal-status" role="status"></span>
+        <button class="btn btn-ghost" onclick="closeOutcomeModal()">Cancel</button>
+        <button class="btn btn-primary" id="wl-modal-save" onclick="saveOutcomeModal()">Save</button>
       </div>
     </div>
   </div>
@@ -6845,7 +6972,8 @@ async function handleHeaderSignOut(){
 
 async function saveQuote(){
   if(!isProUser){ showProModal('Save Quote is a Pro feature. Upgrade to save and sync your quote history.'); return; }
-  if(quoteLog.length >= 100){ showToast('⚠ Quote log is full (100 max). Delete old quotes to save new ones.'); return; }
+  const limit = savedQuoteLimit();
+  if(quoteLog.length >= limit){ showQuoteLogFull(limit); return; }
   const miles=parseFloat(document.getElementById('miles').value)||0;
   if(!miles){ showToast('⚠ Enter miles before saving.'); return; }
   const trailer=document.getElementById('trailer').value;
@@ -6894,50 +7022,76 @@ async function saveQuote(){
     quote: Math.round(quote),
     rpm: qRpm.toFixed(2),
     notes: document.getElementById('load-notes')?.value.trim() || '',
-    tracked: true
+    tracked: true,
+    customer: (document.getElementById('quote-customer')?.value || '').trim().replace(/\s+/g, ' ').slice(0, 120),
+    outcome: 'open', finalRate: null, lostReason: null, outcomeAt: null,
+    createdAt: new Date().toISOString(),
+    pending: true
   };
 
   quoteLog.unshift(entry);
   renderLog();
   showToast('💾 Quote saved');
 
-  // Sync to Supabase
+  // Sync to Supabase. The row comes back so this entry carries the
+  // database's id; notes, results, tracking and deletes then reach it.
   const session = getProSession();
-  if(session){
-    const userId = session.user?.id || session.user?.sub;
-    try {
-      await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log`, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY_QL,
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          date: entry.date,
-          origin: entry.orig,
-          destination: entry.dest,
-          miles: entry.miles,
-          trailer: entry.trailer,
-          weight: entry.weight || null,
-          pickup_date: entry.pickup || null,
-          delivery_date: entry.delivery || null,
-          commodity: entry.commodity,
-          commodity_key: entry.commodityKey,
-          margin: entry.margin,
-          base_rpm: entry.baseRpm,
-          quote: entry.quote,
-          rpm: entry.rpm,
-          notes: entry.notes,
-          tracked: entry.tracked
-        })
-      });
+  if(!session){ delete entry.pending; return; }
+  const userId = session.user?.id || session.user?.sub;
+  const unsaved = msg => {
+    quoteLog = quoteLog.filter(q => q !== entry);
+    renderLog();
+    setQuoteLogStatus('');
+    showToast(msg);
+  };
+  try {
+    const resp = await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY_QL,
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        date: entry.date,
+        origin: entry.orig,
+        destination: entry.dest,
+        miles: entry.miles,
+        trailer: entry.trailer,
+        weight: entry.weight || null,
+        pickup_date: entry.pickup || null,
+        delivery_date: entry.delivery || null,
+        commodity: entry.commodity,
+        commodity_key: entry.commodityKey,
+        margin: entry.margin,
+        base_rpm: entry.baseRpm,
+        quote: entry.quote,
+        rpm: entry.rpm,
+        notes: entry.notes,
+        tracked: entry.tracked,
+        customer: entry.customer || null
+      })
+    });
+    const body = await resp.json().catch(() => null);
+    const row = Array.isArray(body) ? body[0] : null;
+    if(resp.ok && row){
+      entry.id = row.id;
+      entry.createdAt = row.created_at || entry.createdAt;
+      delete entry.pending;
+      renderLog();
       setQuoteLogStatus('✓ Synced');
       syncTrackedToProfiles();
-    } catch(e){ setQuoteLogStatus('Saved locally'); }
-  }
+    } else if(body && body.code === '54000'){
+      // The database's saved-quote limit for this plan.
+      quoteLog = quoteLog.filter(q => q !== entry);
+      renderLog();
+      showQuoteLogFull(limit);
+    } else {
+      unsaved("⚠ Couldn't save the quote. Try again.");
+    }
+  } catch(e){ unsaved("⚠ Couldn't save the quote. Check your connection and try again."); }
 }
 
 function setQuoteLogStatus(msg){
@@ -6951,35 +7105,25 @@ async function loadQuoteLogFromSupabase(){
   const userId = session.user?.id || session.user?.sub;
   try {
     setQuoteLogStatus('Syncing...');
-    const resp = await fetch(
-      `${SUPABASE_URL_QL}/rest/v1/quote_log?user_id=eq.${userId}&order=created_at.desc&limit=200`,
-      { headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` } }
-    );
-    const rows = await resp.json();
-    if(Array.isArray(rows) && rows.length){
-      quoteLog = rows.map(r => ({
-        id: r.id,
-        date: r.date,
-        orig: r.origin,
-        dest: r.destination,
-        miles: r.miles,
-        trailer: r.trailer,
-        weight: r.weight || '',
-        pickup: r.pickup_date || '',
-        delivery: r.delivery_date || '',
-        commodityKey: r.commodity_key || '',
-        commodity: r.commodity,
-        margin: r.margin,
-        baseRpm: r.base_rpm,
-        quote: r.quote,
-        rpm: r.rpm,
-        notes: r.notes || '',
-        tracked: r.tracked !== false
-      }));
+    // Up to 5,000 saved quotes (Pro Max), 1,000 per request.
+    let rows = [];
+    for(let offset = 0; offset < QUOTE_LOG_LOAD_MAX; offset += 1000){
+      const resp = await fetch(
+        `${SUPABASE_URL_QL}/rest/v1/quote_log?user_id=eq.${userId}&order=created_at.desc,id.desc&limit=1000&offset=${offset}`,
+        { headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` } }
+      );
+      const page = await resp.json();
+      if(!Array.isArray(page)) break;
+      rows = rows.concat(page);
+      if(page.length < 1000) break;
+    }
+    if(rows.length){
+      quoteLog = rows.map(quoteFromRow);
       renderLog();
-      setQuoteLogStatus(`✓ ${rows.length} quotes synced`);
+      setQuoteLogStatus(`✓ ${rows.length.toLocaleString()} quote${rows.length === 1 ? '' : 's'} synced`);
       syncTrackedToProfiles();
     } else {
+      renderLog();
       setQuoteLogStatus('No quotes yet');
     }
   } catch(e){ setQuoteLogStatus(''); }
@@ -7008,8 +7152,8 @@ async function saveQuoteNote(id, notes){
 
 // ── Toggle tracked status ─────────────────────────────────────────────────
 async function toggleTrack(id, checked){
-  const q = quoteLog.find(q => q.id == id);
-  if(!q) return;
+  const q = quoteReady(id);
+  if(!q){ renderLog(); return; }
   q.tracked = checked;
   const session = getProSession();
   if(session){
@@ -7041,6 +7185,8 @@ function loadQuoteIntoCalc(id){
   if(q.weight)   document.getElementById('weight').value   = q.weight;
   if(q.pickup)   document.getElementById('pickup').value   = q.pickup;
   if(q.delivery) document.getElementById('delivery').value = q.delivery;
+  const customerEl = document.getElementById('quote-customer');
+  if(customerEl) customerEl.value = q.customer || '';
 
   // Miles — set manually so Google API doesn't override it
   if(q.miles){
@@ -7085,7 +7231,8 @@ function loadQuoteIntoCalc(id){
 
 // ── Sync tracked quotes → rate_profiles in Supabase (feeds lanes.html) ────
 async function syncTrackedToProfiles(){
-  const tracked = quoteLog.filter(q => q.tracked !== false);
+  // The 100 most recent tracked quotes (the quote log is newest first).
+  const tracked = quoteLog.filter(q => q.tracked !== false).slice(0, 100);
   // Build profile-shaped objects that lanes.html understands
   const profiles = tracked.map(q => ({
     name:    `${q.orig||'?'} → ${q.dest||'?'} (${q.date})`,
@@ -7136,7 +7283,7 @@ document.getElementById('dupe-modal-overlay').addEventListener('click', function
 let _notesModalId = null;
 
 function openNotesModal(id){
-  const q = quoteLog.find(q => q.id == id);
+  const q = quoteReady(id);
   if(!q) return;
   _notesModalId = id;
   document.getElementById('notes-modal-input').value = q.notes || '';
@@ -7174,6 +7321,7 @@ function showToast(msg){
 }
 
 async function deleteQuote(id){
+  if(!quoteReady(id)) return;
   quoteLog = quoteLog.filter(q => q.id != id);
   renderLog();
   const session = getProSession();
@@ -7205,17 +7353,406 @@ async function clearLog(){
   } catch(e){}
 }
 
+// ── Win/loss tracking & saved-quote limits ───────────────────────────────
+// Pro Plus and up (and comp accounts) mark saved quotes won or lost and see
+// win rates and margins by lane and by customer. The database enforces the
+// same rules (quote_log_enforce_plan): who can record a result, and how many
+// quotes each plan can save.
+const SAVED_QUOTE_LIMIT = { pro: 100, plus: 1000, max: 5000, api: 5000, comp: 5000 };
+const QUOTE_LOG_LOAD_MAX = 5000;
+const LOST_REASONS = {
+  price:       'Price too high',
+  capacity:    'No truck available',
+  timing:      'Timing / schedule',
+  no_response: 'No response',
+  other:       'Other',
+};
+let logFilter = 'all';   // all | open | won | lost
+let logShown  = 50;      // rows drawn; "Show more" adds 50
+let wlPeriod  = 90;      // days; 0 = all time
+const wlShowAll = { lane: false, customer: false };
+
+// 'none' | 'pro' | 'plus' | 'max' | 'api' | 'comp', from the account (kept
+// in qfc_pro_profile by the Pro check above).
+function accountTier(){
+  if(!isProUser) return 'none';
+  let p = {};
+  try { p = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
+  if(p.comp === true) return 'comp';
+  return ['plus', 'max', 'api'].includes(p.plan) ? p.plan : 'pro';
+}
+function winLossAllowed(){ return ['plus', 'max', 'api', 'comp'].includes(accountTier()); }
+function savedQuoteLimit(){ return SAVED_QUOTE_LIMIT[accountTier()] || 100; }
+
+function showWinLossUpgrade(){
+  showUpgradeModal('Win/loss tracking comes with Pro Plus: mark quotes won or lost and see your win rate and margins by lane and customer. Pro Plus also saves up to 1,000 quotes.', ['plus', 'max']);
+}
+function hideWinLossTeaser(){
+  try { localStorage.setItem('qfc_wl_teaser_hidden', '1'); } catch(e){}
+  renderWinLossPanel();
+}
+function showQuoteLogFull(limit){
+  const tier = accountTier();
+  const n = Number(limit).toLocaleString();
+  if(tier === 'pro'){
+    showUpgradeModal(`Your quote log is full (${n} quotes). Pro Plus saves up to 1,000 quotes and adds win/loss tracking. Or delete old quotes to make room.`, ['plus', 'max']);
+  } else if(tier === 'plus'){
+    showUpgradeModal(`Your quote log is full (${n} quotes). Pro Max saves up to 5,000. Or delete old quotes to make room.`, ['max']);
+  } else {
+    showToast(`⚠ Quote log is full (${n} max). Delete old quotes to save new ones.`);
+  }
+}
+
+// A quote_log row from Supabase → the quote log's entry shape.
+function quoteFromRow(r){
+  return {
+    id: r.id,
+    date: r.date,
+    orig: r.origin,
+    dest: r.destination,
+    miles: r.miles,
+    trailer: r.trailer,
+    weight: r.weight || '',
+    pickup: r.pickup_date || '',
+    delivery: r.delivery_date || '',
+    commodityKey: r.commodity_key || '',
+    commodity: r.commodity,
+    margin: r.margin,
+    baseRpm: r.base_rpm,
+    quote: r.quote,
+    rpm: r.rpm,
+    notes: r.notes || '',
+    tracked: r.tracked !== false,
+    customer: r.customer || '',
+    outcome: r.outcome === 'won' || r.outcome === 'lost' ? r.outcome : 'open',
+    finalRate: r.final_rate !== null && r.final_rate !== undefined ? Number(r.final_rate) : null,
+    lostReason: r.lost_reason || null,
+    outcomeAt: r.outcome_at || null,
+    createdAt: r.created_at || null,
+  };
+}
+
+// A quote that's still being saved has no database id yet.
+function quoteReady(id){
+  const q = quoteLog.find(x => x.id == id);
+  if(q && q.pending){ showToast('⏳ Still saving this quote — try again in a moment.'); return null; }
+  return q || null;
+}
+
+// ── Win/loss numbers ──
+// Margin is the calculator's Margin (markup on cost): cost = quote / (1 + margin).
+function wlMarginOf(q){ const m = parseFloat(q.margin); return isFinite(m) ? m / 100 : 0; }
+function wlBooked(q){ const f = Number(q.finalRate); return f > 0 ? f : (Number(q.quote) || 0); }
+// Margin on a won load at the rate it booked at.
+function wlWonMargin(q){
+  const cost = (Number(q.quote) || 0) / (1 + wlMarginOf(q));
+  return cost > 0 ? wlBooked(q) / cost - 1 : null;
+}
+function wlAvg(values){
+  const v = values.filter(x => x !== null && isFinite(x));
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+}
+function wlSummarize(list){
+  const won  = list.filter(q => q.outcome === 'won');
+  const lost = list.filter(q => q.outcome === 'lost');
+  const decided = won.length + lost.length;
+  const reasons = {};
+  lost.forEach(q => { const k = LOST_REASONS[q.lostReason] ? q.lostReason : 'none'; reasons[k] = (reasons[k] || 0) + 1; });
+  // Lost quotes where the user knows the rate it went for.
+  const known = lost.filter(q => Number(q.finalRate) > 0 && Number(q.quote) > 0);
+  return {
+    quotes: list.length,
+    won: won.length,
+    lost: lost.length,
+    open: list.length - decided,
+    winRate: decided ? won.length / decided : null,
+    booked: won.reduce((s, q) => s + wlBooked(q), 0),
+    wonMargin: wlAvg(won.map(wlWonMargin)),
+    lostMargin: wlAvg(lost.map(wlMarginOf)),
+    overBy: wlAvg(known.map(q => Number(q.quote) / Number(q.finalRate) - 1)),
+    overByCount: known.length,
+    reasons,
+  };
+}
+function wlInPeriod(q, days){
+  if(!days) return true;
+  const t = Date.parse(q.createdAt || '');
+  return isFinite(t) ? (Date.now() - t) <= days * 86400000 : true;
+}
+// "Lancaster, PA 17601" and "lancaster pa" are the same place.
+function wlPlaceKey(s){
+  return String(s || '').toLowerCase()
+    .replace(/\b\d{5}(?:-\d{4})?\b/g, ' ')
+    .replace(/\b(usa|united states)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+function wlPlaceLabel(s){
+  return String(s || '')
+    .replace(/\s*\b\d{5}(?:-\d{4})?\b/g, '')
+    .replace(/,\s*(USA|United States)\s*$/i, '')
+    .replace(/[\s,]+$/, '')
+    .trim();
+}
+function wlLaneKey(q){
+  const o = wlPlaceKey(q.orig), d = wlPlaceKey(q.dest);
+  return o || d ? o + ' > ' + d : '';
+}
+function wlLaneLabel(q){ return `${wlPlaceLabel(q.orig) || '?'} → ${wlPlaceLabel(q.dest) || '?'}`; }
+function wlCustomerKey(q){ return String(q.customer || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+// Groups (by lane or customer), most decided quotes first. The quote log is
+// newest first, so each group is labeled as it was last written.
+function wlGroups(list, keyFn, labelFn){
+  const map = new Map();
+  list.forEach(q => {
+    const key = keyFn(q);
+    if(!key) return;
+    if(!map.has(key)) map.set(key, { label: labelFn(q), items: [] });
+    map.get(key).items.push(q);
+  });
+  return [...map.values()]
+    .map(g => Object.assign({ label: g.label }, wlSummarize(g.items)))
+    .sort((a, b) => (b.won + b.lost) - (a.won + a.lost) || b.quotes - a.quotes || a.label.localeCompare(b.label));
+}
+function wlPct(x){ return x === null || x === undefined || !isFinite(x) ? '—' : Math.round(x * 100) + '%'; }
+function wlMoney(x){ return '$' + Math.round(x || 0).toLocaleString(); }
+
+// ── Win/loss panel above the quote log ──
+function renderWinLossPanel(){
+  const el = document.getElementById('wl-panel');
+  if(!el) return;
+  if(!isProUser){ el.innerHTML = ''; return; }
+  if(!winLossAllowed()){
+    let hidden = false;
+    try { hidden = localStorage.getItem('qfc_wl_teaser_hidden') === '1'; } catch(e){}
+    el.innerHTML = hidden ? '' : `<div class="wl-teaser">
+      <span style="font-size:18px">📈</span>
+      <div class="wl-teaser-text"><strong>Win/loss tracking</strong> — mark quotes won or lost and see your win rate and margins by lane and customer. Comes with Pro Plus, which also saves up to 1,000 quotes.</div>
+      <button class="btn btn-ghost" onclick="showWinLossUpgrade()">See Pro Plus</button>
+      <button class="wl-teaser-close" onclick="hideWinLossTeaser()" title="Hide" aria-label="Hide">✕</button>
+    </div>`;
+    return;
+  }
+  let collapsed = false;
+  try { collapsed = localStorage.getItem('qfc_wl_collapsed') === '1'; } catch(e){}
+  const list = quoteLog.filter(q => wlInPeriod(q, wlPeriod));
+  const s = wlSummarize(list);
+  const chips = [[30, '30 days'], [90, '90 days'], [0, 'All time']].map(([d, label]) =>
+    `<button class="wl-chip${wlPeriod === d ? ' active' : ''}" onclick="setWinLossPeriod(${d})">${label}</button>`).join('');
+  const head = `<div class="wl-head">
+      <button class="wl-toggle" onclick="toggleWinLossPanel()" aria-expanded="${!collapsed}">
+        <span class="wl-caret">${collapsed ? '▸' : '▾'}</span>Win / Loss
+        <span class="wl-head-sum">${s.winRate === null ? '' : wlPct(s.winRate) + ' win rate'}</span>
+      </button>
+      ${collapsed ? '' : `<div class="wl-chips">${chips}</div>`}
+    </div>`;
+  if(collapsed){ el.innerHTML = head; return; }
+  if(!(s.won + s.lost)){
+    el.innerHTML = head + `<div class="wl-empty">Mark quotes <strong>Won</strong> or <strong>Lost</strong> in the Result column below. Your win rate, margins, and results by lane and customer show up here.</div>`;
+    return;
+  }
+
+  const tile = (label, value, sub) =>
+    `<div class="wl-tile"><div class="wl-tile-label">${label}</div><div class="wl-tile-value">${value}</div><div class="wl-tile-sub">${sub}</div></div>`;
+  const plural = (n, word) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
+  const tiles = [
+    tile('Win rate', wlPct(s.winRate), `${s.won.toLocaleString()} won · ${s.lost.toLocaleString()} lost`),
+    tile('Open', s.open.toLocaleString(), s.open === 1 ? 'quote waiting on an answer' : 'quotes waiting on an answer'),
+    tile('Booked', wlMoney(s.booked), `on ${plural(s.won, 'won load')}`),
+    tile('Avg margin', wlPct(s.wonMargin), s.lost ? `on won loads · ${wlPct(s.lostMargin)} on lost quotes` : 'on won loads'),
+  ].join('');
+
+  const table = (kind, title, rows, emptyNote) => {
+    if(!rows.length) return `<div class="wl-table-wrap"><div class="wl-table-title">${title}</div><div class="wl-empty">${emptyNote}</div></div>`;
+    const all = wlShowAll[kind];
+    const shown = all ? rows : rows.slice(0, 8);
+    const body = shown.map(r => `<tr>
+        <td class="wl-name" title="${escapeHTML(r.label)}">${escapeHTML(r.label)}</td>
+        <td>${r.quotes.toLocaleString()}</td>
+        <td class="wl-won">${r.won.toLocaleString()}</td>
+        <td class="wl-lost">${r.lost.toLocaleString()}</td>
+        <td><strong>${wlPct(r.winRate)}</strong></td>
+        <td>${wlPct(r.wonMargin)}</td>
+      </tr>`).join('');
+    const more = rows.length > 8
+      ? `<button class="wl-more" onclick="toggleWinLossAll('${kind}')">${all ? 'Show top 8' : `Show all ${rows.length.toLocaleString()}`}</button>` : '';
+    return `<div class="wl-table-wrap"><div class="wl-table-title">${title}</div>
+      <table class="wl-table"><thead><tr><th>${kind === 'lane' ? 'Lane' : 'Customer'}</th><th>Quotes</th><th>Won</th><th>Lost</th><th>Win rate</th><th title="Average margin on won loads, at the rate they booked">Won margin</th></tr></thead>
+      <tbody>${body}</tbody></table>${more}</div>`;
+  };
+  const lanes = wlGroups(list, wlLaneKey, wlLaneLabel);
+  const customers = wlGroups(list, wlCustomerKey, q => String(q.customer || '').trim());
+  const noCustomer = list.filter(q => !wlCustomerKey(q)).length;
+
+  const notes = [];
+  if(s.lost){
+    const order = ['price', 'capacity', 'timing', 'no_response', 'other', 'none'];
+    const reasons = order.filter(k => s.reasons[k])
+      .map(k => `${k === 'none' ? 'No reason given' : LOST_REASONS[k]} ${s.reasons[k].toLocaleString()}`).join(' · ');
+    notes.push(`<strong>Why quotes were lost:</strong> ${reasons}.`);
+  }
+  if(s.overBy !== null){
+    notes.push(`When you knew the rate a lost load went for, your quote was ${wlPct(Math.abs(s.overBy))} ${s.overBy >= 0 ? 'above' : 'below'} it on average (${plural(s.overByCount, 'quote')}).`);
+  }
+  if(noCustomer && customers.length){
+    notes.push(`${plural(noCustomer, 'quote')} in this period ${noCustomer === 1 ? 'has' : 'have'} no customer. Add one in the Result window.`);
+  }
+
+  el.innerHTML = head + `<div class="wl-body">
+      <div class="wl-tiles">${tiles}</div>
+      <div class="wl-tables">
+        ${table('lane', 'By lane', lanes, 'No lanes yet.')}
+        ${table('customer', 'By customer', customers, 'Add a customer when you save a quote (or in the Result window) to see results by customer.')}
+      </div>
+      ${notes.length ? `<div class="wl-note">${notes.join(' ')}</div>` : ''}
+    </div>`;
+}
+function setWinLossPeriod(days){ wlPeriod = days; renderWinLossPanel(); }
+function toggleWinLossPanel(){
+  try {
+    const collapsed = localStorage.getItem('qfc_wl_collapsed') === '1';
+    localStorage.setItem('qfc_wl_collapsed', collapsed ? '0' : '1');
+  } catch(e){}
+  renderWinLossPanel();
+}
+function toggleWinLossAll(kind){ wlShowAll[kind] = !wlShowAll[kind]; renderWinLossPanel(); }
+
+// ── Quote log filters, rows and "Show more" ──
+function renderLogFilters(allowed){
+  const el = document.getElementById('log-filters');
+  if(!el) return;
+  if(!allowed || !quoteLog.length){ el.innerHTML = ''; return; }
+  const n = { all: quoteLog.length, open: 0, won: 0, lost: 0 };
+  quoteLog.forEach(q => { n[q.outcome === 'won' || q.outcome === 'lost' ? q.outcome : 'open']++; });
+  el.innerHTML = [['all', 'All'], ['open', 'Open'], ['won', 'Won'], ['lost', 'Lost']].map(([k, label]) =>
+    `<button class="wl-chip${logFilter === k ? ' active' : ''}" onclick="setLogFilter('${k}')">${label} ${n[k].toLocaleString()}</button>`).join('');
+}
+function setLogFilter(k){ logFilter = k; logShown = 50; renderLog(); }
+function showMoreLog(){ logShown += 50; renderLog(); }
+
+function resultCellHTML(q, allowed){
+  if(!allowed){
+    return `<button class="wl-pill locked" onclick="showWinLossUpgrade()" title="Win/loss tracking comes with Pro Plus">🔒 Result</button>`;
+  }
+  const o = q.outcome === 'won' || q.outcome === 'lost' ? q.outcome : 'open';
+  const rate = Number(q.finalRate) > 0 ? '$' + Number(q.finalRate).toLocaleString() : '';
+  const title = o === 'won' ? (rate ? `Booked at ${rate}` : 'Booked at your quote')
+    : o === 'lost' ? [LOST_REASONS[q.lostReason] || 'No reason given', rate ? `went for ${rate}` : ''].filter(Boolean).join(' · ')
+    : 'Set the result: won or lost';
+  const label = o === 'won' ? '✓ Won' : o === 'lost' ? '✕ Lost' : 'Open';
+  return `<button class="wl-pill ${o}" onclick="openOutcomeModal(${q.id})" title="${escapeHTML(title)}">${label}</button>`;
+}
+
+// ── Result window ──
+let _outcomeId = null, _outcomeSel = 'open';
+function openOutcomeModal(id){
+  if(!winLossAllowed()){ showWinLossUpgrade(); return; }
+  const q = quoteReady(id);
+  if(!q) return;
+  _outcomeId = q.id;
+  document.getElementById('wl-modal-lane').textContent =
+    `${q.orig || '?'} → ${q.dest || '?'} · quoted $${Number(q.quote).toLocaleString()} on ${q.date}`;
+  document.getElementById('wl-booked').value = q.outcome === 'won' && Number(q.finalRate) > 0 ? q.finalRate : (Number(q.quote) || '');
+  document.getElementById('wl-went-for').value = q.outcome === 'lost' && Number(q.finalRate) > 0 ? q.finalRate : '';
+  document.getElementById('wl-reason').value = q.outcome === 'lost' && LOST_REASONS[q.lostReason] ? q.lostReason : '';
+  document.getElementById('wl-customer').value = q.customer || '';
+  setOutcomeStatus('');
+  selectOutcome(q.outcome === 'won' || q.outcome === 'lost' ? q.outcome : 'open');
+  document.getElementById('wl-modal-overlay').style.display = 'flex';
+}
+function selectOutcome(kind){
+  _outcomeSel = kind;
+  document.querySelectorAll('#wl-modal-overlay .wl-seg button').forEach(b => {
+    const on = b.dataset.outcome === kind;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
+  document.getElementById('wl-won-fields').style.display  = kind === 'won'  ? '' : 'none';
+  document.getElementById('wl-lost-fields').style.display = kind === 'lost' ? '' : 'none';
+}
+function setOutcomeStatus(text){
+  const el = document.getElementById('wl-modal-status');
+  if(el) el.textContent = text || '';
+}
+function closeOutcomeModal(){
+  const overlay = document.getElementById('wl-modal-overlay');
+  if(overlay) overlay.style.display = 'none';
+  _outcomeId = null;
+}
+async function saveOutcomeModal(){
+  const q = quoteLog.find(x => x.id == _outcomeId);
+  if(!q){ closeOutcomeModal(); return; }
+  const outcome = _outcomeSel;
+  const quoted = Number(q.quote) || 0;
+  const cents = v => Math.round(v * 100) / 100;
+  let finalRate = null, lostReason = null;
+  if(outcome === 'won'){
+    const booked = parseFloat(document.getElementById('wl-booked').value);
+    if(isFinite(booked) && booked > 0 && Math.round(booked) !== Math.round(quoted)) finalRate = cents(booked);
+  } else if(outcome === 'lost'){
+    lostReason = LOST_REASONS[document.getElementById('wl-reason').value] ? document.getElementById('wl-reason').value : null;
+    const wentFor = parseFloat(document.getElementById('wl-went-for').value);
+    if(isFinite(wentFor) && wentFor > 0) finalRate = cents(wentFor);
+  }
+  if(finalRate !== null && finalRate >= 10000000){ setOutcomeStatus('Enter a rate under $10,000,000.'); return; }
+  const customer = document.getElementById('wl-customer').value.trim().replace(/\s+/g, ' ').slice(0, 120);
+
+  const session = getProSession();
+  if(!session){ setOutcomeStatus('Sign in again to save.'); return; }
+  const userId = session.user?.id || session.user?.sub;
+  const btn = document.getElementById('wl-modal-save');
+  btn.disabled = true;
+  setOutcomeStatus('');
+  try {
+    const resp = await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${q.id}&user_id=eq.${userId}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY_QL,
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({ outcome, final_rate: finalRate, lost_reason: lostReason, customer: customer || null })
+    });
+    const body = await resp.json().catch(() => null);
+    const row = Array.isArray(body) ? body[0] : null;
+    if(!resp.ok || !row){
+      setOutcomeStatus(body && body.code === '42501'
+        ? 'Win/loss tracking comes with Pro Plus and up.'
+        : "Couldn't save. Check your connection and try again.");
+      return;
+    }
+    Object.assign(q, quoteFromRow(row));
+    closeOutcomeModal();
+    renderLog();
+    showToast(outcome === 'won' ? '✓ Marked won' : outcome === 'lost' ? 'Marked lost' : 'Marked open');
+  } catch(e){
+    setOutcomeStatus("Couldn't save. Check your connection and try again.");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── CSV export (text fields quoted, so "Lancaster, PA" stays one column) ──
+function csvCell(v){
+  const s = v === null || v === undefined ? '' : String(v);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
 function exportCSV(){
   if(!quoteLog.length){ showToast('⚠ No quotes to export.'); return; }
-  const hdr = 'Date,Origin,Destination,Miles,Trailer,Commodity,Margin,Base RPM,Quote,RPM,Notes\n';
+  const hdr = ['Date', 'Customer', 'Origin', 'Destination', 'Miles', 'Trailer', 'Commodity', 'Margin',
+    'Base RPM', 'Quote', 'RPM', 'Result', 'Booked / Went For', 'Lost Reason', 'Notes'];
   const rows = quoteLog.map(q => [
-    q.date, q.orig, q.dest, q.miles,
-    TLABEL[q.trailer]||q.trailer, q.commodity,
+    q.date, q.customer || '', q.orig, q.dest, q.miles,
+    TLABEL[q.trailer] || q.trailer, q.commodity,
     q.margin, q.baseRpm, q.quote, q.rpm,
-    '"'+(q.notes||'').replace(/"/g,'""')+'"'
-  ].join(',')).join('\n');
+    q.outcome === 'won' ? 'Won' : q.outcome === 'lost' ? 'Lost' : 'Open',
+    Number(q.finalRate) > 0 ? q.finalRate : '',
+    q.outcome === 'lost' && q.lostReason ? (LOST_REASONS[q.lostReason] || q.lostReason) : '',
+    q.notes || ''
+  ].map(csvCell).join(','));
   const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(hdr + rows);
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(hdr.join(',') + '\n' + rows.join('\n'));
   a.download = 'freight_quotes_' + new Date().toISOString().slice(0,10) + '.csv';
   a.click();
 }
@@ -7223,23 +7760,35 @@ function exportCSV(){
 function renderLog(){
   const tbody = document.getElementById('log-body');
   if(!tbody) return;
+  const allowed = winLossAllowed();
+  if(!allowed) logFilter = 'all';
 
-  // Update quote count
+  // Saved quotes against this plan's limit
   const note = document.getElementById('profile-count-note');
-  if(note) note.textContent = `${quoteLog.length} / 100 quotes saved`;
+  if(note) note.textContent = `${quoteLog.length.toLocaleString()} / ${savedQuoteLimit().toLocaleString()} quotes saved`;
 
-  if(!quoteLog.length){
-    tbody.innerHTML = '<tr><td colspan="12" class="empty-log">No quotes saved yet — fill out the form and click Save Quote.</td></tr>';
+  renderLogFilters(allowed);
+  renderWinLossPanel();
+
+  const more = document.getElementById('log-more');
+  const list = logFilter === 'all' ? quoteLog : quoteLog.filter(q => (q.outcome || 'open') === logFilter);
+  if(!list.length){
+    tbody.innerHTML = `<tr><td colspan="13" class="empty-log">${quoteLog.length
+      ? `No ${logFilter} quotes yet.`
+      : 'No quotes saved yet — fill out the form and click Save Quote.'}</td></tr>`;
+    if(more) more.style.display = 'none';
     return;
   }
-  tbody.innerHTML = quoteLog.map(q => `<tr>
+  const shown = list.slice(0, logShown);
+  tbody.innerHTML = shown.map(q => `<tr>
     <td style="text-align:center">
       <input type="checkbox" title="Track in Lane Tracker" ${q.tracked !== false ? 'checked' : ''}
         style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)"
         onchange="toggleTrack(${q.id}, this.checked)" />
     </td>
     <td class="dim">${escapeHTML(q.date)}</td>
-    <td style="font-size:11px;max-width:140px;white-space:normal">${escapeHTML(q.orig)||'—'}${q.dest?' → '+escapeHTML(q.dest):''}</td>
+    <td style="font-size:11px;max-width:170px;white-space:normal">${escapeHTML(q.orig)||'—'}${q.dest?' → '+escapeHTML(q.dest):''}${q.customer
+      ? `<span class="wl-cust" title="${escapeHTML(q.customer)}">${escapeHTML(q.customer)}</span>` : ''}</td>
     <td>${Number(q.miles).toLocaleString()}</td>
     <td><span class="tag ${TTAG[q.trailer]||'tag-van'}">${TLABEL[q.trailer]||escapeHTML(q.trailer)}</span></td>
     <td class="dim">${escapeHTML(q.commodity)}</td>
@@ -7247,6 +7796,7 @@ function renderLog(){
     <td class="dim">$${escapeHTML(q.baseRpm)}</td>
     <td class="money">$${Number(q.quote).toLocaleString()}</td>
     <td class="dim">$${escapeHTML(q.rpm)}</td>
+    <td>${resultCellHTML(q, allowed)}</td>
     <td>
       <button onclick="openNotesModal(${q.id})" title="${escapeHTML(q.notes||'')}"
         style="font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:600;
@@ -7274,6 +7824,12 @@ function renderLog(){
       <button class="del-btn" onclick="deleteQuote(${q.id})">✕</button>
     </td>
   </tr>`).join('');
+  if(more){
+    const left = list.length - shown.length;
+    more.style.display = left > 0 ? '' : 'none';
+    more.innerHTML = left > 0
+      ? `<button class="btn btn-ghost" onclick="showMoreLog()">Show ${Math.min(left, 50)} more · ${left.toLocaleString()} not shown</button>` : '';
+  }
 }
 
 // ── Theme toggle ─────────────────────────────────────────────────────────
@@ -7944,7 +8500,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
         <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">📍</span> Automatic miles on 100 quotes per day</div>
         <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">🚫</span> No on-page ads — a clean, distraction-free workspace</div>
         <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">📄</span> Branded PDF quotes — your logo, colors & MC/DOT#</div>
-        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">📋</span> Quote log with notes — saved & synced across devices</div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">📋</span> Quote log with notes — 100 saved quotes, synced across devices</div>
         <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">🗺</span> Multi-stop load builder with per-mile stop charges</div>
         <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">📈</span> Lane rate tracker — automatic monthly rate history</div>
         <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--accent)">💾</span> Save up to 100 custom lane profiles</div>
@@ -7972,7 +8528,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
           font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
           background:none;border:none;cursor:pointer;color:#f0a500;
         ">
-          Need more quotes? Pro Plus $19.99 · Pro Max $49.99
+          More quotes &amp; win/loss tracking: Pro Plus $19.99 · Pro Max $49.99
         </button>
       </div>
       <div style="text-align:center;margin-top:6px;font-size:12px">
@@ -8027,13 +8583,13 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
           <input type="radio" name="upg-plan" value="plus" onchange="updateUpgradeButton()" />
           <span class="upg-name">Pro Plus</span>
           <span class="upg-price"><strong>$19.99</strong>/month</span>
-          <span class="upg-detail">Automatic miles on 250 quotes per day</span>
+          <span class="upg-detail">Automatic miles on 250 quotes per day, plus win/loss tracking</span>
         </label>
         <label class="upg-option" id="upg-option-max">
           <input type="radio" name="upg-plan" value="max" onchange="updateUpgradeButton()" />
           <span class="upg-name">Pro Max</span>
           <span class="upg-price"><strong>$49.99</strong>/month</span>
-          <span class="upg-detail">Automatic miles on 1,000 quotes per day, plus white-label PDFs</span>
+          <span class="upg-detail">Automatic miles on 1,000 quotes per day, win/loss tracking and white-label PDFs</span>
         </label>
       </div>
       <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">
@@ -8231,7 +8787,7 @@ document.getElementById('pro-modal-overlay').addEventListener('click', function(
 document.getElementById('upg-modal-overlay').addEventListener('click', function(e){
   if(e.target === this) closeUpgradeModal();
 });
-document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeProModal(); closeUpgradeModal(); } });
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeProModal(); closeUpgradeModal(); closeOutcomeModal(); } });
 </script>
 
 <!-- ════════════════════════════════════════════════════════════════════════
