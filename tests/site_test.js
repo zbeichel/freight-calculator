@@ -294,9 +294,9 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   await t.page.evaluate(() => QFCNav.setTheme(true));
   const lightLogo = await logoColors();
   await t.page.evaluate(() => QFCNav.setTheme(false));
-  check('no tile: the same amber truck in both themes, a black calculator, light keys',
-    darkLogo.tile === 'none' && darkLogo.truck === 'rgb(245, 165, 36)' && lightLogo.truck === darkLogo.truck
-      && darkLogo.calc === 'rgb(13, 13, 13)' && lightLogo.calc === darkLogo.calc && darkLogo.lit === 'rgb(255, 244, 218)' && lightLogo.lit === darkLogo.lit,
+  check('no tile: an amber truck that matches "Freight" in both themes, a black calculator, light keys',
+    darkLogo.tile === 'none' && darkLogo.truck === 'rgb(245, 165, 36)' && darkLogo.truck === darkLogo.word && lightLogo.truck === 'rgb(212, 130, 0)'
+      && lightLogo.truck === lightLogo.word && darkLogo.calc === 'rgb(13, 13, 13)' && lightLogo.calc === darkLogo.calc && darkLogo.lit === 'rgb(255, 244, 218)',
     JSON.stringify({ darkLogo, lightLogo }));
   check('the footer uses the same mark', (await t.page.$$('.qf-footer .qf-logo-mark svg.qf-logo-svg')).length === 1);
   // The files, fetched from this site's server (the browser's own favicon handling skips test interception)
