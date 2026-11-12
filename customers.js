@@ -236,7 +236,7 @@
 .qfcc-actions{display:flex;align-items:center;gap:8px;margin-top:16px}
 .qfcc-status{flex:1;font-size:11px;color:var(--red,#f87171);line-height:1.4}
 .qfcc-btn{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;padding:8px 16px;border-radius:8px;border:1px solid var(--border2,rgba(255,255,255,.12));background:transparent;color:var(--text2,#b0c4d8);cursor:pointer}
-.qfcc-save{background:var(--accent,#f0a500);border-color:var(--accent,#f0a500);color:#000}
+.qfcc-save{background:var(--accent-fill,var(--accent,#f0a500));border-color:var(--accent-fill,var(--accent,#f0a500));color:#1b1305}
 .qfcc-save:disabled{opacity:.6;cursor:default}
 .qfcc-del{color:var(--red,#f87171);border-color:rgba(239,68,68,.35)}
 .qfcc-del[hidden]{display:none}
@@ -437,11 +437,19 @@
       });
       return starts.concat(contains).slice(0, 8);
     }
+    // Under the box, or above it when the window has more room there, so the
+    // list never opens off-screen (a box near the bottom of the window).
     function position() {
       const r = input.getBoundingClientRect();
       pop.style.left = Math.max(8, r.left) + 'px';
-      pop.style.top = (r.bottom + 4) + 'px';
       pop.style.width = Math.min(r.width, window.innerWidth - 16) + 'px';
+      const below = window.innerHeight - r.bottom - 12;
+      const above = r.top - 12;
+      const want = Math.min(pop.scrollHeight || 0, 300);
+      const up = want > below && above > below;
+      const room = Math.max(120, Math.min(300, up ? above : below));
+      pop.style.maxHeight = room + 'px';
+      pop.style.top = (up ? Math.max(8, r.top - 4 - Math.min(want, room)) : r.bottom + 4) + 'px';
     }
     function close() { pop.hidden = true; active = -1; input.setAttribute('aria-expanded', 'false'); }
     function render() {
@@ -454,8 +462,8 @@
       pop.innerHTML = items.map((it, i) => it.c
         ? `<div class="qfcc-item${i === active ? ' active' : ''}" role="option" data-i="${i}"><div class="qfcc-name">${esc(it.c.name)}</div>${summary(it.c) ? `<div class="qfcc-sub">${esc(summary(it.c))}</div>` : ''}</div>`
         : `<div class="qfcc-item qfcc-create${i === active ? ' active' : ''}" role="option" data-i="${i}">+ Save “${esc(it.create)}” as a new customer</div>`).join('');
+      pop.hidden = false;   // shown first so position() can measure it
       position();
-      pop.hidden = false;
       input.setAttribute('aria-expanded', 'true');
     }
     function choose(i) {

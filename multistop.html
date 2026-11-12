@@ -9,29 +9,19 @@
 <title>Multi-Stop Load Builder — QuickFreightCalc Pro</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+<script src="/site.js"></script>
 <style>
-:root {
-  --bg:#1a1d24;--panel:#1f2330;--card:#22262f;--card2:#272c38;
-  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#ffffff;--text2:#b0c4d8;
-  --text3:#8896a8;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
-  --green:#4ade80;--red:#f87171;--blue:#60a5fa;--radius:12px;
-}
+/* Colors (dark and light), the navigation and the footer come from site.css and site.js. */
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif}
+html,body{min-height:100%}
+body{background:var(--bg);background-image:var(--glow);background-repeat:no-repeat;color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased}
 
-/* ── Header ── */
-.header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:100}
-.brand-name{font-size:17px;font-weight:700;color:var(--text2);letter-spacing:-.02em}
-.brand-name span{color:var(--accent)}
-a.brand-name:hover span{opacity:.8}
-.pro-badge{font-size:10px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);padding:2px 7px;border-radius:10px;letter-spacing:.06em;text-transform:uppercase;margin-left:6px}
-.back-link{font-size:12px;font-weight:600;color:var(--text2);text-decoration:none;display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--card);transition:all .15s;white-space:nowrap}
-.back-link:hover{color:var(--accent);border-color:var(--accent);background:var(--accentbg)}
 
 /* ── Layout ── */
-.page{max-width:1100px;margin:0 auto;padding:28px 20px 100px;display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start}
+.page{max-width:1100px;margin:0 auto;padding:40px 20px 24px;display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start}
 @media(max-width:800px){
-  .page{grid-template-columns:1fr;padding:16px 12px 100px}
+  .page{grid-template-columns:1fr;padding:28px 16px 16px}
   .result-card{position:static}
   .result-col{position:static!important}
   .stop-type-toggle{flex-wrap:wrap}
@@ -213,7 +203,7 @@ a.brand-name:hover span{opacity:.8}
   transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;
   margin:14px 20px 0;width:calc(100% - 40px);margin-bottom:16px;
 }
-.dl-btn:hover{background:var(--accent);color:#000}
+.dl-btn:hover{background:var(--accent-fill);color:#000}
 
 /* ── Multi-stop Quote Log ── */
 .ms-log-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:20px}
@@ -236,22 +226,7 @@ a.brand-name:hover span{opacity:.8}
 .miles-status.err{color:var(--red)}
 .miles-status.loading{color:var(--blue)}
 
-/* ── Footer ── */
-footer{text-align:center;padding:24px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);margin-top:32px}
-footer a{color:var(--text2);text-decoration:none}
-footer a:hover{color:var(--accent)}
 
-/* ── Floating theme btn ── */
-.theme-btn-float{
-  position:fixed;bottom:24px;right:24px;z-index:999;
-  display:flex;align-items:center;gap:7px;
-  background:var(--card);border:1px solid var(--border2);border-radius:20px;
-  padding:8px 14px 8px 10px;cursor:pointer;
-  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:var(--text2);
-  transition:all .15s;box-shadow:0 4px 16px rgba(0,0,0,.3);
-}
-.theme-btn-float:hover{border-color:var(--accent);color:var(--text)}
-.theme-icon-wrap{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)}
 /* ── Advanced Adjustments ── */
 .adv-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:14px 0;border-top:1px solid var(--border);user-select:none;margin-top:8px}
 .adv-toggle-left{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--text2)}
@@ -264,7 +239,7 @@ footer a:hover{color:var(--accent)}
 .tog-track{width:34px;height:20px;background:var(--card2);border:1px solid var(--border2);border-radius:10px;position:relative;transition:background .2s,border-color .2s;flex-shrink:0}
 .tog-thumb{position:absolute;top:3px;left:3px;width:12px;height:12px;background:var(--text3);border-radius:50%;transition:transform .2s,background .2s}
 .tog input:checked+.tog-track{background:rgba(240,165,0,.15);border-color:var(--accent)}
-.tog input:checked+.tog-track .tog-thumb{transform:translateX(14px);background:var(--accent)}
+.tog input:checked+.tog-track .tog-thumb{transform:translateX(14px);background:var(--accent-fill)}
 .tog-label{font-size:13px;font-weight:500;color:var(--text2)}
 .tog input:checked~.tog-label{color:var(--accent)}
 .adv-sub{font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin:16px 0 9px;display:flex;align-items:center;justify-content:space-between}
@@ -281,20 +256,21 @@ footer a:hover{color:var(--accent)}
 .seas-strip{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;margin:8px 0 4px}
 .seas-month{border-radius:4px;padding:5px 2px;text-align:center;font-size:11px;font-weight:700;font-family:'Space Grotesk',sans-serif}
 .seas-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:8px}
+/* Page title in the shared style */
+.page-head{grid-column:1/-1;margin:0 0 6px}
+.page-head h1{font-size:clamp(28px,4vw,40px);font-weight:700;letter-spacing:-.03em;line-height:1.1;margin:14px 0 8px;text-wrap:balance}
+.page-head p{font-size:14.5px;color:var(--text2);line-height:1.6;max-width:640px}
 </style>
 </head>
 <body>
 
-<div class="header">
-  <a href="/" class="back-link">← Calculator</a>
-  <div style="display:flex;align-items:center">
-    <a href="/" class="brand-name" style="text-decoration:none">Quick<span>Freight</span>Calc</a>
-    <div class="pro-badge">Pro</div>
-  </div>
-  <div style="font-size:13px;font-weight:700;color:var(--text2)">Multi-Stop Builder</div>
-</div>
-
 <div class="page">
+
+  <div class="page-head">
+    <span class="qf-pill">Pro</span>
+    <h1>Multi-stop load builder</h1>
+    <p>Price a load with several pickups and drops: miles for every leg, stop-off charges and one quote for the whole trip.</p>
+  </div>
 
   <!-- LEFT: Stop builder -->
   <div>
@@ -552,7 +528,7 @@ footer a:hover{color:var(--accent)}
   </div>
 
   <!-- RIGHT: Results -->
-  <div class="result-col" style="position:sticky;top:74px">
+  <div class="result-col" style="position:sticky;top:80px">
     <div class="result-card">
 
       <div class="result-hero">
@@ -620,7 +596,7 @@ footer a:hover{color:var(--accent)}
       <textarea id="ms-notes-input" rows="6" placeholder="e.g. Temperature requirements, detention terms, driver instructions..." style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;padding:10px 14px;outline:none;resize:vertical;line-height:1.6" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
       <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px">
         <button onclick="closeMsNotesModal()" style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancel</button>
-        <button onclick="saveMsNotesModal()" style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;padding:8px 18px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#000;cursor:pointer">Save Notes</button>
+        <button onclick="saveMsNotesModal()" style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;padding:8px 18px;border-radius:8px;border:1px solid var(--accent);background:var(--accent-fill);color:#000;cursor:pointer">Save Notes</button>
       </div>
     </div>
   </div>
@@ -636,21 +612,14 @@ footer a:hover{color:var(--accent)}
     </div>
     <div style="padding:16px 24px 24px;display:flex;gap:10px">
       <button onclick="closeMsDupeModal(false)" style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:10px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancel</button>
-      <button onclick="closeMsDupeModal(true)" style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;padding:10px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#000;cursor:pointer">Save Again</button>
+      <button onclick="closeMsDupeModal(true)" style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;padding:10px;border-radius:8px;border:1px solid var(--accent);background:var(--accent-fill);color:#000;cursor:pointer">Save Again</button>
     </div>
   </div>
 </div>
 
-<footer>
-  <p style="margin-bottom:8px">Questions or problems? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent)">info@quickfreightcalc.com</a></p>
+<footer data-qf-footer>
   <p>By using QuickFreightCalc you agree to our <a href="/terms.html" target="_blank" rel="noopener noreferrer">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a>. Rates are estimates only — not guaranteed quotes.</p>
 </footer>
-
-<!-- Floating theme button -->
-<button id="theme-btn" class="theme-btn-float" onclick="toggleTheme()" title="Toggle light/dark mode">
-  <span class="theme-icon-wrap" id="theme-icon">☀️</span>
-  <span id="theme-label">Dark</span>
-</button>
 
 <script>
 // ── HTML escape helper ────────────────────────────────────────────────────
@@ -2137,53 +2106,6 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
     alert('Pop-up blocked — please allow pop-ups for this site to download quotes.');
   }
 }
-
-// ── Theme ──────────────────────────────────────────────────────────────────
-function applyTheme(theme){
-  const r = document.documentElement;
-  if(theme==='light'){
-    r.style.setProperty('--bg','#ffffff');r.style.setProperty('--panel','#ffffff');
-    r.style.setProperty('--card','#f8fafc');r.style.setProperty('--card2','#eef2f7');
-    r.style.setProperty('--border','#dde3ed');r.style.setProperty('--border2','#c8d4e0');
-    r.style.setProperty('--text','#0f172a');r.style.setProperty('--text2','#334155');
-    r.style.setProperty('--text3','#64748b');
-    document.getElementById('theme-icon').textContent='🌙';
-    document.getElementById('theme-label').textContent='Dark Mode';
-  } else {
-    r.style.setProperty('--bg','#1a1d24');r.style.setProperty('--panel','#1f2330');
-    r.style.setProperty('--card','#22262f');r.style.setProperty('--card2','#272c38');
-    r.style.setProperty('--border','#1e2a38');r.style.setProperty('--border2','#243040');
-    r.style.setProperty('--text','#e2e8f0');r.style.setProperty('--text2','#9aafc4');
-    r.style.setProperty('--text3','#8896a8');
-    document.getElementById('theme-icon').textContent='☀️';
-    document.getElementById('theme-label').textContent='Light Mode';
-  }
-  updateThemeBtn(theme);
-}
-function updateThemeBtn(theme){
-  const btn = document.getElementById('theme-btn');
-  if(!btn) return;
-  const isLight = theme ? theme === 'light' : document.documentElement.classList.contains('light');
-  if(isLight){
-    // In light mode — show "Dark Mode" button with dark styling
-    btn.style.setProperty('background', '#1a1d24', 'important');
-    btn.style.setProperty('border-color', '#1a1d24', 'important');
-    btn.style.setProperty('color', '#e2e8f0', 'important');
-    btn.style.setProperty('box-shadow', '0 4px 16px rgba(0,0,0,.5)', 'important');
-  } else {
-    // In dark mode — show "Light Mode" button with cream styling
-    btn.style.setProperty('background', '#f0ede8', 'important');
-    btn.style.setProperty('border-color', '#c8c4bc', 'important');
-    btn.style.setProperty('color', '#1a1d24', 'important');
-    btn.style.setProperty('box-shadow', '0 4px 12px rgba(0,0,0,.15)', 'important');
-  }
-}
-
-function toggleTheme(){
-  const next = (localStorage.getItem('qfc_theme')||'dark')==='dark'?'light':'dark';
-  localStorage.setItem('qfc_theme',next); applyTheme(next);
-}
-applyTheme(localStorage.getItem('qfc_theme')||'dark');
 
 // ── Pro gate — server-side verification ───────────────────────────────────
 async function verifyProAccess(){

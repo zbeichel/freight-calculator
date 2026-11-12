@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Truckload Rates by Region — Van, Reefer &amp; Flatbed | QuickFreightCalc</title>
+<meta name="description" content="Average truckload spot rates per mile across the US by region for dry van, reefer and flatbed, with monthly trends, rate history, load-to-truck ratios and diesel prices.">
+<link rel="canonical" href="https://quickfreightcalc.com/rates">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+<script src="/site.js"></script>
+<style>
+/* Line colors (national, region, other, grid, axis) come from site.css. The map
+   ramp is one hue, light to dark, reversed in dark mode so low values recede
+   toward the surface. */
+:root{
+  --spark:rgba(148,163,184,.35);
+  --map-stroke:#141c28;
+}
+html.light{
+  --spark:#cbd5e1;
+  --map-stroke:#ffffff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);background-image:var(--glow);background-repeat:no-repeat;color:var(--text);font-family:var(--font);
+  -webkit-font-smoothing:antialiased;min-height:100vh}
+.mr-page{max-width:1240px;margin:0 auto;padding:0 24px}
+.mr-hero{padding:56px 0 30px;max-width:760px}
+.mr-hero h1{text-wrap:balance;font-size:clamp(32px,4.4vw,48px);line-height:1.08;letter-spacing:-.03em;font-weight:700;margin:16px 0 14px}
+.mr-hero p{font-size:16px;line-height:1.65;color:var(--text2)}
+.mr-h2{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin:34px 0 14px}
+.mr-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.mr-tiles.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+.mr-tile{padding:20px 22px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg)}
+.mr-tile-label{font-size:13px;font-weight:600;color:var(--text2)}
+.mr-tile-value{font-size:34px;font-weight:700;letter-spacing:-.02em;margin-top:8px;line-height:1}
+.mr-tile-value small{font-size:15px;font-weight:500;color:var(--text3);letter-spacing:0;margin-left:3px}
+.mr-delta{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);margin-top:10px}
+.mr-delta svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.mr-note{font-size:12px;color:var(--text3);margin-top:4px;line-height:1.5}
+.mr-spark{display:flex;align-items:flex-end;gap:2px;height:46px;margin-top:16px}
+.mr-spark span{flex:1;max-width:24px;background:var(--spark);border-radius:4px 4px 0 0;position:relative}
+.mr-spark span.now{background:var(--accent-fill)}
+.mr-spark-labels{display:flex;gap:2px;margin-top:5px}
+.mr-spark-labels span{flex:1;max-width:24px;font-size:9.5px;color:var(--text3);text-align:center}
+.mr-filter{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:36px 0 14px}
+.mr-filter-label{font-size:13px;font-weight:600;color:var(--text2)}
+.mr-seg{display:inline-flex;padding:4px;gap:4px;border-radius:12px;background:var(--card);border:1px solid var(--border)}
+.mr-seg button{font:600 13px/1 var(--font);color:var(--text2);background:none;border:0;border-radius:9px;padding:9px 16px;cursor:pointer}
+.mr-seg button:hover{color:var(--text)}
+.mr-seg button[aria-checked="true"]{background:var(--card3);color:var(--text);box-shadow:var(--shadow)}
+.mr-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:16px}
+.mr-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.mr-card h2{font-size:20px;font-weight:700;letter-spacing:-.01em}
+.mr-sub{font-size:13px;color:var(--text3);margin-top:4px}
+.mr-map-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
+.mr-map{position:relative}
+.mr-map svg{display:block;width:100%;height:auto}
+.mr-map path{stroke:var(--map-stroke);stroke-width:1;stroke-linejoin:round;cursor:pointer;transition:opacity .15s}
+.mr-map.focus path{opacity:.35}
+.mr-map.focus path.on{opacity:1}
+.mr-map path.on{stroke:var(--accent-fill);stroke-width:2}
+.mr-tip{position:absolute;z-index:5;pointer-events:none;min-width:190px;padding:12px 14px;border-radius:12px;background:var(--panel);
+  border:1px solid var(--border2);box-shadow:var(--shadow-lg);font-size:12.5px;color:var(--text2)}
+.mr-tip[hidden]{display:none}
+.mr-tip b{display:block;font-size:14px;color:var(--text)}
+.mr-tip .reg{color:var(--text3);font-size:12px;margin-top:1px}
+.mr-tip .val{font-size:20px;font-weight:700;color:var(--text);margin-top:8px}
+.mr-tip .val small{font-size:12px;font-weight:500;color:var(--text3)}
+.mr-tip .row{display:flex;justify-content:space-between;gap:12px;margin-top:4px}
+.mr-tip .row span:last-child{color:var(--text)}
+.mr-legend{margin-top:18px}
+.mr-legend-bar{display:flex;gap:2px}
+.mr-legend-bar span{flex:1;height:10px}
+.mr-legend-bar span:first-child{border-radius:4px 0 0 4px}
+.mr-legend-bar span:last-child{border-radius:0 4px 4px 0}
+.mr-legend-ends{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3);margin-top:6px}
+.mr-table{width:100%;border-collapse:collapse;font-size:13px}
+.mr-table th{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);text-align:right;padding:0 6px 10px;white-space:nowrap}
+.mr-table th:first-child{text-align:left}
+.mr-table td{padding:10px 6px;border-top:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mr-table td:first-child{text-align:left;font-variant-numeric:normal}
+.mr-table tbody tr{cursor:pointer;transition:background .12s}
+.mr-table tbody tr:hover,.mr-table tbody tr:focus-visible{background:var(--card2);outline:none}
+.mr-table tbody tr.sel td:first-child{font-weight:700}
+.mr-swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:0}
+.mr-table .mut{color:var(--text3)}
+.mr-chart{position:relative}
+.mr-chart svg{display:block;width:100%}
+.mr-chart text{font-family:var(--font);font-size:11.5px;fill:var(--text3)}
+.mr-chart .lbl{font-size:12px;font-weight:600;fill:var(--text)}
+.mr-legend-inline{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--text2)}
+.mr-legend-inline span{display:inline-flex;align-items:center;gap:7px}
+.mr-legend-inline i{display:inline-block;width:16px;height:2px;border-radius:2px}
+.mr-link-btn{margin-top:14px;font:600 12.5px/1 var(--font);color:var(--text2);background:none;border:1px solid var(--border2);border-radius:9px;padding:9px 14px;cursor:pointer}
+.mr-link-btn:hover{color:var(--text);border-color:var(--text3)}
+.mr-hist-table{margin-top:14px;overflow-x:auto}
+.mr-cta{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-top:32px;padding:28px 30px;
+  background:linear-gradient(120deg,rgba(245,165,36,.12),transparent 55%),var(--card)}
+.mr-cta h2{font-size:22px}
+.mr-cta p{font-size:14px;color:var(--text2);margin-top:6px;max-width:620px;line-height:1.6}
+.mr-source{font-size:12px;color:var(--text3);margin:18px 0 0;line-height:1.6}
+@media (max-width:980px){.mr-map-grid{grid-template-columns:1fr}.mr-tiles.four{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:720px){
+  .mr-page{padding:0 16px}
+  .mr-hero{padding:36px 0 18px}
+  .mr-tiles{grid-template-columns:1fr}
+  .mr-tiles.four{grid-template-columns:1fr 1fr}
+  .mr-card{padding:18px 16px}
+  .mr-tile{padding:16px 18px}
+  .mr-tile-value{font-size:30px}
+}
+@media (max-width:420px){.mr-tiles.four{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="mr-page">
+  <section class="mr-hero">
+    <span class="qf-pill">Market rates · <span id="mr-month">This month</span></span>
+    <h1>Truckload rates across the US</h1>
+    <p>Average spot rates per mile by region for dry van, reefer and flatbed, updated monthly. Hover over a state to see its region's rate, or pick a region in the table.</p>
+  </section>
+
+  <section aria-labelledby="glance-title">
+    <h2 class="mr-h2" id="glance-title">National spot rates at a glance</h2>
+    <div class="mr-tiles" id="mr-national"></div>
+  </section>
+
+  <section aria-labelledby="cond-title">
+    <h2 class="mr-h2" id="cond-title">Market conditions</h2>
+    <div class="mr-tiles four" id="mr-conditions"></div>
+  </section>
+
+  <div class="mr-filter">
+    <span class="mr-filter-label" id="eq-label">Equipment</span>
+    <div class="mr-seg" role="radiogroup" aria-labelledby="eq-label" id="mr-eq">
+      <button type="button" role="radio" data-eq="van" aria-checked="true">Van</button>
+      <button type="button" role="radio" data-eq="reefer" aria-checked="false">Reefer</button>
+      <button type="button" role="radio" data-eq="flatbed" aria-checked="false">Flatbed</button>
+    </div>
+  </div>
+
+  <section class="mr-card" aria-labelledby="map-title">
+    <div class="mr-card-head">
+      <div>
+        <h2 id="map-title">Van rates by region</h2>
+        <p class="mr-sub" id="map-sub">Average spot rate per mile</p>
+      </div>
+    </div>
+    <div class="mr-map-grid">
+      <div class="mr-map" id="mr-map">
+        <svg viewBox="0 0 975 610" role="img" aria-labelledby="map-title map-desc" id="mr-svg"><desc id="map-desc">Map of US states shaded by their region's average rate per mile. The table next to the map lists every region's rate.</desc></svg>
+        <div class="mr-tip" id="mr-tip" hidden></div>
+      </div>
+      <div>
+        <table class="mr-table" id="mr-regions" aria-describedby="map-title">
+          <thead><tr><th scope="col">Region</th><th scope="col">Rate / mi</th><th scope="col">vs national</th><th scope="col" id="mom-head">vs last month</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="mr-legend" aria-hidden="true">
+          <div class="mr-legend-bar" id="mr-legend-bar"></div>
+          <div class="mr-legend-ends"><span id="mr-legend-lo"></span><span>Lower → higher rate</span><span id="mr-legend-hi"></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mr-card" aria-labelledby="hist-title">
+    <div class="mr-card-head">
+      <div>
+        <h2 id="hist-title">Van rate per mile by month</h2>
+        <p class="mr-sub">National average and each region</p>
+      </div>
+      <div class="mr-legend-inline" id="mr-hist-legend"></div>
+    </div>
+    <div class="mr-chart" id="mr-chart"><div class="mr-tip" id="mr-chart-tip" hidden></div></div>
+    <button type="button" class="mr-link-btn" id="mr-table-toggle" aria-expanded="false" aria-controls="mr-hist-table">Show as table</button>
+    <div class="mr-hist-table" id="mr-hist-table" hidden></div>
+  </section>
+
+  <section class="mr-card mr-cta">
+    <div>
+      <h2>Price a lane with these rates</h2>
+      <p>The calculator applies your pickup region's rate automatically, adds fuel and your margin, and turns it into a quote you can send.</p>
+    </div>
+    <a class="qf-btn qf-btn-primary qf-btn-lg" href="/">Open the calculator</a>
+  </section>
+
+  <p class="mr-source" id="mr-source">Rates are regional market averages, updated monthly. Diesel is the EIA weekly US average retail on-highway diesel price. Rates are estimates, not guaranteed.</p>
+</main>
+
+<footer data-qf-footer></footer>
+
+<script src="/us-states.js"></script>
+<script>
+(function () {
+  const REGIONS = ['northeast', 'southeast', 'midwest', 'southwest', 'west'];
+  const REGION_NAME = { northeast: 'Northeast', southeast: 'Southeast', midwest: 'Midwest', southwest: 'Southwest', west: 'West', national: 'National' };
+  const EQ_NAME = { van: 'Van', reefer: 'Reefer', flatbed: 'Flatbed' };
+  // Sequential ramp, low → high (blue): lighter-to-darker in light mode,
+  // darker-to-lighter in dark mode.
+  const RAMP = { light: ['#b7d3f6', '#86b6ef', '#3987e5', '#256abf', '#104281'], dark: ['#184f95', '#256abf', '#3987e5', '#6da7ec', '#9ec5f4'] };
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const ARROW = {
+    up: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>',
+    down: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5.5 12.5 12 19l6.5-6.5"/></svg>',
+    flat: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>',
+  };
+
+  let data = null, eq = 'van', selected = null, hoverRegion = null;
+  const stateRegion = {};
+  const $ = (id) => document.getElementById(id);
+  const light = () => document.documentElement.classList.contains('light');
+  const money = (n) => '$' + Number(n).toFixed(2);
+  const pctText = (x) => (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(1) + '%';
+  const diffText = (x) => (x >= 0 ? '+' : '−') + '$' + Math.abs(x).toFixed(2);
+  const monthName = (iso, opts) => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', opts || { month: 'long', year: 'numeric' });
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const hist = () => data.history || [];
+  const last = () => hist()[hist().length - 1];
+  const prev = () => hist()[hist().length - 2];
+  const rateOf = (region, e) => Number(data.regions[region][e || eq]);
+  const prevRate = (region, e) => { const p = prev(); return p && p.regions[region] ? Number(p.regions[region][e || eq]) : null; };
+  function trend(cur, before) {
+    if (before === null || before === undefined || !before) return { dir: 'flat', text: 'No earlier month' };
+    const d = (cur - before) / before;
+    const dir = Math.abs(d) < 0.0005 ? 'flat' : d > 0 ? 'up' : 'down';
+    return { dir, d, text: dir === 'flat' ? 'Unchanged' : (dir === 'up' ? 'Up ' : 'Down ') + Math.abs(d * 100).toFixed(1) + '%' };
+  }
+
+  // ── National tiles: value, change vs last month, last six months ──
+  function renderNational() {
+    const h = hist().slice(-6);
+    const prevLabel = prev() ? monthName(prev().date, { month: 'short' }) : '';
+    $('mr-national').innerHTML = ['van', 'reefer', 'flatbed'].map((e) => {
+      const cur = rateOf('national', e);
+      const t = trend(cur, prevRate('national', e));
+      const vals = h.map((x) => Number(x.regions.national[e]));
+      const lo = Math.min(...vals) * 0.9, hi = Math.max(...vals);
+      const bars = h.map((x, i) => {
+        const v = Number(x.regions.national[e]);
+        const ht = 22 + 78 * ((v - lo) / ((hi - lo) || 1));
+        return `<span class="${i === h.length - 1 ? 'now' : ''}" style="height:${ht.toFixed(0)}%" title="${esc(x.label)}: ${money(v)}/mi"></span>`;
+      }).join('');
+      const labels = h.map((x) => `<span>${esc(monthName(x.date, { month: 'short' }))}</span>`).join('');
+      return `<div class="mr-tile">
+        <div class="mr-tile-label">National ${EQ_NAME[e].toLowerCase()} rate</div>
+        <div class="mr-tile-value">${money(cur)}<small>/mi</small></div>
+        <div class="mr-delta">${ARROW[t.dir]}<span>${t.text}${t.dir !== 'flat' && prevLabel ? ' vs ' + prevLabel : ''}</span></div>
+        <div class="mr-spark" role="img" aria-label="${EQ_NAME[e]} national rate, last ${h.length} months: ${h.map((x) => esc(x.label) + ' ' + money(x.regions.national[e])).join(', ')}">${bars}</div>
+        <div class="mr-spark-labels" aria-hidden="true">${labels}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Market conditions: load-to-truck ratios and diesel ──
+  function renderConditions(diesel) {
+    const l2t = data.loadToTruck || {};
+    const tiles = ['van', 'reefer', 'flatbed'].filter((e) => l2t[e]).map((e) => {
+      const c = Number(l2t[e].current), b = Number(l2t[e].base);
+      const d = b ? (c - b) / b : 0;
+      return `<div class="mr-tile">
+        <div class="mr-tile-label">${EQ_NAME[e]} load-to-truck</div>
+        <div class="mr-tile-value">${c.toFixed(1)}</div>
+        <div class="mr-delta">${ARROW[d > 0.005 ? 'up' : d < -0.005 ? 'down' : 'flat'] }<span>${Math.abs(d * 100).toFixed(0)}% ${d >= 0 ? 'above' : 'below'} usual (${b.toFixed(1)})</span></div>
+        <div class="mr-note">Loads posted per available truck</div>
+      </div>`;
+    });
+    if (diesel && diesel.price) {
+      const t = trend(Number(diesel.price), diesel.previous ? Number(diesel.previous) : null);
+      tiles.push(`<div class="mr-tile">
+        <div class="mr-tile-label">Diesel, US average</div>
+        <div class="mr-tile-value">$${Number(diesel.price).toFixed(2)}<small>/gal</small></div>
+        <div class="mr-delta">${ARROW[t.dir]}<span>${t.text}${t.dir !== 'flat' ? ' vs last week' : ''}</span></div>
+        <div class="mr-note">EIA weekly${diesel.period ? ', week of ' + esc(monthName(diesel.period, { month: 'short', day: 'numeric' })) : ''}</div>
+      </div>`);
+    }
+    $('mr-conditions').innerHTML = tiles.join('');
+    $('mr-conditions').className = 'mr-tiles' + (tiles.length === 4 ? ' four' : '');
+  }
+
+  // ── Map ──
+  function classes() {
+    const vals = REGIONS.map((r) => rateOf(r));
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const step = (hi - lo) / 5;
+    const cls = {};
+    REGIONS.forEach((r) => {
+      const v = rateOf(r);
+      cls[r] = step ? Math.min(4, Math.floor((v - lo) / step + 1e-9)) : 2;
+    });
+    return { cls, lo, hi };
+  }
+  function color(i) { return RAMP[light() ? 'light' : 'dark'][i]; }
+  function buildMap() {
+    const svg = $('mr-svg');
+    (window.QFC_US_STATES || []).forEach((s) => {
+      const p = document.createElementNS(SVGNS, 'path');
+      p.setAttribute('d', s.d);
+      p.dataset.state = s.id;
+      p.dataset.name = s.name;
+      p.dataset.region = stateRegion[s.id] || 'northeast';
+      svg.appendChild(p);
+    });
+    const map = $('mr-map');
+    map.addEventListener('pointermove', (e) => {
+      const p = e.target.closest('path[data-state]');
+      if (!p) { hideTip(); return; }
+      showStateTip(p, e);
+    });
+    map.addEventListener('pointerleave', hideTip);
+    map.addEventListener('click', (e) => {
+      const p = e.target.closest('path[data-state]');
+      if (p) select(p.dataset.region);
+    });
+  }
+  function paintMap() {
+    const { cls, lo, hi } = classes();
+    document.querySelectorAll('#mr-svg path[data-state]').forEach((p) => {
+      p.style.fill = color(cls[p.dataset.region]);
+      p.classList.toggle('on', p.dataset.region === (hoverRegion || null));
+    });
+    $('mr-map').classList.toggle('focus', !!hoverRegion);
+    $('mr-legend-bar').innerHTML = [0, 1, 2, 3, 4].map((i) => `<span style="background:${color(i)}"></span>`).join('');
+    $('mr-legend-lo').textContent = money(lo);
+    $('mr-legend-hi').textContent = money(hi);
+  }
+  function showStateTip(p, e) {
+    const r = p.dataset.region;
+    if (hoverRegion !== r) { hoverRegion = r; paintMap(); }
+    const v = rateOf(r), nat = rateOf('national');
+    const t = trend(v, prevRate(r));
+    const tip = $('mr-tip');
+    tip.innerHTML = `<b></b><div class="reg"></div>
+      <div class="val">${money(v)} <small>/mi ${EQ_NAME[eq].toLowerCase()}</small></div>
+      <div class="row"><span>vs national (${money(nat)})</span><span>${diffText(v - nat)}</span></div>
+      <div class="row"><span>vs last month</span><span>${t.dir === 'flat' ? 'Unchanged' : pctText(t.d)}</span></div>`;
+    tip.querySelector('b').textContent = p.dataset.name;
+    tip.querySelector('.reg').textContent = REGION_NAME[r] + ' region';
+    const box = $('mr-map').getBoundingClientRect();
+    tip.hidden = false;
+    let x = e.clientX - box.left + 16, y = e.clientY - box.top + 16;
+    if (x + tip.offsetWidth > box.width) x = e.clientX - box.left - tip.offsetWidth - 16;
+    if (y + tip.offsetHeight > box.height) y = Math.max(0, e.clientY - box.top - tip.offsetHeight - 16);
+    tip.style.left = Math.max(0, x) + 'px';
+    tip.style.top = y + 'px';
+  }
+  function hideTip() {
+    $('mr-tip').hidden = true;
+    if (hoverRegion) { hoverRegion = null; paintMap(); }
+  }
+
+  // ── Region table (the map's table view) ──
+  function renderRegions() {
+    const { cls } = classes();
+    const nat = rateOf('national');
+    const rows = REGIONS.slice().sort((a, b) => rateOf(b) - rateOf(a));
+    $('mom-head').textContent = prev() ? 'vs ' + monthName(prev().date, { month: 'short' }) : 'vs last month';
+    $('mr-regions').querySelector('tbody').innerHTML = rows.map((r) => {
+      const v = rateOf(r);
+      const t = trend(v, prevRate(r));
+      return `<tr tabindex="0" data-region="${r}" class="${r === selected ? 'sel' : ''}" aria-selected="${r === selected}">
+        <td><span class="mr-swatch" style="background:${color(cls[r])}"></span>${REGION_NAME[r]}</td>
+        <td><strong>${money(v)}</strong></td>
+        <td class="mut">${diffText(v - nat)}</td>
+        <td class="mut">${t.dir === 'flat' ? '—' : pctText(t.d)}</td>
+      </tr>`;
+    }).join('') + `<tr data-region="national" tabindex="-1" style="cursor:default"><td><strong>National</strong></td><td><strong>${money(nat)}</strong></td><td class="mut">—</td><td class="mut">${(() => { const t = trend(nat, prevRate('national')); return t.dir === 'flat' ? '—' : pctText(t.d); })()}</td></tr>`;
+  }
+  function wireTable() {
+    const tb = $('mr-regions').querySelector('tbody');
+    const pick = (tr) => { if (tr && tr.dataset.region !== 'national') select(tr.dataset.region); };
+    tb.addEventListener('click', (e) => pick(e.target.closest('tr')));
+    tb.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(e.target.closest('tr')); } });
+    const hover = (r) => { if (hoverRegion !== r) { hoverRegion = r; paintMap(); } };
+    tb.addEventListener('pointerover', (e) => { const tr = e.target.closest('tr'); if (tr && tr.dataset.region !== 'national') hover(tr.dataset.region); });
+    tb.addEventListener('pointerleave', () => hover(null));
+    tb.addEventListener('focusin', (e) => { const tr = e.target.closest('tr'); if (tr && tr.dataset.region !== 'national') hover(tr.dataset.region); });
+    tb.addEventListener('focusout', () => hover(null));
+  }
+  function select(r) {
+    selected = r;
+    renderRegions();
+    renderChart();
+  }
+
+  // ── Rate history chart (national + selected region emphasized) ──
+  function renderLegend() {
+    $('mr-hist-legend').innerHTML =
+      `<span><i style="background:var(--series-national)"></i>National</span>` +
+      (selected ? `<span><i style="background:var(--series-region)"></i>${REGION_NAME[selected]}</span>` : '') +
+      `<span><i style="background:var(--series-other)"></i>Other regions</span>`;
+  }
+  function renderChart() {
+    renderLegend();
+    const box = $('mr-chart');
+    const W = Math.max(320, box.clientWidth || 800);
+    const H = 300;
+    const pad = { l: 52, r: W < 560 ? 18 : 120, t: 14, b: 32 };
+    const h = hist();
+    const series = ['national'].concat(REGIONS);
+    const vals = [];
+    h.forEach((m) => series.forEach((s) => { if (m.regions[s]) vals.push(Number(m.regions[s][eq])); }));
+    const step = 0.25;
+    let y0 = Math.floor(Math.min(...vals) / step) * step, y1 = Math.ceil(Math.max(...vals) / step) * step;
+    if (y1 - y0 < 1) y1 = y0 + 1;
+    const times = h.map((m) => Date.parse(m.date + 'T12:00:00'));
+    const t0 = times[0], t1 = times[times.length - 1];
+    const X = (t) => pad.l + (W - pad.l - pad.r) * ((t - t0) / ((t1 - t0) || 1));
+    const Y = (v) => pad.t + (H - pad.t - pad.b) * (1 - (v - y0) / (y1 - y0));
+    const ticks = [];
+    const tickStep = (y1 - y0) > 2 ? 0.5 : 0.25;
+    for (let v = y0; v <= y1 + 1e-9; v += tickStep) ticks.push(Math.round(v * 100) / 100);
+    const line = (s) => h.filter((m) => m.regions[s]).map((m, i) => (i ? 'L' : 'M') + X(Date.parse(m.date + 'T12:00:00')).toFixed(1) + ' ' + Y(Number(m.regions[s][eq])).toFixed(1)).join(' ');
+    const others = REGIONS.filter((r) => r !== selected);
+    // End dots and labels for the two emphasized lines. When the labels would
+    // collide they spread apart, with a short leader line back to each dot.
+    const lastT = X(t1);
+    const ends = [{ s: 'national', c: 'var(--series-national)' }].concat(selected ? [{ s: selected, c: 'var(--series-region)' }] : []);
+    ends.forEach((e) => { e.v = Number(last().regions[e.s][eq]); e.y = Y(e.v); e.ly = e.y; });
+    if (ends.length === 2 && Math.abs(ends[0].y - ends[1].y) < 16) {
+      const mid = (ends[0].y + ends[1].y) / 2;
+      const top = ends[0].y <= ends[1].y ? 0 : 1;
+      ends[top].ly = mid - 8;
+      ends[1 - top].ly = mid + 8;
+    }
+    const labels = ends.map((e) => `<circle cx="${lastT}" cy="${e.y}" r="4.5" fill="${e.c}" stroke="var(--card)" stroke-width="2"/>` +
+      (W < 560 ? '' : (e.ly !== e.y ? `<line x1="${lastT + 5}" y1="${e.y}" x2="${lastT + 12}" y2="${e.ly}" stroke="var(--axis)" stroke-width="1"/>` : '') +
+        `<text class="lbl" x="${lastT + 14}" y="${e.ly + 4}">${e.s === 'national' ? 'National' : REGION_NAME[e.s]} ${money(e.v)}</text>`));
+    const svg = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${EQ_NAME[eq]} rate per mile by month, national and by region. The table view lists every value.">
+      ${ticks.map((v) => `<line x1="${pad.l}" x2="${W - pad.r + (W < 560 ? 0 : 8)}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)" stroke-width="1"/>
+        <text x="${pad.l - 10}" y="${Y(v) + 4}" text-anchor="end" style="font-variant-numeric:tabular-nums">${money(v)}</text>`).join('')}
+      ${h.map((m, i) => (W < 560 && i % 2) ? '' : `<text x="${X(times[i])}" y="${H - 8}" text-anchor="middle">${esc(monthName(m.date, { month: 'short' }))}</text>`).join('')}
+      ${others.map((r) => `<path d="${line(r)}" fill="none" stroke="var(--series-other)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('')}
+      ${selected ? `<path d="${line(selected)}" fill="none" stroke="var(--series-region)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+      <path d="${line('national')}" fill="none" stroke="var(--series-national)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${labels.join('')}
+      <line id="mr-cross" x1="0" x2="0" y1="${pad.t}" y2="${H - pad.b}" stroke="var(--axis)" stroke-width="1" visibility="hidden"/>
+      <rect id="mr-hit" x="${pad.l}" y="${pad.t}" width="${W - pad.l - pad.r}" height="${H - pad.t - pad.b}" fill="transparent"/>
+    </svg>`;
+    const tip = $('mr-chart-tip');
+    box.innerHTML = svg;
+    box.appendChild(tip);
+    const hit = box.querySelector('#mr-hit');
+    const cross = box.querySelector('#mr-cross');
+    const move = (e) => {
+      const r = box.getBoundingClientRect();
+      const px = (e.clientX - r.left) * (W / r.width);
+      let best = 0;
+      times.forEach((t, i) => { if (Math.abs(X(t) - px) < Math.abs(X(times[best]) - px)) best = i; });
+      const m = h[best];
+      const cx = X(times[best]);
+      cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.setAttribute('visibility', 'visible');
+      const rows = series.filter((s) => m.regions[s]).map((s) => ({ s, v: Number(m.regions[s][eq]) }))
+        .sort((a, b) => (a.s === 'national' ? -1 : b.s === 'national' ? 1 : b.v - a.v));
+      tip.innerHTML = `<b>${esc(monthName(m.date))}</b>` + rows.map((x) => {
+        const c = x.s === 'national' ? 'var(--series-national)' : x.s === selected ? 'var(--series-region)' : 'var(--series-other)';
+        return `<div class="row"><span><i style="display:inline-block;width:12px;height:2px;border-radius:2px;background:${c};margin-right:7px;vertical-align:3px"></i>${REGION_NAME[x.s]}</span><span><strong>${money(x.v)}</strong></span></div>`;
+      }).join('');
+      tip.hidden = false;
+      let x = (cx / W) * r.width + 14;
+      if (x + tip.offsetWidth > r.width) x = (cx / W) * r.width - tip.offsetWidth - 14;
+      tip.style.left = Math.max(0, x) + 'px';
+      tip.style.top = '8px';
+    };
+    hit.addEventListener('pointermove', move);
+    hit.addEventListener('pointerleave', () => { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); });
+    renderHistTable();
+  }
+  function renderHistTable() {
+    const series = ['national'].concat(REGIONS);
+    $('mr-hist-table').innerHTML = `<table class="mr-table"><thead><tr><th scope="col">Month</th>${series.map((s) => `<th scope="col">${REGION_NAME[s]}</th>`).join('')}</tr></thead><tbody>` +
+      hist().slice().reverse().map((m) => `<tr style="cursor:default"><td>${esc(monthName(m.date))}</td>${series.map((s) => `<td>${m.regions[s] ? money(m.regions[s][eq]) : '—'}</td>`).join('')}</tr>`).join('') +
+      '</tbody></table>';
+  }
+
+  function setEq(e) {
+    eq = e;
+    document.querySelectorAll('#mr-eq button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.eq === e)));
+    $('map-title').textContent = `${EQ_NAME[e]} rates by region`;
+    $('hist-title').textContent = `${EQ_NAME[e]} rate per mile by month`;
+    if (!selected || !REGIONS.includes(selected)) selected = REGIONS.slice().sort((a, b) => rateOf(b) - rateOf(a))[0];
+    paintMap();
+    renderRegions();
+    renderChart();
+  }
+
+  function init(d) {
+    data = d;
+    REGIONS.forEach((r) => (data.regions[r].states || []).forEach((st) => { stateRegion[st] = r; }));
+    stateRegion.DC = stateRegion.DC || 'northeast';
+    const month = last() ? monthName(last().date) : '';
+    $('mr-month').textContent = month;
+    $('map-sub').textContent = `${month} · average spot rate per mile`;
+    if (data.updated) $('mr-source').textContent = `Rates are regional market averages, last updated ${data.updated}. Diesel is the EIA weekly US average retail on-highway diesel price. Rates are estimates, not guaranteed.`;
+    renderNational();
+    renderConditions(null);
+    buildMap();
+    wireTable();
+    selected = REGIONS.slice().sort((a, b) => rateOf(b) - rateOf(a))[0];
+    setEq('van');
+    document.querySelectorAll('#mr-eq button').forEach((b) => b.addEventListener('click', () => setEq(b.dataset.eq)));
+    $('mr-table-toggle').addEventListener('click', (e) => {
+      const t = $('mr-hist-table');
+      t.hidden = !t.hidden;
+      e.currentTarget.setAttribute('aria-expanded', String(!t.hidden));
+      e.currentTarget.textContent = t.hidden ? 'Show as table' : 'Hide table';
+    });
+    let rz = null;
+    window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderChart, 120); });
+    document.addEventListener('qf-theme', () => { paintMap(); renderRegions(); });
+    fetch('/.netlify/functions/diesel-price').then((r) => (r.ok ? r.json() : null)).then((dz) => { if (dz && dz.price) renderConditions(dz); }).catch(() => {});
+  }
+
+  fetch('/rates.json').then((r) => r.json()).then(init).catch(() => {
+    $('mr-national').innerHTML = '<div class="mr-tile">Rates couldn\'t load. Refresh the page to try again.</div>';
+  });
+})();
+</script>
+</body>
+</html>

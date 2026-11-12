@@ -9,211 +9,171 @@
 <title>Sign Up for Pro — QuickFreightCalc</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+<script src="/site.js"></script>
 <style>
-:root{
-  --bg:#1a1d24;--panel:#1f2330;--card:#22262f;--card2:#272c38;
-  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#ffffff;--text2:#b0c4d8;
-  --text3:#8896a8;--accent:#f0a500;--accentbg:rgba(240,165,0,.1);
-  --green:#4ade80;--red:#f87171;--radius:12px;
-}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif}
+body{background:var(--bg);background-image:var(--glow);background-repeat:no-repeat;color:var(--text);font-family:var(--font);
+  -webkit-font-smoothing:antialiased;min-height:100vh}
 
-.header{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--border);background:var(--panel)}
-.brand-name{font-size:18px;font-weight:700;color:var(--text2);letter-spacing:-.02em}
-.brand-name span{color:var(--accent)}
-a.brand-name:hover span{opacity:.8}
-.back-link{font-size:12px;color:var(--text3);text-decoration:none;transition:color .15s}
-.back-link:hover{color:var(--accent)}
+/* ── Plans ── */
+.su-page{max-width:1240px;margin:0 auto;padding:0 24px}
+.su-hero{text-align:center;padding:64px 0 38px;max-width:800px;margin:0 auto}
+.su-hero h1{text-wrap:balance;font-size:clamp(34px,5vw,60px);line-height:1.03;letter-spacing:-.035em;font-weight:700;margin:18px 0 16px}
+.su-hero p{font-size:17px;line-height:1.6;color:var(--text2)}
+.su-plans{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--border2);border-radius:22px;
+  background:var(--card);overflow:hidden;box-shadow:var(--shadow-lg)}
+.su-plan{position:relative;padding:28px 22px 30px;border-left:1px solid var(--border);cursor:pointer;transition:background .15s}
+.su-plan:first-child{border-left:0}
+.su-plan:hover{background:var(--card2)}
+.su-plan.sel{background:linear-gradient(180deg,rgba(245,165,36,.10),transparent 260px),var(--card);box-shadow:inset 0 0 0 2px var(--accent-fill)}
+.su-plan:has(input:focus-visible){box-shadow:inset 0 0 0 2px var(--blue)}
+.su-plan-name{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:19px;font-weight:700;letter-spacing:-.01em}
+.su-chip{font:700 10px/1 var(--font);letter-spacing:.07em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent-fill);
+  padding:5px 8px;border-radius:999px;visibility:hidden}
+.su-plan.sel .su-chip{visibility:visible}
+.su-price{display:flex;align-items:baseline;gap:4px;margin-top:16px}
+.su-price strong{font-size:42px;font-weight:700;letter-spacing:-.035em;line-height:1}
+.su-price span{font-size:15px;color:var(--text3)}
+.su-billing{font-size:13px;color:var(--text3);margin-top:8px}
+.su-tagline{font-size:14px;color:var(--text2);line-height:1.5;margin-top:14px;min-height:42px}
+.su-start{display:flex;align-items:center;justify-content:center;width:100%;height:48px;margin-top:20px;border-radius:12px;border:0;
+  background:var(--text);color:var(--bg);font:600 15px/1 var(--font);cursor:pointer;transition:transform .15s,opacity .15s;text-decoration:none}
+.su-start:hover{opacity:.9}
+.su-start:active{transform:translateY(1px)}
+.su-plan.sel .su-start{background:var(--accent-fill);color:var(--accent-ink);box-shadow:0 8px 22px rgba(245,165,36,.25)}
+.su-groups{margin-top:6px}
+.su-group{margin-top:22px}
+.su-group h3{font-size:13px;font-weight:700;color:var(--text);margin-bottom:11px}
+.su-feats{list-style:none;display:grid;gap:10px}
+.su-feats li{display:flex;gap:10px;font-size:13.5px;line-height:1.4;color:var(--text2)}
+.su-feats li svg{width:16px;height:16px;flex-shrink:0;margin-top:1px;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.su-feats li.yes svg{stroke:var(--text)}
+.su-feats li.no{color:var(--text3);opacity:.7}
+.su-feats li.no svg{stroke:var(--text3)}
+.su-feats a{color:var(--accent);text-decoration:none}
+.su-more{display:none}
+.su-free{text-align:center;font-size:14px;color:var(--text3);margin:20px 0 0;line-height:1.6}
+.su-free a{color:var(--accent);text-decoration:none;font-weight:600}
 
-.page{min-height:calc(100vh - 57px);display:flex;align-items:center;justify-content:center;padding:40px 20px}
+/* ── Account ── */
+.su-account{display:grid;grid-template-columns:minmax(0,1fr) 460px;gap:56px;align-items:start;max-width:1060px;margin:80px auto 0}
+.su-side h2{font-size:clamp(26px,3vw,34px);letter-spacing:-.025em;line-height:1.15}
+.su-side > p{font-size:15px;color:var(--text2);line-height:1.65;margin-top:12px}
+.su-selected{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:24px;padding:18px 20px;border-radius:16px;
+  background:var(--card);border:1px solid var(--border2)}
+.su-selected small{display:block;font-size:12px;color:var(--text3)}
+.su-selected b{display:block;font-size:17px;margin-top:3px}
+.su-selected b span{color:var(--text3);font-weight:500;font-size:14px}
+.su-change{font:600 13px/1 var(--font);color:var(--accent);background:none;border:0;cursor:pointer;white-space:nowrap}
+.su-points{list-style:none;margin-top:20px;display:grid;gap:11px}
+.su-points li{display:flex;gap:10px;font-size:14px;color:var(--text2);line-height:1.5}
+.su-points svg{width:17px;height:17px;flex-shrink:0;margin-top:2px;fill:none;stroke:var(--green);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.su-points a{color:var(--accent);text-decoration:none}
+.su-signed{padding:28px;text-align:center}
+.su-signed p{font-size:14px;color:var(--text2);line-height:1.6;margin:10px 0 20px}
 
-.auth-card{
-  width:100%;max-width:440px;
-  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
-  overflow:hidden;
-}
-
-.auth-hero{
-  background:linear-gradient(135deg,#1a1f2e 0%,#0f1318 100%);
-  padding:32px 32px 28px;text-align:center;border-bottom:1px solid var(--border);
-  position:relative;overflow:hidden;
-}
-.auth-hero::before{
-  content:'';position:absolute;top:-40px;right:-40px;
-  width:120px;height:120px;border-radius:50%;
-  background:radial-gradient(circle,rgba(240,165,0,.15) 0%,transparent 70%);
-}
-.auth-emoji{font-size:36px;margin-bottom:10px}
-.auth-title{font-size:22px;font-weight:700;margin-bottom:6px;color:#f0f4f8}
-.auth-sub{font-size:13px;color:#8fa3b8;line-height:1.5}
-
-.pro-features{
-  display:flex;flex-direction:column;gap:6px;margin-top:16px;text-align:left;
-}
-.pro-feature{
-  display:flex;align-items:center;gap:8px;font-size:12px;color:#b0c4d8;
-}
-.pro-feature-icon{color:#f0a500;font-size:13px;flex-shrink:0}
-
-.auth-body{padding:28px 32px}
-
-.tabs{display:flex;gap:0;margin-bottom:24px;background:var(--card2);border-radius:8px;padding:3px}
-.tab{
-  flex:1;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;
-  padding:8px;border-radius:6px;border:none;background:transparent;
-  color:var(--text3);cursor:pointer;transition:all .15s;
-}
-.tab.active{background:var(--card);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.3)}
-
-.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
-.field label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
-.field input{
-  background:var(--card2);border:1px solid var(--border2);border-radius:8px;
-  color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:14px;
-  padding:10px 14px;outline:none;transition:border-color .15s;width:100%;
-}
-.field input:focus{border-color:var(--accent)}
-
-.submit-btn{
-  width:100%;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;
-  padding:12px;border-radius:8px;border:none;background:var(--accent);color:#000;
-  cursor:pointer;transition:opacity .15s;margin-top:4px;
-}
-.submit-btn:hover:not(:disabled){opacity:.88}
-.submit-btn:disabled{opacity:.4;cursor:not-allowed}
-
-/* ── Password input with eye-toggle + live requirements checklist ────────
-   The input sits inside a wrapper so we can absolute-position the eye
-   button on the right edge. The checklist below the input updates live
-   as the user types, with each rule going from ○ (gray) to ✓ (green) as
-   it passes. Submit stays disabled until every rule passes. */
+.auth-card{width:100%;background:var(--card);border:1px solid var(--border2);border-radius:20px;box-shadow:var(--shadow-lg);overflow:hidden}
+.auth-body{padding:28px}
+.tabs{display:flex;margin-bottom:22px;background:var(--card2);border-radius:12px;padding:4px;border:1px solid var(--border)}
+.tab{flex:1;font:600 13.5px/1 var(--font);padding:11px;border-radius:9px;border:none;background:transparent;color:var(--text3);cursor:pointer;transition:all .15s}
+.tab.active{background:var(--card);color:var(--text);box-shadow:var(--shadow)}
+.field{display:flex;flex-direction:column;gap:7px;margin-bottom:16px}
+.field label{font-size:12.5px;font-weight:600;color:var(--text2)}
+.field input{background:var(--card2);border:1px solid var(--border2);border-radius:10px;color:var(--text);font:400 14.5px var(--font);
+  padding:12px 14px;outline:none;transition:border-color .15s,box-shadow .15s;width:100%}
+.field input:focus{border-color:var(--accent-fill);box-shadow:0 0 0 3px rgba(245,165,36,.18)}
+.submit-btn{width:100%;height:48px;font:700 14.5px/1 var(--font);border-radius:12px;border:none;background:var(--accent-fill);color:var(--accent-ink);
+  cursor:pointer;transition:opacity .15s;margin-top:4px;box-shadow:0 8px 22px rgba(245,165,36,.22)}
+.submit-btn:hover:not(:disabled){opacity:.9}
+.submit-btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
 .pw-wrap{position:relative}
-.pw-wrap input{padding-right:42px !important}
-.pw-toggle{
-  position:absolute;top:50%;right:6px;transform:translateY(-50%);
-  width:30px;height:30px;
-  background:transparent;border:none;border-radius:6px;cursor:pointer;
-  color:var(--text3);
-  display:flex;align-items:center;justify-content:center;
-  transition:color .15s, background .15s;
-}
-.pw-toggle:hover{color:var(--text);background:var(--card)}
+.pw-wrap input{padding-right:44px !important}
+.pw-toggle{position:absolute;top:50%;right:7px;transform:translateY(-50%);width:32px;height:32px;background:transparent;border:none;border-radius:8px;
+  cursor:pointer;color:var(--text3);display:flex;align-items:center;justify-content:center;transition:color .15s,background .15s}
+.pw-toggle:hover{color:var(--text);background:var(--card3)}
 .pw-toggle svg{width:18px;height:18px;display:block}
-
-.pw-rules{
-  list-style:none;padding:0;margin:0;
-  display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;
-  font-size:11px;color:var(--text3);
-  line-height:1.4;
-}
-.pw-rules li{
-  display:flex;align-items:center;gap:6px;
-  transition:color .15s;
-}
-.pw-rules li::before{
-  content:'○';
-  display:inline-flex;align-items:center;justify-content:center;
-  width:14px;height:14px;
-  font-size:13px;color:var(--text3);
-  flex-shrink:0;
-  transition:color .15s, content .15s;
-}
+.pw-rules{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:5px 14px;font-size:12px;color:var(--text3);line-height:1.4;margin-top:2px}
+.pw-rules li{display:flex;align-items:center;gap:6px;transition:color .15s}
+.pw-rules li::before{content:'○';display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;font-size:13px;color:var(--text3);flex-shrink:0}
 .pw-rules li.ok{color:var(--green)}
 .pw-rules li.ok::before{content:'✓';color:var(--green)}
-@media (max-width:380px){
+.su-agree{display:flex;align-items:flex-start;gap:10px;margin-bottom:18px}
+.su-agree input{width:16px;height:16px;margin-top:2px;accent-color:#f5a524;cursor:pointer;flex-shrink:0}
+.su-agree label{font-size:12.5px;color:var(--text2);line-height:1.6;cursor:pointer}
+.su-agree a,.footer-note a{color:var(--accent);text-decoration:none}
+.divider{height:1px;background:var(--border);margin:22px 0;position:relative}
+.divider span{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);padding:0 10px;font-size:12px;color:var(--text3)}
+.google-btn{width:100%;height:46px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:12px;border:1px solid var(--border2);
+  background:var(--card);color:var(--text);font:600 14px/1 var(--font);cursor:pointer;transition:all .15s}
+.google-btn:hover{border-color:var(--text3);background:var(--card2)}
+.error-msg{background:var(--redbg);border:1px solid rgba(248,113,113,.35);border-radius:10px;padding:11px 14px;font-size:13px;color:var(--red);
+  margin-bottom:16px;display:none;line-height:1.5}
+.success-msg{background:var(--greenbg);border:1px solid rgba(52,211,153,.35);border-radius:10px;padding:11px 14px;font-size:13px;color:var(--green);
+  margin-bottom:16px;display:none;line-height:1.5}
+.footer-note{font-size:12.5px;color:var(--text3);text-align:center;margin-top:18px;line-height:1.7}
+.price-note{background:var(--accentbg);border:1px solid rgba(245,165,36,.25);border-radius:10px;padding:11px 14px;font-size:13px;color:var(--text2);
+  margin-bottom:20px;text-align:center}
+.price-note strong{color:var(--accent)}
+
+@media (max-width:1100px){
+  .su-plans{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .su-plan:nth-child(3){border-left:0}
+  .su-plan:nth-child(n+3){border-top:1px solid var(--border)}
+}
+@media (max-width:900px){.su-account{grid-template-columns:1fr;gap:28px;margin-top:56px}}
+@media (max-width:640px){
+  .su-page{padding:0 16px}
+  .su-hero{padding:40px 0 26px}
+  .su-hero p{font-size:15.5px}
+  .su-plans{grid-template-columns:1fr}
+  .su-plan{border-left:0;border-top:1px solid var(--border);padding:22px 18px}
+  .su-plan:first-child{border-top:0}
+  .su-tagline{min-height:0}
+  .su-groups{display:none}
+  .su-plan.open .su-groups{display:block}
+  .su-more{display:block;width:100%;margin-top:12px;font:600 13px/1 var(--font);color:var(--text2);background:none;border:1px solid var(--border2);
+    border-radius:10px;height:40px;cursor:pointer}
+  .auth-body{padding:22px 18px}
   .pw-rules{grid-template-columns:1fr}
 }
 
-.divider{height:1px;background:var(--border);margin:20px 0;position:relative}
-.divider span{
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  background:var(--panel);padding:0 10px;font-size:11px;color:var(--text3);
-}
-.google-btn{
-  width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
-  padding:11px;border-radius:8px;border:1px solid var(--border2);
-  background:var(--card);color:var(--text2);font-family:'Space Grotesk',sans-serif;
-  font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;
-}
-.google-btn:hover{border-color:var(--accent);color:var(--text)}
-
-.error-msg{
-  background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);
-  border-radius:8px;padding:10px 14px;font-size:12px;color:var(--red);
-  margin-bottom:16px;display:none;line-height:1.5;
-}
-.success-msg{
-  background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);
-  border-radius:8px;padding:10px 14px;font-size:12px;color:var(--green);
-  margin-bottom:16px;display:none;line-height:1.5;
-}
-
-.footer-note{font-size:11px;color:var(--text3);text-align:center;margin-top:16px;line-height:1.6}
-.footer-note a{color:var(--accent);text-decoration:none}
-
-.price-note{
-  background:var(--accentbg);border:1px solid rgba(240,165,0,.2);
-  border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text2);
-  margin-bottom:20px;text-align:center;
-}
-.price-note strong{color:var(--accent)}
-
-/* Plan picker on the sign-up form */
-.plan-picker{display:grid;gap:8px;margin-bottom:8px}
-.plan-option{
-  display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;row-gap:2px;align-items:center;
-  border:1px solid var(--border2);border-radius:8px;padding:10px 12px;cursor:pointer;
-  background:var(--card2);transition:border-color .15s;
-}
-.plan-option:has(input:checked){border-color:var(--accent);background:var(--accentbg)}
-.plan-option input{accent-color:var(--accent);margin:0;grid-row:span 2}
-.plan-name{font-size:13px;font-weight:700;color:var(--text)}
-.plan-price{font-size:12px;color:var(--text2);text-align:right}
-.plan-price strong{color:var(--accent);font-size:14px}
-.plan-detail{grid-column:2 / 4;font-size:11px;color:var(--text3);line-height:1.4}
-.plan-footnote{font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:20px}
+/* Sign-in links, checkout returns, password resets: just the account card. */
+.su-auth-only .su-hero,.su-auth-only .su-plans,.su-auth-only .su-free,.su-auth-only .su-side{display:none}
+.su-auth-only .su-account{grid-template-columns:1fr;max-width:460px;margin:56px auto 0}
+.su-auth-plans{display:none;text-align:center;margin-top:16px;font-size:13px}
+.su-auth-plans a{color:var(--accent);text-decoration:none;font-weight:600}
+.su-auth-only .su-auth-plans{display:block}
 </style>
 </head>
 <body>
 
-<div class="header">
-  <a href="/" class="back-link">← Calculator</a>
-  <a href="/" class="brand-name" style="text-decoration:none">Quick<span>Freight</span>Calc</a>
-  <div style="width:80px"></div>
-</div>
+<main class="su-page">
+  <section class="su-hero">
+    <span class="qf-pill">Plans &amp; pricing</span>
+    <h1>Plans for every size of freight desk</h1>
+    <p>Every plan includes branded PDF quotes, the quote log, the multi-stop and bulk calculators and the lane tracker. Higher plans add more automatic miles, sales tools and white-label PDFs.</p>
+  </section>
 
-<div class="page">
-  <div class="auth-card" style="position:relative">
+  <section class="su-plans plan-picker" id="su-plans" role="radiogroup" aria-label="Plan"></section>
+  <p class="su-free">Just pricing a load? The calculator is free — 5 quotes a day with automatic miles, no account needed. <a href="/">Open the calculator</a></p>
 
-    <!-- Close button on the card -->
-    <button onclick="window.history.length>1?window.history.back():window.location.href='/'" style="
-      position:absolute;top:12px;right:12px;z-index:10;
-      font-size:16px;line-height:1;
-      background:var(--card2);border:1px solid var(--border2);border-radius:8px;
-      color:var(--text3);cursor:pointer;width:30px;height:30px;
-      display:flex;align-items:center;justify-content:center;
-      transition:all .15s;
-    "
-    onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
-    onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'"
-    title="Close">✕</button>
-
-    <div class="auth-hero">
-      <div class="auth-emoji">🚛</div>
-      <div class="auth-title">QuickFreightCalc <span style="color:#f0a500">Pro</span></div>
-      <div class="auth-sub">The complete freight quoting toolkit for brokers and dispatchers</div>
-      <div class="pro-features">
-        <div class="pro-feature"><span class="pro-feature-icon">📄</span> Branded PDF quotes — your logo, colors & MC/DOT#</div>
-        <div class="pro-feature"><span class="pro-feature-icon">📋</span> Quote log with notes — 100 saved quotes, synced across devices</div>
-        <div class="pro-feature"><span class="pro-feature-icon">🗺</span> Multi-stop load builder with per-mile stop charges</div>
-        <div class="pro-feature"><span class="pro-feature-icon">📈</span> Lane rate tracker — automatic monthly rate history</div>
-        <div class="pro-feature"><span class="pro-feature-icon">💾</span> Save up to 100 custom lane profiles</div>
-        <div class="pro-feature"><span class="pro-feature-icon">🔢</span> Sequential quote numbering</div>
-        <div class="pro-feature"><span class="pro-feature-icon">🔄</span> Everything synced across all your devices</div>
+  <section class="su-account" id="su-account">
+    <div class="su-side">
+      <h2>Create your account</h2>
+      <p>Set up your login, then finish payment securely with Stripe. Your plan starts as soon as payment goes through.</p>
+      <div class="su-selected">
+        <div><small>Your plan</small><b id="su-selected-name">Pro <span>$9.99/month</span></b></div>
+        <button type="button" class="su-change" id="su-change">Change plan</button>
       </div>
+      <ul class="su-points">
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7"/></svg>Cancel anytime from your Profile page</li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7"/></svg>Secure payment by Stripe</li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7"/></svg><span>Quotes are counted per lane, per day: <a href="/terms.html#quotes" target="_blank" rel="noopener">what counts as a quote</a></span></li>
+      </ul>
     </div>
 
+    <div class="auth-card" id="su-card">
     <div class="auth-body">
       <!-- Tabs -->
       <div class="tabs">
@@ -227,35 +187,6 @@ a.brand-name:hover span{opacity:.8}
 
       <!-- Sign Up form -->
       <div id="form-signup">
-        <div class="plan-picker" role="radiogroup" aria-label="Plan">
-          <label class="plan-option">
-            <input type="radio" name="su-plan" value="pro" checked />
-            <span class="plan-name">Pro</span>
-            <span class="plan-price"><strong>$9.99</strong>/month</span>
-            <span class="plan-detail">Automatic miles on 100 quotes per day</span>
-          </label>
-          <label class="plan-option">
-            <input type="radio" name="su-plan" value="plus" />
-            <span class="plan-name">Pro Plus</span>
-            <span class="plan-price"><strong>$19.99</strong>/month</span>
-            <span class="plan-detail">Automatic miles on 250 quotes per day, win/loss tracking and a customer list</span>
-          </label>
-          <label class="plan-option">
-            <input type="radio" name="su-plan" value="max" />
-            <span class="plan-name">Pro Max</span>
-            <span class="plan-price"><strong>$49.99</strong>/month</span>
-            <span class="plan-detail">Everything in Pro Plus, with automatic miles on 1,000 quotes per day and white-label PDFs</span>
-          </label>
-          <label class="plan-option">
-            <input type="radio" name="su-plan" value="api" />
-            <span class="plan-name">API</span>
-            <span class="plan-price"><strong>$199.99</strong>/month</span>
-            <span class="plan-detail">Everything in Pro Max, plus API access to quote from your own site — 5,000 quotes per month · <a href="/api.html" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">API docs</a></span>
-          </label>
-        </div>
-        <div class="plan-footnote">
-          Cancel anytime · <a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">What counts as a quote?</a>
-        </div>
         <div class="field">
           <label>Email Address</label>
           <input type="email" id="su-email" placeholder="john@acmefreight.com" oninput="updateSignupBtnState()" />
@@ -279,11 +210,9 @@ a.brand-name:hover span{opacity:.8}
             <li data-rule="symbol">Symbol (e.g. !@#$%)</li>
           </ul>
         </div>
-        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px">
-          <input type="checkbox" id="su-agree" onchange="updateSignupBtnState()" style="width:15px;height:15px;margin-top:2px;accent-color:#f0a500;cursor:pointer;flex-shrink:0" />
-          <label for="su-agree" style="font-size:12px;color:#8fa3b8;line-height:1.6;cursor:pointer">
-            I agree to the <a href="/terms.html" target="_blank" style="color:#f0a500;text-decoration:none">Terms of Service</a> and <a href="/privacy.html" target="_blank" style="color:#f0a500;text-decoration:none">Privacy Policy</a>. I understand that rate quotes are estimates only and not guaranteed.
-          </label>
+        <div class="su-agree">
+          <input type="checkbox" id="su-agree" onchange="updateSignupBtnState()" />
+          <label for="su-agree">I agree to the <a href="/terms.html" target="_blank">Terms of Service</a> and <a href="/privacy.html" target="_blank">Privacy Policy</a>. I understand that rate quotes are estimates only and not guaranteed.</label>
         </div>
         <button class="submit-btn" id="su-btn" onclick="handleSignup()" disabled>
           Sign Up for Pro →
@@ -324,7 +253,7 @@ a.brand-name:hover span{opacity:.8}
         </button>
         <div class="footer-note">
           <a href="#" onclick="handleForgotPassword()">Forgot your password?</a><br>
-          Don't have an account? <a href="#" onclick="switchTab('signup')">Sign up for Pro</a>
+          Don't have an account? <a href="#" onclick="switchTab('signup')">Create one</a>
         </div>
       </div>
 
@@ -362,8 +291,150 @@ a.brand-name:hover span{opacity:.8}
       </div>
 
     </div>
-  </div>
-</div>
+    </div>
+    <p class="su-auth-plans"><a href="/signup.html">See plans &amp; pricing</a></p>
+  </section>
+</main>
+
+<footer data-qf-footer></footer>
+
+<script>
+// ── Plan columns ──────────────────────────────────────────────────────────
+// The same plans, prices and limits as netlify/lib/plans.js. Each column holds
+// its plan's radio input (name="su-plan"), which the sign-up code reads.
+// Sign-in links (?login), messages after checkout and password resets show
+// just the account card (su-auth-only).
+(function () {
+  const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7"/></svg>';
+  const CROSS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>';
+  const PLANS = [
+    { id: 'pro',  name: 'Pro',      price: '9.99',   tag: 'For owner-operators and dispatchers pricing their own loads.' },
+    { id: 'plus', name: 'Pro Plus', price: '19.99',  tag: 'For brokers who quote every day and want to see what wins.' },
+    { id: 'max',  name: 'Pro Max',  price: '49.99',  tag: 'For busy desks sending quotes under their own name.' },
+    { id: 'api',  name: 'API',      price: '199.99', tag: 'For teams quoting from their own website, TMS or spreadsheet.' },
+  ];
+  const ORDER = PLANS.map((p) => p.id);
+  const all = () => true;
+  const from = (min) => (p) => ORDER.indexOf(p) >= ORDER.indexOf(min);
+  const per = (o) => (p) => o[p];
+  const GROUPS = [
+    ['Quoting', [
+      [all, per({ pro: 'Automatic miles on 100 quotes a day', plus: 'Automatic miles on 250 quotes a day', max: 'Automatic miles on 1,000 quotes a day', api: 'Automatic miles on 1,000 quotes a day' })],
+      [all, 'Unlimited quotes with miles you enter'],
+      [all, 'Multi-stop load builder'],
+      [all, 'Bulk load calculator (per cwt)'],
+      [all, 'Lane rate tracker'],
+      [all, per({ pro: 'Quote log: 100 saved quotes', plus: 'Quote log: 1,000 saved quotes', max: 'Quote log: 5,000 saved quotes', api: 'Quote log: 5,000 saved quotes' })],
+    ]],
+    ['PDF quotes', [
+      [all, 'Branded PDFs: your logo, colors and MC/DOT'],
+      [all, 'Customer name on every quote'],
+      [from('plus'), 'Saved customers fill in their details'],
+      [from('max'), 'White-label: no QuickFreightCalc name, your own terms'],
+    ]],
+    ['Sales tools', [
+      [from('plus'), 'Win/loss tracking by lane and customer'],
+      [from('plus'), per({ pro: 'Customer list', plus: 'Customer list: 1,000 customers', max: 'Customer list: 5,000 customers', api: 'Customer list: 5,000 customers' })],
+      [from('plus'), 'A default margin for each customer'],
+    ]],
+    ['API', [
+      [from('api'), per({ pro: 'API access', plus: 'API access', max: 'API access', api: 'API access: 5,000 quotes a month' })],
+    ]],
+    ['Account', [
+      [all, 'No ads'],
+      [all, 'Synced across your devices'],
+      [all, 'Sequential quote numbers'],
+    ]],
+  ];
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const host = document.getElementById('su-plans');
+  host.innerHTML = PLANS.map((p) => `
+    <div class="su-plan" data-plan="${p.id}">
+      <div class="su-plan-name"><span class="plan-name">${p.name}</span><span class="su-chip" aria-hidden="true">Selected</span></div>
+      <div class="su-price plan-price"><strong>$${p.price}</strong><span>/month</span></div>
+      <div class="su-billing">Billed monthly · cancel anytime</div>
+      <p class="su-tagline">${esc(p.tag)}</p>
+      <input type="radio" name="su-plan" value="${p.id}" class="qf-sr" aria-label="${esc(p.name)}, $${p.price} a month"${p.id === 'pro' ? ' checked' : ''}>
+      <button type="button" class="su-start">Start now</button>
+      <button type="button" class="su-more" aria-expanded="false">See what's included</button>
+      <div class="su-groups">${GROUPS.map(([title, rows]) => `
+        <div class="su-group"><h3>${title}</h3><ul class="su-feats">${rows.map(([has, text]) => {
+          const yes = has(p.id);
+          const t = typeof text === 'function' ? text(p.id) : text;
+          return `<li class="${yes ? 'yes' : 'no'}">${yes ? CHECK : CROSS}<span>${esc(t)}<span class="qf-sr">${yes ? ' (included)' : ' (not included)'}</span></span></li>`;
+        }).join('')}</ul></div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  const current = () => (host.querySelector('input[name="su-plan"]:checked') || {}).value || 'pro';
+  const planOf = (id) => PLANS.find((p) => p.id === id) || PLANS[0];
+  window.signupButtonLabel = () => `Sign up for ${planOf(current()).name} →`;
+  function sync() {
+    const id = current();
+    host.querySelectorAll('.su-plan').forEach((el) => el.classList.toggle('sel', el.dataset.plan === id));
+    const p = planOf(id);
+    document.getElementById('su-selected-name').innerHTML = `${p.name} <span>$${p.price}/month</span>`;
+    const btn = document.getElementById('su-btn');
+    if (btn && /^Sign up for /i.test(btn.textContent.trim())) btn.textContent = window.signupButtonLabel();
+  }
+  function choose(id, go) {
+    const input = host.querySelector(`input[name="su-plan"][value="${id}"]`);
+    if (input) input.checked = true;
+    sync();
+    if (!go) return;
+    if (document.body.classList.contains('su-signed-in')) { window.location.href = '/profile.html#subscription-paid'; return; }
+    if (typeof switchTab === 'function' && document.getElementById('tab-signup') && !document.getElementById('tab-signup').classList.contains('active')) switchTab('signup');
+    document.getElementById('su-account').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => { const e = document.getElementById('su-email'); if (e) e.focus({ preventScroll: true }); }, 450);
+  }
+  host.addEventListener('click', (e) => {
+    const col = e.target.closest('.su-plan');
+    if (!col) return;
+    const more = e.target.closest('.su-more');
+    if (more) {
+      col.classList.toggle('open');
+      more.setAttribute('aria-expanded', String(col.classList.contains('open')));
+      more.textContent = col.classList.contains('open') ? 'Hide features' : "See what's included";
+      return;
+    }
+    if (document.body.classList.contains('su-signed-in')) {
+      if (e.target.closest('.su-start')) window.location.href = '/profile.html#subscription-paid';
+      return;
+    }
+    choose(col.dataset.plan, !!e.target.closest('.su-start'));
+  });
+  host.addEventListener('change', sync);
+  document.getElementById('su-change').addEventListener('click', () => host.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  document.addEventListener('DOMContentLoaded', sync);
+
+  // Sign-in links and returns from checkout, Google or a reset email: just the card.
+  const q = window.location.search + window.location.hash;
+  if (/login|reason=|checkout=|google=return|access_token|type=recovery/.test(q)) document.body.classList.add('su-auth-only');
+
+  // Already signed in: the plans stay, plan changes happen on Profile.
+  window.showSignedIn = function (session) {
+    document.body.classList.add('su-signed-in');
+    const email = (session && session.user && session.user.email) || '';
+    const side = document.querySelector('.su-side');
+    side.querySelector('h2').textContent = "You're signed in";
+    side.querySelector('p').textContent = (email ? `Signed in as ${email}. ` : '') + 'Switch plans any time from your Profile page; upgrades start right away.';
+    side.querySelector('.su-selected').style.display = 'none';
+    document.getElementById('su-card').innerHTML = '<div class="su-signed"><b>Manage your plan</b><p>Your plan, billing and cancellation live on your Profile page.</p>' +
+      '<a class="qf-btn qf-btn-primary qf-btn-lg" href="/profile.html#subscription-paid">Go to your Profile</a></div>';
+    // Mark the plan this account is on.
+    let prof = {}, st = {};
+    try { prof = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch (e) {}
+    try { st = JSON.parse(localStorage.getItem('qfc_pro_status') || '{}') || {}; } catch (e) {}
+    const mine = st.isActive && ORDER.includes(prof.plan) ? prof.plan : null;
+    host.querySelectorAll('.su-chip').forEach((c) => { c.textContent = 'Your plan'; });
+    if (mine) choose(mine, false);
+    host.querySelectorAll('.su-plan').forEach((el) => {
+      if (!mine) el.classList.remove('sel');
+      el.querySelector('.su-start').textContent = el.dataset.plan === mine ? 'Manage on Profile' : 'Switch on Profile';
+    });
+  };
+})();
+</script>
 
 <script>
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
@@ -376,9 +447,12 @@ async function checkSession(){
   if(window.location.search.includes('google=return')) return;
   if(window.location.hash.includes('access_token')) return;
   const session = getSession();
-  if(session){
-    window.location.href = '/profile.html';
-  }
+  if(!session) return;
+  // A sign-in link while signed in goes to the Profile page; otherwise the
+  // plans stay on screen and plan changes happen on Profile.
+  if(new URLSearchParams(window.location.search).has('login')){ window.location.href = '/profile.html'; return; }
+  if(window.showSignedIn) window.showSignedIn(session);
+  else window.location.href = '/profile.html';
 }
 
 function getSession(){
@@ -707,7 +781,7 @@ async function handleSignup(){
       } else {
         showError('Could not start checkout. Please try signing in and upgrading from your profile.');
         btn.disabled = false;
-        btn.textContent = 'Sign Up for Pro →';
+        btn.textContent = window.signupButtonLabel ? signupButtonLabel() : 'Sign up for Pro →';
       }
     } else {
       // No access_token — email may already exist
@@ -751,12 +825,12 @@ async function handleSignup(){
         showError('An account with this email may already exist. Please try signing in.');
       }
       btn.disabled = false;
-      btn.textContent = 'Sign Up for Pro →';
+      btn.textContent = window.signupButtonLabel ? signupButtonLabel() : 'Sign up for Pro →';
     }
   } catch(e){
     showError('Something went wrong. Please try again.');
     btn.disabled = false;
-    btn.textContent = 'Sign Up for Pro →';
+    btn.textContent = window.signupButtonLabel ? signupButtonLabel() : 'Sign up for Pro →';
   }
 }
 
@@ -913,71 +987,18 @@ if(detectRecoveryFlow()){
 }
 </script>
 <!-- Floating theme button -->
-<button id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode" style="
-  position:fixed;bottom:24px;right:24px;z-index:999;
-  display:flex;align-items:center;gap:7px;
-  background:var(--card);border:1px solid var(--border2);border-radius:20px;
-  padding:8px 14px 8px 10px;cursor:pointer;
-  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:var(--text2);
-  transition:border-color .15s,color .15s,box-shadow .15s;
-  box-shadow:0 4px 16px rgba(0,0,0,.3);">
-  <span id="theme-icon" style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--card2)">☀️</span>
-  <span id="theme-label">Light Mode</span>
-</button>
-
 <script>
-function updateThemeBtn(theme){
-  const btn = document.getElementById('theme-btn');
-  if(!btn) return;
-  const isLight = theme ? theme === 'light' : document.documentElement.classList.contains('light');
-  if(isLight){
-    btn.style.setProperty('background', '#1a1d24', 'important');
-    btn.style.setProperty('border-color', '#1a1d24', 'important');
-    btn.style.setProperty('color', '#e2e8f0', 'important');
-    btn.style.setProperty('box-shadow', '0 4px 16px rgba(0,0,0,.5)', 'important');
-  } else {
-    btn.style.setProperty('background', '#f0ede8', 'important');
-    btn.style.setProperty('border-color', '#c8c4bc', 'important');
-    btn.style.setProperty('color', '#1a1d24', 'important');
-    btn.style.setProperty('box-shadow', '0 4px 12px rgba(0,0,0,.15)', 'important');
-  }
-}
-function applyTheme(theme){
-  const root = document.documentElement;
-  if(theme === 'light'){
-    root.style.setProperty('--bg','#ffffff');
-    root.style.setProperty('--panel','#ffffff');
-    root.style.setProperty('--card','#f8fafc');
-    root.style.setProperty('--card2','#eef2f7');
-    root.style.setProperty('--border','#dde3ed');
-    root.style.setProperty('--border2','#c8d4e0');
-    root.style.setProperty('--text','#0f172a');
-    root.style.setProperty('--text2','#334155');
-    root.style.setProperty('--text3','#64748b');
-    document.getElementById('theme-icon').textContent = '🌙';
-    document.getElementById('theme-label').textContent = 'Dark Mode';
-  } else {
-    root.style.setProperty('--bg','#1a1d24');
-    root.style.setProperty('--panel','#1f2330');
-    root.style.setProperty('--card','#22262f');
-    root.style.setProperty('--card2','#272c38');
-    root.style.setProperty('--border','#1e2a38');
-    root.style.setProperty('--border2','#243040');
-    root.style.setProperty('--text','#e2e8f0');
-    root.style.setProperty('--text2','#9aafc4');
-    root.style.setProperty('--text3','#8896a8');
-    document.getElementById('theme-icon').textContent = '☀️';
-    document.getElementById('theme-label').textContent = 'Light Mode';
-  }
-  updateThemeBtn(theme);
-}
-function toggleTheme(){
-  const current = localStorage.getItem('qfc_theme') || 'dark';
-  const next = current === 'dark' ? 'light' : 'dark';
-  localStorage.setItem('qfc_theme', next);
-  applyTheme(next);
-}
-applyTheme(localStorage.getItem('qfc_theme') || 'dark');
+// Choosing "Create Account" from a sign-in link brings the plans back.
+(function () {
+  const sw = window.switchTab;
+  window.switchTab = function (tab) {
+    sw(tab);
+    if (tab === 'signup' && document.body.classList.contains('su-auth-only')) {
+      document.body.classList.remove('su-auth-only');
+      window.scrollTo(0, 0);
+    }
+  };
+})();
 </script>
 </body>
 </html>

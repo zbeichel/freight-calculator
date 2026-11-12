@@ -210,6 +210,16 @@ async function newTab(t, fn) {
   let t = await setup(browser, base, { account: ACCT(), customers: SEED_CUSTOMERS, quotes: SEED_QUOTES });
   await openCalculator(t, base, 9, 3);
   check('the Customers button has no PLUS tag for Pro Plus', !(await t.page.isVisible('#customers-plus-tag')));
+  // With the box at the bottom of the window, the list opens above it instead of off-screen.
+  await t.page.evaluate(() => { const i = document.getElementById('quote-customer'); window.scrollBy(0, i.getBoundingClientRect().bottom - window.innerHeight + 4); });
+  await t.page.focus('#quote-customer');
+  await t.page.keyboard.type('ac');
+  await t.page.waitForSelector('.qfcc-pop:not([hidden]) .qfcc-item');
+  const geo = await t.page.evaluate(() => { const p = document.querySelector('.qfcc-pop').getBoundingClientRect(), i = document.getElementById('quote-customer').getBoundingClientRect();
+    return { popTop: Math.round(p.top), popBottom: Math.round(p.bottom), boxTop: Math.round(i.top), boxBottom: Math.round(i.bottom), height: innerHeight }; });
+  check('near the bottom of the window the list opens above the box', geo.boxBottom > geo.height - 40 && geo.popBottom <= geo.boxTop && geo.popTop >= 0, JSON.stringify(geo));
+  await t.page.evaluate(() => { const i = document.getElementById('quote-customer'); i.value = ''; i.dispatchEvent(new Event('input')); i.blur(); window.scrollTo(0, 0); });
+  await t.page.waitForSelector('.qfcc-pop', { state: 'hidden' });
   await t.page.click('#quote-customer');
   await t.page.keyboard.type('acm');
   await t.page.waitForSelector('.qfcc-pop:not([hidden]) .qfcc-item');

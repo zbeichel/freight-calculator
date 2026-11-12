@@ -70,51 +70,13 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/lane.css">
+<script src="/site.js"></script>
 <style>
-:root {
-  --bg:        #1a1d24;
-  --panel:     #1f2330;
-  --card:      #22262f;
-  --card2:     #272c38;
-  --border:    rgba(255,255,255,0.07);
-  --border2:   rgba(255,255,255,0.12);
-  --accent:    #f0a500;
-  --accent2:   #ffbe3c;
-  --accentbg:  rgba(240,165,0,0.08);
-  --blue:      #3b82f6;
-  --green:     #22c55e;
-  --red:       #ef4444;
-  --redbg:     rgba(239,68,68,0.08);
-  --purple:    #8b5cf6;
-  --text:      #e2e8f0;
-  --text2:     #9aafc4;
-  --text3:     #8896a8;
-  --radius:    12px;
-  --radius-lg: 18px;
-  --shadow:    0 1px 3px rgba(0,0,0,0.4);
-}
+/* Colors (dark and light), radius and shadows come from site.css. */
 
 /* ── Light mode overrides ── */
-html.light {
-  --bg:        #f8f9fb;
-  --panel:     #ffffff;
-  --card:      #ffffff;
-  --card2:     #f1f4f8;
-  --border:    rgba(0,0,0,0.08);
-  --border2:   rgba(0,0,0,0.14);
-  --accent:    #c07c00;
-  --accent2:   #c07c00;
-  --accentbg:  rgba(192,124,0,0.08);
-  --blue:      #1d4ed8;
-  --green:     #15803d;
-  --red:       #b91c1c;
-  --redbg:     rgba(185,28,28,0.10);
-  --purple:    #6d28d9;
-  --text:      #0f172a;
-  --text2:     #1e293b;
-  --text3:     #475569;
-  --shadow:    0 1px 4px rgba(0,0,0,0.1);
-}
 
 html.light body::before { opacity: 0; }
 
@@ -122,10 +84,6 @@ html.light .result-hero {
   background: transparent;
 }
 
-html.light header {
-  background: rgba(240,242,245,0.92);
-  box-shadow: 0 1px 0 var(--border);
-}
 
 html.light .hero h1 {
   background: linear-gradient(135deg, #0f172a 0%, #475569 100%);
@@ -168,7 +126,7 @@ html.light .flat-result {
 html.light tbody tr:hover { background: rgba(0,0,0,0.02); }
 
 /* Smooth theme transition — scoped to elements that actually change with theme */
-header, .card, .panel, .btn, .seg-btn, .input, input, select, textarea,
+.card, .panel, .btn, .seg-btn, .input, input, select, textarea,
 .rate-chip, .pro-account-btn, .adv-section, .adv-warn, .result-hero,
 .flat-result, .acc-item, .hos-day, .weather-card, tbody tr,
 .pill, .tab, .back-link, .save-btn, .save-btn-header {
@@ -178,41 +136,16 @@ header, .card, .panel, .btn, .seg-btn, .input, input, select, textarea,
 html{scroll-behavior:smooth}
 body{
   background:var(--bg);
+  background-image:var(--glow);
+  background-repeat:no-repeat;
   color:var(--text);
-  font-family:'Space Grotesk',sans-serif;
+  font-family:var(--font);
   font-size:14px;
   min-height:100vh;
   line-height:1.5;
 }
 
-/* ── Noise texture overlay ── */
-body::before{
-  content:'';
-  position:fixed;
-  inset:0;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-  pointer-events:none;
-  z-index:0;
-}
 
-/* ── Header ── */
-header{
-  position:sticky;
-  top:0;
-  z-index:100;
-  border-bottom:1px solid var(--border);
-  padding:0 40px;
-  display:grid;
-  grid-template-columns:1fr auto 1fr;
-  align-items:center;
-  gap:16px;
-  height:64px;
-  background:var(--panel);
-}
-header .brand{ justify-self:start; }
-header .header-center{ justify-self:center;display:flex;align-items:center; }
-header .pro-account-btn{ justify-self:end; }
-header .header-auth{ justify-self:end; }
 .brand-name-mobile{
   display:none;
   font-family:'Space Grotesk',sans-serif;
@@ -227,7 +160,7 @@ header .header-auth{ justify-self:end; }
 }
 .brand-icon{
   width:32px;height:32px;
-  background:var(--accent);
+  background:var(--accent-fill);
   border-radius:8px;
   display:flex;align-items:center;justify-content:center;
   font-size:16px;
@@ -311,6 +244,32 @@ header .header-auth{ justify-self:end; }
   max-width:480px;
   margin:0 auto;
 }
+/* Refreshed hero: solid headline, national rates under it */
+.hero{padding:56px 24px 34px}
+.hero .qf-pill{margin-bottom:18px}
+.hero h1{font-size:clamp(30px,5vw,54px);line-height:1.05;letter-spacing:-.035em;background:none;color:var(--text);-webkit-text-fill-color:var(--text);text-wrap:balance}
+.hero h1 em{-webkit-text-fill-color:var(--accent-fill);color:var(--accent-fill)}
+html.light .hero h1 em{-webkit-text-fill-color:#d48200;color:#d48200}
+.hero-sub{font-size:16px;line-height:1.6;max-width:560px}
+.glance{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:10px;margin-top:24px}
+.glance a{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px;border-radius:999px;background:var(--card);border:1px solid var(--border);
+  color:var(--text2);text-decoration:none;font-size:13px;transition:border-color .15s,color .15s}
+.glance a:hover{border-color:var(--accent-fill);color:var(--text)}
+.glance strong{color:var(--text);font-weight:700}
+.glance-d{display:inline-flex;align-items:center;gap:2px;font-size:12px;color:var(--text3)}
+.glance-d svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.glance .glance-map{background:transparent;border-color:transparent;color:var(--accent);font-weight:600}
+.glance .glance-map:hover{border-color:transparent;color:var(--accent2)}
+.glance-note{width:100%;text-align:center;font-size:11.5px;color:var(--text3);margin-top:2px}
+.calc-tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 18px}
+.calc-tool{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:15px 6px 12px;border-radius:12px;
+  border:1px solid var(--border);background:var(--card2);color:var(--text2);font-size:12px;font-weight:600;text-decoration:none;text-align:center;line-height:1.2;
+  transition:border-color .15s,color .15s,background .15s}
+.calc-tool:hover{border-color:var(--accent-fill);color:var(--text)}
+.calc-tool .qf-icon{width:20px;height:20px;color:var(--accent)}
+.calc-tool-tag{position:absolute;top:6px;right:6px;font-size:8.5px;font-weight:700;letter-spacing:.05em;padding:2px 5px;border-radius:6px;
+  color:var(--accent);background:var(--accentbg);border:1px solid rgba(245,165,36,.3)}
+@media(max-width:740px){.calc-tools{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{padding:34px 16px 22px}}
 
 /* ── Main layout ── */
 .main{
@@ -468,7 +427,7 @@ header .header-auth{ justify-self:end; }
   transition:all .15s;
 }
 .seg-btn.active{
-  background:var(--accent);
+  background:var(--accent-fill);
   color:#000;
 }
 
@@ -524,7 +483,7 @@ header .header-auth{ justify-self:end; }
   transition:transform .2s,background .2s;
 }
 .tog input:checked+.tog-track{background:rgba(240,165,0,.15);border-color:var(--accent)}
-.tog input:checked+.tog-track .tog-thumb{transform:translateX(14px);background:var(--accent)}
+.tog input:checked+.tog-track .tog-thumb{transform:translateX(14px);background:var(--accent-fill)}
 .tog-label{font-size:13px;font-weight:500;color:var(--text2)}
 .tog input:checked~.tog-label{color:var(--accent)}
 
@@ -766,7 +725,7 @@ header .header-auth{ justify-self:end; }
 }
 .holiday-row .holiday-check::after{
   content:'';width:8px;height:8px;border-radius:2px;
-  background:var(--accent);
+  background:var(--accent-fill);
   transform:scale(0);transition:transform .12s;
 }
 .holiday-row .holiday-name{
@@ -1022,7 +981,7 @@ header .header-auth{ justify-self:end; }
   transition:all .15s;
   border:none;
 }
-.btn-primary{background:var(--accent);color:#000}
+.btn-primary{background:var(--accent-fill);color:#000}
 .btn-primary:hover{background:var(--accent2)}
 .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
 .btn-ghost:hover{border-color:var(--text2);color:var(--text)}
@@ -1124,17 +1083,6 @@ td.dim{color:var(--text3)}
   .wl-table td.wl-name{white-space:normal;max-width:none;min-width:96px}
 }
 
-/* ── Footer ── */
-footer{
-  position:relative;z-index:1;
-  text-align:center;
-  padding:24px;
-  font-size:11px;
-  color:var(--text3);
-  border-top:1px solid var(--border);
-}
-footer a{color:var(--text2);text-decoration:none}
-footer a:hover{color:var(--accent)}
 
 /* ── Flat rate section ── */
 #flat-section{display:none;margin-top:14px}
@@ -1242,7 +1190,10 @@ html.light .hos-day-header{background:var(--card2)}
 /* ── LTL ── */
 .ship-toggle{display:flex;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:3px;margin-bottom:18px;width:100%;overflow:hidden}
 .ship-btn{flex:1;min-width:0;padding:8px 6px;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;letter-spacing:.04em;border:none;border-radius:9px;background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px;overflow:hidden;white-space:nowrap}
-.ship-btn.active{background:var(--accent);color:#000}
+.ship-btn.active{background:var(--accent-fill);color:#000}
+.ship-btn .qf-icon{width:16px;height:16px}
+#prof-btn-icon{display:inline-flex}
+#prof-btn-icon .qf-icon{width:16px;height:16px}
 /* ── Profitability ── */
 .prof-metric{background:var(--card2);border-radius:var(--radius);padding:14px 16px;min-width:0}
 .prof-metric-label{font-size:11px;color:var(--text2);font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
@@ -1452,13 +1403,6 @@ html.light .hos-day-header{background:var(--card2)}
 .ship-label-long{display:inline}
 
 @media(max-width:740px){
-  header{
-    padding:0 14px;
-    grid-template-columns:auto 1fr auto;
-    gap:8px;
-  }
-  header .brand .brand-name{ display:none }
-  header .header-center .header-right{ display:none }
   .brand-name-mobile{ display:block }
   .hero{padding:28px 14px 20px}
   .hero h1{font-size:clamp(20px,6vw,32px);line-height:1.2}
@@ -1474,8 +1418,6 @@ html.light .hos-day-header{background:var(--card2)}
   .pill-grid{grid-template-columns:1fr 1fr 1fr}
   .acc-grid{grid-template-columns:1fr}
   .hos-stats{grid-template-columns:1fr 1fr}
-  footer{padding:20px 14px;text-align:center}
-  footer p{font-size:11px}
 
   /* ── Mobile touch-target enforcement ─────────────────────────────
      Bump primary action buttons to a 44px minimum height (the Apple
@@ -1549,8 +1491,6 @@ html.light .hos-day-header{background:var(--card2)}
   /* Density */
   .density-result{flex-wrap:wrap;gap:5px}
 
-  /* Footer */
-  footer p[style*="display:flex"]{flex-direction:column!important;align-items:center!important}
 
   /* Kill stray fixed max-widths */
   .field{max-width:100%!important}
@@ -1575,7 +1515,7 @@ html.light .hos-day-header{background:var(--card2)}
   color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:11px;
   font-weight:600;cursor:pointer;transition:all .15s;
 }
-.weather-unit-btn.active{background:var(--accent);color:#000}
+.weather-unit-btn.active{background:var(--accent-fill);color:#000}
 .weather-locations{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)}
 .weather-loc{background:var(--card);padding:16px 20px}
 .weather-loc-label{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
@@ -1613,76 +1553,18 @@ html.light .hos-day-header{background:var(--card2)}
 </aside>
 
 <!-- ── Header ── -->
-<header>
-  <div class="brand">
-    <div class="brand-icon">🚛</div>
-    <div class="brand-name">Quick<span>Freight</span>Calc</div>
-  </div>
-  <div class="header-center">
-    <div class="brand-name-mobile">Quick<span>Freight</span>Calc</div>
-    <div class="header-right">
-      <div class="rate-chip"><span class="dot"></span>Van <strong id="hdr-van">$2.47</strong></div>
-      <div class="rate-chip"><span class="dot"></span>Reefer <strong id="hdr-reefer">$2.88</strong></div>
-      <div class="rate-chip"><span class="dot"></span>Flatbed <strong id="hdr-flatbed">$2.95</strong></div>
-      <span style="color:var(--text3);font-size:11px;margin-left:4px">per mile · avg</span>
-    </div>
-  </div>
-  <div class="header-auth">
-    <!--
-      Header legal links — small visible Privacy/Terms links high in the page
-      so OAuth verification crawlers (and users) can find them without
-      having to scroll to the footer. Hidden on the narrowest mobile sizes
-      to keep the header compact; users still have the more prominent
-      footer links there.
-    -->
-    <a href="/privacy.html" class="header-legal-link" target="_blank" rel="noopener noreferrer">Privacy</a>
-    <span class="header-legal-sep" aria-hidden="true">·</span>
-    <a href="/terms.html" class="header-legal-link" target="_blank" rel="noopener noreferrer">Terms</a>
-    <!--
-      The account pill behaves differently based on auth state:
-        • Signed out: anchor that links to /signup.html (the upsell flow).
-        • Signed in:  click toggles the dropdown menu below; navigation is
-                      suppressed in JS via preventDefault. Profile and Sign
-                      Out live in the dropdown.
-    -->
-    <div class="account-menu-wrap">
-      <a href="/signup.html" id="pro-account-btn" class="pro-account-btn">
-        <span id="pro-btn-icon">⭐</span>
-        <span id="pro-name-label">Pro</span>
-        <span id="pro-btn-caret" class="pro-btn-caret" aria-hidden="true">▾</span>
-      </a>
-      <div id="account-menu" class="account-menu" aria-hidden="true">
-        <div class="account-menu-header">
-          <div class="account-menu-label">Signed in as</div>
-          <div class="account-menu-name" id="account-menu-name">—</div>
-        </div>
-        <div class="account-menu-divider"></div>
-        <a href="/profile.html" class="account-menu-item">
-          <span class="account-menu-icon" aria-hidden="true">⚙</span>
-          <span>Profile &amp; settings</span>
-        </a>
-        <div class="account-menu-divider"></div>
-        <button type="button" class="account-menu-item account-menu-item-danger"
-                onclick="handleHeaderSignOut()">
-          <span class="account-menu-icon" aria-hidden="true">⎋</span>
-          <span>Sign out</span>
-        </button>
-      </div>
-    </div>
-  </div>
-</header>
-
-<!-- ── Floating theme button ── -->
-<button class="theme-btn-float" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">
-  <span class="theme-icon" id="theme-icon">☀️</span>
-  <span class="theme-label" id="theme-label">Light Mode</span>
-</button>
-
-<!-- ── Hero ── -->
+<!-- ── Hero ── (the navigation comes from site.js) -->
 <div class="hero">
-  <div class="hero-eyebrow">⚡ Instant Rate Calculator</div>
+  <span class="qf-pill">Instant freight rate calculator</span>
   <h1>Get your <em>freight rate</em><br>in seconds</h1>
   <p class="hero-sub">Enter your load details below and get a spot rate quote — van, reefer, or flatbed, anywhere in the continental US.</p>
+  <div class="glance" id="glance" aria-label="National average spot rates per mile">
+    <a href="/rates.html"><span>Van</span><strong id="gl-van">—</strong><span class="glance-d" id="gl-van-d"></span></a>
+    <a href="/rates.html"><span>Reefer</span><strong id="gl-reefer">—</strong><span class="glance-d" id="gl-reefer-d"></span></a>
+    <a href="/rates.html"><span>Flatbed</span><strong id="gl-flatbed">—</strong><span class="glance-d" id="gl-flatbed-d"></span></a>
+    <a href="/rates.html" class="glance-map">Rate map →</a>
+    <div class="glance-note" id="gl-note">National average spot rates per mile</div>
+  </div>
 </div>
 
 <!-- ── Main ── -->
@@ -1700,12 +1582,12 @@ html.light .hos-day-header{background:var(--card2)}
         <!-- FTL / LTL toggle -->
         <div class="ship-toggle">
           <button class="ship-btn active" id="btn-ftl" onclick="setShipType('ftl')">
-            <span class="ship-label-long">🚛 FTL — Full Truckload</span>
-            <span class="ship-label-short">🚛 FTL</span>
+            <svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5h10.5v9H3z"/><path d="M13.5 9.5H17l3.5 3.5v2.5h-7z"/><circle cx="7" cy="17" r="1.8"/><circle cx="17" cy="17" r="1.8"/></svg><span class="ship-label-long">FTL — Full Truckload</span>
+            <span class="ship-label-short">FTL</span>
           </button>
           <button class="ship-btn" id="btn-ltl" onclick="setShipType('ltl')">
-            <span class="ship-label-long">📦 LTL — Less Than Truckload</span>
-            <span class="ship-label-short">📦 LTL</span>
+            <svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg><span class="ship-label-long">LTL — Less Than Truckload</span>
+            <span class="ship-label-short">LTL</span>
           </button>
         </div>
 
@@ -1716,51 +1598,18 @@ html.light .hos-day-header{background:var(--card2)}
 
         <!-- Profitability calculator toggle button -->
         <button id="btn-prof" onclick="setShipType(shipType==='prof'?'ftl':'prof')"
-          style="width:100%;margin-bottom:10px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em">
-          <span id="prof-btn-icon">💰</span>
-          <span id="prof-btn-label">Profitability Calculator</span>
+          style="width:100%;margin-bottom:10px;padding:10px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em">
+          <span id="prof-btn-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5h16"/><path d="M7 16v-4M12 16V8M17 16v-6"/></svg></span>
+          <span id="prof-btn-label">Profitability calculator</span>
         </button>
 
-        <!-- Multi-Stop builder link -->
-        <a id="multistop-btn" href="#"
-          onclick="handleMultiStopClick(event)"
-          style="width:100%;margin-bottom:8px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
-          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
-          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
-          <span style="flex:1;text-align:center">🗺 Multi-Stop Load Builder</span>
-          <span id="multistop-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);opacity:.6;padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PRO</span>
-        </a>
-
-        <!-- Lane Rate Tracker link -->
-        <a id="lanes-btn" href="#"
-          onclick="handleLanesClick(event)"
-          style="width:100%;margin-bottom:8px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
-          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
-          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
-          <span style="flex:1;text-align:center">📈 Lane Rate Tracker</span>
-          <span id="lanes-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);opacity:.6;padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PRO</span>
-        </a>
-
-        <!-- Bulk Load Calculator link -->
-        <a id="bulk-btn" href="#"
-          onclick="handleBulkClick(event)"
-          style="width:100%;margin-bottom:8px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
-          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
-          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
-          <span style="flex:1;text-align:center">🥔 Bulk Load Calculator</span>
-          <span id="bulk-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);opacity:.6;padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PRO</span>
-        </a>
-        <!-- Customers (Pro Plus and up). href="#" like the tools above: Netlify's
-             pretty-URL rewrite re-quotes tags that link to .html pages and breaks
-             their inline handlers and style. The click handler navigates. -->
-        <a id="customers-btn" href="#"
-          onclick="handleCustomersClick(event)"
-          style="width:100%;margin-bottom:18px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
-          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
-          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
-          <span style="flex:1;text-align:center">👥 Customers</span>
-          <span id="customers-plus-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);opacity:.6;padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PLUS</span>
-        </a>
+        <!-- Pro tools (also in the navigation's Tools menu) -->
+        <div class="calc-tools">
+          <a id="multistop-btn" href="#" class="calc-tool" onclick="handleMultiStopClick(event)"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.2"/><path d="M8.2 6H15a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6.8"/><circle cx="18" cy="18" r="2.2"/></svg><span>Multi-stop</span><span id="multistop-pro-tag" class="calc-tool-tag">PRO</span></a>
+          <a id="lanes-btn" href="#" class="calc-tool" onclick="handleLanesClick(event)"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5h16"/><path d="m5.5 15 4-4.5 3.5 3 5.5-6.5"/><path d="M15 7h3.5v3.5"/></svg><span>Lane tracker</span><span id="lanes-pro-tag" class="calc-tool-tag">PRO</span></a>
+          <a id="bulk-btn" href="#" class="calc-tool" onclick="handleBulkClick(event)"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg><span>Bulk load</span><span id="bulk-pro-tag" class="calc-tool-tag">PRO</span></a>
+          <a id="customers-btn" href="#" class="calc-tool" onclick="handleCustomersClick(event)"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8"/><path d="M15.5 5.6a3.2 3.2 0 0 1 0 5.8M17.3 14.9c1.6.6 2.8 2.2 3.2 4.6"/></svg><span>Customers</span><span id="customers-plus-tag" class="calc-tool-tag">PLUS</span></a>
+        </div>
 
         <!-- Profitability calculator form -->
         <div class="ltl-only" id="prof-fields">
@@ -2587,6 +2436,7 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="result-hero-label">Quote to Customer</div>
         <div class="result-hero-val" id="r-quote">—</div>
         <div class="result-hero-rpm" id="r-rpm">— per mile</div>
+        <a href="#lane-view" class="lane-jump" id="lane-jump" hidden>Lane details: map and rate history ↓</a>
         <div id="rate-disclaimer" style="font-size:10px;color:var(--text3);line-height:1.5;margin-top:8px;padding:0 4px">
           This quote is based on current <strong style="color:var(--text2)">US AVERAGE</strong> market rates and can be inflated. If you know the current rate per mile for your region/lane, please adjust it in the <strong style="color:var(--text2)">Base Rates ($/mi)</strong> box accordingly.
         </div>
@@ -2701,6 +2551,10 @@ html.light .hos-day-header{background:var(--card2)}
     </div>
   </div>
 
+  <!-- Lane details (lane.js): market rate now and over time, your quotes on the
+       lane, the route on Google's map, markets at both ends, trip and fuel -->
+  <section class="lane-view" id="lane-view" aria-label="Lane details" hidden></section>
+
   <!-- Quote Log — Pro only -->
   <div class="log-card" style="grid-column:1/-1;margin-top:0" id="quote-log-card">
 
@@ -2710,7 +2564,7 @@ html.light .hos-day-header{background:var(--card2)}
       <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Quote Log is a Pro Feature</div>
       <div style="font-size:13px;color:var(--text3);margin-bottom:18px;line-height:1.6">Save quotes with notes, synced across all your devices.</div>
       <button onclick="showProModal('Upgrade to Pro to save and sync your quote history across all devices.')"
-        style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;padding:10px 24px;border-radius:10px;border:none;background:var(--accent);color:#000;cursor:pointer">
+        style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;padding:10px 24px;border-radius:10px;border:none;background:var(--accent-fill);color:#000;cursor:pointer">
         Upgrade to Pro
       </button>
     </div>
@@ -2797,7 +2651,7 @@ function toggleSeoBlock(){
        data-ad-format="horizontal" data-full-width-responsive="true"></ins>
 </div>
 
-<footer>
+<footer data-qf-footer>
   <p>Rates are regional market averages · Diesel from <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" rel="noopener noreferrer">EIA Weekly</a> · LTL FSC calibrated to <a href="https://www.odfl.com/us/en/resources/fuel-surcharge.html" target="_blank" rel="noopener noreferrer">ODFL published rates</a> · For informational use — always verify before quoting</p>
   <p style="margin-top:10px;font-size:11px;color:var(--text3)">Questions or problems? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent);text-decoration:none">info@quickfreightcalc.com</a></p>
   <p style="margin-top:10px;font-size:12px;color:var(--text3)">By using QuickFreightCalc you agree to our <a href="/terms.html" style="color:var(--accent);text-decoration:underline;font-weight:600" target="_blank" rel="noopener noreferrer">Terms of Service</a> and <a href="/privacy.html" style="color:var(--accent);text-decoration:underline;font-weight:600" target="_blank" rel="noopener noreferrer">Privacy Policy</a>. Rates are estimates only — not guaranteed quotes.</p>
@@ -2848,7 +2702,7 @@ function toggleSeoBlock(){
       <button onclick="closeDupeModal(true)" style="
         flex:1;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;
         padding:10px;border-radius:8px;border:1px solid var(--accent);
-        background:var(--accent);color:#000;cursor:pointer">
+        background:var(--accent-fill);color:#000;cursor:pointer">
         Save Again
       </button>
     </div>
@@ -2886,7 +2740,7 @@ function toggleSeoBlock(){
         <button onclick="saveNotesModal()" style="
           font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
           padding:8px 18px;border-radius:8px;border:1px solid var(--accent);
-          background:var(--accent);color:#000;cursor:pointer">Save Notes</button>
+          background:var(--accent-fill);color:#000;cursor:pointer">Save Notes</button>
       </div>
     </div>
   </div>
@@ -3222,6 +3076,8 @@ async function _verifyProAuthBackground(){
 }
 
 function updateProAccountBtn(){
+  // The shared navigation (site.js) shows the account; redraw it.
+  if(window.QFCNav) QFCNav.refresh();
   try {
     const profile = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}');
     const btn = document.getElementById('pro-account-btn');
@@ -3364,6 +3220,7 @@ function handleBulkClick(e){
 }
 
 function updateProUI(){
+  if(window.QFCLane) QFCLane.refresh();   // lane details: your quotes (Pro), won/lost (Pro Plus and up)
   const notesField = document.getElementById('load-notes-field');
   const quickSave  = document.getElementById('quick-save-quote-btn');
   const dlBtn      = document.getElementById('btn-download-quote');
@@ -3598,6 +3455,7 @@ const ACC = {
 
 function setShipType(t){
   shipType=t;
+  if(window.QFCLane) QFCLane.refresh();
   document.getElementById('btn-ftl').classList.toggle('active',t==='ftl');
   document.getElementById('btn-ltl').classList.toggle('active',t==='ltl');
   // Profitability button — highlights when active, normal border when not
@@ -3607,12 +3465,12 @@ function setShipType(t){
     profBtn.style.background='var(--accentbg)';
     profBtn.style.borderColor='var(--accent)';
     profBtn.style.color='var(--accent)';
-    profLabel.textContent='✕ Close Profitability';
+    profLabel.textContent='Close profitability calculator';
   } else {
     profBtn.style.background='transparent';
     profBtn.style.borderColor='var(--border)';
     profBtn.style.color='var(--text2)';
-    profLabel.textContent='Profitability Calculator';
+    profLabel.textContent='Profitability calculator';
   }
   // Form sections
   document.getElementById('ftl-fields').classList.toggle('hide',t!=='ftl');
@@ -6349,9 +6207,8 @@ function updateHeaderRates(){
   const v=parseFloat(document.getElementById('rate-van').value)||2.73;
   const r=parseFloat(document.getElementById('rate-reefer').value)||3.15;
   const f=parseFloat(document.getElementById('rate-flatbed').value)||3.38;
-  document.getElementById('hdr-van').textContent=fmt(v);
-  document.getElementById('hdr-reefer').textContent=fmt(r);
-  document.getElementById('hdr-flatbed').textContent=fmt(f);
+  // The header rate chips were replaced by national rates in the hero (renderGlance).
+  [['hdr-van',v],['hdr-reefer',r],['hdr-flatbed',f]].forEach(([id,x])=>{ const el=document.getElementById(id); if(el) el.textContent=fmt(x); });
 }
 
 function getBase(){return{
@@ -6854,7 +6711,9 @@ function initMarketPanic(){
 }
 
 
+let lastFtlQuote = { quote: 0, rpm: 0 };   // for the lane view
 function calc(){
+  if(window.QFCLane) QFCLane.refresh();     // redraws shortly after, from laneForView()
   if(shipType==='ltl'){ calcLTL(); return; }
   const miles=parseFloat(document.getElementById('miles').value)||0;
   const weight=parseFloat(document.getElementById('weight').value)||0;
@@ -6892,6 +6751,7 @@ function calc(){
   const transitAdj = transitChargeAdded ? transitChargeAmount : 0;
   const quote=(cost+transitAdj)*(1+marginPct);
   const qRpm=miles>0?quote/miles:0;
+  lastFtlQuote = { quote, rpm: qRpm };
 
   // Hero
   document.getElementById('r-quote').textContent=miles?fmtInt(quote):'—';
@@ -6939,6 +6799,36 @@ function calc(){
 
   // Schedule anonymous lane data capture if quote is complete
   if(miles && orig && dest) scheduleLaneCapture();
+}
+
+// ── Lane details (lane.js) ────────────────────────────────────────────────
+// The lane on the calculator, for the lane view under the quote; null when
+// there's no full-truckload lane with miles to show.
+function laneForView(){
+  if(shipType !== 'ftl') return null;
+  const origEl = document.getElementById('origin'), destEl = document.getElementById('dest');
+  const orig = origEl.value.trim(), dest = destEl.value.trim();
+  const miles = parseFloat(document.getElementById('miles').value) || 0;
+  if(!orig || !dest || !(miles > 0)) return null;
+  const trailer = document.getElementById('trailer').value;
+  const google = /google/i.test(document.getElementById('miles-source')?.textContent || '');
+  return {
+    orig, dest, mapOrig: lanePlaceForMap(origEl), mapDest: lanePlaceForMap(destEl),
+    trailer, miles, milesSource: google ? 'google' : 'manual', driveSecs: google ? lastDriveSecs : 0,
+    distMult: dMult(miles, trailer).m,
+    quoteTotal: lastFtlQuote.quote, quoteRpm: lastFtlQuote.rpm,
+    quotes: isProUser ? quoteLog : [],
+    tier: accountTier(),
+  };
+}
+// Google's map gets the place the miles were routed to: "Franklin, WI" goes as
+// "Franklin, Vernon County, WI" when the checked place names its county.
+function lanePlaceForMap(input){
+  const text = input.value.trim();
+  const place = VERIFIED_PLACE.get(input);
+  const m = place && place.name === text && typeof place.note === 'string' ? place.note.match(/^📍\s*(.+?),\s*([A-Z]{2})$/) : null;
+  const city = text.replace(/\s*\b\d{5}(?:-\d{4})?\b/g, '').split(',')[0].trim();
+  return m && city && !/^\d+$/.test(city) ? `${city}, ${m[1]}, ${m[2]}` : text;
 }
 
 // ── Save/load quote log ───────────────────────────────────────────────────
@@ -7836,6 +7726,7 @@ function exportCSV(){
 }
 
 function renderLog(){
+  if(window.QFCLane) QFCLane.refresh();   // "Your quotes on this lane"
   const tbody = document.getElementById('log-body');
   if(!tbody) return;
   const allowed = winLossAllowed();
@@ -7980,6 +7871,30 @@ function loadAll(){
   }catch(e){}
 }
 
+// ── National rates in the hero, with the change since last month ─────────
+function renderGlance(data){
+  const nat = data.regions && data.regions.national;
+  if(!nat) return;
+  const hist = Array.isArray(data.history) ? data.history : [];
+  const prev = hist.length > 1 ? hist[hist.length - 2] : null;
+  const arrow = d => d > 0 ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>';
+  ['van','reefer','flatbed'].forEach(k => {
+    const el = document.getElementById('gl-' + k);
+    const dEl = document.getElementById('gl-' + k + '-d');
+    if(el) el.textContent = '$' + Number(nat[k]).toFixed(2);
+    const before = prev && prev.regions && prev.regions.national ? Number(prev.regions.national[k]) : 0;
+    if(dEl && before){
+      const d = (Number(nat[k]) - before) / before;
+      dEl.innerHTML = Math.abs(d) < 0.0005 ? '' : arrow(d) + Math.abs(d * 100).toFixed(1) + '%';
+      dEl.setAttribute('title', (d >= 0 ? 'Up ' : 'Down ') + Math.abs(d * 100).toFixed(1) + '% from ' + (prev.label || 'last month'));
+    }
+  });
+  const last = hist[hist.length - 1];
+  const note = document.getElementById('gl-note');
+  if(note && last) note.textContent = 'National average spot rates per mile · ' + last.label + (prev ? ' · change since ' + prev.label : '');
+}
+
 // ── Fetch rates from rates.json (centrally managed on Netlify) ────────────
 function loadRates(){
   fetch('/rates.json')
@@ -7996,6 +7911,9 @@ function loadRates(){
         });
         buildRegionMap(data.regions);
         applyRegionalRates();
+        renderGlance(data);
+        window.QFC_RATES = data;   // history and load-to-truck for the lane view
+        if(window.QFCLane) QFCLane.refresh();
       } else {
         // Legacy flat format fallback
         if(data.van)    document.getElementById('rate-van').value=parseFloat(data.van).toFixed(2);
@@ -8505,7 +8423,7 @@ startup();
         <button onclick="confirmSaveProfile()" style="
           font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;
           padding:8px 20px;border-radius:8px;border:none;
-          background:var(--accent);color:#000;cursor:pointer;transition:opacity .15s;
+          background:var(--accent-fill);color:#000;cursor:pointer;transition:opacity .15s;
         "
         onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
           Save Profile
@@ -8980,5 +8898,6 @@ window.addEventListener('resize', () => {
 <script src="/pro-notice.js" defer></script>
 <script src="/pdf-quote.js" defer></script>
 <script src="/customers.js" defer></script>
+<script src="/lane.js" defer></script>
 </body>
 </html>
