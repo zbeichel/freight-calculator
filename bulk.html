@@ -516,6 +516,15 @@ body::before{
         </div>
       </div>
 
+      <!-- Customer -->
+      <div style="margin-top:14px">
+          <label for="bulk-customer" style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px">Customer <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(optional · appears on PDF quote)</span></label>
+          <input type="text" id="bulk-customer" maxlength="120" autocomplete="off" placeholder="e.g. Keystone Produce"
+            style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;padding:8px 12px;outline:none"
+            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'" />
+          <div id="bulk-customer-details" hidden></div>
+        </div>
+
       <!-- Download PDF — enabled once an offered rate is entered -->
       <button id="btn-download-bulk-pdf" onclick="generateBulkPDF()" disabled
         style="width:100%;margin-top:14px;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;padding:11px;border-radius:8px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:not-allowed;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;opacity:.45"
@@ -1382,6 +1391,22 @@ function setPdfButtonEnabled(enabled){
   btn.style.opacity = enabled ? '1' : '.45';
 }
 
+// ── Customer: "Prepared for" on the PDF. With the customer list (Pro Plus
+// and up) the box searches saved customers and their details print too.
+function bulkCustomer(){
+  const el = document.getElementById('bulk-customer');
+  const name = el ? el.value : '';
+  if(window.QFCCustomers) return QFCCustomers.forPDF(name, el && el.dataset.customerId);
+  const n = String(name || '').trim();
+  return n ? { name: n } : null;
+}
+document.addEventListener('DOMContentLoaded', () => {
+  if(!window.QFCCustomers) return;
+  QFCCustomers.attachPicker(document.getElementById('bulk-customer'), {
+    details: 'bulk-customer-details',
+  });
+});
+
 function generateBulkPDF(){
   // ── Pull live data from the calculator state ─────────────────────────────
   const orig         = document.getElementById('origin').value.trim();
@@ -1472,6 +1497,7 @@ function generateBulkPDF(){
         : `$${targetRpm.toFixed(2)}/mi on ${loadedMiles.toLocaleString()} loaded mi`,
       fscMethod: fscMethod === 'permile' ? 'Per mile' : '% of base rate',
       diesel: DIESEL_PRICE,
+      customer: bulkCustomer(),
     }, profile);
     return;
   }
@@ -1506,6 +1532,7 @@ function generateBulkPDF(){
     profile.mcNumber ? `MC# ${profile.mcNumber}` : '',
     profile.dotNumber ? `DOT# ${profile.dotNumber}` : '',
   ].filter(Boolean);
+  const bulkCustomerPF = window.QFCQuotePDF ? QFCQuotePDF.classicPreparedFor(bulkCustomer()) : '';
   const contactStripHTML = hasContact ? `
     <div style="background:#f4f6f9;border-bottom:1px solid #e4e8ef;padding:8px 40px;display:flex;align-items:center;gap:0;flex-wrap:wrap">
       ${contactItems.map((item, i) => `
@@ -1627,6 +1654,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
     <div class="accent-bar"></div>
     ${contactStripHTML}
     <div class="doc-body">
+      ${bulkCustomerPF}
 
       <div class="quote-hero">
         <div>
@@ -1740,5 +1768,6 @@ init();
 <!-- Notice to current Pro subscribers about the plan changes (see pro-notice.js) -->
 <script src="/pro-notice.js" defer></script>
 <script src="/pdf-quote.js" defer></script>
+<script src="/customers.js" defer></script>
 </body>
 </html>

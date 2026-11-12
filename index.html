@@ -1083,6 +1083,8 @@ td.dim{color:var(--text3)}
 .wl-table td.wl-name{max-width:220px;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
 .wl-table td.wl-won{color:var(--green)}
 .wl-table td.wl-lost{color:var(--red)}
+.wl-manage{float:right;font-size:10px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--accent);text-decoration:none}
+.wl-manage:hover{text-decoration:underline}
 .wl-more{margin-top:6px;background:none;border:none;color:var(--accent);font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;cursor:pointer;padding:2px 0}
 .wl-note{font-size:11px;color:var(--text3);line-height:1.6;margin-top:12px}
 .wl-note strong{color:var(--text2)}
@@ -1742,11 +1744,20 @@ html.light .hos-day-header{background:var(--card2)}
         <!-- Bulk Load Calculator link -->
         <a id="bulk-btn" href="#"
           onclick="handleBulkClick(event)"
-          style="width:100%;margin-bottom:18px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
+          style="width:100%;margin-bottom:8px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
           onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
           onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
           <span style="flex:1;text-align:center">🥔 Bulk Load Calculator</span>
           <span id="bulk-pro-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);opacity:.6;padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PRO</span>
+        </a>
+        <!-- Customers (Pro Plus and up) -->
+        <a id="customers-btn" href="/customers.html"
+          onclick="handleCustomersClick(event)"
+          style="width:100%;margin-bottom:18px;padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.03em;text-decoration:none;position:relative"
+          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+          <span style="flex:1;text-align:center">👥 Customers</span>
+          <span id="customers-plus-tag" style="font-size:9px;font-weight:700;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent);opacity:.6;padding:1px 6px;border-radius:8px;letter-spacing:.05em;position:absolute;right:12px">PLUS</span>
         </a>
 
         <!-- Profitability calculator form -->
@@ -2410,6 +2421,14 @@ html.light .hos-day-header{background:var(--card2)}
           </div>
         </div>
 
+        <!-- Customer — "Prepared for" on the PDF, saved with the quote. With the
+             customer list (Pro Plus and up) it searches saved customers. -->
+        <div class="field ftl-only" id="customer-field" style="margin-top:12px;display:none">
+          <label for="quote-customer">Customer <span style="font-size:10px;color:var(--text3);font-weight:400">(optional · appears on PDF quote)</span></label>
+          <input type="text" id="quote-customer" maxlength="120" autocomplete="off" placeholder="e.g. Keystone Produce" />
+          <div id="quote-customer-details" hidden></div>
+        </div>
+
         <!-- Load Notes — used for PDF quote -->
         <div class="field ftl-only" id="load-notes-field" style="margin-top:12px;display:none">
           <label>Load Notes <span style="font-size:10px;color:var(--text3);font-weight:400">(appears on PDF quote)</span></label>
@@ -2456,9 +2475,6 @@ html.light .hos-day-header{background:var(--card2)}
 
         <!-- Quick save to quote log — Pro only -->
         <div class="ftl-only" id="quick-save-quote-btn" style="display:none;margin-top:14px">
-          <label for="quote-customer" style="display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px">Customer <span style="font-size:10px;color:var(--text3);font-weight:400">(optional · saved with the quote, not printed on the PDF)</span></label>
-          <input type="text" id="quote-customer" maxlength="120" autocomplete="off" placeholder="e.g. Keystone Produce"
-            style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;padding:8px 12px;outline:none;margin-bottom:8px" />
           <button onclick="saveQuote()"
             style="width:100%;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;
             padding:9px 16px;border-radius:8px;border:1px solid var(--accent);
@@ -2914,6 +2930,7 @@ function toggleSeoBlock(){
       </div>
       <label for="wl-customer">Customer</label>
       <input type="text" id="wl-customer" maxlength="120" autocomplete="off" placeholder="Who the quote was for" />
+      <div id="wl-customer-details" hidden></div>
       <div class="wl-modal-actions">
         <span class="wl-help" id="wl-modal-status" role="status"></span>
         <button class="btn btn-ghost" onclick="closeOutcomeModal()">Cancel</button>
@@ -3327,6 +3344,14 @@ function handleMultiStopClick(e){
   }
 }
 
+function handleCustomersClick(e){
+  e.preventDefault();
+  if(winLossAllowed()){ window.location.href = '/customers.html'; return; }
+  const why = 'The customer list comes with Pro Plus: save customers once, and their contact details fill into your quotes and PDFs.';
+  if(isProUser) showUpgradeModal(why, ['plus', 'max']);
+  else showProModal(why);
+}
+
 function handleBulkClick(e){
   e.preventDefault();
   if(isProUser){
@@ -3344,6 +3369,10 @@ function updateProUI(){
   const profilesUI = document.getElementById('rate-profiles-ui');
   const msTag      = document.getElementById('multistop-pro-tag');
   if(notesField) notesField.style.display = isProUser ? '' : 'none';
+  const customerField = document.getElementById('customer-field');
+  if(customerField) customerField.style.display = isProUser ? '' : 'none';
+  const customersTag = document.getElementById('customers-plus-tag');
+  if(customersTag) customersTag.style.display = winLossAllowed() ? 'none' : '';
   if(quickSave)  quickSave.style.display  = isProUser ? '' : 'none';
   if(dlBtn){
     dlBtn.disabled = !isProUser;
@@ -3955,6 +3984,7 @@ function generateQuotePDF(){
       trailer, commodity: commDisplay, weight: weight ? parseInt(weight) : null,
       transit: pickup !== '—' && delivery !== '—' ? transitDays : '',
       notes,
+      customer: pdfCustomer(calcCustomer().name, calcCustomer().id),
       // Fuel and extra-day charges as the customer pays them (with your margin),
       // so the lines add up to the total without showing the margin itself.
       breakdown: {
@@ -4000,6 +4030,7 @@ function generateQuotePDF(){
     profile.mcNumber ? `MC# ${profile.mcNumber}` : '',
     profile.dotNumber ? `DOT# ${profile.dotNumber}` : '',
   ].filter(Boolean);
+  const customerPF = window.QFCQuotePDF ? QFCQuotePDF.classicPreparedFor(pdfCustomer(calcCustomer().name, calcCustomer().id)) : '';
   const contactStripHTML = hasContact ? `
     <div style="background:#f4f6f9;border-bottom:1px solid #e4e8ef;padding:8px 40px;display:flex;align-items:center;gap:0;flex-wrap:wrap">
       ${contactItems.map((item, i) => `
@@ -4132,6 +4163,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
     <div class="accent-bar"></div>
     ${contactStripHTML}
     <div class="doc-body">
+      ${customerPF}
       <div class="quote-hero">
         <div>
           <div class="quote-label">Total Quote to Customer</div>
@@ -4237,6 +4269,7 @@ function generateQuotePDFFromLog(id){
       pickup: q.pickup || '', delivery: q.delivery || '',
       trailer: q.trailer, commodity: q.commodity, weight: q.weight ? parseInt(q.weight) : null,
       transit: '', notes: q.notes || '', breakdown: null,
+      customer: pdfCustomer(q.customer, q.customerId),
     }, profile);
     return;
   }
@@ -4293,6 +4326,7 @@ function generateQuotePDFFromLog(id){
     profile.mcNumber ? `MC# ${profile.mcNumber}` : '',
     profile.dotNumber ? `DOT# ${profile.dotNumber}` : '',
   ].filter(Boolean);
+  const customerPF = window.QFCQuotePDF ? QFCQuotePDF.classicPreparedFor(pdfCustomer(q.customer, q.customerId)) : '';
   const contactStripHTML = hasContact ? `
     <div style="background:#f4f6f9;border-bottom:1px solid #e4e8ef;padding:8px 40px;display:flex;align-items:center;gap:0;flex-wrap:wrap">
       ${contactItems.map((item, i) => `
@@ -4401,6 +4435,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
     <div class="accent-bar"></div>
     ${contactStripHTML}
     <div class="doc-body">
+      ${customerPF}
       <div class="quote-hero">
         <div>
           <div class="quote-label">Total Quote to Customer</div>
@@ -7023,7 +7058,8 @@ async function saveQuote(){
     rpm: qRpm.toFixed(2),
     notes: document.getElementById('load-notes')?.value.trim() || '',
     tracked: true,
-    customer: (document.getElementById('quote-customer')?.value || '').trim().replace(/\s+/g, ' ').slice(0, 120),
+    customer: calcCustomer().name,
+    customerId: calcCustomer().id,
     outcome: 'open', finalRate: null, lostReason: null, outcomeAt: null,
     createdAt: new Date().toISOString(),
     pending: true
@@ -7071,7 +7107,8 @@ async function saveQuote(){
         rpm: entry.rpm,
         notes: entry.notes,
         tracked: entry.tracked,
-        customer: entry.customer || null
+        customer: entry.customer || null,
+        customer_id: entry.customerId || null
       })
     });
     const body = await resp.json().catch(() => null);
@@ -7185,8 +7222,8 @@ function loadQuoteIntoCalc(id){
   if(q.weight)   document.getElementById('weight').value   = q.weight;
   if(q.pickup)   document.getElementById('pickup').value   = q.pickup;
   if(q.delivery) document.getElementById('delivery').value = q.delivery;
-  const customerEl = document.getElementById('quote-customer');
-  if(customerEl) customerEl.value = q.customer || '';
+  if(customerPicker) customerPicker.set(q.customer || '', q.customerId);
+  else { const customerEl = document.getElementById('quote-customer'); if(customerEl) customerEl.value = q.customer || ''; }
 
   // Miles — set manually so Google API doesn't override it
   if(q.miles){
@@ -7353,6 +7390,40 @@ async function clearLog(){
   } catch(e){}
 }
 
+// ── Customers (customers.js; the saved list is Pro Plus and up) ──────────
+let customerPicker = null, wlCustomerPicker = null;
+// The calculator's customer: a saved customer's name and id when the box
+// names one, otherwise what was typed.
+function calcCustomer(){
+  const el = document.getElementById('quote-customer');
+  const typed = (el?.value || '').trim().replace(/\s+/g, ' ').slice(0, 120);
+  const c = el && el.dataset.customerId && window.QFCCustomers ? QFCCustomers.byId(el.dataset.customerId) : null;
+  return { name: c ? c.name : typed, id: c ? c.id : null };
+}
+// "Prepared for" on a PDF: saved details with the customer list, else the name.
+function pdfCustomer(name, id){
+  if(window.QFCCustomers) return QFCCustomers.forPDF(name, id);
+  const n = String(name || '').trim();
+  return n ? { name: n } : null;
+}
+function initCustomers(){
+  if(!window.QFCCustomers) return;
+  customerPicker = QFCCustomers.attachPicker(document.getElementById('quote-customer'), {
+    details: 'quote-customer-details',
+    // A customer's default margin applies when it's picked.
+    onChange: (c, picked) => {
+      if(!picked || !c || c.defaultMargin === null || c.defaultMargin === undefined) return;
+      const m = document.getElementById('margin');
+      if(!m || Number(m.value) === Number(c.defaultMargin)) return;
+      m.value = c.defaultMargin;
+      calc();
+      showToast(`Margin set to ${c.defaultMargin}% for ${c.name}`);
+    }
+  });
+  wlCustomerPicker = QFCCustomers.attachPicker(document.getElementById('wl-customer'), { details: 'wl-customer-details' });
+}
+document.addEventListener('DOMContentLoaded', initCustomers);
+
 // ── Win/loss tracking & saved-quote limits ───────────────────────────────
 // Pro Plus and up (and comp accounts) mark saved quotes won or lost and see
 // win rates and margins by lane and by customer. The database enforces the
@@ -7424,6 +7495,7 @@ function quoteFromRow(r){
     notes: r.notes || '',
     tracked: r.tracked !== false,
     customer: r.customer || '',
+    customerId: r.customer_id || null,
     outcome: r.outcome === 'won' || r.outcome === 'lost' ? r.outcome : 'open',
     finalRate: r.final_rate !== null && r.final_rate !== undefined ? Number(r.final_rate) : null,
     lostReason: r.lost_reason || null,
@@ -7602,7 +7674,7 @@ function renderWinLossPanel(){
       <div class="wl-tiles">${tiles}</div>
       <div class="wl-tables">
         ${table('lane', 'By lane', lanes, 'No lanes yet.')}
-        ${table('customer', 'By customer', customers, 'Add a customer when you save a quote (or in the Result window) to see results by customer.')}
+        ${table('customer', 'By customer <a href="/customers.html" class="wl-manage">Customers →</a>', customers, 'Add a customer when you save a quote (or in the Result window) to see results by customer.')}
       </div>
       ${notes.length ? `<div class="wl-note">${notes.join(' ')}</div>` : ''}
     </div>`;
@@ -7655,7 +7727,8 @@ function openOutcomeModal(id){
   document.getElementById('wl-booked').value = q.outcome === 'won' && Number(q.finalRate) > 0 ? q.finalRate : (Number(q.quote) || '');
   document.getElementById('wl-went-for').value = q.outcome === 'lost' && Number(q.finalRate) > 0 ? q.finalRate : '';
   document.getElementById('wl-reason').value = q.outcome === 'lost' && LOST_REASONS[q.lostReason] ? q.lostReason : '';
-  document.getElementById('wl-customer').value = q.customer || '';
+  if(wlCustomerPicker) wlCustomerPicker.set(q.customer || '', q.customerId);
+  else document.getElementById('wl-customer').value = q.customer || '';
   setOutcomeStatus('');
   selectOutcome(q.outcome === 'won' || q.outcome === 'lost' ? q.outcome : 'open');
   document.getElementById('wl-modal-overlay').style.display = 'flex';
@@ -7695,7 +7768,9 @@ async function saveOutcomeModal(){
     if(isFinite(wentFor) && wentFor > 0) finalRate = cents(wentFor);
   }
   if(finalRate !== null && finalRate >= 10000000){ setOutcomeStatus('Enter a rate under $10,000,000.'); return; }
-  const customer = document.getElementById('wl-customer').value.trim().replace(/\s+/g, ' ').slice(0, 120);
+  const custEl = document.getElementById('wl-customer');
+  const linkedCustomer = custEl.dataset.customerId && window.QFCCustomers ? QFCCustomers.byId(custEl.dataset.customerId) : null;
+  const customer = linkedCustomer ? linkedCustomer.name : custEl.value.trim().replace(/\s+/g, ' ').slice(0, 120);
 
   const session = getProSession();
   if(!session){ setOutcomeStatus('Sign in again to save.'); return; }
@@ -7712,7 +7787,8 @@ async function saveOutcomeModal(){
         'Content-Type': 'application/json',
         'Prefer': 'return=representation'
       },
-      body: JSON.stringify({ outcome, final_rate: finalRate, lost_reason: lostReason, customer: customer || null })
+      body: JSON.stringify({ outcome, final_rate: finalRate, lost_reason: lostReason, customer: customer || null,
+        customer_id: linkedCustomer ? linkedCustomer.id : null })
     });
     const body = await resp.json().catch(() => null);
     const row = Array.isArray(body) ? body[0] : null;
@@ -8583,13 +8659,13 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
           <input type="radio" name="upg-plan" value="plus" onchange="updateUpgradeButton()" />
           <span class="upg-name">Pro Plus</span>
           <span class="upg-price"><strong>$19.99</strong>/month</span>
-          <span class="upg-detail">Automatic miles on 250 quotes per day, plus win/loss tracking</span>
+          <span class="upg-detail">Automatic miles on 250 quotes per day, win/loss tracking and a customer list</span>
         </label>
         <label class="upg-option" id="upg-option-max">
           <input type="radio" name="upg-plan" value="max" onchange="updateUpgradeButton()" />
           <span class="upg-name">Pro Max</span>
           <span class="upg-price"><strong>$49.99</strong>/month</span>
-          <span class="upg-detail">Automatic miles on 1,000 quotes per day, win/loss tracking and white-label PDFs</span>
+          <span class="upg-detail">Everything in Pro Plus, with automatic miles on 1,000 quotes per day and white-label PDFs</span>
         </label>
       </div>
       <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">
@@ -8901,5 +8977,6 @@ window.addEventListener('resize', () => {
 <!-- Notice to current Pro subscribers about the plan changes (see pro-notice.js) -->
 <script src="/pro-notice.js" defer></script>
 <script src="/pdf-quote.js" defer></script>
+<script src="/customers.js" defer></script>
 </body>
 </html>

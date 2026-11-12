@@ -211,7 +211,7 @@ const SEED = [
   await t.page.waitForFunction(() => document.getElementById('wl-modal-overlay').style.display === 'none');
   let patch = t.db.patches.at(-1);
   check('Lost: saves the reason, the rate it went for, and keeps the customer', patch.id === 104
-    && JSON.stringify(patch.body) === JSON.stringify({ outcome: 'lost', final_rate: 1790, lost_reason: 'timing', customer: 'Keystone Produce' }), JSON.stringify(patch));
+    && JSON.stringify(patch.body) === JSON.stringify({ outcome: 'lost', final_rate: 1790, lost_reason: 'timing', customer: 'Keystone Produce', customer_id: null }), JSON.stringify(patch));
   check('row and numbers update (4 won, 4 lost → 50%)', (await rowById(t.page, 104).locator('.wl-pill').textContent()).trim() === '✕ Lost'
     && (await flat(t.page, '#wl-panel')).includes('50% win rate'));
 
@@ -224,7 +224,7 @@ const SEED = [
   await t.page.waitForFunction(() => document.getElementById('wl-modal-overlay').style.display === 'none');
   patch = t.db.patches.at(-1);
   check('Won at a different rate, with a customer added', patch.id === 108
-    && JSON.stringify(patch.body) === JSON.stringify({ outcome: 'won', final_rate: 2550, lost_reason: null, customer: 'Lone Star Grocers' }), JSON.stringify(patch));
+    && JSON.stringify(patch.body) === JSON.stringify({ outcome: 'won', final_rate: 2550, lost_reason: null, customer: 'Lone Star Grocers', customer_id: null }), JSON.stringify(patch));
 
   await rowById(t.page, 102).locator('.wl-pill').click();   // won at the quote
   check('a won quote reopens on Won with its rate', (await t.page.getAttribute('#wl-modal-overlay .wl-seg [data-outcome="won"]', 'aria-checked')) === 'true'

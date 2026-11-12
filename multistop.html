@@ -411,6 +411,15 @@ footer a:hover{color:var(--accent)}
           <div style="font-size:10px;color:var(--text3);margin-top:6px">Added to quote before margin — use for loads that require overnight layover at a stop</div>
         </div>
 
+        <!-- Customer -->
+        <div style="margin-top:12px">
+          <label for="ms-customer" style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px">Customer <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(optional · appears on PDF quote)</span></label>
+          <input type="text" id="ms-customer" maxlength="120" autocomplete="off" placeholder="e.g. Keystone Produce"
+            style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;padding:8px 12px;outline:none"
+            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'" />
+          <div id="ms-customer-details" hidden></div>
+        </div>
+
         <!-- Load Notes -->
         <div style="margin-top:12px">
           <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px">Load Notes <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(appears on PDF quote)</span></label>
@@ -1778,6 +1787,30 @@ function setStopChargeType(id, type){
 }
 
 // ── PDF Generation ─────────────────────────────────────────────────────────
+// ── Customer: "Prepared for" on the PDF. With the customer list (Pro Plus
+// and up) the box searches saved customers and their details print too.
+function msCustomer(){
+  const el = document.getElementById('ms-customer');
+  const name = el ? el.value : '';
+  if(window.QFCCustomers) return QFCCustomers.forPDF(name, el && el.dataset.customerId);
+  const n = String(name || '').trim();
+  return n ? { name: n } : null;
+}
+document.addEventListener('DOMContentLoaded', () => {
+  if(!window.QFCCustomers) return;
+  QFCCustomers.attachPicker(document.getElementById('ms-customer'), {
+    details: 'ms-customer-details',
+    // A customer's default margin applies when it's picked.
+    onChange: (c, picked) => {
+      if(!picked || !c || c.defaultMargin === null || c.defaultMargin === undefined) return;
+      const m = document.getElementById('ms-margin');
+      if(!m || Number(m.value) === Number(c.defaultMargin)) return;
+      m.value = c.defaultMargin;
+      calcTotal();
+    }
+  });
+});
+
 function generateMultiStopPDF(){
   const total = document.getElementById('ms-quote').textContent;
   if(total === '—'){ alert('Complete the route before downloading.'); return; }
@@ -1810,6 +1843,7 @@ function generateMultiStopPDF(){
       // As the customer pays them (with your margin), so they add up to the total.
       charges: { fuel: c.fscPerMile * c.totalMiles * markup, stops: c.stopChargesTotal * markup, extra: c.extraDayTotal * markup },
       notes: document.getElementById('ms-load-notes')?.value.trim() || '',
+      customer: msCustomer(),
     }, profile);
     return;
   }
@@ -1873,6 +1907,7 @@ function generateMultiStopPDF(){
   const contactItems = [profile.contactName, profile.phone, profile.email,
     profile.mcNumber?`MC# ${profile.mcNumber}`:'', profile.dotNumber?`DOT# ${profile.dotNumber}`:''].filter(Boolean);
   // Escape each contact item before joining, since profile fields are user-typed
+  const msCustomerPF = window.QFCQuotePDF ? QFCQuotePDF.classicPreparedFor(msCustomer()) : '';
   const contactStrip = hasContact
     ? `<div style="background:#f4f6f9;border-bottom:1px solid #e4e8ef;padding:7px 36px;font-size:11px;color:#6b7f94">
         ${contactItems.map(escapeHTML).join(' &nbsp;·&nbsp; ')}
@@ -2006,6 +2041,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
     <div class="accent-bar"></div>
     ${contactStrip}
     <div class="doc-body">
+      ${msCustomerPF}
 
       <div class="quote-hero">
         <div>
@@ -2574,5 +2610,6 @@ initWithProCheck();
 <!-- Notice to current Pro subscribers about the plan changes (see pro-notice.js) -->
 <script src="/pro-notice.js" defer></script>
 <script src="/pdf-quote.js" defer></script>
+<script src="/customers.js" defer></script>
 </body>
 </html>
