@@ -147,7 +147,7 @@ const logCall = () => world.calls.find((c) => c.url.includes('/rest/v1/quote_ema
   check('the message escaped, the lane, rate and valid-until in the body', p.html.includes('&lt;b&gt;today&lt;/b&gt;') && !p.html.includes('<b>today') && p.html.includes('Lancaster, PA → Atlanta, GA') && p.html.includes('$2,150.00') && p.html.includes('Nov 13, 2026, 5:00 PM EST'));
   check('the user’s signature and the QuickFreightCalc footer', p.html.includes('Sam Rivera') && p.html.includes('555-0100') && p.html.includes('Sent with') && p.text.includes('Valid until: Nov 13, 2026, 5:00 PM EST'));
   check('the footer shows the logo (a PNG from the live site) beside the wordmark, amber "Freight"',
-    p.html.includes('<img src="https://quickfreightcalc.com/email-logo.png" width="21" height="24" alt=""')
+    p.html.includes('<img src="https://quickfreightcalc.com/email-logo.png" width="28" height="32" alt=""')
     && p.html.includes('Sent with <a href="https://quickfreightcalc.com" style="color:#4b5563;font-weight:700;text-decoration:none">Quick<span style="color:#d48200">Freight</span>Calc</a>'));
   check('a retry can’t send twice (idempotency key)', sent.headers['Idempotency-Key'] === 'quote-u-sam-k-12345678', JSON.stringify(sent.headers));
   const log = logCall();
@@ -184,7 +184,7 @@ const logCall = () => world.calls.find((c) => c.url.includes('/rest/v1/quote_ema
   const wrong = Object.entries(hosts).filter(([h, want]) => _internal.assetBase({ headers: { host: h } }) !== want);
   check('only the site’s own hosts serve the logo; anything else gets the live site', wrong.length === 0, JSON.stringify(wrong));
   const png = require('fs').readFileSync(path.join(ROOT, 'email-logo.png'));
-  check('the logo file ships: a 63 x 72 PNG (3x for 21 x 24)', png.subarray(1, 4).toString() === 'PNG' && png.readUInt32BE(16) === 63 && png.readUInt32BE(20) === 72 && png.length < 10000);
+  check('the logo file ships: a 112 x 128 PNG (4x for 28 x 32), still small', png.subarray(1, 4).toString() === 'PNG' && png.readUInt32BE(16) === 112 && png.readUInt32BE(20) === 128 && png.length < 15000, png.length + ' bytes');
 
   console.log('\n=== When things go wrong ===');
   reset({ resend: { status: 422, body: { message: 'Invalid `to` field' } } });

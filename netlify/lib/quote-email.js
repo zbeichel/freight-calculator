@@ -50,12 +50,12 @@ function buildQuoteEmail({ message, summary = {}, sender = {}, validUntil, valid
   // The logo and the wordmark (amber "Freight", as on the site), then who replies reach. The image is
   // decorative (empty alt): with images off, the wordmark still reads.
   const site = esc(siteUrl || 'https://quickfreightcalc.com');
-  const logo = logoUrl ? `<td style="padding-right:8px;vertical-align:middle"><a href="${site}" style="text-decoration:none">` +
-    `<img src="${esc(logoUrl)}" width="21" height="24" alt="" style="display:block;border:0;outline:none;text-decoration:none"></a></td>` : '';
+  const logo = logoUrl ? `<td style="padding-right:9px;vertical-align:middle"><a href="${site}" style="text-decoration:none">` +
+    `<img src="${esc(logoUrl)}" width="28" height="32" alt="" style="display:block;width:28px;height:32px;border:0;outline:none;text-decoration:none"></a></td>` : '';
   const footer = whiteLabel ? '' : `
       <tr><td align="center" style="padding:20px 8px 0">
         <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto"><tr>
-          ${logo}<td style="vertical-align:middle;font-size:12px;line-height:1.3;color:#9ca3af">Sent with <a href="${site}" style="color:#4b5563;font-weight:700;text-decoration:none">Quick<span style="color:#d48200">Freight</span>Calc</a></td>
+          ${logo}<td style="vertical-align:middle;font-size:13px;line-height:1.3;color:#9ca3af">Sent with <a href="${site}" style="color:#4b5563;font-weight:700;text-decoration:none">Quick<span style="color:#d48200">Freight</span>Calc</a></td>
         </tr></table>
         <div style="font-size:12px;line-height:1.5;color:#9ca3af;margin-top:6px">Reply to this email to reach ${esc(sender.contactName || sender.company || 'the sender')}.</div>
       </td></tr>`;
