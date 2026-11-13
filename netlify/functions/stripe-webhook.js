@@ -103,11 +103,20 @@ function priceOf(subscription){
   return subscription?.items?.data?.[0]?.price?.id || null;
 }
 
+// When a subscriber sets their subscription to end (Billing portal → Cancel),
+// Stripe puts cancel_at (seconds) on the subscription, and clears it if they
+// renew. Stored as pro_users.cancel_at: the plan-change reminder leaves them be.
+function cancelAtOf(subscription){
+  if(subscription?.cancel_at) return new Date(subscription.cancel_at * 1000).toISOString();
+  if(subscription?.cancel_at_period_end) return subscriptionPeriod(subscription).end || null;
+  return null;
+}
+
 // `period` ({ start, end } ISO strings from subscriptionPeriod) records the
 // current billing period: billing_period_start tells routes.js when a
 // subscriber on the original Pro plan has renewed into the new plans, and
 // renews_at is shown to them. `extra`: other server-only columns to set
-// (grandfathered, next_plan).
+// (grandfathered, next_plan, cancel_at).
 async function setProActive(userId, isActive, stripeCustomerId, stripeSubscriptionId, serviceKey, plan, period, extra){
   const updateData = {
     is_active: isActive,
@@ -369,7 +378,13 @@ exports.handler = async function(event){
         // A new subscription is on the new plans unless it was sold at the
         // original price (only while STRIPE_PRICE_ID_PRO isn't set yet).
         const price = priceOf(newSub);
-        const extra = price ? { grandfathered: isOriginalPlanPrice(price), next_plan: plan } : { next_plan: plan };
+        // At the original price, the January plan is still theirs to choose (next_plan
+        // stays empty until they pick one in Profile).
+        const extra = { next_plan: plan, cancel_at: newSub ? cancelAtOf(newSub) : null };
+        if(price){
+          extra.grandfathered = isOriginalPlanPrice(price);
+          if(extra.grandfathered) extra.next_plan = null;
+        }
         console.log(`Activating Pro (${plan}) for user ${userId}`);
         await setProActive(userId, true, customerId, subscriptionId, serviceKey, plan, period, extra);
 
@@ -391,7 +406,7 @@ exports.handler = async function(event){
 
         // Back to the default plan, so a later comp or re-subscription starts clean.
         // A later subscription starts on the new plans.
-        const reset = { grandfathered: false, next_plan: null };
+        const reset = { grandfathered: false, next_plan: null, cancel_at: null };
         if(userId){
           console.log(`Deactivating Pro for user ${userId}`);
           await setProActive(userId, false, null, null, serviceKey, 'pro', null, reset);
@@ -415,8 +430,10 @@ exports.handler = async function(event){
         // Plan switches (change-plan or the billing portal) and renewals land here.
         const plan = planFromSubscription(subscription);
         const period = subscriptionPeriod(subscription);
-        // Still on the original Pro plan: keep it marked for the January 1 move.
-        const extra = isOriginalPlanPrice(priceOf(subscription)) ? { grandfathered: true } : null;
+        // Set to end (or renewed again): cancel_at. Still on the original Pro plan:
+        // keep it marked for the January 1 move.
+        const extra = { cancel_at: cancelAtOf(subscription) };
+        if(isOriginalPlanPrice(priceOf(subscription))) extra.grandfathered = true;
 
         if(userId){
           console.log(`Updating Pro status for user ${userId}: ${isActive} (${plan})`);
