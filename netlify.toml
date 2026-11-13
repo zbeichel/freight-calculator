@@ -13,6 +13,11 @@
 [functions."apply-plan-changes"]
   schedule = "@hourly"
 
+# Emails subscribers three days before their free trial ends
+# (see netlify/functions/trial-reminders.js).
+[functions."trial-reminders"]
+  schedule = "@hourly"
+
 # Redirect www to non-www (301 permanent — Google will update its index)
 [[redirects]]
   from = "https://www.quickfreightcalc.com/*"

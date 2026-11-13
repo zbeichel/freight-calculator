@@ -898,6 +898,15 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
             <option value="max">Pro Max — $49.99/mo · 1,000 quotes/day, all of Pro Plus, white-label PDFs, team of 3</option>
             <option value="api">API — $199.99/mo · Pro Max with a team of 6, plus 5,000 API quotes/mo</option>
           </select>
+          <select id="sub-interval-select" aria-label="Billing" style="
+            display:none;max-width:100%;min-width:0;
+            font-family:'Space Grotesk',sans-serif;font-size:12px;
+            padding:8px 10px;border-radius:8px;
+            border:1px solid var(--border2);background:var(--card);color:var(--text);
+          ">
+            <option value="month">Billed monthly</option>
+            <option value="year">Billed yearly · 2 months free</option>
+          </select>
           <button id="sub-plan-switch" onclick="handleSwitchPlan()" style="
             display:none;
             font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;
@@ -1043,6 +1052,7 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
 
 <script src="/pdf-quote.js"></script>
 <script src="/rate-sheet.js"></script>
+<script src="/plans-ui.js"></script>
 <script>
 // ── Color schemes ─────────────────────────────────────────────────────────
 // Each scheme defines a PDF header background + text colors. The text colors
@@ -2063,6 +2073,13 @@ function normalizeProfilePlan(plan){ return PROFILE_PLANS[plan] ? plan : 'pro'; 
 let currentPlan = 'pro';
 let onOriginalPlan = false;
 let currentNextPlan = 'pro';
+let currentInterval = 'month';   // 'month' or 'year' (verify-pro)
+let currentTrialEnds = null;     // ISO while on a free trial
+let currentActive = false;
+// Prices by billing: "$19.99/month" or "$199/year" (plans-ui.js, with the plan-options prices).
+const planPrice = (plan, interval) => window.QFCPlans ? QFCPlans.price(plan, interval)
+  : `${PROFILE_PLANS[plan].price}/month`;
+const yearlyOffered = (plan) => !!(window.QFCPlans && QFCPlans.current().yearly.includes(plan));
 const planDate = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); };
 function applyPlanState(plan, isActive, onOriginal, renewsAt, nextPlan, more){
   currentPlan = plan;
@@ -2070,6 +2087,11 @@ function applyPlanState(plan, isActive, onOriginal, renewsAt, nextPlan, more){
   currentNextPlan = normalizeProfilePlan(nextPlan);
   const planChosen = !!(more && more.planChosen);
   const cancelAt = more && more.cancelAt && planDate(more.cancelAt);
+  if(more && (more.interval === 'year' || more.interval === 'month')) currentInterval = more.interval;
+  if(more && 'trialEndsAt' in more) currentTrialEnds = more.trialEndsAt || null;
+  if(onOriginalPlan) currentInterval = 'month';
+  currentActive = isActive;
+  const trialEnds = !onOriginalPlan && currentTrialEnds && planDate(currentTrialEnds);
   accountTier.plan = plan;
   applyWhiteLabelAccess();
   const info = PROFILE_PLANS[plan];
@@ -2079,8 +2101,8 @@ function applyPlanState(plan, isActive, onOriginal, renewsAt, nextPlan, more){
     setText('sub-plan-name', 'QuickFreightCalc Pro · original plan');
     setText('sub-plan-detail', '$4.99/month · Unlimited quotes with automatic miles until January 2027 · Cancel anytime');
   } else {
-    setText('sub-plan-name', 'QuickFreightCalc ' + info.name);
-    setText('sub-plan-detail', `${info.price}/month · ${info.detail} · Cancel anytime`);
+    setText('sub-plan-name', 'QuickFreightCalc ' + info.name + (trialEnds ? ' · free trial' : ''));
+    setText('sub-plan-detail', `${planPrice(plan, currentInterval)} · ${info.detail} · Cancel anytime`);
   }
   setText('comp-plan-name', `QuickFreightCalc ${info.name} · Active`);
 
@@ -2096,6 +2118,11 @@ function applyPlanState(plan, isActive, onOriginal, renewsAt, nextPlan, more){
           : keep + `From that bill, your subscription moves to ${next.name} at ${next.price}/month unless you choose a different plan or cancel before then. ` +
             'Choose your plan for January below.';
       legacy.style.display = '';
+    } else if(trialEnds){
+      legacy.textContent = cancelAt
+        ? `Your free trial ends on ${trialEnds}, and your subscription is set to end then, so you won't be charged.`
+        : `Your free trial ends on ${trialEnds}. Unless you cancel before then, your card will be charged ${planPrice(plan, currentInterval)} that day.`;
+      legacy.style.display = '';
     } else {
       legacy.style.display = 'none';
     }
@@ -2108,7 +2135,32 @@ function applyPlanState(plan, isActive, onOriginal, renewsAt, nextPlan, more){
     btn.style.display = isActive ? '' : 'none';
     btn.textContent = onOriginalPlan && !planChosen ? 'Choose this plan' : 'Change plan';
   }
+  syncIntervalSelect();
 }
+
+// Monthly or yearly: for subscribers on the new plans, once that plan's yearly price is
+// set. The original plan bills yearly after the January move; the API plan is monthly.
+function syncIntervalSelect(){
+  const sel = document.getElementById('sub-interval-select');
+  const planSel = document.getElementById('sub-plan-select');
+  if(!sel || !planSel) return;
+  const target = normalizeProfilePlan(planSel.value);
+  const show = currentActive && !onOriginalPlan && target !== 'api' && yearlyOffered(target);
+  sel.style.display = show ? '' : 'none';
+  if(!show) return;
+  if(!sel.dataset.touched) sel.value = currentInterval;
+  const yearOpt = sel.querySelector('option[value="year"]');
+  if(yearOpt) yearOpt.textContent = `Billed yearly · ${planPrice(target, 'year')}`;
+  const monthOpt = sel.querySelector('option[value="month"]');
+  if(monthOpt) monthOpt.textContent = `Billed monthly · ${planPrice(target, 'month')}`;
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const planSel = document.getElementById('sub-plan-select');
+  const intervalSel = document.getElementById('sub-interval-select');
+  if(planSel) planSel.addEventListener('change', syncIntervalSelect);
+  if(intervalSel) intervalSel.addEventListener('change', () => { intervalSel.dataset.touched = '1'; });
+  if(window.QFCPlans) QFCPlans.options().then(syncIntervalSelect);
+});
 
 async function refreshPlanFromServer(){
   try {
@@ -2122,7 +2174,7 @@ async function refreshPlanFromServer(){
     if(!resp.ok) return;
     const data = await resp.json();
     if(data.active) applyPlanState(normalizeProfilePlan(data.plan), true, data.unlimitedUntilRenewal, data.renewsAt, data.nextPlan,
-      { planChosen: data.planChosen === true, cancelAt: data.cancelAt || null });
+      { planChosen: data.planChosen === true, cancelAt: data.cancelAt || null, interval: data.interval, trialEndsAt: data.trialEndsAt || null });
   } catch(e){}
 }
 
@@ -2138,17 +2190,31 @@ async function handleSwitchPlan(){
   const select = document.getElementById('sub-plan-select');
   const target = normalizeProfilePlan(select && select.value);
   const info = PROFILE_PLANS[target];
-  if(target === currentPlan && !onOriginalPlan){
-    setPlanStatus(`You're already on ${info.name}.`);
+  const intervalSel = document.getElementById('sub-interval-select');
+  const intervalShown = intervalSel && intervalSel.style.display !== 'none';
+  const targetInterval = target === 'api' ? 'month' : (intervalShown ? (intervalSel.value === 'year' ? 'year' : 'month') : currentInterval);
+  const intervalChange = !onOriginalPlan && targetInterval !== currentInterval;
+  if(target === currentPlan && !onOriginalPlan && !intervalChange){
+    setPlanStatus(`You're already on ${info.name}${currentInterval === 'year' ? ', billed yearly' : ''}.`);
     return;
   }
+  const newPrice = planPrice(target, targetInterval);
+  const trialEnds = !onOriginalPlan && currentTrialEnds && planDate(currentTrialEnds);
   // From the original plan, Pro / Pro Plus / Pro Max start in January; the API
   // plan is available now and is charged like any upgrade.
-  const question = onOriginalPlan && target !== 'api'
+  const question = trialEnds
+    ? `Switch to ${info.name}, ${newPrice}?\n\nNothing is charged now. Your free trial continues until ${trialEnds}; then it's ${newPrice}.`
+    : intervalChange && target === currentPlan
+      ? (targetInterval === 'year'
+        ? `Switch to yearly billing, ${newPrice}?\n\nYou'll be charged ${newPrice.split('/')[0]} today, less credit for the unused part of this month.`
+        : `Switch to monthly billing, ${newPrice}?\n\nA new monthly billing period starts today. The unused part of your year is credited to your account and used for your next bills.`)
+    : intervalChange
+      ? `Switch to ${info.name}, ${newPrice}?\n\nA new billing period starts today: you're charged ${newPrice.split('/')[0]}, with credit for the unused part of your current plan.`
+    : onOriginalPlan && target !== 'api'
     ? `Move to ${info.name} at ${info.price}/month from January 1, 2027?\n\nNothing changes or is charged now. You keep unlimited quotes until your first bill on or after January 1; from then it's ${info.price}/month.`
     : onOriginalPlan || PROFILE_PLAN_RANK[target] > PROFILE_PLAN_RANK[currentPlan]
-      ? `Upgrade to ${info.name} for ${info.price}/month?\n\nYou'll be charged the prorated difference today${target === 'api' ? ', and API access starts right away' : ''}.`
-      : `Switch to ${info.name} for ${info.price}/month?\n\nThe unused part of your current plan is credited on your next invoice.`;
+      ? `Upgrade to ${info.name} for ${newPrice}?\n\nYou'll be charged the prorated difference today${target === 'api' ? ', and API access starts right away' : ''}.`
+      : `Switch to ${info.name} for ${newPrice}?\n\nThe unused part of your current plan is credited on your next invoice.`;
   if(!confirm(question + teamDowngradeNote(target))) return;
 
   const session = await getSessionRefreshed();
@@ -2160,16 +2226,18 @@ async function handleSwitchPlan(){
     const resp = await fetch('/.netlify/functions/change-plan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: session.user?.id || session.user?.sub, accessToken: session.access_token, plan: target })
+      body: JSON.stringify({ userId: session.user?.id || session.user?.sub, accessToken: session.access_token, plan: target,
+        ...(onOriginalPlan ? {} : { interval: targetInterval }) })
     });
     const data = await resp.json().catch(() => ({}));
     if(data.status === 'ok'){
       const chosen = normalizeProfilePlan(data.plan);
+      if(intervalSel) delete intervalSel.dataset.touched;
       if(data.atRenewal) applyPlanState(currentPlan, true, true, data.renewsAt, chosen, { planChosen: true });
-      else applyPlanState(chosen, true, false, data.renewsAt, chosen);
+      else applyPlanState(chosen, true, false, data.renewsAt, chosen, { interval: data.interval || targetInterval });
       setPlanStatus(data.atRenewal
         ? `✅ From your first bill on or after January 1, 2027, you'll be on ${PROFILE_PLANS[chosen].name} at ${PROFILE_PLANS[chosen].price}/month.`
-        : `✅ You're on ${PROFILE_PLANS[chosen].name}.`);
+        : `✅ You're on ${PROFILE_PLANS[chosen].name}, ${planPrice(chosen, data.interval || targetInterval)}.`);
       refreshPlanFromServer();
       loadApiSection();
       return;

@@ -6,7 +6,15 @@
 //   'max'  → STRIPE_PRICE_ID_MAX  ($49.99/mo, 1,000 quotes/day)
 //   'api'  → STRIPE_PRICE_ID_API  ($199.99/mo, Pro Max + API access)
 //
-// POST { userId, accessToken, plan: 'pro' | 'plus' | 'max' | 'api' }
+// POST { userId, accessToken, plan: 'pro' | 'plus' | 'max' | 'api', interval?: 'month' | 'year' }
+//  - interval: bill monthly or yearly (STRIPE_PRICE_ID_*_YEARLY); left out, the
+//    subscription keeps its current billing. The API plan is monthly only.
+//    Changing between monthly and yearly starts a new billing period now: Stripe
+//    charges the new price with credit for the unused part of the old one.
+//    Subscribers still on the original Pro plan can bill yearly once they've
+//    moved to the new plans in January.
+//  - On a free trial: the plan changes now and nothing is charged; the trial
+//    keeps its end date, and the first bill (the new plan's) comes then.
 //  - Subscribers still on the original Pro plan choosing Pro, Pro Plus or Pro
 //    Max: the choice is recorded (pro_users.next_plan) and nothing is charged.
 //    They move to it at their first bill on or after January 1, 2027 — the
@@ -30,7 +38,7 @@
 
 const https = require('https');
 const { PLANS, PLAN_NAME, PLAN_RANK, priceIdFor, newPriceIdFor, planForPriceIds, isOriginalPlanPrice,
-  dueForNewPlan, subscriptionPeriod, NEW_PLANS_START } = require('../lib/plans.js');
+  dueForNewPlan, subscriptionPeriod, NEW_PLANS_START, normalizeInterval, intervalForPriceIds } = require('../lib/plans.js');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const CONTACT = 'email info@quickfreightcalc.com and we\'ll switch it for you';
@@ -94,13 +102,13 @@ exports.handler = async function(event){
     return reply(405, { error: 'method_not_allowed', message: 'Method not allowed' });
   }
 
-  let userId, accessToken, plan;
+  let userId, accessToken, plan, interval;
   try {
-    ({ userId, accessToken, plan } = JSON.parse(event.body || '{}'));
+    ({ userId, accessToken, plan, interval } = JSON.parse(event.body || '{}'));
   } catch(e){
     return reply(400, { error: 'bad_request', message: 'Invalid request' });
   }
-  if(!userId || !accessToken || !PLANS.includes(plan)){
+  if(!userId || !accessToken || !PLANS.includes(plan) || (interval != null && !['month', 'year'].includes(interval))){
     return reply(400, { error: 'bad_request', message: 'Invalid request' });
   }
 
@@ -118,7 +126,7 @@ exports.handler = async function(event){
 
   try {
     const rowResp = await supabase(
-      `/rest/v1/pro_users?id=eq.${encodeURIComponent(userId)}&select=is_active,plan,stripe_subscription_id`,
+      `/rest/v1/pro_users?id=eq.${encodeURIComponent(userId)}&select=is_active,plan,stripe_subscription_id,grandfathered,billing_period_start`,
       'GET', null, serviceKey
     );
     const row = Array.isArray(rowResp.body) ? rowResp.body[0] : null;
@@ -131,6 +139,14 @@ exports.handler = async function(event){
         message: `Your Pro access isn't billed through Stripe — ${CONTACT}.` });
     }
 
+    // Yearly billing starts after the January move for the original plan; the
+    // plan's monthly price must exist for any switch (the yearly one is checked below).
+    if(interval === 'year' && plan !== 'api'){
+      if(row.grandfathered === true && !(Date.parse(row.billing_period_start || '') >= NEW_PLANS_START)){
+        return reply(400, { error: 'yearly_after_january',
+          message: 'Yearly billing is available once your plan changes in January. Until then you keep your current price.' });
+      }
+    }
     const priceId = priceIdFor(plan);
     if(!priceId){
       console.error(`[change-plan] no Stripe price configured for plan "${plan}"`);
@@ -157,12 +173,15 @@ exports.handler = async function(event){
 
     const currentPrice = item.price && item.price.id;
     const period = subscriptionPeriod(sub);
+    const currentInterval = isOriginalPlanPrice(currentPrice) ? 'month' : intervalForPriceIds([currentPrice]);
+    const targetInterval = plan === 'api' ? 'month' : (interval ? normalizeInterval(interval) : currentInterval);
+    const trialing = sub.status === 'trialing' && Number.isFinite(sub.trial_end);
     const userPath = `/rest/v1/pro_users?id=eq.${encodeURIComponent(userId)}`;
 
     // Still on the original Pro plan (Stripe's price is the source of truth,
     // not our copy). Pro, Pro Plus and Pro Max start with the January 1, 2027
     // changeover: record the choice, charge nothing now.
-    if (isOriginalPlanPrice(currentPrice) && plan !== 'api') {
+    if (isOriginalPlanPrice(currentPrice) && plan !== 'api' && targetInterval === 'month') {
       const record = { next_plan: plan, grandfathered: true, updated_at: new Date().toISOString() };
       const newPrice = newPriceIdFor(plan);
       if (dueForNewPlan(period.end) && !sub.cancel_at_period_end && newPrice) {
@@ -189,19 +208,36 @@ exports.handler = async function(event){
         startsAt: new Date(NEW_PLANS_START).toISOString(), renewsAt: period.end });
     }
 
-    if (currentPrice === priceId) {
-      return reply(200, { status: 'ok', plan, unchanged: true, renewsAt: period.end });
+    const targetPrice = priceIdFor(plan, targetInterval);
+    if(!targetPrice){
+      console.error(`[change-plan] no Stripe price configured for plan "${plan}" (${targetInterval})`);
+      return reply(503, { error: 'not_available',
+        message: `Yearly billing for ${PLAN_NAME[plan]} isn't available yet — ${CONTACT}.` });
+    }
+    if (currentPrice === targetPrice) {
+      return reply(200, { status: 'ok', plan, interval: targetInterval, unchanged: true, renewsAt: period.end });
     }
 
-    // From the original plan (to the API plan) or up a tier: an upgrade.
-    const upgrade = isOriginalPlanPrice(currentPrice) || PLAN_RANK[plan] > PLAN_RANK[planForPriceIds([currentPrice])];
+    // From the original plan (to the API plan), up a tier, or from monthly to
+    // yearly billing: an upgrade, charged now. Any change of billing interval
+    // starts a new billing period, so it's invoiced now as well.
+    const intervalChange = targetInterval !== currentInterval;
+    const upgrade = isOriginalPlanPrice(currentPrice) || PLAN_RANK[plan] > PLAN_RANK[planForPriceIds([currentPrice])]
+      || (intervalChange && targetInterval === 'year');
     const params = {
       'items[0][id]': item.id,
-      'items[0][price]': priceId,
-      'proration_behavior': upgrade ? 'always_invoice' : 'create_prorations',
+      'items[0][price]': targetPrice,
       'expand[0]': 'latest_invoice',
     };
-    if(upgrade) params['payment_behavior'] = 'pending_if_incomplete';
+    if(trialing){
+      // On a free trial nothing is charged yet: keep the trial's end date, when
+      // the new plan's first bill comes.
+      params['proration_behavior'] = 'none';
+      params['trial_end'] = String(sub.trial_end);
+    } else {
+      params['proration_behavior'] = upgrade || intervalChange ? 'always_invoice' : 'create_prorations';
+      if(upgrade) params['payment_behavior'] = 'pending_if_incomplete';
+    }
 
     const updResp = await stripe(`/v1/subscriptions/${subId}`, 'POST', params);
     const updated = updResp.body;
@@ -221,20 +257,21 @@ exports.handler = async function(event){
 
     const newPrice = updated.items && updated.items.data && updated.items.data[0]
       && updated.items.data[0].price && updated.items.data[0].price.id;
-    if(newPrice !== priceId){
+    if(newPrice !== targetPrice){
       console.error('[change-plan] price not applied, now:', newPrice);
       return reply(502, { error: 'stripe_error', message: 'Stripe did not apply the change. Please try again.' });
     }
 
-    const record = { plan, next_plan: plan, updated_at: new Date().toISOString() };
-    if(period.start) record.billing_period_start = period.start;
-    if(period.end) record.renews_at = period.end;
+    const record = { plan, next_plan: plan, billing_interval: targetInterval, updated_at: new Date().toISOString() };
+    const newPeriod = subscriptionPeriod(updated);
+    if(newPeriod.start || period.start) record.billing_period_start = newPeriod.start || period.start;
+    if(newPeriod.end || period.end) record.renews_at = newPeriod.end || period.end;
     const patch = await supabase(userPath, 'PATCH', record, serviceKey);
     if(patch.status >= 300){
       // Stripe has switched; the webhook will record the plan shortly.
       console.error('[change-plan] pro_users update failed:', patch.status, JSON.stringify(patch.body));
     }
-    return reply(200, { status: 'ok', plan, atRenewal: false, renewsAt: period.end });
+    return reply(200, { status: 'ok', plan, interval: targetInterval, atRenewal: false, renewsAt: record.renews_at || null });
   } catch(err){
     console.error('[change-plan] error:', err);
     return reply(500, { error: 'server_error', message: 'Something went wrong. Please try again.' });

@@ -64,7 +64,8 @@ function verifySignature(payload, signature, secret, now = Date.now()){
   });
 }
 
-const { PLANS, PLAN_NAME, normalizePlan, planForPriceIds, isOriginalPlanPrice, subscriptionPeriod } = require('../lib/plans.js');
+const { PLANS, PLAN_NAME, PLAN_PRICE, normalizePlan, planForPriceIds, isOriginalPlanPrice, subscriptionPeriod,
+  intervalForPriceIds, TRIAL_DAYS } = require('../lib/plans.js');
 
 // Which plan a subscription is on, from its price (Pro, Pro Plus, Pro Max or
 // API — see netlify/lib/plans.js). Falls back to the metadata checkout
@@ -106,6 +107,20 @@ function priceOf(subscription){
 // When a subscriber sets their subscription to end (Billing portal → Cancel),
 // Stripe puts cancel_at (seconds) on the subscription, and clears it if they
 // renew. Stored as pro_users.cancel_at: the plan-change reminder leaves them be.
+// Monthly or yearly, from the subscription's price.
+function intervalOf(subscription){
+  const price = subscription?.items?.data?.[0]?.price;
+  const r = price?.recurring?.interval;
+  if(r === 'year' || r === 'month') return r;
+  return intervalForPriceIds([price?.id]);
+}
+
+// When the free trial ends (ISO) while the subscription is on one; otherwise null.
+function trialEndOf(subscription){
+  return subscription?.status === 'trialing' && subscription.trial_end
+    ? new Date(subscription.trial_end * 1000).toISOString() : null;
+}
+
 function cancelAtOf(subscription){
   if(subscription?.cancel_at) return new Date(subscription.cancel_at * 1000).toISOString();
   if(subscription?.cancel_at_period_end) return subscriptionPeriod(subscription).end || null;
@@ -116,7 +131,7 @@ function cancelAtOf(subscription){
 // current billing period: billing_period_start tells routes.js when a
 // subscriber on the original Pro plan has renewed into the new plans, and
 // renews_at is shown to them. `extra`: other server-only columns to set
-// (grandfathered, next_plan, cancel_at).
+// (grandfathered, next_plan, cancel_at, billing_interval, trial_ends_at).
 async function setProActive(userId, isActive, stripeCustomerId, stripeSubscriptionId, serviceKey, plan, period, extra){
   const updateData = {
     is_active: isActive,
@@ -191,9 +206,22 @@ function sendResendEmail({ apiKey, from, to, subject, html, text }){
   });
 }
 
-function buildWelcomeEmail(siteUrl, plan){
+// `trialEndsAt` (ISO) for a free trial: the email says when it ends and what
+// they'll be charged then. `interval`: 'month' or 'year'.
+function trialLine(plan, trialEndsAt, interval){
+  if(!trialEndsAt) return '';
+  const when = new Date(trialEndsAt).toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const prices = PLAN_PRICE[normalizePlan(plan)] || PLAN_PRICE.pro;
+  const price = interval === 'year' && prices.year ? `${prices.year}/year` : `${prices.month}/month`;
+  return `Your ${TRIAL_DAYS}-day free trial ends on ${when}. Unless you cancel before then, your card will be charged ${price} that day. You can change plans or cancel anytime from your Profile.`;
+}
+
+function buildWelcomeEmail(siteUrl, plan, opts = {}){
   const planName = PLAN_NAME[normalizePlan(plan)];
-  const subject = `Welcome to QuickFreightCalc ${planName} — you're all set`;
+  const trial = trialLine(plan, opts.trialEndsAt, opts.interval);
+  const subject = trial
+    ? `Your free trial of QuickFreightCalc ${planName} has started`
+    : `Welcome to QuickFreightCalc ${planName} — you're all set`;
   const lookupsText = {
     pro: 'Automatic miles on 100 quotes per day',
     plus: 'Automatic miles on 250 quotes per day (Pro Plus)',
@@ -202,7 +230,7 @@ function buildWelcomeEmail(siteUrl, plan){
   }[normalizePlan(plan)];
 
   // Plain-text version (fallback for clients that don't render HTML)
-  const text = `Thanks for signing up — your ${planName} account is active.
+  const text = `Thanks for signing up — your ${planName} account is active.${trial ? `\n\n${trial}` : ''}
 
 Here's what you unlocked:
 
@@ -254,7 +282,9 @@ Manage your subscription anytime from your Profile: ${siteUrl}/profile.html
     <div class="accent-bar"></div>
     <div class="body">
       <h1>You're all set</h1>
-      <p>Thanks for signing up — your ${planName} account is active and ready to go. Here's what you just unlocked:</p>
+      <p>Thanks for signing up — your ${planName} account is active and ready to go.${trial ? '' : " Here's what you just unlocked:"}</p>${trial ? `
+      <p style="background:#fff7e6;border:1px solid #f0c060;border-radius:8px;padding:12px 14px;color:#1a2540;">${trial}</p>
+      <p>Here's what you just unlocked:</p>` : ''}
       <ul>
         <li><strong>♾️ ${lookupsText}</strong></li>
         <li><strong>🚛 Multi-Stop Load Builder</strong> — quote multi-stop loads with per-leg mileage and PDF exports</li>
@@ -279,7 +309,7 @@ Manage your subscription anytime from your Profile: ${siteUrl}/profile.html
   return { subject, html, text };
 }
 
-async function trySendWelcomeEmail({ toEmail, serviceKey, plan }){
+async function trySendWelcomeEmail({ toEmail, serviceKey, plan, trialEndsAt, interval }){
   const apiKey = process.env.RESEND_API_KEY;
   if(!apiKey){
     console.warn('[welcome-email] RESEND_API_KEY not set — skipping');
@@ -291,7 +321,7 @@ async function trySendWelcomeEmail({ toEmail, serviceKey, plan }){
   }
 
   const siteUrl = process.env.SITE_URL || 'https://quickfreightcalc.com';
-  const { subject, html, text } = buildWelcomeEmail(siteUrl, plan);
+  const { subject, html, text } = buildWelcomeEmail(siteUrl, plan, { trialEndsAt, interval });
 
   try {
     const resp = await sendResendEmail({
@@ -381,6 +411,11 @@ exports.handler = async function(event){
         // At the original price, the January plan is still theirs to choose (next_plan
         // stays empty until they pick one in Profile).
         const extra = { next_plan: plan, cancel_at: newSub ? cancelAtOf(newSub) : null };
+        if(newSub){
+          extra.billing_interval = intervalOf(newSub);
+          extra.trial_ends_at = trialEndOf(newSub);
+          extra.trial_reminder_sent_at = null;
+        }
         if(price){
           extra.grandfathered = isOriginalPlanPrice(price);
           if(extra.grandfathered) extra.next_plan = null;
@@ -393,7 +428,8 @@ exports.handler = async function(event){
           // Stripe Checkout puts the email at session.customer_details.email
           // (most reliable) with session.customer_email as a fallback.
           const recipientEmail = session.customer_details?.email || session.customer_email;
-          await trySendWelcomeEmail({ toEmail: recipientEmail, serviceKey, plan });
+          await trySendWelcomeEmail({ toEmail: recipientEmail, serviceKey, plan,
+            trialEndsAt: newSub ? trialEndOf(newSub) : null, interval: newSub ? intervalOf(newSub) : 'month' });
         } else {
           console.log(`[welcome-email] Skipping — user ${userId} was already active`);
         }
@@ -406,7 +442,7 @@ exports.handler = async function(event){
 
         // Back to the default plan, so a later comp or re-subscription starts clean.
         // A later subscription starts on the new plans.
-        const reset = { grandfathered: false, next_plan: null, cancel_at: null };
+        const reset = { grandfathered: false, next_plan: null, cancel_at: null, trial_ends_at: null };
         if(userId){
           console.log(`Deactivating Pro for user ${userId}`);
           await setProActive(userId, false, null, null, serviceKey, 'pro', null, reset);
@@ -432,7 +468,8 @@ exports.handler = async function(event){
         const period = subscriptionPeriod(subscription);
         // Set to end (or renewed again): cancel_at. Still on the original Pro plan:
         // keep it marked for the January 1 move.
-        const extra = { cancel_at: cancelAtOf(subscription) };
+        const extra = { cancel_at: cancelAtOf(subscription), billing_interval: intervalOf(subscription),
+          trial_ends_at: trialEndOf(subscription) };
         if(isOriginalPlanPrice(priceOf(subscription))) extra.grandfathered = true;
 
         if(userId){

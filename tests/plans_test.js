@@ -58,6 +58,9 @@ process.env.STRIPE_PRICE_ID_PRO = 'price_pro';     // new $9.99 Pro
 process.env.STRIPE_PRICE_ID_PLUS = 'price_plus';
 process.env.STRIPE_PRICE_ID_MAX = 'price_max';
 process.env.STRIPE_PRICE_ID_API = 'price_api';
+process.env.STRIPE_PRICE_ID_PRO_YEARLY = 'price_pro_year';     // $99/year
+process.env.STRIPE_PRICE_ID_PLUS_YEARLY = 'price_plus_year';   // $199/year
+process.env.STRIPE_PRICE_ID_MAX_YEARLY = 'price_max_year';     // $499/year
 process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test';
 
 const realNow = Date.now;
@@ -76,7 +79,8 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
     if (url.includes('/rest/v1/rpc/effective_account')) {
       return { body: { account_id: seatOn || 'user-1', role: seatOn ? 'member' : null, seated: !!seatOn, owner_id: seatOn, team_size: seatOn ? 3 : 1, row: proRow } };
     }
-    if (url.includes('/rest/v1/rpc/record_free_lane')) return { body: laneAllowed };
+    if (url.includes('/rest/v1/rpc/record_lane_usage')) return { body: { allowed: laneAllowed, used: laneAllowed ? 7 : 100 } };
+    if (url.includes('/rest/v1/rpc/lanes_used_today')) return { body: 42 };
     if (url.startsWith('https://routes.googleapis.com/')) return { body: { routes: [{ distanceMeters: 1609, duration: '60s' }] } };
     throw new Error('unexpected fetch ' + url);
   };
@@ -90,7 +94,7 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
     Date.now = realNow;
     return JSON.parse(res.body);
   }
-  const rpc = () => fcalls.filter((c) => c.url.includes('record_free_lane')).map((c) => JSON.parse(c.opts.body));
+  const rpc = () => fcalls.filter((c) => c.url.includes('record_lane_usage')).map((c) => JSON.parse(c.opts.body));
   const google = () => fcalls.filter((c) => c.url.startsWith('https://routes.googleapis.com/')).length;
   const active = (extra) => ({ is_active: true, plan: 'pro', grandfathered: false, billing_period_start: '2026-11-20T10:00:00Z', stripe_subscription_id: 'sub_1', ...extra });
 
@@ -130,6 +134,37 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   await run({ ...comp, is_active: false }, '2027-03-01T15:00:00Z');
   ok(rpc()[0].p_limit === 5, 'comp access turned off: free limit');
 
+  // The usage meter: every answer says how many of today's quotes are used
+  r = await run(active({ plan: 'plus' }), '2026-11-21T15:00:00Z');
+  ok(r.routes && r.usage && r.usage.used === 7 && r.usage.limit === 250 && r.usage.plan === 'plus' && r.usage.trial === false,
+     'usage meter: the answer says 7 of 250 used today', JSON.stringify(r.usage));
+  r = await run(null, '2026-11-21T15:00:00Z', false);
+  ok(r.usage && r.usage.used === 100 && r.usage.limit === 5 && r.usage.plan === 'free', 'usage meter: over the limit, still told how many');
+  r = await run(comp, '2026-11-21T15:00:00Z');
+  ok(r.usage && r.usage.limit === null && r.usage.used === null, 'usage meter: comp account has no limit (nothing to show)');
+  async function usageOnly(row) {
+    proRow = row; fcalls = []; at('2026-11-21T15:00:00Z');
+    const res = await routes.handler({ httpMethod: 'POST', headers: { 'x-nf-client-connection-ip': '198.51.100.7', ...(row ? { authorization: 'Bearer tok' } : {}) },
+      body: JSON.stringify({ usage: true }) });
+    Date.now = realNow;
+    return JSON.parse(res.body);
+  }
+  r = await usageOnly(active());
+  ok(r.usage && r.usage.used === 42 && r.usage.limit === 100 && google() === 0 && rpc().length === 0,
+     'usage meter on page load: today\'s count read, nothing counted, no Google call');
+  r = await usageOnly(null);
+  ok(r.usage && r.usage.limit === 5 && r.usage.plan === 'free' && fcalls.some((c) => c.url.includes('lanes_used_today') && JSON.parse(c.opts.body).p_identity === 'ip:198.51.100.7'),
+     'usage meter, not signed in: the 5 free quotes, counted by IP');
+
+  // A free trial: 100 a day whatever the plan, back to the plan's own limit after it
+  await run(active({ plan: 'max', trial_ends_at: '2026-11-30T10:00:00Z' }), '2026-11-21T15:00:00Z');
+  ok(rpc()[0].p_limit === 100, 'free trial of Pro Max: 100 a day during the trial');
+  r = await run(active({ plan: 'max', trial_ends_at: '2026-11-30T10:00:00Z' }), '2026-11-21T15:00:00Z', false);
+  ok(r.trial === true && /free trial/.test(r.error) && !/Pro Max \(/.test(r.error) && r.usage.trial === true && google() === 0,
+     'free trial over 100: told it\'s the trial\'s limit, no upsell');
+  await run(active({ plan: 'max', trial_ends_at: '2026-11-20T10:00:00Z' }), '2026-11-21T15:00:00Z');
+  ok(rpc()[0].p_limit === 1000, 'trial over (paid now): the plan\'s 1,000 a day');
+
   // A team member quotes on the owner's plan and shares the owner's daily limit
   seatOn = 'owner-1';
   await run(active({ plan: 'max' }), '2026-11-21T15:00:00Z');
@@ -168,6 +203,52 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   res = await startCheckout('plus');
   ok(res.statusCode === 503 && /Pro Plus isn't available yet/.test(JSON.parse(res.body).error), 'Pro Plus price not set up: friendly 503');
   process.env.STRIPE_PRICE_ID_PLUS = 'price_plus';
+
+  // Yearly billing
+  const startYearly = (plan, interval) => checkout.handler({ httpMethod: 'POST',
+    body: JSON.stringify({ userId: 'user-1', email: 'a@b.co', accessToken: 'tok', plan, interval }) });
+  for (const [plan, price] of [['pro', 'price_pro_year'], ['plus', 'price_plus_year'], ['max', 'price_max_year']]) {
+    calls = []; checkoutRow = { is_active: false, stripe_customer_id: 'cus_old' };
+    res = await startYearly(plan, 'year');
+    ok(res.statusCode === 200 && sessionParams().get('line_items[0][price]') === price && sessionParams().get('metadata[interval]') === 'year'
+       && JSON.parse(res.body).interval === 'year', `yearly ${plan}: sold at ${price}`);
+  }
+  calls = []; checkoutRow = null;
+  res = await startYearly('api', 'year');
+  ok(sessionParams().get('line_items[0][price]') === 'price_api' && sessionParams().get('metadata[interval]') === 'month', 'API asked for yearly: monthly (the API plan is monthly only)');
+  calls = []; checkoutRow = null; delete process.env.STRIPE_PRICE_ID_MAX_YEARLY;
+  res = await startYearly('max', 'year');
+  ok(res.statusCode === 503 && /Yearly billing for Pro Max isn't available yet/.test(JSON.parse(res.body).error) && !calls.some((c) => c.path === '/v1/checkout/sessions'),
+     'yearly price not set: friendly 503, no checkout');
+  ok(JSON.stringify(require('../netlify/lib/plans.js').yearlyPlans()) === '["pro","plus"]', 'yearlyPlans: only the plans whose yearly price is set');
+  process.env.STRIPE_PRICE_ID_MAX_YEARLY = 'price_max_year';
+
+  // The free trial: Pro Plus and Pro Max, first subscription only
+  const trialDays = () => sessionParams().get('subscription_data[trial_period_days]');
+  for (const [plan, interval, rowNow, days, label] of [
+    ['plus', 'month', null, '7', 'first subscription, Pro Plus: 7-day free trial'],
+    ['max', 'year', { is_active: false }, '7', 'first subscription, Pro Max yearly: 7-day free trial'],
+    ['pro', 'month', null, null, 'Pro: no trial'],
+    ['api', 'month', null, null, 'API: no trial'],
+    ['plus', 'month', { is_active: false, stripe_customer_id: 'cus_old' }, null, 'had a subscription before: no second trial'],
+    ['max', 'month', { is_active: false, stripe_subscription_id: 'sub_old' }, null, 'an old subscription on file: no trial'],
+  ]) {
+    calls = []; checkoutRow = rowNow;
+    res = await startYearly(plan, interval);
+    ok(res.statusCode === 200 && trialDays() === days && JSON.parse(res.body).trialDays === (days ? 7 : 0)
+       && (days ? sessionParams().get('payment_method_collection') === 'always'
+            && sessionParams().get('subscription_data[trial_settings][end_behavior][missing_payment_method]') === 'cancel' : true),
+       label);
+  }
+
+  // Yearly prices are new-plan prices, never the original plan
+  const P = require('../netlify/lib/plans.js');
+  ok(!P.isOriginalPlanPrice('price_plus_year') && !P.isOriginalPlanPrice('price_pro_year') && P.isOriginalPlanPrice('price_original'),
+     'a yearly price is a new plan, not the original $4.99 plan');
+  ok(P.planForPriceIds(['price_max_year']) === 'max' && P.planForPriceIds(['price_plus_year']) === 'plus' && P.planForPriceIds(['price_pro_year']) === 'pro',
+     'yearly prices map to their plans');
+  ok(P.intervalForPriceIds(['price_plus_year']) === 'year' && P.intervalForPriceIds(['price_plus']) === 'month' && P.intervalForPriceIds(['price_original']) === 'month',
+     'billing interval from the price');
 
   // ═══ change-plan.js ═══════════════════════════════════════════════════════
   const changePlan = require(fn('change-plan.js'));
@@ -236,6 +317,53 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   ok(o.code === 400 && o.error === 'not_subscribed', 'inactive account: must subscribe first');
   const bad = await changePlan.handler({ httpMethod: 'POST', body: JSON.stringify({ userId: 'someone-else', accessToken: 'tok', plan: 'plus' }) });
   ok(bad.statusCode === 401, 'token for a different user: 401');
+
+  // Monthly ↔ yearly
+  const changeTo = async (plan, interval) => {
+    const x = await changePlan.handler({ httpMethod: 'POST', body: JSON.stringify({ userId: 'user-1', accessToken: 'tok', plan, interval }) });
+    return { code: x.statusCode, ...JSON.parse(x.body) };
+  };
+  calls = []; row = paidRow(); row.plan = 'plus'; sub = subWith('price_plus');
+  o = await changeTo('plus', 'year');
+  ok(o.status === 'ok' && o.interval === 'year' && update().get('items[0][price]') === 'price_plus_year'
+     && update().get('proration_behavior') === 'always_invoice' && update().get('payment_behavior') === 'pending_if_incomplete'
+     && patched().billing_interval === 'year' && patched().plan === 'plus',
+     'Pro Plus monthly → yearly: the year charged now (less the unused month), applied once paid');
+  calls = []; sub = subWith('price_plus_year');
+  o = await changeTo('max');
+  ok(update().get('items[0][price]') === 'price_max_year' && o.interval === 'year', 'yearly Pro Plus → Pro Max: stays yearly');
+  calls = []; row.plan = 'max'; sub = subWith('price_max_year');
+  o = await changeTo('max', 'month');
+  ok(update().get('items[0][price]') === 'price_max' && update().get('proration_behavior') === 'always_invoice'
+     && !update().get('payment_behavior') && patched().billing_interval === 'month',
+     'yearly → monthly: new monthly period now, the unused year credited');
+  calls = []; sub = subWith('price_max_year');
+  o = await changeTo('api', 'year');
+  ok(update().get('items[0][price]') === 'price_api' && o.interval === 'month', 'yearly → API: monthly (the API plan is monthly only)');
+  calls = []; row = { ...paidRow(), grandfathered: true, billing_period_start: null }; sub = subWith('price_original');
+  o = await changeTo('plus', 'year');
+  ok(o.code === 400 && o.error === 'yearly_after_january' && posts().length === 0 && !calls.some((c) => c.method === 'PATCH'),
+     'original plan asks for yearly: after the January move, nothing changed');
+  calls = []; row = { ...paidRow(), grandfathered: true, billing_period_start: '2027-01-12T10:00:00Z' }; sub = subWith('price_pro', '2027-02-12T10:00:00Z');
+  o = await changeTo('pro', 'year');
+  ok(o.status === 'ok' && update().get('items[0][price]') === 'price_pro_year', 'after the January move: yearly is available');
+  calls = []; row = paidRow(); sub = subWith('price_pro'); delete process.env.STRIPE_PRICE_ID_PRO_YEARLY;
+  o = await changeTo('pro', 'year');
+  ok(o.code === 503 && o.error === 'not_available' && posts().length === 0, 'yearly price not set: 503, nothing changed');
+  process.env.STRIPE_PRICE_ID_PRO_YEARLY = 'price_pro_year';
+  const badInterval = await changePlan.handler({ httpMethod: 'POST', body: JSON.stringify({ userId: 'user-1', accessToken: 'tok', plan: 'plus', interval: 'week' }) });
+  ok(badInterval.statusCode === 400, 'unknown billing interval: 400');
+
+  // On a free trial: change plans freely, nothing charged, the trial's end date kept
+  calls = []; row = paidRow(); row.plan = 'max'; sub = subWith('price_max', '2026-12-01T12:00:00Z', { status: 'trialing', trial_end: secs('2026-12-01T12:00:00Z') });
+  o = await changeTo('plus');
+  ok(o.status === 'ok' && update().get('items[0][price]') === 'price_plus' && update().get('proration_behavior') === 'none'
+     && update().get('trial_end') === String(secs('2026-12-01T12:00:00Z')) && !update().get('payment_behavior'),
+     'trial of Pro Max → Pro Plus: nothing charged, trial still ends Dec 1');
+  calls = []; sub = subWith('price_plus', '2026-12-01T12:00:00Z', { status: 'trialing', trial_end: secs('2026-12-01T12:00:00Z') });
+  o = await changeTo('plus', 'year');
+  ok(update().get('items[0][price]') === 'price_plus_year' && update().get('proration_behavior') === 'none' && update().get('trial_end'),
+     'trial, monthly → yearly: nothing charged now, the year billed when the trial ends');
   Date.now = realNow;
 
   // ═══ stripe-webhook.js ════════════════════════════════════════════════════
@@ -268,6 +396,7 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
      && p.billing_period_start === '2026-11-20T10:00:00.000Z' && p.renews_at === '2026-12-20T10:00:00.000Z',
      'webhook: new Pro Plus checkout → new plan from day one, billing period recorded');
   ok(p.cancel_at === null, 'webhook: new checkout → not set to end');
+  ok(p.billing_interval === 'month' && p.trial_ends_at === null && p.trial_reminder_sent_at === null, 'webhook: checkout records monthly billing, no trial');
   newSubPrice = 'price_original';
   await send(checkoutEvent());
   ok(patches.at(-1).grandfathered === true, 'webhook: checkout at the original price (new Pro price not set) → original plan');
@@ -290,6 +419,13 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   await send(updated('price_max'));
   p = patches.at(-1);
   ok(p.plan === 'max' && !('grandfathered' in p), 'webhook: new price → plan from the price, marker untouched');
+  ok(p.billing_interval === 'month' && p.trial_ends_at === null, 'webhook: monthly, not on a trial');
+  await send(updated('price_max_year'));
+  ok(patches.at(-1).plan === 'max' && patches.at(-1).billing_interval === 'year' && !('grandfathered' in patches.at(-1)),
+     'webhook: yearly Pro Max → Pro Max, billed yearly (not the original plan)');
+  await send(updated('price_plus', { status: 'trialing', trial_end: secs('2026-12-03T10:00:00Z') }));
+  ok(patches.at(-1).is_active === true && patches.at(-1).trial_ends_at === '2026-12-03T10:00:00.000Z',
+     'webhook: on a free trial → active, with the trial\'s end');
   await send({ type: 'customer.subscription.deleted', data: { object: { id: 'sub_1', metadata: { userId: 'user-1' } } } });
   p = patches.at(-1);
   ok(p.is_active === false && p.plan === 'pro' && p.grandfathered === false && p.next_plan === null && p.cancel_at === null,
@@ -316,6 +452,7 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   ok(v.active && v.paid && v.unlimitedUntilRenewal === true && v.nextPlan === 'plus' && v.newPlansStart === JAN1,
      'verify-pro: original plan → unlimited until January, with the chosen plan');
   ok(v.planChosen === true && v.cancelAt === null, 'verify-pro: …marked as chosen, not set to end');
+  ok(v.interval === 'month' && v.trialEndsAt === null && v.trialEligible === false, 'verify-pro: monthly, no trial, can\'t start one (subscribed)');
   vrow.next_plan = null;
   v = await vp();
   ok(v.nextPlan === 'pro' && v.planChosen === false, 'verify-pro: no choice yet → moves to Pro, not chosen');
@@ -324,6 +461,13 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   delete vrow.cancel_at;
   vrow = { is_active: true, plan: 'api', next_plan: 'api', grandfathered: true, billing_period_start: '2026-11-10T00:00:00Z', stripe_subscription_id: 'sub_1' };
   ok((await vp()).unlimitedUntilRenewal === false, 'verify-pro: moved to the API plan → nothing left to choose');
+  vrow = { is_active: true, plan: 'plus', grandfathered: false, stripe_subscription_id: 'sub_2', billing_interval: 'year', trial_ends_at: '2026-11-29T10:00:00Z' };
+  v = await vp();
+  ok(v.interval === 'year' && v.trialEndsAt === '2026-11-29T10:00:00Z', 'verify-pro: billed yearly, on a trial until Nov 29');
+  vrow = { is_active: false, plan: 'pro' };
+  ok((await vp()).trialEligible === true, 'verify-pro: never subscribed → can start a free trial');
+  vrow = { is_active: false, plan: 'pro', had_subscription: true };
+  ok((await vp()).trialEligible === false, 'verify-pro: subscribed before → no second trial');
   vrow = { is_active: true, plan: 'plus', grandfathered: false, stripe_subscription_id: 'sub_2' };
   v = await vp();
   ok(v.active && v.plan === 'plus' && v.unlimitedUntilRenewal === false && v.nextPlan === null && v.planChosen === false,
@@ -412,6 +556,56 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   ok((await job.handler()).statusCode === 500, 'job: not configured → does nothing');
   process.env.STRIPE_SECRET_KEY = 'sk_test_x';
   Date.now = realNow;
+
+  // ═══ trial-reminders.js ═══════════════════════════════════════════════════
+  const reminders = require(fn('trial-reminders.js'));
+  const mail = reminders._internal.buildReminder({ plan: 'plus', billing_interval: 'month', trial_ends_at: '2026-11-27T15:00:00Z' }, 'https://quickfreightcalc.com');
+  ok(mail.subject === 'Your QuickFreightCalc Pro Plus free trial ends on November 27'
+     && /ends on Friday, November 27, 2026/.test(mail.text) && /charged \$19\.99\/month for Pro Plus that day/.test(mail.text)
+     && /profile\.html#subscription-paid/.test(mail.text) && /\$19\.99\/month/.test(mail.html),
+     'trial reminder: the end date and the price, in plain words', mail.text);
+  const yearlyMail = reminders._internal.buildReminder({ plan: 'max', billing_interval: 'year', trial_ends_at: '2026-11-27T15:00:00Z' }, 'https://quickfreightcalc.com');
+  ok(/charged \$499\/year for Pro Max/.test(yearlyMail.text) && /every year after/.test(yearlyMail.text), 'trial reminder, yearly: $499/year');
+  process.env.RESEND_API_KEY = 're_test';
+  const trialRows = [
+    { id: 't1-aaaaaaaa', email: 'one@example.com', plan: 'plus', billing_interval: 'month', trial_ends_at: '2026-11-27T15:00:00Z', cancel_at: null },
+    { id: 't2-aaaaaaaa', email: 'two@example.com', plan: 'max', billing_interval: 'month', trial_ends_at: '2026-11-27T16:00:00Z', cancel_at: '2026-11-27T16:00:00Z' },
+    { id: 't3-aaaaaaaa', email: 'three@example.com', plan: 'max', billing_interval: 'year', trial_ends_at: '2026-11-27T17:00:00Z', cancel_at: null },
+  ];
+  const claimedBy = new Set(['t1-aaaaaaaa', 't2-aaaaaaaa']);   // t3 was claimed by another run
+  const sentTo = []; const releases = []; let listQuery = '';
+  fetchRespond = (url, opts) => {
+    if (url.includes('/rest/v1/pro_users?is_active=eq.true')) { listQuery = url; return { body: trialRows }; }
+    if (url.includes('/rest/v1/pro_users?id=eq.') && opts.method === 'PATCH') {
+      const id = decodeURIComponent(url.split('id=eq.')[1].split('&')[0]);
+      const body = JSON.parse(opts.body);
+      if (body.trial_reminder_sent_at === null) { releases.push(id); return { body: [{ id }] }; }
+      return { body: claimedBy.has(id) ? [{ id }] : [] };
+    }
+    if (url === 'https://api.resend.com/emails') { sentTo.push(JSON.parse(opts.body).to[0]); return { body: { id: 'em_1' } }; }
+    throw new Error('unexpected fetch ' + url);
+  };
+  at('2026-11-24T16:00:00Z');
+  let tr = JSON.parse((await reminders.handler()).body);
+  ok(/trial_reminder_sent_at=is\.null/.test(listQuery) && /trial_ends_at=gt\.2026-11-24T16/.test(listQuery) && /trial_ends_at=lte\.2026-11-27T16/.test(listQuery),
+     'trial reminders: trials ending in the next 3 days, not yet reminded', listQuery);
+  ok(sentTo.join() === 'one@example.com' && tr.sent === 1 && tr.skipped === 1 && releases.length === 0,
+     'trial reminders: emailed once; set to cancel → skipped; claimed elsewhere → left alone', JSON.stringify(tr));
+  claimedBy.add('t3-aaaaaaaa');
+  fetchRespond = ((prev) => (url, opts) => (url === 'https://api.resend.com/emails' ? { status: 500, body: {} } : prev(url, opts)))(fetchRespond);
+  sentTo.length = 0;
+  tr = JSON.parse((await reminders.handler()).body);
+  ok(tr.failed === 3 - tr.skipped && releases.includes('t1-aaaaaaaa') && releases.includes('t3-aaaaaaaa'), 'trial reminders: email failed → released to try again next run', JSON.stringify(tr));
+  Date.now = realNow;
+
+  // ═══ plan-options.js ══════════════════════════════════════════════════════
+  const options = require(fn('plan-options.js'));
+  let po = JSON.parse((await options.handler({ httpMethod: 'GET' })).body);
+  ok(JSON.stringify(po.yearly) === '["pro","plus","max"]' && po.trial.days === 7 && JSON.stringify(po.trial.plans) === '["plus","max"]'
+     && po.prices.plus.year === '$199' && po.prices.api.year === undefined, 'plan options: yearly Pro, Pro Plus, Pro Max; 7-day trial of Pro Plus and Pro Max');
+  delete process.env.STRIPE_PRICE_ID_PRO_YEARLY; delete process.env.STRIPE_PRICE_ID_PLUS_YEARLY; delete process.env.STRIPE_PRICE_ID_MAX_YEARLY;
+  po = JSON.parse((await options.handler({ httpMethod: 'GET' })).body);
+  ok(po.yearly.length === 0, 'plan options: no yearly prices set → no yearly billing offered');
 
   console.log(`\nALL ${passed} PLAN TESTS PASSED`);
 })().catch((e) => { console.error('TEST FAILED:', e.message); process.exit(1); });

@@ -313,14 +313,22 @@ const SEED = [
   await open(t, base, 3);
   check('results show locked', (await t.page.$$eval('#log-body .wl-pill', (els) => els.every((e) => e.classList.contains('locked') && e.textContent.includes('Result')))));
   check('no filters; count note uses the Pro limit', (await chips(t.page, '#log-filters')) === '' && (await flat(t.page, '#profile-count-note')) === '3 / 100 quotes saved');
-  check('teaser instead of the numbers', (await flat(t.page, '#wl-panel')).includes('Comes with Pro Plus') && !(await t.page.$('.wl-tiles')));
+  await t.page.waitForSelector('#wl-panel .qf-lp-card');
+  check('a grayed-out preview with made-up numbers instead of theirs, marked Pro Plus',
+    (await flat(t.page, '#wl-panel .qf-lp-title')) === 'Win/loss tracking' && (await flat(t.page, '#wl-panel .qf-lp-badge')) === 'Pro Plus'
+    && (await t.page.$$eval('#wl-panel .qf-lp-sample .wl-tile', (els) => els.length)) === 4
+    && (await t.page.getAttribute('#wl-panel .qf-lp-sample', 'aria-hidden')) === 'true'
+    && (await flat(t.page, '#wl-panel .qf-lp-sample')).includes('64%'));
+  await t.page.click('#wl-panel .qf-lp-main');
+  check('…See Pro Plus opens the upgrade window', await t.page.isVisible('#upg-modal-overlay') && (await t.page.isChecked('#upg-option-plus input')));
+  await t.page.evaluate(() => closeUpgradeModal());
   await t.page.locator('#wl-panel').screenshot({ path: path.join(SHOTS, 'winloss_teaser.png') });
   await t.page.locator('#log-body .wl-pill').first().click();
   check('a locked result opens the upgrade window on Pro Plus', await t.page.isVisible('#upg-modal-overlay')
     && (await t.page.isChecked('#upg-option-plus input')) && (await t.page.textContent('#upg-modal-desc')).includes('Win/loss tracking comes with Pro Plus'));
   await t.page.evaluate(() => closeUpgradeModal());
   check('the customer field is there for Pro too', await t.page.isVisible('#quote-customer'));
-  await t.page.click('.wl-teaser-close');
+  await t.page.click('#wl-panel .qf-lp-close');
   await t.page.reload();
   await t.page.waitForFunction(() => typeof quoteLog !== 'undefined' && quoteLog.length === 3);
   check('teaser can be hidden for good', (await flat(t.page, '#wl-panel').catch(() => '')) === '');
