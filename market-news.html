@@ -193,8 +193,8 @@
       <div class="log-wrap news-glance"><table><thead><tr><th>Measure</th><th class="num">Now</th><th class="num">vs last week</th><th class="num">vs last year</th></tr></thead><tbody>
       ${glance.map((g) => `<tr><td>${rich(g.measure)}</td><td class="num now">${rich(g.now)}</td><td class="num">${rich(g.week || 'n/a')}</td><td class="num">${rich(g.year || 'n/a')}</td></tr>`).join('')}
       </tbody></table></div></section>` : '';
-    const itemsHTML = items.map((it, i) => `<section class="news-sec news-item">
-      <h3>${i + 1}. ${rich(it.headline)}</h3>
+    const itemsHTML = items.map((it) => `<section class="news-sec news-item">
+      <h3>${rich(it.headline)}</h3>
       ${arr(it.bullets).length ? `<ul>${arr(it.bullets).map((b) => `<li>${rich(b)}</li>`).join('')}</ul>` : ''}
       ${it.takeaway ? `<div class="news-means"><b>What it means for your rates:</b> ${rich(it.takeaway)}</div>` : ''}
     </section>`).join('');
