@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Google AdSense — site ownership verification + ad library loader -->
+<!-- Google AdSense — site ownership verification. The ad library itself loads only when there is an ad to show (see activateAds below). -->
 <meta name="google-adsense-account" content="ca-pub-5621259704181475">
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5621259704181475" crossorigin="anonymous"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -1538,13 +1537,31 @@ html.light .hos-day-header{background:var(--card2)}
 .weather-loading{padding:20px;text-align:center;font-size:12px;color:var(--text3)}
 @media(max-width:480px){.weather-locations{grid-template-columns:1fr}}
 </style>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18077158957"></script>
+<!-- Google tag (gtag.js) for Google Ads. The gtag() queue is set up right away,
+     so nothing is lost, but the ~165 KB library loads after the page is up: on the
+     visitor's first tap, click, key or scroll, or a few seconds after load, so it
+     doesn't compete with the calculator while it starts. Visits from an ad click
+     or back from checkout load it as soon as the page has loaded. -->
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
   gtag('config', 'AW-18077158957');
+  (function(){
+    var loaded = false, evs = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+    function load(){
+      if (loaded) return;
+      loaded = true;
+      evs.forEach(function(e){ window.removeEventListener(e, load, true); });
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://www.googletagmanager.com/gtag/js?id=AW-18077158957';
+      document.head.appendChild(s);
+    }
+    var soon = /[?&](gclid|gbraid|wbraid|gad_source|checkout)=/.test(location.search);
+    evs.forEach(function(e){ window.addEventListener(e, load, { capture: true, passive: true }); });
+    window.addEventListener('load', function(){ setTimeout(load, soon ? 0 : 3500); });
+  })();
 </script>
 </head>
 <body>
@@ -1848,7 +1865,7 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="ftl-only" id="ftl-fields">
           <div class="grid2">
             <div class="field">
-              <label>Trailer Type</label>
+              <label for="trailer">Trailer Type</label>
               <select id="trailer" onchange="calc()">
                 <option value="van">Dry Van</option>
                 <option value="reefer">Reefer</option>
@@ -1856,7 +1873,7 @@ html.light .hos-day-header{background:var(--card2)}
               </select>
             </div>
             <div class="field">
-              <label>Commodity</label>
+              <label for="commodity">Commodity</label>
               <select id="commodity" onchange="calc()">
                 <option value="standard">Standard General Freight</option>
                 <option value="food">Food / Perishable</option>
@@ -2675,7 +2692,7 @@ function toggleSeoBlock(){
 
 <footer data-qf-footer>
   <p>Rates are regional market averages · Diesel from <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" rel="noopener noreferrer">EIA Weekly</a> · LTL FSC calibrated to <a href="https://www.odfl.com/us/en/resources/fuel-surcharge.html" target="_blank" rel="noopener noreferrer">ODFL published rates</a> · For informational use — always verify before quoting</p>
-  <p style="margin-top:10px;font-size:11px;color:var(--text3)">Questions or problems? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent);text-decoration:none">info@quickfreightcalc.com</a></p>
+  <p style="margin-top:10px;font-size:11px;color:var(--text3)">Questions or problems? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent);text-decoration:underline">info@quickfreightcalc.com</a></p>
   <p style="margin-top:10px;font-size:12px;color:var(--text3)">By using QuickFreightCalc you agree to our <a href="/terms.html" style="color:var(--accent);text-decoration:underline;font-weight:600" target="_blank" rel="noopener noreferrer">Terms of Service</a> and <a href="/privacy.html" style="color:var(--accent);text-decoration:underline;font-weight:600" target="_blank" rel="noopener noreferrer">Privacy Policy</a>. Rates are estimates only — not guaranteed quotes.</p>
 </footer>
 
@@ -9059,8 +9076,29 @@ function _activateAdUnit(u){
   const ins = u.el.querySelector('ins.adsbygoogle');
   ins.setAttribute('data-ad-client', ADS_CONFIG.client);
   ins.setAttribute('data-ad-slot', u.slot);
-  (window.adsbygoogle = window.adsbygoogle || []).push({});
+  (window.adsbygoogle = window.adsbygoogle || []).push({});   // queued until the library loads
   u.el.dataset.adFilled = '1';
+  _loadAdLibrary();
+}
+
+// The AdSense library is ~250 KB of script, so it loads only when there is an ad
+// to show (a real slot ID, a visitor who isn't Pro, a unit on screen), and only
+// after the page has finished loading so it never slows the calculator down.
+// The verification meta tag in <head> and ads.txt keep the site connected to
+// AdSense without it.
+let _adLibRequested = false;
+function _loadAdLibrary(){
+  if(_adLibRequested) return;
+  _adLibRequested = true;
+  const add = () => {
+    const s = document.createElement('script');
+    s.async = true;
+    s.crossOrigin = 'anonymous';
+    s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' + encodeURIComponent(ADS_CONFIG.client);
+    document.head.appendChild(s);
+  };
+  if(document.readyState === 'complete') add();
+  else window.addEventListener('load', add, { once: true });
 }
 
 function activateAds(){

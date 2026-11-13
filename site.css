@@ -178,7 +178,7 @@ html.light .qf-logo-text b{color:#d48200}
 .qf-footer-inner{max-width:1240px;margin:0 auto;padding:40px 24px 28px}
 .qf-footer-top{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:28px}
 .qf-footer p{font-size:13px;line-height:1.6;color:var(--text3);margin:12px 0 0;max-width:340px}
-.qf-footer h4{font:600 12px/1 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin:6px 0 12px}
+.qf-footer .qf-footer-h{font:600 12px/1 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin:6px 0 12px}
 .qf-footer-col a{display:block;font-size:13.5px;color:var(--text3);text-decoration:none;padding:5px 0}
 .qf-footer-col a:hover{color:var(--accent)}
 .qf-footer-note{margin-top:28px;padding-top:18px;border-top:1px solid var(--border);font-size:12px;line-height:1.7;color:var(--text3)}
