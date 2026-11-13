@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google AdSense — site ownership verification -->
+<meta name="google-adsense-account" content="ca-pub-5621259704181475">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Freight Market News — Weekly Rates, Diesel &amp; Trucking Updates | QuickFreightCalc</title>
+<meta name="description" content="A weekly freight market update for truckload: spot rates per mile for van, reefer and flatbed, diesel prices, and the trucking news that moves capacity. New every Tuesday.">
+<link rel="canonical" href="https://quickfreightcalc.com/market-news">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/tools.css">
+<script src="/site.js"></script>
+<style>
+/* Market News: the weekly update. The page title, cards, buttons and tables come from
+   tools.css; colors from site.css. */
+.news{max-width:880px;margin:0 auto;padding:0 24px 64px;display:flex;flex-direction:column;gap:20px}
+.news-post{padding:0}
+.news-head{padding:26px 28px 22px;border-bottom:1px solid var(--border)}
+.news-week{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.news-title{font-size:clamp(22px,3vw,30px);font-weight:700;letter-spacing:-.02em;line-height:1.2;margin-top:8px;text-wrap:balance}
+.news-summary{font-size:15.5px;line-height:1.65;color:var(--text2);margin-top:10px}
+.news-sec{padding:22px 28px;border-bottom:1px solid var(--border)}
+.news-sec:last-child{border-bottom:none}
+.news-h{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:12px}
+.news-glance td.now{font-weight:700;color:var(--text);font-size:14px}
+.news-glance td.num,.news-glance th.num{text-align:right}
+.news-item h3{font-size:18px;font-weight:700;letter-spacing:-.01em;line-height:1.35;margin-bottom:10px;text-wrap:balance}
+.news-item ul{margin:0 0 14px 18px;display:flex;flex-direction:column;gap:7px}
+.news-item li{font-size:14.5px;line-height:1.65;color:var(--text2)}
+.news-item li strong{color:var(--text)}
+.news-means{background:var(--accentbg);border-left:3px solid var(--accent-fill);border-radius:0 10px 10px 0;padding:12px 14px;font-size:14px;line-height:1.6;color:var(--text)}
+.news-means b{font-weight:700}
+.news-heads{list-style:none;display:flex;flex-direction:column;gap:14px}
+.news-heads a{font-size:15px;font-weight:600;color:var(--text);text-decoration:none;line-height:1.4}
+.news-heads a:hover{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.news-heads .src{display:block;font-size:12px;color:var(--text3);margin-top:3px}
+.news-heads p{font-size:13.5px;line-height:1.6;color:var(--text2);margin-top:4px}
+.news-sources{font-size:12px;line-height:1.7;color:var(--text3)}
+.news-sources b{color:var(--text2);font-weight:600}
+.news-sources a{color:var(--text3);text-decoration:underline;text-underline-offset:2px}
+.news-sources a:hover{color:var(--accent)}
+.news-sources div+div{margin-top:6px}
+.news-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:20px 28px;background:var(--card2)}
+.news-foot p{font-size:12.5px;line-height:1.6;color:var(--text3);max-width:520px}
+.news-draft{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px;padding:12px 14px;border-radius:12px;
+  background:var(--accentbg);border:1px solid rgba(245,165,36,.4);font-size:13.5px;color:var(--text)}
+.news-draft.live{background:var(--greenbg);border-color:rgba(52,211,153,.4)}
+.news-draft .btns{display:flex;gap:8px;flex-wrap:wrap}
+.news-arch{display:flex;flex-direction:column}
+.news-arch a{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:14px 22px;border-top:1px solid var(--border);text-decoration:none;color:var(--text)}
+.news-arch a:first-child{border-top:none}
+.news-arch a:hover{background:var(--card2)}
+.news-arch a.on{background:var(--accentbg)}
+.news-arch b{font-size:14.5px;font-weight:600;line-height:1.4}
+.news-arch small{display:block;font-size:12.5px;color:var(--text3);margin-top:3px;line-height:1.5}
+.news-arch .wk{font-size:12px;color:var(--text3);white-space:nowrap}
+.news-arch .tag{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-left:8px}
+.news-status{font-size:13px;color:var(--text3);text-align:center;padding:30px 0}
+@media (max-width:740px){
+  .news{padding:0 12px 48px;gap:14px}
+  .news-head,.news-sec{padding:18px 16px}
+  .news-foot{padding:16px}
+  .news-arch a{padding:12px 16px;flex-direction:column;gap:2px}
+}
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <span class="qf-pill">Market news · Every Tuesday</span>
+  <h1>This week in <em>freight</em></h1>
+  <p class="hero-sub">Spot rates, diesel and the trucking news that moves capacity, in a five-minute read. New every Tuesday.</p>
+</section>
+
+<main class="news">
+  <p class="news-status" id="news-status">Loading the latest update…</p>
+  <article class="card news-post" id="news-post" hidden></article>
+  <div class="card" id="news-empty" hidden>
+    <div class="tool-empty">
+      <div class="tool-empty-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h11.5a1 1 0 0 1 1 1V18a2 2 0 0 0 2 2H6.5A2.5 2.5 0 0 1 4 17.5V5.5a1 1 0 0 1 1-1z"/><path d="M17.5 9h2a.5.5 0 0 1 .5.5V18a2 2 0 0 1-2 2M7.5 8.5h6.5M7.5 12h6.5M7.5 15.5h4"/></svg></div>
+      <h3 id="news-empty-title">The first weekly update is on its way</h3>
+      <p id="news-empty-text">A new update comes out every Tuesday morning. Until then, see this month's rates by region and the latest diesel prices.</p>
+      <a class="qf-btn qf-btn-primary" href="/rates.html" style="margin-top:16px">See market rates</a>
+    </div>
+  </div>
+  <section class="card" id="news-archive" hidden>
+    <div class="card-header"><span class="card-title">Weekly updates</span><span class="card-meta" id="news-count"></span></div>
+    <div class="news-arch" id="news-arch"></div>
+  </section>
+</main>
+
+<footer data-qf-footer></footer>
+
+<script>
+(function () {
+  const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
+  const COLS = 'id,week_of,title,summary,glance,items,headlines,sources,status,published_at';
+  const $ = (id) => document.getElementById(id);
+  let updates = [], admin = false, token = null;
+
+  // ── Text from the weekly task: escaped, with **bold** as the only markup ──
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const rich = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  const safeUrl = (u) => { try { const x = new URL(String(u)); return /^https?:$/.test(x.protocol) ? x.href : null; } catch (e) { return null; } };
+  const link = (u, text) => { const h = safeUrl(u); return h ? `<a href="${esc(h)}" target="_blank" rel="noopener noreferrer nofollow">${text}</a>` : text; };
+  const day = (iso, opts) => { const d = new Date(String(iso).slice(0, 10) + 'T12:00:00'); return isNaN(d) ? '' : d.toLocaleDateString('en-US', opts || { month: 'long', day: 'numeric', year: 'numeric' }); };
+  const arr = (x) => (Array.isArray(x) ? x : []);
+
+  function session() {
+    try {
+      for (const k of Object.keys(localStorage).filter((x) => x.startsWith('sb-'))) {
+        const v = JSON.parse(localStorage.getItem(k) || '{}');
+        if (v && v.access_token) return v;
+      }
+    } catch (e) {}
+    return null;
+  }
+  const headers = (auth) => Object.assign({ apikey: SUPABASE_KEY }, auth && token ? { Authorization: 'Bearer ' + token } : {});
+
+  // Published updates for everyone; with the owner's sign-in, drafts too (the database decides).
+  async function load() {
+    const s = session();
+    token = s ? s.access_token : null;
+    if (token) {
+      try {
+        const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/is_site_admin', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, headers(true)), body: '{}' });
+        admin = r.ok ? (await r.json()) === true : false;
+      } catch (e) { admin = false; }
+    }
+    const url = SUPABASE_URL + '/rest/v1/market_updates?select=' + COLS + '&order=week_of.desc&limit=60';
+    let r = await fetch(url, { headers: headers(admin) }).catch(() => null);
+    if (r && !r.ok && admin) r = await fetch(url, { headers: headers(false) }).catch(() => null);
+    if (!r || !r.ok) throw new Error('load');
+    updates = arr(await r.json());
+  }
+
+  function current() {
+    // A week's own link shows that week (or, if it isn't out, says so)
+    const want = new URLSearchParams(location.search).get('week');
+    if (want) return updates.find((x) => x.week_of === want) || null;
+    // The owner sees the newest one, so a new draft is the first thing on the page
+    return (admin ? updates[0] : updates.find((x) => x.status === 'published')) || null;
+  }
+
+  function render() {
+    $('news-status').hidden = true;
+    const u = current();
+    const post = $('news-post');
+    const published = updates.filter((x) => x.status === 'published');
+    if (!u) {
+      post.hidden = true;
+      $('news-empty').hidden = false;
+      if (new URLSearchParams(location.search).get('week') && published.length) {
+        $('news-empty-title').textContent = 'That week’s update isn’t here';
+        $('news-empty-text').textContent = 'It may not be out yet. Every published week is listed below.';
+        const a = $('news-empty').querySelector('a');
+        a.textContent = 'See the latest update';
+        a.href = '/market-news.html';
+      }
+    } else {
+      $('news-empty').hidden = true;
+      post.hidden = false;
+      post.innerHTML = postHTML(u);
+      const t = u.title ? u.title + ' | QuickFreightCalc' : document.title;
+      document.title = t;
+    }
+    // Every week's update, newest first (the owner also sees drafts)
+    const list = admin ? updates : published;
+    $('news-archive').hidden = list.length < (u ? 2 : 1);
+    $('news-count').textContent = published.length === 1 ? '1 update' : published.length + ' updates';
+    $('news-arch').innerHTML = list.map((x) => `<a href="?week=${esc(x.week_of)}" class="${u && x.id === u.id ? 'on' : ''}">
+      <span><b>${esc(x.title)}</b>${x.status === 'draft' ? '<span class="tag">Draft</span>' : ''}${x.summary ? `<small>${esc(x.summary)}</small>` : ''}</span>
+      <span class="wk">Week of ${esc(day(x.week_of, { month: 'short', day: 'numeric', year: 'numeric' }))}</span></a>`).join('');
+  }
+
+  function postHTML(u) {
+    const draft = u.status === 'draft';
+    const glance = arr(u.glance);
+    const items = arr(u.items);
+    const heads = arr(u.headlines);
+    const sources = arr(u.sources);
+    const bar = admin
+      ? (draft
+        ? `<div class="news-draft"><span><strong>Draft.</strong> Only you can see this until you publish it.</span><span class="btns"><button type="button" class="btn btn-primary" data-act="publish" data-id="${esc(u.id)}">Publish</button></span></div>`
+        : `<div class="news-draft live"><span><strong>Published</strong>${u.published_at ? ' ' + esc(day(u.published_at, { month: 'short', day: 'numeric' })) : ''}. Everyone can see this.</span><span class="btns"><button type="button" class="btn btn-ghost" data-act="unpublish" data-id="${esc(u.id)}">Unpublish</button></span></div>`)
+      : '';
+    const glanceHTML = glance.length ? `<section class="news-sec"><h3 class="news-h">This week at a glance</h3>
+      <div class="log-wrap news-glance"><table><thead><tr><th>Measure</th><th class="num">Now</th><th class="num">vs last week</th><th class="num">vs last year</th></tr></thead><tbody>
+      ${glance.map((g) => `<tr><td>${rich(g.measure)}</td><td class="num now">${rich(g.now)}</td><td class="num">${rich(g.week || 'n/a')}</td><td class="num">${rich(g.year || 'n/a')}</td></tr>`).join('')}
+      </tbody></table></div></section>` : '';
+    const itemsHTML = items.map((it, i) => `<section class="news-sec news-item">
+      <h3>${i + 1}. ${rich(it.headline)}</h3>
+      ${arr(it.bullets).length ? `<ul>${arr(it.bullets).map((b) => `<li>${rich(b)}</li>`).join('')}</ul>` : ''}
+      ${it.takeaway ? `<div class="news-means"><b>What it means for your rates:</b> ${rich(it.takeaway)}</div>` : ''}
+    </section>`).join('');
+    const headsHTML = heads.length ? `<section class="news-sec"><h3 class="news-h">More freight news this week</h3><ul class="news-heads">
+      ${heads.map((h) => `<li>${link(h.url, esc(h.title))}<span class="src">${esc([h.source, h.date ? day(h.date, { month: 'short', day: 'numeric' }) : ''].filter(Boolean).join(' · '))}</span>${h.summary ? `<p>${rich(h.summary)}</p>` : ''}</li>`).join('')}
+    </ul></section>` : '';
+    const groups = [];
+    sources.forEach((s) => { const k = s.item || 'Sources'; let g = groups.find((x) => x.k === k); if (!g) groups.push(g = { k, list: [] }); g.list.push(s); });
+    const sourcesHTML = groups.length ? `<section class="news-sec news-sources"><h3 class="news-h">Sources</h3>
+      ${groups.map((g) => `<div><b>${esc(g.k)}:</b> ${g.list.map((s) => link(s.url, esc([s.publisher, s.title].filter(Boolean).join(', ')) + (s.date ? ' (' + esc(day(s.date, { month: 'short', day: 'numeric', year: 'numeric' })) + ')' : ''))).join('; ')}</div>`).join('')}
+    </section>` : '';
+    return `<header class="news-head">
+        <div class="news-week">Week of ${esc(day(u.week_of))}</div>
+        <h2 class="news-title">${esc(u.title)}</h2>
+        ${u.summary ? `<p class="news-summary">${rich(u.summary)}</p>` : ''}
+        ${bar}
+      </header>
+      ${glanceHTML}${itemsHTML}${headsHTML}${sourcesHTML}
+      <footer class="news-foot"><p>Compiled from public market data and trucking news. Figures are the latest available when published and are averages, not quotes or advice.</p>
+        <a class="qf-btn qf-btn-primary" href="/">Price a lane</a></footer>`;
+  }
+
+  // ── The owner publishes or takes back an update ──
+  async function setStatus(id, status, btn) {
+    if (status === 'draft' && !confirm('Take this update off the site? It goes back to being a draft only you can see.')) return;
+    btn.disabled = true;
+    try {
+      const r = await fetch(SUPABASE_URL + '/rest/v1/market_updates?id=eq.' + encodeURIComponent(id), {
+        method: 'PATCH',
+        headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=representation' }, headers(true)),
+        body: JSON.stringify({ status }),
+      });
+      const rows = r.ok ? await r.json() : [];
+      if (!rows.length) throw new Error('not saved');
+      const i = updates.findIndex((x) => x.id === id);
+      if (i >= 0) updates[i] = Object.assign({}, updates[i], rows[0]);
+      render();
+    } catch (e) {
+      btn.disabled = false;
+      alert('That didn’t save. Check that you’re signed in as the site owner, then try again.');
+    }
+  }
+  $('news-post').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-act]');
+    if (b) setStatus(b.dataset.id, b.dataset.act === 'publish' ? 'published' : 'draft', b);
+  });
+
+  load().then(render).catch(() => {
+    $('news-status').textContent = 'The market update couldn’t load right now. Refresh the page to try again.';
+  });
+})();
+</script>
+</body>
+</html>

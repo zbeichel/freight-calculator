@@ -1,5 +1,5 @@
 // site.js — the shared header and footer for every page: navigation
-// (Calculator, Market Rates, Tools, Pricing), the account menu with sign-out,
+// (Calculator, Market Rates, Market News, Tools, Pricing), the account menu with sign-out,
 // a mobile menu, and light/dark mode. Load it in <head> (not deferred) so the
 // theme is set before the page paints:
 //   <link rel="stylesheet" href="/site.css">
@@ -28,6 +28,7 @@
     map: '<path d="M9 4.5 3.5 6.8v12.7L9 17.2l6 2.3 5.5-2.3V4.5L15 6.8z"/><path d="M9 4.5v12.7M15 6.8v12.7"/>',
     route: '<circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="M8.2 6H15a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6.8"/>',
     box: '<path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>',
+    news: '<path d="M5 4.5h11.5a1 1 0 0 1 1 1V18a2 2 0 0 0 2 2H6.5A2.5 2.5 0 0 1 4 17.5V5.5a1 1 0 0 1 1-1z"/><path d="M17.5 9h2a.5.5 0 0 1 .5.5V18a2 2 0 0 1-2 2M7.5 8.5h6.5M7.5 12h6.5M7.5 15.5h4"/>',
     chart: '<path d="M4 19.5h16"/><path d="m5.5 15 4-4.5 3.5 3 5.5-6.5"/><path d="M15 7h3.5v3.5"/>',
     users: '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8"/><path d="M15.5 5.6a3.2 3.2 0 0 1 0 5.8M17.3 14.9c1.6.6 2.8 2.2 3.2 4.6"/>',
     code: '<path d="m8.5 8-4 4 4 4M15.5 8l4 4-4 4M13.5 5.5l-3 13"/>',
@@ -126,6 +127,7 @@
       '<nav class="qf-links" aria-label="Main">' +
       '<a href="/"' + (here(['/', '/index.html']) ? ' class="active" aria-current="page"' : '') + '>Calculator</a>' +
       '<a href="/rates.html"' + (here(['/rates.html']) ? ' class="active" aria-current="page"' : '') + '>Market Rates</a>' +
+      '<a href="/market-news.html"' + (here(['/market-news.html']) ? ' class="active" aria-current="page"' : '') + '>Market News</a>' +
       '<div class="qf-dd"><button type="button" class="qf-dd-btn' + (toolsActive ? ' active' : '') + '" aria-haspopup="true" aria-expanded="false">Tools' + icon('chevron') + '</button>' +
       '<div class="qf-dd-menu">' + tools + '</div></div>' +
       '<a href="/signup.html"' + (here(['/signup.html']) ? ' class="active" aria-current="page"' : '') + '>Pricing</a>' +
@@ -135,6 +137,7 @@
       '</div>' +
       '<div class="qf-mobile" hidden>' +
       '<a href="/">' + icon('calc') + 'Calculator</a><a href="/rates.html">' + icon('map') + 'Market Rates</a>' +
+      '<a href="/market-news.html">' + icon('news') + 'Market News</a>' +
       '<a href="/signup.html">' + icon('tag') + 'Pricing</a>' +
       '<div class="qf-mobile-label">Tools</div>' + mobileTools +
       (a ? '<div class="qf-mobile-label">Account</div><a href="/profile.html">' + icon('user') + 'Profile &amp; settings</a>' +
@@ -231,7 +234,7 @@
         '<p>Truckload rate quotes in seconds for brokers, dispatchers and owner-operators — van, reefer and flatbed, anywhere in the US.</p></div>' +
         '<div class="qf-footer-col"><h2 class="qf-footer-h">Quote</h2><a href="/">Rate calculator</a><a href="/multistop.html">Multi-stop builder</a>' +
         '<a href="/bulk.html">Bulk load calculator</a><a href="/lanes.html">Lane rate tracker</a></div>' +
-        '<div class="qf-footer-col"><h2 class="qf-footer-h">Market</h2><a href="/rates.html">Market rates map</a><a href="/signup.html">Plans &amp; pricing</a>' +
+        '<div class="qf-footer-col"><h2 class="qf-footer-h">Market</h2><a href="/rates.html">Market rates map</a><a href="/market-news.html">Market news</a><a href="/signup.html">Plans &amp; pricing</a>' +
         '<a href="/api.html">API</a><a href="/customers.html">Customers</a></div>' +
         '<div class="qf-footer-col"><h2 class="qf-footer-h">Company</h2><a href="/terms.html">Terms of Service</a><a href="/privacy.html">Privacy Policy</a>' +
         '<a href="mailto:info@quickfreightcalc.com">info@quickfreightcalc.com</a></div>' +

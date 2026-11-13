@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Truckload Rates by Region — Van, Reefer &amp; Flatbed | QuickFreightCalc</title>
-<meta name="description" content="Average truckload spot rates per mile across the US by region for dry van, reefer and flatbed, with monthly trends, rate history, load-to-truck ratios and diesel prices.">
+<meta name="description" content="Average truckload spot rates per mile across the US by region for dry van, reefer and flatbed, with monthly trends, rate history, load-to-truck ratios, and weekly diesel prices and history by region.">
 <link rel="canonical" href="https://quickfreightcalc.com/rates">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -96,6 +96,22 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 .mr-legend-inline{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--text2)}
 .mr-legend-inline span{display:inline-flex;align-items:center;gap:7px}
 .mr-legend-inline i{display:inline-block;width:16px;height:2px;border-radius:2px}
+.mr-news{display:flex;align-items:center;gap:16px;margin-top:16px;padding:16px 20px;border-radius:var(--radius-lg);background:var(--card);
+  border:1px solid var(--border);text-decoration:none;color:var(--text);transition:border-color .15s}
+.mr-news:hover{border-color:var(--accent-fill)}
+.mr-news[hidden]{display:none}
+.mr-news-ico{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex-shrink:0;background:var(--accentbg);color:var(--accent);border:1px solid rgba(245,165,36,.22)}
+.mr-news-ico svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.mr-news-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.mr-news-body small{font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.mr-news-body b{font-size:15.5px;font-weight:700;line-height:1.35}
+.mr-news-body span{font-size:13px;color:var(--text2);line-height:1.5}
+.mr-news-go{font-size:13px;font-weight:600;color:var(--accent);white-space:nowrap}
+@media (max-width:640px){.mr-news{flex-wrap:wrap}.mr-news-go{width:100%;padding-left:56px}}
+.mr-scroll{overflow-x:auto;margin-top:20px}
+.mr-scroll .mr-table{min-width:460px}
+.mr-dnote{font-size:12px;color:var(--text3);line-height:1.55;margin-top:12px}
+.mr-empty{font-size:13px;color:var(--text3);padding:24px 0}
 .mr-link-btn{margin-top:14px;font:600 12.5px/1 var(--font);color:var(--text2);background:none;border:1px solid var(--border2);border-radius:9px;padding:9px 14px;cursor:pointer}
 .mr-link-btn:hover{color:var(--text);border-color:var(--text3)}
 .mr-hist-table{margin-top:14px;overflow-x:auto}
@@ -129,7 +145,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
   <section class="mr-hero">
     <span class="qf-pill">Market rates · <span id="mr-month">This month</span></span>
     <h1>Truckload rates across the US</h1>
-    <p>Average spot rates per mile by region for dry van, reefer and flatbed, updated monthly. Tap or hover over a state to see its region's rate, or pick a region in the table.</p>
+    <p>Average spot rates per mile by region for dry van, reefer and flatbed, updated monthly, with weekly diesel prices. Tap or hover over a state to see its region's rate, or pick a region in the table.</p>
   </section>
 
   <section aria-labelledby="glance-title">
@@ -141,6 +157,12 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     <h2 class="mr-h2" id="cond-title">Market conditions</h2>
     <div class="mr-tiles four" id="mr-conditions"></div>
   </section>
+
+  <a class="mr-news" id="mr-news" href="/market-news.html" hidden>
+    <span class="mr-news-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4.5h11.5a1 1 0 0 1 1 1V18a2 2 0 0 0 2 2H6.5A2.5 2.5 0 0 1 4 17.5V5.5a1 1 0 0 1 1-1z"/><path d="M17.5 9h2a.5.5 0 0 1 .5.5V18a2 2 0 0 1-2 2M7.5 8.5h6.5M7.5 12h6.5M7.5 15.5h4"/></svg></span>
+    <span class="mr-news-body"><small id="mr-news-week">This week in freight</small><b id="mr-news-title"></b><span id="mr-news-summary"></span></span>
+    <span class="mr-news-go">Read the update →</span>
+  </a>
 
   <div class="mr-filter">
     <span class="mr-filter-label" id="eq-label">Equipment</span>
@@ -189,6 +211,27 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     <div class="mr-hist-table" id="mr-hist-table" hidden></div>
   </section>
 
+  <section class="mr-card" aria-labelledby="diesel-title" id="mr-diesel">
+    <div class="mr-card-head">
+      <div>
+        <h2 id="diesel-title">Diesel price by week</h2>
+        <p class="mr-sub" id="diesel-sub">EIA retail on-highway diesel, $ per gallon, on the same months as the rate chart above</p>
+      </div>
+      <div class="mr-legend-inline" id="mr-diesel-legend"></div>
+    </div>
+    <div class="mr-chart" id="mr-dchart"><div class="mr-tip" id="mr-dchart-tip" hidden></div></div>
+    <p class="mr-empty" id="mr-diesel-empty" hidden>Diesel prices couldn't load right now. Refresh the page to try again.</p>
+    <div class="mr-scroll" id="mr-diesel-now">
+      <table class="mr-table" id="mr-diesel-table" aria-describedby="diesel-title">
+        <thead><tr><th scope="col">Region</th><th scope="col">Price / gal</th><th scope="col">vs last week</th><th scope="col">vs a year ago</th><th scope="col">Fuel surcharge</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="mr-dnote" id="mr-diesel-note">Fuel surcharge is per mile at the standard formula the calculator uses: (diesel − $1.25) ÷ 6.5 mpg. The spot rates above already include fuel. Pick a region in the table to compare it with the US average.</p>
+    <button type="button" class="mr-link-btn" id="mr-diesel-toggle" aria-expanded="false" aria-controls="mr-diesel-weeks">Show weekly prices as a table</button>
+    <div class="mr-hist-table" id="mr-diesel-weeks" hidden></div>
+  </section>
+
   <section class="mr-card mr-cta">
     <div>
       <h2>Price a lane with these rates</h2>
@@ -219,12 +262,20 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
   };
 
   let data = null, eq = 'van', selected = null, hoverRegion = null;
+  // Weekly diesel (diesel-price function, ?history): { regions, latest, weeks: [{ period, NUS, R10, … }] }.
+  // EIA's regions aren't the freight regions; each freight region shows the diesel region it sits in.
+  let diesel = null, dieselFailed = false, dieselSel = 'R10';
+  const D_REGIONS = ['R10', 'R20', 'R30', 'R40', 'R50'];
+  const D_NAME = { NUS: 'U.S. average', R10: 'East Coast', R20: 'Midwest', R30: 'Gulf Coast', R40: 'Rocky Mountain', R50: 'West Coast' };
+  const DIESEL_FOR = { northeast: 'R10', southeast: 'R10', midwest: 'R20', southwest: 'R30', west: 'R50' };
+  const FSC_BASE = 1.25, FSC_MPG = 6.5;  // the calculator's standard fuel surcharge formula
+  const dayOf = (iso) => Date.parse(iso + 'T12:00:00');
   const stateRegion = {};
   const $ = (id) => document.getElementById(id);
   const light = () => document.documentElement.classList.contains('light');
   const money = (n) => '$' + Number(n).toFixed(2);
   const pctText = (x) => (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(1) + '%';
-  const diffText = (x) => (x >= 0 ? '+' : '−') + '$' + Math.abs(x).toFixed(2);
+  const diffText = (x) => (Math.abs(x) < 0.005 ? '' : x > 0 ? '+' : '−') + '$' + Math.abs(x).toFixed(2);
   const monthName = (iso, opts) => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', opts || { month: 'long', year: 'numeric' });
   const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const hist = () => data.history || [];
@@ -427,8 +478,10 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
   }
   function select(r) {
     selected = r;
+    if (DIESEL_FOR[r]) dieselSel = DIESEL_FOR[r];
     renderRegions();
     renderChart();
+    renderDiesel();
   }
 
   // ── Rate history chart (national + selected region emphasized) ──
@@ -437,6 +490,15 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       `<span><i style="background:var(--series-national)"></i>National</span>` +
       (selected ? `<span><i style="background:var(--series-region)"></i>${REGION_NAME[selected]}</span>` : '') +
       `<span><i style="background:var(--series-other)"></i>Other regions</span>`;
+  }
+  // The months both charts cover: the rate history's, out to the newest diesel week, so the
+  // diesel chart lines up under the rate chart.
+  function domain() {
+    const h = hist();
+    let t0 = dayOf(h[0].date), t1 = dayOf(h[h.length - 1].date);
+    const w = diesel && diesel.weeks;
+    if (w && w.length) t1 = Math.max(t1, dayOf(w[w.length - 1].period));
+    return { t0, t1 };
   }
   function renderChart() {
     renderLegend();
@@ -452,7 +514,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     let y0 = Math.floor(Math.min(...vals) / step) * step, y1 = Math.ceil(Math.max(...vals) / step) * step;
     if (y1 - y0 < 1) y1 = y0 + 1;
     const times = h.map((m) => Date.parse(m.date + 'T12:00:00'));
-    const t0 = times[0], t1 = times[times.length - 1];
+    const { t0, t1 } = domain();
     const X = (t) => pad.l + (W - pad.l - pad.r) * ((t - t0) / ((t1 - t0) || 1));
     const Y = (v) => pad.t + (H - pad.t - pad.b) * (1 - (v - y0) / (y1 - y0));
     const ticks = [];
@@ -462,7 +524,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     const others = REGIONS.filter((r) => r !== selected);
     // End dots and labels for the two emphasized lines. When the labels would
     // collide they spread apart, with a short leader line back to each dot.
-    const lastT = X(t1);
+    const lastT = X(times[times.length - 1]);
     const ends = [{ s: 'national', c: 'var(--series-national)' }].concat(selected ? [{ s: selected, c: 'var(--series-region)' }] : []);
     ends.forEach((e) => { e.v = Number(last().regions[e.s][eq]); e.y = Y(e.v); e.ly = e.y; });
     if (ends.length === 2 && Math.abs(ends[0].y - ends[1].y) < 16) {
@@ -524,6 +586,169 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       '</tbody></table>';
   }
 
+  // ── Diesel: weekly chart under the rate chart, this week's prices by region ──
+  const fscOf = (p) => Math.max(0, (p - FSC_BASE) / FSC_MPG);
+  const weekName = (iso, opts) => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', opts || { month: 'short', day: 'numeric', year: 'numeric' });
+  // The week about a year before the newest one (within three days), for the year-over-year change.
+  function yearAgo(weeks) {
+    const want = dayOf(weeks[weeks.length - 1].period) - 364 * 86400000;
+    let best = null;
+    weeks.forEach((w) => { const d = Math.abs(dayOf(w.period) - want); if (d <= 3 * 86400000 && (!best || d < best.d)) best = { w, d }; });
+    return best && best.w;
+  }
+  function renderDiesel() {
+    const empty = $('mr-diesel-empty'), box = $('mr-dchart'), now = $('mr-diesel-now');
+    const weeks = (diesel && diesel.weeks) || [];
+    empty.hidden = !(dieselFailed && !weeks.length);
+    box.hidden = now.hidden = $('mr-diesel-toggle').hidden = $('mr-diesel-note').hidden = !weeks.length;
+    if (!weeks.length) { $('mr-diesel-legend').innerHTML = ''; return; }
+    const latest = weeks[weeks.length - 1], before = weeks[weeks.length - 2], ago = yearAgo(weeks);
+    $('diesel-sub').textContent = `EIA retail on-highway diesel, $ per gallon, week of ${weekName(latest.period)}, on the same months as the rate chart above`;
+    $('mr-diesel-legend').innerHTML =
+      `<span><i style="background:var(--series-national)"></i>U.S. average</span>` +
+      `<span><i style="background:var(--series-region)"></i>${D_NAME[dieselSel]}</span>` +
+      `<span><i style="background:var(--series-other)"></i>Other regions</span>`;
+
+    // This week, by region
+    const change = (a, b) => (a === undefined || b === undefined || b === null) ? '—' : diffText(a - b);
+    const row = (code) => {
+      const p = latest[code];
+      const cells = `<td><strong>${p === undefined ? '—' : money(p)}</strong></td><td class="mut">${change(p, before && before[code])}</td>
+        <td class="mut">${change(p, ago && ago[code])}</td><td>${p === undefined ? '—' : money(fscOf(p)) + '/mi'}</td>`;
+      return code === 'NUS'
+        ? `<tr data-d="NUS" tabindex="-1" style="cursor:default"><td><strong>U.S. average</strong></td>${cells}</tr>`
+        : `<tr tabindex="0" data-d="${code}" class="${code === dieselSel ? 'sel' : ''}" aria-selected="${code === dieselSel}"><td>${D_NAME[code]}</td>${cells}</tr>`;
+    };
+    $('mr-diesel-table').querySelector('tbody').innerHTML = ['NUS'].concat(D_REGIONS).map(row).join('');
+
+    // The chart: the rate chart's months, the same widths, so the two line up
+    const W = Math.max(320, $('mr-chart').clientWidth || box.clientWidth || 800);
+    const H = 230;
+    const pad = { l: 52, r: W < 560 ? 18 : 120, t: 14, b: 32 };
+    // Exactly the rate chart's months; with too short a rate history, the last six months of diesel
+    const { t0, t1 } = domain();
+    let list = weeks.filter((w) => dayOf(w.period) >= t0 && dayOf(w.period) <= t1), a = t0, b = t1;
+    if (list.length < 2) { list = weeks.slice(-26); a = dayOf(list[0].period); b = dayOf(list[list.length - 1].period); }
+    const X = (t) => pad.l + (W - pad.l - pad.r) * ((t - a) / ((b - a) || 1));
+    const codes = ['NUS'].concat(D_REGIONS);
+    const vals = [];
+    list.forEach((w) => codes.forEach((c) => { if (Number.isFinite(w[c])) vals.push(w[c]); }));
+    const span = Math.max(...vals) - Math.min(...vals);
+    const step = span > 2 ? 0.5 : span > 0.8 ? 0.25 : 0.1;
+    let y0 = Math.floor(Math.min(...vals) / step) * step, y1 = Math.ceil(Math.max(...vals) / step) * step;
+    if (y1 - y0 < step * 2) y1 = y0 + step * 2;
+    const Y = (v) => pad.t + (H - pad.t - pad.b) * (1 - (v - y0) / (y1 - y0));
+    const ticks = [];
+    for (let v = y0; v <= y1 + 1e-9; v += step) ticks.push(Math.round(v * 100) / 100);
+    const line = (c) => list.filter((w) => Number.isFinite(w[c])).map((w, i) => (i ? 'L' : 'M') + X(dayOf(w.period)).toFixed(1) + ' ' + Y(w[c]).toFixed(1)).join(' ');
+    // Month labels where the rate chart puts them
+    const h = hist();
+    const months = h.map((m, i) => ((W < 560 && i % 2) || dayOf(m.date) < a || dayOf(m.date) > b) ? '' : `<text x="${X(dayOf(m.date)).toFixed(1)}" y="${H - 8}" text-anchor="middle">${esc(monthName(m.date, { month: 'short' }))}</text>`).join('');
+    const lastW = list[list.length - 1], lastX = X(dayOf(lastW.period));
+    const ends = [{ c: 'NUS', col: 'var(--series-national)' }, { c: dieselSel, col: 'var(--series-region)' }].filter((e) => Number.isFinite(lastW[e.c]));
+    ends.forEach((e) => { e.v = lastW[e.c]; e.y = Y(e.v); e.ly = e.y; });
+    if (ends.length === 2 && Math.abs(ends[0].y - ends[1].y) < 16) {
+      const mid = (ends[0].y + ends[1].y) / 2, top = ends[0].y <= ends[1].y ? 0 : 1;
+      ends[top].ly = mid - 8; ends[1 - top].ly = mid + 8;
+    }
+    const labels = ends.map((e) => `<circle cx="${lastX}" cy="${e.y}" r="4.5" fill="${e.col}" stroke="var(--card)" stroke-width="2"/>` +
+      (W < 560 ? '' : (e.ly !== e.y ? `<line x1="${lastX + 5}" y1="${e.y}" x2="${lastX + 12}" y2="${e.ly}" stroke="var(--axis)" stroke-width="1"/>` : '') +
+        `<text class="lbl" x="${lastX + 14}" y="${e.ly + 4}">${e.c === 'NUS' ? 'U.S.' : D_NAME[e.c]} ${money(e.v)}</text>`)).join('');
+    const tip = $('mr-dchart-tip');
+    tip.hidden = true;
+    box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Diesel price per gallon by week, US average and the five EIA regions. The table view lists every week.">
+      ${ticks.map((v) => `<line x1="${pad.l}" x2="${W - pad.r + (W < 560 ? 0 : 8)}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)" stroke-width="1"/>
+        <text x="${pad.l - 10}" y="${Y(v) + 4}" text-anchor="end" style="font-variant-numeric:tabular-nums">${money(v)}</text>`).join('')}
+      ${months}
+      ${D_REGIONS.filter((c) => c !== dieselSel).map((c) => `<path d="${line(c)}" fill="none" stroke="var(--series-other)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('')}
+      <path d="${line(dieselSel)}" fill="none" stroke="var(--series-region)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="${line('NUS')}" fill="none" stroke="var(--series-national)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${labels}
+      <line id="mr-dcross" x1="0" x2="0" y1="${pad.t}" y2="${H - pad.b}" stroke="var(--axis)" stroke-width="1" visibility="hidden"/>
+      <rect id="mr-dhit" x="${pad.l}" y="${pad.t}" width="${W - pad.l - pad.r}" height="${H - pad.t - pad.b}" fill="transparent"/>
+    </svg>`;
+    box.appendChild(tip);
+    const hit = box.querySelector('#mr-dhit'), cross = box.querySelector('#mr-dcross');
+    const move = (e) => {
+      const r = box.getBoundingClientRect();
+      const px = (e.clientX - r.left) * (W / r.width);
+      let best = 0;
+      list.forEach((w, i) => { if (Math.abs(X(dayOf(w.period)) - px) < Math.abs(X(dayOf(list[best].period)) - px)) best = i; });
+      const w = list[best], cx = X(dayOf(w.period));
+      cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.setAttribute('visibility', 'visible');
+      const rows = codes.filter((c) => Number.isFinite(w[c])).map((c) => ({ c, v: w[c] }))
+        .sort((p, q) => (p.c === 'NUS' ? -1 : q.c === 'NUS' ? 1 : p.c === dieselSel ? -1 : q.c === dieselSel ? 1 : q.v - p.v));
+      tip.innerHTML = `<b>Week of ${esc(weekName(w.period, { month: 'long', day: 'numeric', year: 'numeric' }))}</b>` + rows.map((x) => {
+        const c = x.c === 'NUS' ? 'var(--series-national)' : x.c === dieselSel ? 'var(--series-region)' : 'var(--series-other)';
+        return `<div class="row"><span><i style="display:inline-block;width:12px;height:2px;border-radius:2px;background:${c};margin-right:7px;vertical-align:3px"></i>${D_NAME[x.c]}</span><span><strong>${money(x.v)}</strong></span></div>`;
+      }).join('');
+      tip.hidden = false;
+      let x = (cx / W) * r.width + 14;
+      if (x + tip.offsetWidth > r.width) x = (cx / W) * r.width - tip.offsetWidth - 14;
+      tip.style.left = Math.max(0, x) + 'px';
+      tip.style.top = '8px';
+    };
+    // Mouse: on hover. Finger or pen: on a tap, until a tap somewhere else (see init).
+    hit.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') move(e); });
+    hit.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); } });
+    onTap(hit, move);
+
+    // Every week, newest first (the chart's table view)
+    $('mr-diesel-weeks').innerHTML = `<table class="mr-table"><thead><tr><th scope="col">Week of</th>${codes.map((c) => `<th scope="col">${D_NAME[c]}</th>`).join('')}</tr></thead><tbody>` +
+      weeks.slice().reverse().map((w) => `<tr style="cursor:default"><td>${esc(weekName(w.period))}</td>${codes.map((c) => `<td>${Number.isFinite(w[c]) ? money(w[c]) : '—'}</td>`).join('')}</tr>`).join('') +
+      '</tbody></table>';
+  }
+  function wireDiesel() {
+    const tb = $('mr-diesel-table').querySelector('tbody');
+    const pick = (tr) => { if (tr && tr.dataset.d && tr.dataset.d !== 'NUS') { dieselSel = tr.dataset.d; renderDiesel(); } };
+    tb.addEventListener('click', (e) => pick(e.target.closest('tr')));
+    tb.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(e.target.closest('tr')); } });
+    $('mr-diesel-toggle').addEventListener('click', (e) => {
+      const t = $('mr-diesel-weeks');
+      t.hidden = !t.hidden;
+      e.currentTarget.setAttribute('aria-expanded', String(!t.hidden));
+      e.currentTarget.textContent = t.hidden ? 'Show weekly prices as a table' : 'Hide the weekly table';
+    });
+  }
+  function loadDiesel() {
+    // Enough weeks to cover the rate chart's months, and at least a year back for the change
+    const first = dayOf(hist()[0].date);
+    const weeks = Math.min(104, Math.max(56, Math.ceil((Date.now() - first) / (7 * 86400000)) + 2));
+    fetch('/.netlify/functions/diesel-price?history=1&weeks=' + weeks)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d || !Array.isArray(d.weeks) || !d.weeks.length) throw new Error('no history');
+        diesel = d;
+        const w = d.weeks, last = w[w.length - 1], before = w[w.length - 2];
+        renderConditions({ price: last.NUS, period: last.period, previous: before ? before.NUS : null });
+        renderDiesel();
+        renderChart();   // the newest diesel week can stretch the shared months
+      })
+      .catch(() => {
+        dieselFailed = true;
+        renderDiesel();
+        // This week's US price for the Market conditions tile, on its own
+        fetch('/.netlify/functions/diesel-price').then((r) => (r.ok ? r.json() : null)).then((dz) => { if (dz && dz.price) renderConditions(dz); }).catch(() => {});
+      });
+  }
+
+  // ── This week's market update (Market News page), when there is one ──
+  function loadNews() {
+    fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/market_updates?select=week_of,title,summary&status=eq.published&order=week_of.desc&limit=1',
+      { headers: { apikey: 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ' } })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => {
+        const u = Array.isArray(rows) && rows[0];
+        if (!u || !u.title) return;
+        $('mr-news-week').textContent = 'Market news · week of ' + new Date(u.week_of + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        $('mr-news-title').textContent = u.title;
+        $('mr-news-summary').textContent = u.summary || '';
+        $('mr-news').href = '/market-news.html?week=' + encodeURIComponent(u.week_of);
+        $('mr-news').hidden = false;
+      })
+      .catch(() => {});
+  }
+
   function setEq(e) {
     eq = e;
     document.querySelectorAll('#mr-eq button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.eq === e)));
@@ -548,6 +773,8 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     buildMap();
     wireTable();
     selected = REGIONS.slice().sort((a, b) => rateOf(b) - rateOf(a))[0];
+    dieselSel = DIESEL_FOR[selected] || dieselSel;
+    wireDiesel();
     setEq('van');
     document.querySelectorAll('#mr-eq button').forEach((b) => b.addEventListener('click', () => setEq(b.dataset.eq)));
     $('mr-table-toggle').addEventListener('click', (e) => {
@@ -564,14 +791,20 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
         const c = document.getElementById('mr-cross');
         if (c) c.setAttribute('visibility', 'hidden');
       }
+      if (!$('mr-dchart').contains(e.target)) {
+        $('mr-dchart-tip').hidden = true;
+        const c = document.getElementById('mr-dcross');
+        if (c) c.setAttribute('visibility', 'hidden');
+      }
     });
     let rz = null, chartW = $('mr-chart').clientWidth;
     window.addEventListener('resize', () => {
       clearTimeout(rz);
-      rz = setTimeout(() => { const w = $('mr-chart').clientWidth; if (w !== chartW) { chartW = w; renderChart(); } }, 120);
+      rz = setTimeout(() => { const w = $('mr-chart').clientWidth; if (w !== chartW) { chartW = w; renderChart(); renderDiesel(); } }, 120);
     });
     document.addEventListener('qf-theme', () => { paintMap(); renderRegions(); });
-    fetch('/.netlify/functions/diesel-price').then((r) => (r.ok ? r.json() : null)).then((dz) => { if (dz && dz.price) renderConditions(dz); }).catch(() => {});
+    loadDiesel();
+    loadNews();
   }
 
   fetch('/rates.json').then((r) => r.json()).then(init).catch(() => {
