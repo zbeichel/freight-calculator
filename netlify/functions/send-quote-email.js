@@ -119,6 +119,16 @@ function parseRequest(body) {
   return { value: { to, subject, message, ccMe: body.ccMe === true, validUntil, validLabel, pdf, filename, summary, quoteId, sendKey } };
 }
 
+// Where the email's logo image loads from: the live site, or the Netlify deploy the quote was sent
+// from (so a test email from a preview shows that deploy's copy). Only the site's own hosts count.
+function assetBase(event) {
+  const h = (event && event.headers) || {};
+  const host = String(h['x-forwarded-host'] || h.host || h.Host || '').toLowerCase().split(':')[0].trim();
+  if (/^(www\.)?quickfreightcalc\.com$/.test(host)) return 'https://quickfreightcalc.com';
+  if (/^([a-z0-9-]+--)?quickfreightcalculator\.netlify\.app$/.test(host)) return `https://${host}`;
+  return process.env.SITE_URL || 'https://quickfreightcalc.com';
+}
+
 // Emails sent in the last 24 hours (null if the count couldn't be read).
 async function sentToday(userId) {
   const since = new Date(Date.now() - 24 * 3600000).toISOString();
@@ -208,6 +218,7 @@ exports.handler = async function (event) {
     validLabel: req.validLabel,
     whiteLabel,
     siteUrl,
+    logoUrl: `${assetBase(event)}/email-logo.png`,
   });
 
   const payload = {
@@ -251,4 +262,4 @@ exports.handler = async function (event) {
 };
 
 // For tests
-exports._internal = { parseRequest, tierOf, DAILY_CAP };
+exports._internal = { parseRequest, tierOf, assetBase, DAILY_CAP };

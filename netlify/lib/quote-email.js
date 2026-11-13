@@ -23,7 +23,8 @@ function validText(validUntil, label) {
 
 // summary: { quoteNumber, origin, destination, equipment, miles, rate, pickup, delivery }
 // sender:  { company, contactName, phone, email }
-function buildQuoteEmail({ message, summary = {}, sender = {}, validUntil, validLabel, whiteLabel, siteUrl }) {
+// logoUrl: the logo mark as a PNG (email apps don't show SVG) for the "Sent with QuickFreightCalc" line
+function buildQuoteEmail({ message, summary = {}, sender = {}, validUntil, validLabel, whiteLabel, siteUrl, logoUrl }) {
   const s = summary;
   const lane = [s.origin, s.destination].filter(Boolean).join(' → ');
   const valid = validText(validUntil, validLabel);
@@ -46,9 +47,17 @@ function buildQuoteEmail({ message, summary = {}, sender = {}, validUntil, valid
             <td style="padding:9px 0;${i ? 'border-top:1px solid #e5e7eb;' : ''}font-size:14px;color:#111827;font-weight:${k === 'Rate' ? '700' : '500'}">${esc(v)}</td>
           </tr>`).join('');
   const title = s.quoteNumber ? `Quote ${esc(s.quoteNumber)}` : 'Rate quote';
+  // The logo and the wordmark (amber "Freight", as on the site), then who replies reach. The image is
+  // decorative (empty alt): with images off, the wordmark still reads.
+  const site = esc(siteUrl || 'https://quickfreightcalc.com');
+  const logo = logoUrl ? `<td style="padding-right:8px;vertical-align:middle"><a href="${site}" style="text-decoration:none">` +
+    `<img src="${esc(logoUrl)}" width="21" height="24" alt="" style="display:block;border:0;outline:none;text-decoration:none"></a></td>` : '';
   const footer = whiteLabel ? '' : `
-      <tr><td style="padding:18px 8px 0;font-size:12px;color:#9ca3af;text-align:center">
-        Sent with <a href="${esc(siteUrl || 'https://quickfreightcalc.com')}" style="color:#9ca3af">QuickFreightCalc</a>. Reply to this email to reach ${esc(sender.contactName || sender.company || 'the sender')}.
+      <tr><td align="center" style="padding:20px 8px 0">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto"><tr>
+          ${logo}<td style="vertical-align:middle;font-size:12px;line-height:1.3;color:#9ca3af">Sent with <a href="${site}" style="color:#4b5563;font-weight:700;text-decoration:none">Quick<span style="color:#d48200">Freight</span>Calc</a></td>
+        </tr></table>
+        <div style="font-size:12px;line-height:1.5;color:#9ca3af;margin-top:6px">Reply to this email to reach ${esc(sender.contactName || sender.company || 'the sender')}.</div>
       </td></tr>`;
 
   const html = `<!doctype html>

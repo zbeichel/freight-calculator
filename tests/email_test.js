@@ -64,8 +64,9 @@ const goodBody = (over = {}) => ({
   summary: { quoteNumber: 'QFC-1042', origin: 'Lancaster, PA', destination: 'Atlanta, GA', equipment: 'Dry Van', miles: '690', rate: '$2,150.00' },
   ...over,
 });
-const call = (body, { token = 'tok-sam', method = 'POST' } = {}) => handler({
-  httpMethod: method, headers: token ? { authorization: `Bearer ${token}` } : {}, body: typeof body === 'string' ? body : JSON.stringify(body),
+const call = (body, { token = 'tok-sam', method = 'POST', host } = {}) => handler({
+  httpMethod: method, headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(host ? { host } : {}) },
+  body: typeof body === 'string' ? body : JSON.stringify(body),
 });
 const out = (r) => { try { return JSON.parse(r.body); } catch (e) { return {}; } };
 const resendCall = () => world.calls.find((c) => c.url.startsWith('https://api.resend.com'));
@@ -145,6 +146,9 @@ const logCall = () => world.calls.find((c) => c.url.includes('/rest/v1/quote_ema
   check('the subject as written', p.subject === 'Quote QFC-1042: Lancaster, PA to Atlanta, GA');
   check('the message escaped, the lane, rate and valid-until in the body', p.html.includes('&lt;b&gt;today&lt;/b&gt;') && !p.html.includes('<b>today') && p.html.includes('Lancaster, PA → Atlanta, GA') && p.html.includes('$2,150.00') && p.html.includes('Nov 13, 2026, 5:00 PM EST'));
   check('the user’s signature and the QuickFreightCalc footer', p.html.includes('Sam Rivera') && p.html.includes('555-0100') && p.html.includes('Sent with') && p.text.includes('Valid until: Nov 13, 2026, 5:00 PM EST'));
+  check('the footer shows the logo (a PNG from the live site) beside the wordmark, amber "Freight"',
+    p.html.includes('<img src="https://quickfreightcalc.com/email-logo.png" width="21" height="24" alt=""')
+    && p.html.includes('Sent with <a href="https://quickfreightcalc.com" style="color:#4b5563;font-weight:700;text-decoration:none">Quick<span style="color:#d48200">Freight</span>Calc</a>'));
   check('a retry can’t send twice (idempotency key)', sent.headers['Idempotency-Key'] === 'quote-u-sam-k-12345678', JSON.stringify(sent.headers));
   const log = logCall();
   check('recorded with the logged quote', log && log.body.user_id === 'u-sam' && log.body.quote_id === '1700000000001' && log.body.to_email === 'pat@blueridge.example' && log.body.cc_me === true && log.body.resend_id === 'em_123' && !!log.body.valid_until, JSON.stringify(log && log.body));
@@ -159,7 +163,7 @@ const logCall = () => world.calls.find((c) => c.url.includes('/rest/v1/quote_ema
   reset(); Object.assign(world.pro['u-sam'], { plan: 'max', pdf_white_label: true });
   await call(goodBody());
   const wl = resendCall().body;
-  check('white-label (Pro Max): from just the company, no QuickFreightCalc footer', wl.from === '"Keystone Produce Logistics" <quotes@quickfreightcalc.com>' && !wl.html.includes('Sent with') && !wl.text.includes('QuickFreightCalc'), wl.from);
+  check('white-label (Pro Max): from just the company, no QuickFreightCalc footer or logo', wl.from === '"Keystone Produce Logistics" <quotes@quickfreightcalc.com>' && !wl.html.includes('Sent with') && !wl.html.includes('email-logo') && !wl.text.includes('QuickFreightCalc'), wl.from);
   reset(); Object.assign(world.pro['u-sam'], { plan: 'plus', pdf_white_label: true });
   await call(goodBody());
   check('white-label is a Pro Max feature: Pro Plus still sends "via QuickFreightCalc"', /via QuickFreightCalc/.test(resendCall().body.from));
@@ -167,6 +171,20 @@ const logCall = () => world.calls.find((c) => c.url.includes('/rest/v1/quote_ema
   await call(goodBody());
   const fromInj = resendCall().body.from;
   check('a company name can’t break the From line', !/[\r\n]/.test(fromInj) && (fromInj.match(/"/g) || []).length === 2 && (fromInj.match(/</g) || []).length === 1, fromInj);
+
+  reset();
+  await call(goodBody(), { host: 'deploy-preview-27--quickfreightcalculator.netlify.app' });
+  check('a test email from a preview deploy loads that deploy’s logo', resendCall().body.html.includes('src="https://deploy-preview-27--quickfreightcalculator.netlify.app/email-logo.png"'));
+  const hosts = {
+    'quickfreightcalc.com': 'https://quickfreightcalc.com', 'www.quickfreightcalc.com': 'https://quickfreightcalc.com',
+    'quickfreightcalc.com:443': 'https://quickfreightcalc.com', 'dev--quickfreightcalculator.netlify.app': 'https://dev--quickfreightcalculator.netlify.app',
+    'evil.example': 'https://quickfreightcalc.com', 'quickfreightcalc.com.evil.example': 'https://quickfreightcalc.com',
+    'xquickfreightcalc.com': 'https://quickfreightcalc.com', 'evil--quickfreightcalculator.netlify.app.evil.example': 'https://quickfreightcalc.com', '': 'https://quickfreightcalc.com',
+  };
+  const wrong = Object.entries(hosts).filter(([h, want]) => _internal.assetBase({ headers: { host: h } }) !== want);
+  check('only the site’s own hosts serve the logo; anything else gets the live site', wrong.length === 0, JSON.stringify(wrong));
+  const png = require('fs').readFileSync(path.join(ROOT, 'email-logo.png'));
+  check('the logo file ships: a 63 x 72 PNG (3x for 21 x 24)', png.subarray(1, 4).toString() === 'PNG' && png.readUInt32BE(16) === 63 && png.readUInt32BE(20) === 72 && png.length < 10000);
 
   console.log('\n=== When things go wrong ===');
   reset({ resend: { status: 422, body: { message: 'Invalid `to` field' } } });
