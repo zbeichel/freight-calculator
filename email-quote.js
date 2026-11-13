@@ -15,6 +15,9 @@
 //     validHours         how long a quote is good for (Profile → PDF quotes; 24 unless Pro Max sets it)
 //     canChangeValidity  whether this account can change that (Pro Max, API, comp)
 //     whiteLabel         whether the email goes out without the QuickFreightCalc name
+//     sections           { transit, accessorials } as Profile has them, for switches in the window
+//                        (Modern quotes; null hides them). build() gets { sections, meta } back.
+//     hasAccessorials    whether Profile has any accessorial rates to show
 //     onSent(result)
 //   }) → Promise<{ to, id, sentAt, quoteId, number } | null>   (null if closed without sending)
 //
@@ -218,6 +221,12 @@
 .qfce-body input[aria-invalid=true]{border-color:var(--red,#f87171)}
 .qfce-check{display:flex!important;align-items:center;gap:8px;font-size:12px!important;font-weight:500!important;color:var(--text2,#b0c4d8)!important;padding:4px 0 10px;cursor:pointer}
 .qfce-check input{width:15px;height:15px;margin:0;accent-color:var(--accent-fill,#f5a524)}
+.qfce-sections{display:flex;flex-wrap:wrap;align-items:center;gap:0 18px;margin:-4px 0 8px}
+.qfce-sections[hidden]{display:none}
+.qfce-sec-label{width:100%;font-size:11px;font-weight:600;color:var(--text2,#b0c4d8);margin-bottom:2px}
+.qfce-sections .qfce-check{padding:3px 0}
+.qfce-sec-hint{font-weight:400;color:var(--text3,#8896a8)}
+.qfce-check input:disabled{cursor:default}
 .qfce-valid{font-size:12px;color:var(--text2,#b0c4d8);line-height:1.5;padding:9px 12px;border-radius:8px;background:var(--accentbg,rgba(245,165,36,.1))}
 .qfce-valid b{color:var(--text,#fff);font-weight:600}
 .qfce-help{font-size:11px;color:var(--text3,#8896a8);line-height:1.5;margin-top:12px}
@@ -256,6 +265,11 @@
           <label>Subject<input name="subject" type="text" maxlength="150" autocomplete="off" /></label>
           <label>Message <span>(your name and contact details are added below it)</span><textarea name="message" rows="6" maxlength="2000"></textarea></label>
           <label class="qfce-check"><input name="ccMe" type="checkbox" /> Send me a copy</label>
+          <div class="qfce-sections" hidden>
+            <div class="qfce-sec-label">On the quote</div>
+            <label class="qfce-check"><input name="secTransit" type="checkbox" /> Transit estimate</label>
+            <label class="qfce-check"><input name="secAcc" type="checkbox" /> Accessorial charges <span class="qfce-sec-hint"></span></label>
+          </div>
           <div class="qfce-valid"></div>
           <div class="qfce-help"></div>
           <div class="qfce-actions">
@@ -313,13 +327,22 @@
       sendBtn.disabled = true;
       try {
         say('Making the PDF…', true);
-        // The quote document and its number are made once: a retry after a failed send keeps the number
-        if (!c.built) {
-          const doc = typeof o.build === 'function' ? o.build() : null;
+        // The quote document and its number are made once: a retry after a failed send keeps the
+        // number, and so does a change to the section switches (the page is made again).
+        const sections = o.sections ? { transit: f.secTransit.checked, accessorials: f.secAcc.checked } : null;
+        const key = JSON.stringify(sections);
+        if (!c.built || c.builtKey !== key) {
+          const doc = typeof o.build === 'function' ? o.build({ sections, meta: c.built ? c.built.doc.meta : undefined }) : null;
           if (!doc || !doc.html) throw new Error('Finish the quote first, then email it.');
-          const hours = Number(o.validHours) > 0 ? Number(o.validHours) : 24;
-          const validDate = new Date(Date.now() + hours * 3600000);
-          c.built = { doc, validDate, validLabel: doc.validUntil ? `${doc.validUntil} ${tzName(validDate)}`.trim() : whenText(validDate) };
+          if (c.built) {
+            c.built.doc = doc;
+          } else {
+            const hours = Number(o.validHours) > 0 ? Number(o.validHours) : 24;
+            const validDate = new Date(Date.now() + hours * 3600000);
+            c.built = { doc, validDate, validLabel: doc.validUntil ? `${doc.validUntil} ${tzName(validDate)}`.trim() : whenText(validDate) };
+          }
+          c.builtKey = key;
+          c.pdf = null;
         }
         if (!c.pdf) {
           try { c.pdf = await makePdf(c.built.doc.html); } catch (err) { throw new Error('Couldn’t make the PDF. Try again, or download it and attach it yourself.'); }
@@ -376,7 +399,7 @@
       open(opts) {
         return new Promise((resolve) => {
           if (current) { const c = current; current = null; c.resolve(null); }
-          current = { opts, resolve, result: null, busy: false, built: null, pdf: null };
+          current = { opts, resolve, result: null, busy: false, built: null, builtKey: null, pdf: null };
           const sum = opts.summary || {};
           const cust = opts.customer || null;
           const p = profile();
@@ -393,6 +416,12 @@
           let cc = false;
           try { cc = localStorage.getItem('qfc_email_cc') === '1'; } catch (e) {}
           f.ccMe.checked = cc;
+          const secs = opts.sections;
+          wrap.querySelector('.qfce-sections').hidden = !secs;
+          f.secTransit.checked = !!(secs && secs.transit);
+          f.secAcc.disabled = !opts.hasAccessorials;
+          f.secAcc.checked = !!(secs && secs.accessorials && opts.hasAccessorials);
+          wrap.querySelector('.qfce-sec-hint').textContent = opts.hasAccessorials ? '' : '(add your rates under Profile → Quote sections)';
           const lane = [sum.origin, sum.destination].filter(Boolean).map(esc).join(' → ');
           wrap.querySelector('.qfce-lane').innerHTML = [
             lane ? `<b>${lane}</b>` : '', [esc(sum.equipment), esc(sum.rate)].filter(Boolean).join(' · '),

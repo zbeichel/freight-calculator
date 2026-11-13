@@ -3068,6 +3068,7 @@ async function _verifyProAuthBackground(){
           pdfBreakdown: p.pdf_breakdown !== false,
           pdfAccent: p.pdf_accent || '', pdfInk: p.pdf_ink || '',
           pdfWhiteLabel: p.pdf_white_label === true, pdfValidHours: p.pdf_valid_hours || 24, pdfTerms: p.pdf_terms || '',
+          pdfSections: p.pdf_sections || null, pdfAccessorials: p.pdf_accessorials || null,
           plan: p.plan, comp: p.is_active === true && !p.stripe_subscription_id,
         }));
         if(p.rate_profiles && Array.isArray(p.rate_profiles)){
@@ -3884,12 +3885,13 @@ function generateQuotePDF(opts){
         fuel: getDieselFSC() * milesNum * markup,
         extra: (transitChargeAdded ? transitChargeAmount : 0) * markup,
       },
+      // For the transit estimate: the route's driving time when the miles came
+      // from Google (typed-in miles are estimated), and the dates as entered.
+      driveSecs: /google/i.test(document.getElementById('miles-source')?.textContent || '') ? lastDriveSecs : 0,
+      pickupISO: document.getElementById('pickup').value || '',
+      deliveryISO: document.getElementById('delivery').value || '',
     };
-    const meta = QFCQuotePDF.nextQuoteNumber(profile, true);
-    const modernDoc = QFCQuotePDF.modernHTML(modernQ, profile, meta);
-    if(opts && opts.returnDoc) return { html: modernDoc, number: meta.number, validUntil: meta.validUntil };
-    QFCQuotePDF.openHTML(modernDoc);
-    return;
+    return finishModernQuote(modernQ, profile, opts);
   }
 
   // Quote number
@@ -4170,12 +4172,9 @@ function generateQuotePDFFromLog(id, opts){
       trailer: q.trailer, commodity: q.commodity, weight: q.weight ? parseInt(q.weight) : null,
       transit: '', notes: q.notes || '', breakdown: null,
       customer: pdfCustomer(q.customer, q.customerId),
+      driveSecs: 0, pickupISO: q.pickup || '', deliveryISO: q.delivery || '',
     };
-    const meta = QFCQuotePDF.nextQuoteNumber(profile, true);
-    const modernDoc = QFCQuotePDF.modernHTML(modernQ, profile, meta);
-    if(opts && opts.returnDoc) return { html: modernDoc, number: meta.number, validUntil: meta.validUntil };
-    QFCQuotePDF.openHTML(modernDoc);
-    return;
+    return finishModernQuote(modernQ, profile, opts);
   }
 
   // Scheme config — mirrors profile.html. headerText/Soft/Faint define text
@@ -4428,6 +4427,19 @@ function calcDateText(s){
   return isNaN(d) ? String(s) : d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
 }
 
+// A Modern quote's last step, for the calculator and the quote log. opts (for emailing):
+//   returnDoc  return { html, number, validUntil, meta } instead of opening the page
+//   meta       reuse this quote number (an email that's resent after changing its sections)
+//   sections   { transit, accessorials } for this quote only, in place of the Profile settings
+function finishModernQuote(q, profile, opts){
+  opts = opts || {};
+  const meta = opts.meta || QFCQuotePDF.nextQuoteNumber(profile, true);
+  const shown = opts.sections ? Object.assign({}, profile, { pdfSections: opts.sections }) : profile;
+  const html = QFCQuotePDF.modernHTML(q, shown, meta);
+  if(opts.returnDoc) return { html, number: meta.number, validUntil: meta.validUntil, meta };
+  QFCQuotePDF.openHTML(html);
+}
+
 // When a Classic quote stops being good: the same hours the Modern design prints (Profile → PDF quotes).
 function classicValidUntil(profile, now){
   const hours = (window.QFCQuotePDF && QFCQuotePDF.validHours(profile)) || 24;
@@ -4450,10 +4462,14 @@ function emailProfileOptions(){
   let profile = {};
   try { profile = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
   const qp = window.QFCQuotePDF;
+  const modern = !!(qp && qp.style(profile) === 'modern');
   return {
     validHours: qp ? qp.validHours(profile) : 24,
     canChangeValidity: !!(qp && qp.whiteLabelAllowed(profile)),
     whiteLabel: !!(qp && qp.whiteLabel(profile)),
+    // The Modern design's optional sections, as Profile has them (switchable for this email)
+    sections: modern ? { transit: qp.sectionOn(profile, 'transit'), accessorials: qp.sectionOn(profile, 'accessorials') } : null,
+    hasAccessorials: modern && qp.accessorialRows(profile.pdfAccessorials).length > 0,
   };
 }
 function emailCustomer(name, id){
@@ -4510,7 +4526,7 @@ function emailCalcQuote(){
   const cust = calcCustomer();
   const saved = savedQuoteForCalc();
   QFCEmailQuote.open({
-    build: () => generateQuotePDF({ returnDoc: true }),
+    build: (o) => generateQuotePDF({ returnDoc: true, sections: o && o.sections, meta: o && o.meta }),
     summary: {
       origin: orig, destination: dest,
       equipment: EMAIL_TRAILERS[trailer] || trailer,
@@ -4529,7 +4545,7 @@ function emailQuoteFromLog(id){
   const q = quoteReady(id);
   if(!q) return;
   QFCEmailQuote.open({
-    build: () => generateQuotePDFFromLog(q.id, { returnDoc: true }),
+    build: (o) => generateQuotePDFFromLog(q.id, { returnDoc: true, sections: o && o.sections, meta: o && o.meta }),
     summary: {
       origin: q.orig || '', destination: q.dest || '',
       equipment: EMAIL_TRAILERS[q.trailer] || q.trailer || '',

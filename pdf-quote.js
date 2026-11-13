@@ -47,6 +47,8 @@
   }
   function dollars(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
   function cents(n) { return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  // A charge: whole dollars, or with cents when it has them ("$62.50")
+  function money(n) { return Math.round(n * 100) % 100 ? cents(n) : dollars(n); }
 
   // Relative luminance of #rrggbb, 0 (black) to 1 (white).
   function luminance(hex) {
@@ -121,6 +123,93 @@
   }
   function termsText(profile) {
     return customTerms(profile) || 'Rates are subject to change and valid for 24 hours from issue.';
+  }
+
+  // ── Optional sections (Profile → Quote sections; the Modern design) ────────
+  // profile.pdfSections: { transit, accessorials }, each on unless switched off.
+  function sectionOn(profile, key) {
+    var s = profile && profile.pdfSections;
+    return !(s && typeof s === 'object' && s[key] === false);
+  }
+
+  // Transit estimate, by the same hours-of-service rules as the calculator's
+  // trip plan: up to 11 hours of driving a day, a 30-minute break once a day's
+  // driving passes 8 hours, and 10 hours off between driving days. driveSecs is
+  // the route's driving time; with typed-in miles there isn't one, so it's
+  // estimated at a planning speed.
+  var HOS = { DRIVE: 11 * 3600, BREAK_AFTER: 8 * 3600, BREAK: 30 * 60, REST: 10 * 3600 };
+  var PLANNING_MPH = 50;
+  function transitPlan(driveSecs, miles) {
+    var secs = Math.round(Number(driveSecs) || 0);
+    var fromMiles = false;
+    if (!(secs > 0) && Number(miles) > 0) { secs = Math.round(Number(miles) / PLANNING_MPH * 3600); fromMiles = true; }
+    if (!(secs > 0)) return null;
+    var days = Math.ceil(secs / HOS.DRIVE);
+    var last = secs - (days - 1) * HOS.DRIVE;
+    var breaks = (days - 1) + (last > HOS.BREAK_AFTER ? 1 : 0);
+    var rests = days - 1;
+    return { driveSecs: secs, days: days, breaks: breaks, rests: rests,
+      elapsedSecs: secs + breaks * HOS.BREAK + rests * HOS.REST, fromMiles: fromMiles };
+  }
+  function hoursText(secs) {
+    var h = Math.floor(secs / 3600), m = Math.round((secs % 3600) / 60);
+    if (m === 60) { h += 1; m = 0; }
+    return h + 'h' + (m ? ' ' + m + 'm' : '');
+  }
+  // "Thu, Nov 12" for a YYYY-MM-DD date, some days on
+  function dayText(iso, addDays) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) return '';
+    var d = new Date(iso + 'T12:00:00');
+    if (isNaN(d)) return '';
+    d.setDate(d.getDate() + (addDays || 0));
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+  // q: { driveSecs, miles, pickupISO, deliveryISO } — the estimated delivery
+  // day shows when there's a pickup date and no delivery date was set.
+  function transitBlock(q) {
+    var t = transitPlan(q.driveSecs, q.miles);
+    if (!t) return '';
+    var rest = t.rests === 0 ? 'None needed' : t.rests === 1 ? '1 overnight (10 h)' : t.rests + ' overnights (10 h each)';
+    var est = !q.deliveryISO && q.pickupISO ? dayText(q.pickupISO, t.days - 1) : '';
+    var cells = [
+      ['Driving time', 'About ' + hoursText(t.driveSecs)],
+      ['Transit', t.days === 1 ? '1 day' : t.days + ' days'],
+      ['Overnight rest', rest],
+    ];
+    if (est) cells.push(['Est. delivery', est]);
+    return '<section class="section transit"><div class="k">Transit estimate</div>' +
+      '<div class="facts tfacts">' + cells.map(function (c) {
+        return '<div class="fact"><div class="k">' + esc(c[0]) + '</div><div class="v">' + esc(c[1]) + '</div></div>';
+      }).join('') + '</div>' +
+      '<div class="sec-note">One driver under federal hours-of-service rules: up to 11 hours of driving a day, ' +
+      'a 30-minute break after 8 hours, and 10 hours off between driving days.</div></section>\n';
+  }
+
+  // The user's standard accessorial charges (Profile → Quote sections): a line
+  // for each one filled in.
+  function accessorialRows(a) {
+    if (!a || typeof a !== 'object') return [];
+    var num = function (v) { var n = Number(v); return isFinite(n) && n > 0 && n < 1e6 ? n : 0; };
+    var txt = function (v, max) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max); };
+    var rows = [];
+    var det = num(a.detentionRate), free = num(a.detentionFree);
+    if (det) rows.push(['Detention', money(det) + ' per hour' + (free ? ' after ' + free + ' free hour' + (free === 1 ? '' : 's') : '')]);
+    if (num(a.layover)) rows.push(['Layover', money(num(a.layover)) + ' per day']);
+    if (num(a.tonu)) rows.push(['Truck ordered, not used', money(num(a.tonu))]);
+    if (num(a.extraStop)) rows.push(['Extra stop', money(num(a.extraStop)) + ' per stop']);
+    if (txt(a.lumper, 80)) rows.push(['Lumper / unloading', txt(a.lumper, 80)]);
+    (Array.isArray(a.other) ? a.other : []).slice(0, 2).forEach(function (o) {
+      var label = txt(o && o.label, 40), charge = txt(o && o.charge, 60);
+      if (label && charge) rows.push([label, charge]);
+    });
+    return rows;
+  }
+  function accessorialsBlock(a) {
+    var rows = accessorialRows(a);
+    if (!rows.length) return '';
+    return '<section class="section acc"><div class="k">Accessorial charges</div><table class="acc-t">' +
+      rows.map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join('') +
+      '</table><div class="sec-note">Charged only if they apply. Not part of the all-in rate.</div></section>\n';
   }
 
   // Quote number and dates, numbered the same way as the Classic PDFs
@@ -212,6 +301,11 @@
       '.status strong{display:block;font-size:14px;margin-bottom:2px}\n' +
       '.status.good{background:#ecfdf3;color:#14532d;border:1px solid #a7e3bd}\n' +
       '.status.short{background:#fff8eb;color:#7a4b00;border:1px solid #f3d38a}\n' +
+      '.tfacts{margin-bottom:8px}\n' +
+      '.sec-note{font-size:10.5px;color:#6b7280;line-height:1.5}\n' +
+      '.acc-t{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:8px;border-top:1px solid #e5e7eb}\n' +
+      '.acc-t td{padding:7px 0;border-bottom:1px solid #eef0f3;color:#374151;vertical-align:top}\n' +
+      '.acc-t td:first-child{color:#111827;font-weight:600;width:42%;padding-right:16px}\n' +
       '.notes-text{font-size:13px;line-height:1.6;color:#374151;background:#f9fafb;border-radius:8px;padding:12px 16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}\n' +
       '.terms{font-size:11.5px;color:#6b7280;line-height:1.6;margin-bottom:26px}\n' +
       '.sign{display:flex;gap:36px;margin-top:auto;margin-bottom:28px}\n' +
@@ -226,7 +320,7 @@
       '  body{background:#fff;padding:0}\n' +
       '  .controls{display:none!important}\n' +
       '  .doc{box-shadow:none;border-radius:0;max-width:none;min-height:100vh;padding:0.55in 0.6in 0.45in}\n' +
-      '  .lane,.facts,.rate,.sign,.s-row{break-inside:avoid;page-break-inside:avoid}\n' +
+      '  .lane,.facts,.rate,.sign,.s-row,.transit,.acc{break-inside:avoid;page-break-inside:avoid}\n' +
       '}\n';
   }
 
@@ -366,12 +460,15 @@
   // ── Single lane (calculator and quote log) ─────────────────────────────────
   // q: { total, ratePerMile, miles, origin, destination, pickup, delivery,
   //      trailer, commodity, weight, transit, notes,
-  //      breakdown: { fuel, extra } | null, customer }   (money in dollars, as charged)
+  //      breakdown: { fuel, extra } | null, customer,
+  //      driveSecs, pickupISO, deliveryISO }   (money in dollars, as charged; the last
+  //      three feed the transit estimate: the route's driving time and the dates as YYYY-MM-DD)
   function modernHTML(q, profile, meta) {
     var s = colorsFor(profile);
     var total = Math.round(q.total);
     var b = q.breakdown || {};
     var lines = rateLines(total, [['Fuel surcharge', b.fuel], ['Extra transit days', b.extra]], profile);
+    var showTransit = sectionOn(profile, 'transit');
     var body = letterhead(profile, s, 'Freight Quote', meta) +
       preparedFor(q.customer) +
       laneBlock('Pickup', q.origin, q.pickup, 'Delivery', q.destination, q.delivery,
@@ -380,9 +477,11 @@
         ['Equipment', TRAILERS[q.trailer] || q.trailer],
         ['Weight', q.weight ? Number(q.weight).toLocaleString('en-US') + ' lbs' : ''],
         ['Commodity', q.commodity],
-        ['Transit', q.transit],
+        ['Transit', showTransit ? '' : q.transit],
       ]) +
       rateBlock('All-in rate', dollars(total), lines, q.ratePerMile ? ['Rate per mile', cents(q.ratePerMile)] : null) +
+      (showTransit ? transitBlock(q) : '') +
+      (sectionOn(profile, 'accessorials') ? accessorialsBlock(profile.pdfAccessorials) : '') +
       notesBlock(q.notes) +
       closing(profile, meta, lines.length ? '' : 'The all-in rate includes linehaul and fuel.');
     return page('Freight Quote ' + meta.number, s, body);
@@ -431,6 +530,7 @@
       '<section class="section"><div class="k">' + stops.length + ' stops · ' + counts + '</div><div class="stops">' + stopItems + '</div></section>\n' +
       rateBlock('All-in rate', dollars(total), lines,
         d.totalMiles ? ['Rate per mile', cents(total / d.totalMiles), miles + ' total'] : null) +
+      (sectionOn(profile, 'accessorials') ? accessorialsBlock(profile.pdfAccessorials) : '') +
       notesBlock(d.notes) +
       closing(profile, meta, lines.length ? '' : 'The all-in rate includes linehaul, fuel and stop charges.');
     return page('Multi-Stop Quote ' + meta.number, s, body);
@@ -494,6 +594,7 @@
   window.QFCQuotePDF = {
     schemes: SCHEMES, style: style, colorsFor: colorsFor, classicScheme: classicScheme, isHex: function (v) { return HEX.test(v || ''); },
     whiteLabelAllowed: whiteLabelAllowed, whiteLabel: whiteLabel, validHours: validHours, customTerms: customTerms, termsText: termsText,
+    sectionOn: sectionOn, transitPlan: transitPlan, accessorialRows: accessorialRows,
     nextQuoteNumber: nextQuoteNumber, preparedFor: preparedFor, classicPreparedFor: classicPreparedFor, modernHTML: modernHTML, multiStopHTML: multiStopHTML, bulkHTML: bulkHTML,
     openHTML: openHTML, openModern: openModern, openMultiStop: openMultiStop, openBulk: openBulk,
   };
