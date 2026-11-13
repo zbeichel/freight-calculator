@@ -18,7 +18,7 @@ let failures = 0;
 const quietSpot = async (page) => { const b = await page.locator('p.hero-sub').boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2]; };
 const check = (label, cond, detail) => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}${detail && !cond ? '  — ' + detail : ''}`); if (!cond) failures++; };
 
-const PAGES = ['index', 'api', 'bulk', 'lanes', 'multistop', 'privacy', 'profile', 'signup', 'terms'];
+const PAGES = ['index', 'api', 'bulk', 'lanes', 'market-news', 'multistop', 'privacy', 'profile', 'signup', 'terms'];
 const PUB = 'ca-pub-5621259704181475';
 
 function serve(realSlots) {

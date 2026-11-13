@@ -30,6 +30,18 @@ function serve() {
   return new Promise((r) => server.listen(0, '127.0.0.1', () => r(server)));
 }
 
+// Weekly diesel for the Market Rates page: 60 weeks to Nov 9, 2026; the US average falls from
+// $3.951 to $3.851 in the last week; each EIA region sits a fixed step from it.
+const DIESEL = (() => {
+  const OFF = { NUS: 0, R10: 0.10, R20: -0.05, R30: -0.30, R40: 0.15, R50: 0.70 };
+  const end = Date.parse('2026-11-09T00:00:00Z');
+  return Array.from({ length: 60 }, (_, i) => {
+    const nus = i === 59 ? 3.851 : i === 58 ? 3.951 : 3.70 + 0.004 * i;
+    const w = { period: new Date(end - (59 - i) * 7 * 86400000).toISOString().slice(0, 10) };
+    Object.entries(OFF).forEach(([c, o]) => { w[c] = Math.round((nus + o) * 1000) / 1000; });
+    return w;
+  });
+})();
 async function setup(browser, base, { signedIn = false, plan = 'plus', theme = 'dark', phone = false, diesel = true, width = 0 } = {}) {
   const context = await browser.newContext(width
     ? { viewport: { width, height: 700 }, isMobile: true, hasTouch: true }
@@ -53,7 +65,9 @@ async function setup(browser, base, { signedIn = false, plan = 'plus', theme = '
     const json = (b) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(b) });
     if (url.startsWith(base) && !url.includes('/.netlify/functions/')) return route.continue();
     if (url.includes('/auth/v1/logout')) { calls.logout++; return route.fulfill({ status: 204, body: '' }); }
-    if (url.includes('diesel-price')) return diesel ? json({ price: 3.851, previous: 3.951, period: '2026-11-09', previousPeriod: '2026-11-02' }) : route.fulfill({ status: 502, body: '{}' });
+    if (url.includes('diesel-price') && !diesel) return route.fulfill({ status: 502, body: '{}' });
+    if (url.includes('diesel-price') && url.includes('history')) return json({ regions: {}, latest: DIESEL[59].period, weeks: DIESEL });
+    if (url.includes('diesel-price')) return json({ price: 3.851, previous: 3.951, period: '2026-11-09', previousPeriod: '2026-11-02' });
     const account = { id: 'user-1', is_active: true, plan, stripe_customer_id: 'c', stripe_subscription_id: 's', contact_name: 'Sam Rivera', company_name: 'Keystone Produce Logistics' };
     if (url.includes('/rest/v1/rpc/my_account')) return json({ row: signedIn ? account : null, team: null });
     if (url.includes('/rest/v1/pro_users')) return json(signedIn ? [account] : []);
@@ -82,7 +96,7 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   let t = await setup(browser, base);
   await t.page.goto(base + '/rates.html');
   await t.page.waitForSelector('#qf-nav .qf-links');
-  check('links: Calculator, Market Rates, Tools, Pricing', (await text(t.page, '#qf-nav .qf-links')) === 'Calculator Market Rates Tools Pricing');
+  check('links: Calculator, Market Rates, Market News, Tools, Pricing', (await text(t.page, '#qf-nav .qf-links')) === 'Calculator Market Rates Market News Tools Pricing');
   check('the current page is marked', (await text(t.page, '#qf-nav .qf-links a.active')) === 'Market Rates'
     && (await t.page.getAttribute('#qf-nav .qf-links a.active', 'aria-current')) === 'page');
   check('signed out: Sign in and Get Pro', (await t.page.getAttribute('#qf-nav .qf-signin', 'href')) === '/signup.html?login'
@@ -183,6 +197,39 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   check('market conditions: load-to-truck and diesel with its weekly change', cond.length === 4
     && cond[0].includes(String(RATES.loadToTruck.van.current)) && cond[3].includes('$3.85') && cond[3].includes('Down 2.5% vs last week'), cond.join(' / '));
 
+  // Diesel by week, under the rate chart
+  await t.page.waitForSelector('#mr-diesel-table tbody tr');
+  const dtext = (x) => (Math.abs(x) < 0.005 ? '' : x > 0 ? '+' : '−') + '$' + Math.abs(x).toFixed(2);
+  const drows = await t.page.$$eval('#mr-diesel-table tbody tr', (trs) => trs.map((tr) => tr.innerText.replace(/\s+/g, ' ').trim()));
+  const [dl, dp, dy] = [DIESEL[59], DIESEL[58], DIESEL[7]];
+  check('diesel this week: US average and the five EIA regions, vs last week and a year ago, and the fuel surcharge',
+    drows.length === 6 && drows[0] === `U.S. average $3.85 ${dtext(dl.NUS - dp.NUS)} ${dtext(dl.NUS - dy.NUS)} $0.40/mi`
+    && drows[5] === `West Coast ${money(dl.R50)} ${dtext(dl.R50 - dp.R50)} ${dtext(dl.R50 - dy.R50)} ${money((dl.R50 - 1.25) / 6.5)}/mi`, JSON.stringify(drows));
+  check('the diesel chart: the US average, the picked region and the others', (await t.page.$$('#mr-dchart svg path')).length === 6
+    && (await text(t.page, '#diesel-sub')).includes('week of Nov 9, 2026'));
+  const monthX = (m) => t.page.evaluate((mm) => ['#mr-chart', '#mr-dchart'].map((b) => {
+    const el = [...document.querySelectorAll(b + ' svg text')].find((x) => x.textContent === mm);
+    return el ? Number(el.getAttribute('x')) : null;
+  }), m);
+  const [jan, nov] = [await monthX('Jan'), await monthX('Nov')];
+  check('…lined up under the rate chart: the same months in the same places', jan[0] !== null && jan[1] !== null && Math.abs(jan[0] - jan[1]) < 1
+    && nov[0] !== null && Math.abs(nov[0] - nov[1]) < 1, JSON.stringify({ jan, nov }));
+  const topRegion = ['northeast', 'southeast', 'midwest', 'southwest', 'west'].sort((a, b) => RATES.regions[b].van - RATES.regions[a].van)[0];
+  const D_FOR = { northeast: 'East Coast', southeast: 'East Coast', midwest: 'Midwest', southwest: 'Gulf Coast', west: 'West Coast' };
+  check('the diesel region follows the picked freight region', (await text(t.page, '#mr-diesel-legend')).includes(D_FOR[topRegion])
+    && (await text(t.page, '#mr-diesel-table tbody tr.sel')).startsWith(D_FOR[topRegion]), await text(t.page, '#mr-diesel-legend'));
+  await t.page.click('#mr-diesel-table tbody tr[data-d="R40"]');
+  check('picking a diesel region in its table', (await text(t.page, '#mr-diesel-legend')).includes('Rocky Mountain')
+    && (await text(t.page, '#mr-diesel-table tbody tr.sel')).startsWith('Rocky Mountain'));
+  await t.page.locator('#mr-dchart svg').scrollIntoViewIfNeeded();
+  const dbox = await t.page.$eval('#mr-dhit', (r) => { const b = r.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height }; });
+  await t.page.mouse.move(dbox.x + dbox.w - 2, dbox.y + dbox.h / 2);
+  const dtip = await text(t.page, '#mr-dchart-tip');
+  check('hovering the diesel chart: that week, every region', dtip.startsWith('Week of November 9, 2026') && dtip.includes('U.S. average $3.85') && dtip.includes('Rocky Mountain'), dtip);
+  await t.page.mouse.move(5, 5);
+  await t.page.click('#mr-diesel-toggle');
+  check('…and a weekly table view', (await t.page.$$('#mr-diesel-weeks tbody tr')).length === DIESEL.length);
+
   const fills = await t.page.$$eval('#mr-svg path[data-state]', (ps) => Object.fromEntries(ps.map((p) => [p.dataset.state, [p.dataset.region, p.style.fill]])));
   const sameRegionSameColor = Object.keys(RATES.regions).filter((r) => r !== 'national')
     .every((r) => new Set(RATES.regions[r].states.map((s) => fills[s][1])).size === 1 && RATES.regions[r].states.every((s) => fills[s][0] === r));
@@ -236,6 +283,7 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   await t.page.waitForFunction(() => document.querySelectorAll('#mr-conditions .mr-tile').length >= 3);
   await t.page.waitForTimeout(400);
   check('without diesel data the page still works (3 tiles)', (await t.page.$$('#mr-conditions .mr-tile')).length === 3 && t.errors.length === 0);
+  check('…and the diesel card says so instead of a chart', await t.page.isVisible('#mr-diesel-empty') && await t.page.isHidden('#mr-dchart') && await t.page.isHidden('#mr-diesel-now'));
   await t.context.close();
 
   // ── Plans on the signup page ─────────────────────────────────────────────
@@ -292,7 +340,7 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
 
   // ── Every other page ─────────────────────────────────────────────────────
   console.log('\n=== Every page has the shared look ===');
-  const PAGES = [['/profile.html', null], ['/multistop.html', 'Tools'], ['/bulk.html', 'Tools'], ['/lanes.html', 'Tools'],
+  const PAGES = [['/profile.html', null], ['/market-news.html', 'Market News'], ['/multistop.html', 'Tools'], ['/bulk.html', 'Tools'], ['/lanes.html', 'Tools'],
     ['/customers.html', 'Tools'], ['/api.html', 'Tools'], ['/terms.html', null], ['/privacy.html', null]];
   for (const theme of ['dark', 'light']) {
     t = await setup(browser, base, { signedIn: true, plan: 'plus', theme });
@@ -371,7 +419,7 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   console.log('\n=== A 320px phone: nothing runs off the side ===');
   t = await setup(browser, base, { signedIn: true, plan: 'max', width: 320 });
   const wide = [];
-  for (const url of ['/', '/rates.html', '/signup.html', '/multistop.html', '/bulk.html', '/lanes.html', '/customers.html', '/profile.html', '/api.html', '/terms.html', '/privacy.html']) {
+  for (const url of ['/', '/rates.html', '/market-news.html', '/signup.html', '/multistop.html', '/bulk.html', '/lanes.html', '/customers.html', '/profile.html', '/api.html', '/terms.html', '/privacy.html']) {
     await t.page.goto(base + url);
     await t.page.waitForSelector('#qf-nav .qf-acct-btn');
     await t.page.waitForTimeout(250);
