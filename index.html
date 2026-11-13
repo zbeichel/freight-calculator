@@ -268,6 +268,8 @@ html.light .hero h1 em{-webkit-text-fill-color:#d48200;color:#d48200}
   transition:border-color .15s,color .15s,background .15s}
 .calc-tool:hover{border-color:var(--accent-fill);color:var(--text)}
 .calc-tool .qf-icon{width:20px;height:20px;color:var(--accent)}
+.btn-plus-tag{font-size:8.5px;font-weight:700;letter-spacing:.05em;padding:2px 5px;border-radius:6px;line-height:1.2;
+  color:var(--accent);background:var(--accentbg);border:1px solid rgba(245,165,36,.3)}
 .calc-tool-tag{position:absolute;top:6px;right:6px;font-size:8.5px;font-weight:700;letter-spacing:.05em;padding:2px 5px;border-radius:6px;
   color:var(--accent);background:var(--accentbg);border:1px solid rgba(245,165,36,.3)}
 @media(max-width:740px){.calc-tools{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{padding:34px 16px 22px}}
@@ -2495,14 +2497,22 @@ html.light .hos-day-header{background:var(--card2)}
         </div>
       </div>
 
-      <!-- Download Quote button — Pro feature -->
+      <!-- Download the quote (Pro) or email it to the customer (Pro Plus and up) -->
       <div style="padding:14px 16px;border-top:1px solid var(--border)">
+        <div style="display:flex;gap:8px">
         <button id="btn-download-quote" onclick="generateQuotePDF()" disabled
-          style="width:100%;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;padding:11px;border-radius:8px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:not-allowed;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;opacity:0.45"
+          style="flex:1.2 1 0;min-width:0;white-space:nowrap;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;padding:11px 8px;border-radius:8px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:not-allowed;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;opacity:0.45"
           onmouseover="if(!this.disabled){this.style.background='var(--accent)';this.style.color='#000'}"
           onmouseout="if(!this.disabled){this.style.background='var(--accentbg)';this.style.color='var(--accent)'}">
-          📄 Download Quote PDF
+          📄 Download PDF
         </button>
+        <button id="btn-email-quote" onclick="emailCalcQuote()" disabled title="Email this quote to your customer as a PDF"
+          style="flex:1 1 0;min-width:0;white-space:nowrap;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;padding:11px 8px;border-radius:8px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:not-allowed;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:7px;opacity:0.45"
+          onmouseover="if(!this.disabled){this.style.background='var(--accent)';this.style.color='#000'}"
+          onmouseout="if(!this.disabled){this.style.background='var(--accentbg)';this.style.color='var(--accent)'}">
+          ✉ Email quote <span id="email-plus-tag" class="btn-plus-tag" style="display:none">PLUS</span>
+        </button>
+        </div>
         <div id="pro-upgrade-note" style="font-size:10px;color:var(--text3);text-align:center;margin-top:6px">Pro feature · <a href="#" onclick="event.preventDefault();showProModal('Download Quote PDF is a Pro feature. Upgrade to generate branded PDF quotes with your logo, colors, and contact info.')" style="color:var(--accent);text-decoration:none">Upgrade to unlock</a></div>
       </div>
       </div>
@@ -3250,6 +3260,14 @@ function updateProUI(){
     dlBtn.style.opacity = isProUser ? '1' : '0.45';
     dlBtn.style.cursor  = isProUser ? 'pointer' : 'not-allowed';
   }
+  const emBtn = document.getElementById('btn-email-quote');
+  if(emBtn){
+    emBtn.disabled = !isProUser;
+    emBtn.style.opacity = isProUser ? '1' : '0.45';
+    emBtn.style.cursor  = isProUser ? 'pointer' : 'not-allowed';
+  }
+  const emTag = document.getElementById('email-plus-tag');
+  if(emTag) emTag.style.display = isProUser && !winLossAllowed() ? '' : 'none';
   if(proNote) proNote.style.display = isProUser ? 'none' : '';
   if(profilesUI) profilesUI.style.display = isProUser ? '' : 'none';
   if(msTag) msTag.style.display = isProUser ? 'none' : '';
@@ -3792,7 +3810,9 @@ function showToastMsg(msg){
 }
 
 // ── End Saved Rate Profiles ───────────────────────────────────────────────
-function generateQuotePDF(){
+// With { returnDoc: true } it returns the page instead of opening it — { html, number, validUntil } —
+// for emailing the quote (it uses up a quote number the same way).
+function generateQuotePDF(opts){
   const quote    = document.getElementById('r-quote').textContent;
   const miles    = document.getElementById('r-miles').textContent;
   const pickup   = document.getElementById('r-pickup').textContent;
@@ -3805,6 +3825,7 @@ function generateQuotePDF(){
   const commodity= document.getElementById('commodity').value;
 
   if(quote === '—' || !orig || !dest){
+    if(opts && opts.returnDoc) return null;
     alert('Please complete the quote before downloading.');
     return;
   }
@@ -3847,7 +3868,7 @@ function generateQuotePDF(){
   if(window.QFCQuotePDF && QFCQuotePDF.style(profile) === 'modern'){
     const milesNum = parseFloat(document.getElementById('miles').value) || 0;
     const markup = 1 + (parseFloat(document.getElementById('margin').value) || 0) / 100;
-    QFCQuotePDF.openModern({
+    const modernQ = {
       total: Number(quote.replace(/[^0-9.]/g, '')) || 0,
       ratePerMile: parseFloat(document.getElementById('r-rpm').textContent.replace(/[^0-9.]/g, '')) || null,
       miles: milesNum || null,
@@ -3863,7 +3884,11 @@ function generateQuotePDF(){
         fuel: getDieselFSC() * milesNum * markup,
         extra: (transitChargeAdded ? transitChargeAmount : 0) * markup,
       },
-    }, profile);
+    };
+    const meta = QFCQuotePDF.nextQuoteNumber(profile, true);
+    const modernDoc = QFCQuotePDF.modernHTML(modernQ, profile, meta);
+    if(opts && opts.returnDoc) return { html: modernDoc, number: meta.number, validUntil: meta.validUntil };
+    QFCQuotePDF.openHTML(modernDoc);
     return;
   }
 
@@ -4107,6 +4132,8 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 </body>
 </html>`;
 
+  if(opts && opts.returnDoc) return { html, number: qNum, validUntil: classicValidUntil(profile, now) };
+
   // Use a blob URL opened in a new tab — doesn't steal focus from current page
   const blob = new Blob([html], { type: 'text/html' });
   const url  = URL.createObjectURL(blob);
@@ -4124,7 +4151,8 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 // ── End PDF Generator ─────────────────────────────────────────────────────
 
 // ── PDF from Quote Log ────────────────────────────────────────────────────
-function generateQuotePDFFromLog(id){
+// With { returnDoc: true }, returns { html, number, validUntil } instead of opening it (for emailing).
+function generateQuotePDFFromLog(id, opts){
   const q = quoteLog.find(q => q.id == id);
   if(!q){ showToast('⚠ Quote not found.'); return; }
 
@@ -4133,16 +4161,20 @@ function generateQuotePDFFromLog(id){
 
   // Modern design (pdf-quote.js) unless the Profile chose Classic.
   if(window.QFCQuotePDF && QFCQuotePDF.style(profile) === 'modern'){
-    QFCQuotePDF.openModern({
+    const modernQ = {
       total: Number(q.quote) || 0,
       ratePerMile: parseFloat(String(q.rpm || '').replace(/[^0-9.]/g, '')) || null,
       miles: Number(q.miles) || null,
       origin: q.orig || '—', destination: q.dest || '—',
-      pickup: q.pickup || '', delivery: q.delivery || '',
+      pickup: calcDateText(q.pickup), delivery: calcDateText(q.delivery),
       trailer: q.trailer, commodity: q.commodity, weight: q.weight ? parseInt(q.weight) : null,
       transit: '', notes: q.notes || '', breakdown: null,
       customer: pdfCustomer(q.customer, q.customerId),
-    }, profile);
+    };
+    const meta = QFCQuotePDF.nextQuoteNumber(profile, true);
+    const modernDoc = QFCQuotePDF.modernHTML(modernQ, profile, meta);
+    if(opts && opts.returnDoc) return { html: modernDoc, number: meta.number, validUntil: meta.validUntil };
+    QFCQuotePDF.openHTML(modernDoc);
     return;
   }
 
@@ -4377,6 +4409,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 </body>
 </html>`;
 
+  if(opts && opts.returnDoc) return { html, number: qNum, validUntil: classicValidUntil(profile, now) };
   const blob = new Blob([html], { type: 'text/html' });
   const url  = URL.createObjectURL(blob);
   const tab  = window.open(url, '_blank');
@@ -4387,6 +4420,144 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
     alert('Pop-up blocked — please allow pop-ups for this site to download quotes.');
   }
 }
+// A saved date ("2026-11-20") the way the calculator shows it ("Fri, Nov 20"), for PDFs made from the quote log.
+function calcDateText(s){
+  if(!s) return '';
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return String(s);
+  const d = new Date(s + 'T12:00:00');
+  return isNaN(d) ? String(s) : d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+}
+
+// When a Classic quote stops being good: the same hours the Modern design prints (Profile → PDF quotes).
+function classicValidUntil(profile, now){
+  const hours = (window.QFCQuotePDF && QFCQuotePDF.validHours(profile)) || 24;
+  return new Date(now.getTime() + hours * 3600000).toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' });
+}
+
+// ── Email a quote to the customer (Pro Plus and up; email-quote.js) ───────
+const EMAIL_TRAILERS = { van:'Dry Van', reefer:'Reefer', flatbed:'Flatbed' };
+const EMAIL_WHY = 'Emailing quotes comes with Pro Plus: send your branded PDF quote to the customer in one click, with how long it\u2019s good for, and replies come straight to you.';
+let quoteEmails = {};      // quote_log id → the last time it was emailed: { to, at }
+let lastSavedCalc = null;  // { sig, entry }: the quote "Save Quote to Log" saved last
+
+function canEmailQuotes(){
+  if(winLossAllowed() && window.QFCEmailQuote) return true;
+  if(isProUser) showUpgradeModal(EMAIL_WHY, ['plus', 'max']);
+  else showProModal(EMAIL_WHY);
+  return false;
+}
+function emailProfileOptions(){
+  let profile = {};
+  try { profile = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
+  const qp = window.QFCQuotePDF;
+  return {
+    validHours: qp ? qp.validHours(profile) : 24,
+    canChangeValidity: !!(qp && qp.whiteLabelAllowed(profile)),
+    whiteLabel: !!(qp && qp.whiteLabel(profile)),
+  };
+}
+function emailCustomer(name, id){
+  const c = id && window.QFCCustomers ? QFCCustomers.byId(id) : null;
+  if(c) return { name: c.name, contactName: c.contactName || '', email: c.email || '' };
+  return name ? { name } : null;
+}
+// "Nov 14, 2026" from a saved date ("2026-11-14")
+function emailDate(s){
+  if(!s) return '';
+  const d = new Date(String(s).length === 10 ? s + 'T12:00:00' : s);
+  return isNaN(d) ? String(s) : d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+}
+// What the calculator shows, so an emailed quote can be matched to the one just saved to the log
+function calcSignature(){
+  const v = id => (document.getElementById(id)?.value || '').trim();
+  return [v('origin'), v('dest'), v('trailer'), v('weight'), v('pickup'), v('delivery'), v('miles'), v('margin'),
+    document.getElementById('r-quote')?.textContent || '', calcCustomer().name].join('|');
+}
+function savedQuoteForCalc(){
+  if(!lastSavedCalc || lastSavedCalc.sig !== calcSignature()) return null;
+  const e = lastSavedCalc.entry;
+  return e && !e.pending && quoteLog.includes(e) ? e : null;
+}
+function noteQuoteEmailed(quoteId, to, at){
+  if(!quoteId) return;
+  quoteEmails[String(quoteId)] = { to, at: at || new Date().toISOString() };
+  renderLog();
+}
+// The quote log's record of emailed quotes (Pro Plus and up)
+async function loadQuoteEmails(session){
+  if(!session || !winLossAllowed()) return;
+  try {
+    const resp = await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_emails?select=quote_id,to_email,created_at&quote_id=not.is.null&order=created_at.desc&limit=2000`,
+      { headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` } });
+    const rows = await resp.json();
+    if(!Array.isArray(rows)) return;
+    const map = {};
+    for(const r of rows){ const k = String(r.quote_id); if(!map[k]) map[k] = { to: r.to_email, at: r.created_at }; }
+    quoteEmails = map;
+    renderLog();
+  } catch(e){}
+}
+
+function emailCalcQuote(){
+  if(!canEmailQuotes()) return;
+  const quote = document.getElementById('r-quote').textContent;
+  const orig  = document.getElementById('origin').value.trim();
+  const dest  = document.getElementById('dest').value.trim();
+  if(quote === '—' || !orig || !dest){ showToast('⚠ Finish the quote first, then email it.'); return; }
+  const pickup = document.getElementById('r-pickup').textContent, delivery = document.getElementById('r-delivery').textContent;
+  const miles = parseFloat(document.getElementById('miles').value) || 0;
+  const trailer = document.getElementById('trailer').value;
+  const cust = calcCustomer();
+  const saved = savedQuoteForCalc();
+  QFCEmailQuote.open({
+    build: () => generateQuotePDF({ returnDoc: true }),
+    summary: {
+      origin: orig, destination: dest,
+      equipment: EMAIL_TRAILERS[trailer] || trailer,
+      miles: miles ? Math.round(miles).toLocaleString('en-US') : '',
+      rate: quote,
+      pickup: pickup !== '—' ? pickup : '', delivery: delivery !== '—' ? delivery : '',
+    },
+    quoteId: saved ? saved.id : null,
+    customer: emailCustomer(cust.name, cust.id),
+    ...emailProfileOptions(),
+    onSent: r => noteQuoteEmailed(r.quoteId, r.to, r.sentAt),
+  });
+}
+function emailQuoteFromLog(id){
+  if(!canEmailQuotes()) return;
+  const q = quoteReady(id);
+  if(!q) return;
+  QFCEmailQuote.open({
+    build: () => generateQuotePDFFromLog(q.id, { returnDoc: true }),
+    summary: {
+      origin: q.orig || '', destination: q.dest || '',
+      equipment: EMAIL_TRAILERS[q.trailer] || q.trailer || '',
+      miles: Number(q.miles) ? Math.round(Number(q.miles)).toLocaleString('en-US') : '',
+      rate: Number(q.quote) ? '$' + Math.round(Number(q.quote)).toLocaleString('en-US') : '',
+      pickup: emailDate(q.pickup), delivery: emailDate(q.delivery),
+    },
+    quoteId: q.id,
+    customer: emailCustomer(q.customer, q.customerId),
+    ...emailProfileOptions(),
+    onSent: r => noteQuoteEmailed(q.id, r.to, r.sentAt),
+  });
+}
+function emailButtonHTML(q){
+  const sent = quoteEmails[String(q.id)];
+  const locked = !winLossAllowed();
+  const when = sent ? new Date(sent.at).toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '';
+  const title = locked ? 'Emailing quotes comes with Pro Plus'
+    : sent ? `Emailed to ${sent.to} on ${when}. Click to send it again.` : 'Email this quote to your customer';
+  const color = sent && !locked ? 'var(--green)' : 'var(--text3)';
+  return `<button onclick="emailQuoteFromLog(${q.id})" title="${escapeHTML(title)}" class="log-email-btn${sent ? ' sent' : ''}"
+        style="font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:600;
+        padding:3px 8px;border-radius:6px;border:1px solid var(--border2);
+        background:transparent;color:${color};cursor:pointer;margin-right:4px;transition:all .15s"
+        onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+        onmouseout="this.style.borderColor='var(--border2)';this.style.color='${color}'">${locked ? '🔒 Email' : sent ? '✓ Sent' : '✉ Email'}</button>`;
+}
+
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
 
@@ -6971,6 +7142,7 @@ async function saveQuote(){
   };
 
   quoteLog.unshift(entry);
+  lastSavedCalc = { sig: calcSignature(), entry };
   renderLog();
   showToast('💾 Quote saved');
 
@@ -7064,6 +7236,7 @@ async function loadQuoteLogFromSupabase(){
       renderLog();
       setQuoteLogStatus(`✓ ${rows.length.toLocaleString()} quote${rows.length === 1 ? '' : 's'} synced`);
       syncTrackedToProfiles();
+      loadQuoteEmails(session);
     } else {
       renderLog();
       setQuoteLogStatus('No quotes yet');
@@ -7803,6 +7976,7 @@ function renderLog(){
         background:transparent;color:var(--text3);cursor:pointer;margin-right:4px;transition:all .15s"
         onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
         onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">📄 PDF</button>
+      ${emailButtonHTML(q)}
       <button class="del-btn" onclick="deleteQuote(${q.id})">✕</button>
     </td>
   </tr>`).join('');
@@ -8592,7 +8766,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
           <input type="radio" name="upg-plan" value="plus" onchange="updateUpgradeButton()" />
           <span class="upg-name">Pro Plus</span>
           <span class="upg-price"><strong>$19.99</strong>/month</span>
-          <span class="upg-detail">Automatic miles on 250 quotes per day, win/loss tracking and a customer list</span>
+          <span class="upg-detail">Automatic miles on 250 quotes per day, win/loss tracking, a customer list and emailed quotes</span>
         </label>
         <label class="upg-option" id="upg-option-max">
           <input type="radio" name="upg-plan" value="max" onchange="updateUpgradeButton()" />
@@ -8911,6 +9085,7 @@ window.addEventListener('resize', () => {
 <script src="/pro-notice.js" defer></script>
 <script src="/pdf-quote.js" defer></script>
 <script src="/customers.js" defer></script>
+<script src="/email-quote.js" defer></script>
 <script src="/lane.js" defer></script>
 </body>
 </html>
