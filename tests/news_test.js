@@ -125,8 +125,8 @@ const ready = (t) => t.page.waitForFunction(() => document.getElementById('news-
     && glance[0] === 'Van spot ($/mi) $2.12 +0.5% +14%' && glance[2] === 'Diesel, U.S. average $3.85 -$0.10 n/a', JSON.stringify(glance));
   const items = await t.page.$$eval('.news-item', (els) => els.map((e) => ({ h: e.querySelector('h3').innerText, n: e.querySelectorAll('li').length,
     means: (e.querySelector('.news-means') || {}).innerText || '' })));
-  check('three numbered items, each with its bullets and "What it means for your rates"', items.length === 3 && items[0].h === '1. Rates: Spot holds steady ahead of the holidays'
-    && items[2].h === '3. Capacity: FMCSA pulls 133 ELDs' && items[0].n === 2 && items.every((i) => i.means.startsWith('What it means for your rates:')), JSON.stringify(items));
+  check('three items titled by their headlines (no numbers), each with its bullets and "What it means for your rates"', items.length === 3 && items[0].h === 'Rates: Spot holds steady ahead of the holidays'
+    && items[2].h === 'Capacity: FMCSA pulls 133 ELDs' && items[0].n === 2 && items.every((i) => i.means.startsWith('What it means for your rates:')), JSON.stringify(items));
   const bold = await t.page.$eval('.news-item', (e) => [...e.querySelectorAll('li strong')].map((x) => x.textContent));
   check('**bold** in the task\'s text shows as bold', JSON.stringify(bold) === JSON.stringify(['$2.12/mi', '$2.48/mi']), JSON.stringify(bold));
   check('…and anything else that looks like HTML stays text', (await t.page.$eval('.news-item', (e) => e.querySelectorAll('li')[1].textContent)).includes('<script>window.__x=1</script>')
