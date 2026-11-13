@@ -205,8 +205,11 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   const cols = await t.page.$$eval('.su-plan', (els) => els.map((e) => ({ plan: e.dataset.plan, price: e.querySelector('.su-price').innerText.replace(/\s+/g, ''),
     yes: e.querySelectorAll('li.yes').length, no: e.querySelectorAll('li.no').length })));
   check('four plans with their prices', cols.map((c) => `${c.plan} ${c.price}`).join(' | ') === 'pro $9.99/month | plus $19.99/month | max $49.99/month | api $199.99/month');
-  check('each lists every feature, checked or crossed (Pro 6 crossed, Plus 2, Max 1, API 0)',
-    cols.every((c) => c.yes + c.no === 17) && cols.map((c) => c.no).join() === '6,2,1,0', JSON.stringify(cols));
+  check('each lists every feature, checked or crossed (Pro 7 crossed, Plus 2, Max 1, API 0)',
+    cols.every((c) => c.yes + c.no === 18) && cols.map((c) => c.no).join() === '7,2,1,0', JSON.stringify(cols));
+  const emailRow = await t.page.$$eval('.su-plan', (els) => els.map((e) => [...e.querySelectorAll('li')].find((li) => /Email the PDF/.test(li.innerText))).map((li) => li && `${li.className}:${li.innerText.replace(/\s+/g, ' ').replace(/ \((not )?included\)$/, '').trim()}`));
+  check('emailing quotes is listed from Pro Plus, with each plan\u2019s daily limit', JSON.stringify(emailRow) === JSON.stringify([
+    'no:Email the PDF to your customer', 'yes:Email the PDF to your customer: 100 a day', 'yes:Email the PDF to your customer: 300 a day', 'yes:Email the PDF to your customer: 300 a day']), JSON.stringify(emailRow));
   check('?plan=plus marks Pro Plus', (await t.page.$$eval('.su-plan.sel', (e) => e.map((x) => x.dataset.plan))).join() === 'plus'
     && (await text(t.page, '#su-selected-name')) === 'Pro Plus $19.99/month');
   await t.page.click('.su-plan[data-plan="max"] .su-start');

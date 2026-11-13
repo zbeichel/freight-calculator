@@ -309,6 +309,18 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 .wl-check{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text);margin-bottom:16px}
 .wl-check input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
 #wl-fields{transition:opacity .15s}
+/* Quote sections (Modern PDFs): the switches and the standard accessorial charges */
+.sec-switch{display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;line-height:1.45}
+.sec-switch input{width:15px;height:15px;margin-top:2px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+.sec-switch span{color:var(--text3);font-size:12px;font-weight:400}
+.sec-classic{font-size:12.5px;color:var(--text2);line-height:1.6;background:var(--accentbg);border:1px solid var(--accent);border-radius:8px;padding:10px 12px;margin-bottom:14px}
+#sec-fields{transition:opacity .15s}
+.acc-title{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 10px}
+.acc-title span{text-transform:none;letter-spacing:0;font-weight:400}
+.acc-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.acc-other{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:8px 14px}
+@media(max-width:700px){.acc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.acc-grid,.acc-other{grid-template-columns:1fr}}
 #wl-fields .field + .field{margin-top:14px}
 .custom-colors{display:none;margin-top:14px;padding:14px 16px;border:1px solid var(--border2);border-radius:10px;background:var(--card)}
 .custom-colors.show{display:block}
@@ -503,6 +515,41 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
             Show linehaul, fuel surcharge and extra-day charges separately when a quote has them
           </label>
           <button type="button" class="pdf-preview-btn" id="pdf-sample-btn" onclick="previewSamplePDF()">Preview a sample quote</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Quote sections (the Modern design) ── -->
+    <div class="section-card" id="quote-sections-card">
+      <div class="section-header">
+        <span class="section-icon">🧩</span>
+        <span class="section-title">Quote Sections</span>
+        <span class="section-sub">More detail on your quotes</span>
+      </div>
+      <div class="section-body">
+        <div class="sec-classic" id="sec-classic" style="display:none">These sections are part of the Modern design. Choose Modern under PDF Quote Style to use them.</div>
+        <div id="sec-fields">
+          <label class="sec-switch"><input type="checkbox" id="sec-transit" checked />
+            <div>Transit estimate <span>— driving time, days on the road, overnight rest and the estimated delivery day, worked out with federal hours-of-service rules</span></div></label>
+          <label class="sec-switch"><input type="checkbox" id="sec-accessorials" checked />
+            <div>Accessorial charges <span>— your standard rates below, printed under the rate as charges that apply only if needed</span></div></label>
+          <div class="acc-title">Your accessorial charges</div>
+          <div class="acc-grid">
+            <div class="field"><label for="acc-detention">Detention ($ per hour)</label><input id="acc-detention" type="number" min="0" step="1" inputmode="decimal" placeholder="75" /></div>
+            <div class="field"><label for="acc-detention-free">Free hours first</label><input id="acc-detention-free" type="number" min="0" max="24" step="0.5" inputmode="decimal" placeholder="2" /></div>
+            <div class="field"><label for="acc-layover">Layover ($ per day)</label><input id="acc-layover" type="number" min="0" step="1" inputmode="decimal" placeholder="250" /></div>
+            <div class="field"><label for="acc-tonu">Truck ordered, not used ($)</label><input id="acc-tonu" type="number" min="0" step="1" inputmode="decimal" placeholder="250" /></div>
+            <div class="field"><label for="acc-stop">Extra stop ($ per stop)</label><input id="acc-stop" type="number" min="0" step="1" inputmode="decimal" placeholder="100" /></div>
+            <div class="field"><label for="acc-lumper">Lumper / unloading</label><input id="acc-lumper" type="text" maxlength="80" placeholder="Billed at cost with receipt" /></div>
+          </div>
+          <div class="acc-title">Other charges <span>(optional)</span></div>
+          <div class="acc-other">
+            <div class="field"><label for="acc-o1-label">Charge</label><input id="acc-o1-label" type="text" maxlength="40" placeholder="Tarping" /></div>
+            <div class="field"><label for="acc-o1-charge">Rate</label><input id="acc-o1-charge" type="text" maxlength="60" placeholder="$75 per load" /></div>
+            <div class="field"><input id="acc-o2-label" type="text" maxlength="40" placeholder="Driver assist" aria-label="Second charge" /></div>
+            <div class="field"><input id="acc-o2-charge" type="text" maxlength="60" placeholder="$100" aria-label="Second charge's rate" /></div>
+          </div>
+          <div class="field-note" style="margin-top:10px;font-size:11px">Leave a line empty to leave it off. When you email a quote, you can switch either section off for that quote.</div>
         </div>
       </div>
     </div>
@@ -1052,6 +1099,41 @@ function whiteLabelFromForm(){
   };
 }
 
+// ── Quote sections (Modern PDFs) ──────────────────────────────────────────
+function sectionsFromForm(){
+  return {
+    transit: document.getElementById('sec-transit').checked,
+    accessorials: document.getElementById('sec-accessorials').checked,
+  };
+}
+// The accessorial charges as entered; null when none is filled in.
+function accessorialsFromForm(){
+  const num = id => { const v = parseFloat(document.getElementById(id).value); return isFinite(v) && v > 0 ? Math.min(Math.round(v * 100) / 100, 99999) : null; };
+  const txt = (id, max) => document.getElementById(id).value.replace(/\s+/g, ' ').trim().slice(0, max);
+  const a = {
+    detentionRate: num('acc-detention'), detentionFree: num('acc-detention-free'),
+    layover: num('acc-layover'), tonu: num('acc-tonu'), extraStop: num('acc-stop'),
+    lumper: txt('acc-lumper', 80) || null,
+    other: [['acc-o1-label', 'acc-o1-charge'], ['acc-o2-label', 'acc-o2-charge']]
+      .map(([l, c]) => ({ label: txt(l, 40), charge: txt(c, 60) })).filter(o => o.label && o.charge),
+  };
+  if(!a.other.length) delete a.other;
+  Object.keys(a).forEach(k => { if(a[k] === null) delete a[k]; });
+  return Object.keys(a).length ? a : null;
+}
+function fillSections(sections, acc){
+  const sec = sections && typeof sections === 'object' ? sections : {};
+  document.getElementById('sec-transit').checked = sec.transit !== false;
+  document.getElementById('sec-accessorials').checked = sec.accessorials !== false;
+  const a = acc && typeof acc === 'object' ? acc : {};
+  const put = (id, v) => { document.getElementById(id).value = v === null || v === undefined ? '' : String(v); };
+  put('acc-detention', a.detentionRate); put('acc-detention-free', a.detentionFree);
+  put('acc-layover', a.layover); put('acc-tonu', a.tonu); put('acc-stop', a.extraStop); put('acc-lumper', a.lumper);
+  const o = Array.isArray(a.other) ? a.other : [];
+  put('acc-o1-label', o[0] && o[0].label); put('acc-o1-charge', o[0] && o[0].charge);
+  put('acc-o2-label', o[1] && o[1].label); put('acc-o2-charge', o[1] && o[1].charge);
+}
+
 // ── PDF quote style ───────────────────────────────────────────────────────
 // 'modern' (pdf-quote.js, the default) or 'classic' (the original template).
 let currentPdfStyle = 'modern';
@@ -1063,6 +1145,9 @@ function selectPdfStyle(style){
   const btn = document.getElementById('pdf-sample-btn');
   if(wrap) wrap.style.display = modern ? '' : 'none';
   if(btn) btn.style.display = modern ? '' : 'none';
+  const secNote = document.getElementById('sec-classic'), secFields = document.getElementById('sec-fields');
+  if(secNote) secNote.style.display = modern ? 'none' : '';
+  if(secFields) secFields.style.opacity = modern ? '1' : '.55';
   updatePreview();
 }
 
@@ -1085,6 +1170,8 @@ function profileFromForm(){
     pdfBreakdown: document.getElementById('pdf-breakdown').checked,
     pdfAccent:   customColorValue('pdf-accent', '#f0a500'),
     pdfInk:      customColorValue('pdf-ink', '#1a1f2e'),
+    pdfSections: sectionsFromForm(),
+    pdfAccessorials: accessorialsFromForm(),
     ...whiteLabelFromForm(),
   };
 }
@@ -1099,6 +1186,7 @@ function previewSamplePDF(){
     origin: 'Hastings, FL', destination: 'Lancaster, PA',
     pickup: 'Mon, Nov 16', delivery: 'Wed, Nov 18',
     trailer: 'reefer', commodity: 'Food / Perishable', weight: 42000, transit: '2 days',
+    pickupISO: '2026-11-16', deliveryISO: '2026-11-18',
     notes: 'Sample quote. Keep at 34°F. Appointment required at delivery.',
     breakdown: { fuel: 512, extra: 0 },
   }, profile, meta));
@@ -1523,6 +1611,8 @@ async function saveProfile(){
     pdfBreakdown: document.getElementById('pdf-breakdown').checked,
     pdfAccent:    customColorValue('pdf-accent', '#f0a500'),
     pdfInk:       customColorValue('pdf-ink', '#1a1f2e'),
+    pdfSections:  sectionsFromForm(),
+    pdfAccessorials: accessorialsFromForm(),
     ...whiteLabelFromForm(),
     savedAt:      new Date().toISOString(),
   };
@@ -1562,6 +1652,8 @@ async function saveProfile(){
           pdf_white_label: profile.pdfWhiteLabel,
           pdf_valid_hours: profile.pdfValidHours,
           pdf_terms:     profile.pdfTerms || null,
+          pdf_sections:  profile.pdfSections,
+          pdf_accessorials: profile.pdfAccessorials,
           updated_at:    new Date().toISOString(),
         })
       });
@@ -1621,6 +1713,8 @@ async function loadProfile(){
           pdfWhiteLabel: p.pdf_white_label === true,
           pdfValidHours: p.pdf_valid_hours,
           pdfTerms:    p.pdf_terms,
+          pdfSections: p.pdf_sections,
+          pdfAccessorials: p.pdf_accessorials,
         });
         // Update header with user name
         updateHeaderUser(p.contact_name || p.company_name || session.user.email);
@@ -1672,7 +1766,7 @@ function applySubscriptionCardState(stripeCustomerId, plan, isActive){
 // 5,000 API quotes per month). Same names and limits as netlify/lib/plans.js.
 const PROFILE_PLANS = {
   pro:  { name: 'Pro',      price: '$9.99',   detail: 'Automatic miles on 100 quotes per day' },
-  plus: { name: 'Pro Plus', price: '$19.99',  detail: 'Automatic miles on 250 quotes per day, win/loss tracking and a customer list' },
+  plus: { name: 'Pro Plus', price: '$19.99',  detail: 'Automatic miles on 250 quotes per day, win/loss tracking, a customer list and emailed quotes' },
   max:  { name: 'Pro Max',  price: '$49.99',  detail: 'Everything in Pro Plus, with automatic miles on 1,000 quotes per day and white-label PDFs' },
   api:  { name: 'API',      price: '$199.99', detail: 'Pro Max plus 5,000 API quotes per month' },
 };
@@ -2178,6 +2272,7 @@ function populateForm(p){
   document.getElementById('pdf-white-label').checked = p.pdfWhiteLabel === true;
   document.getElementById('pdf-valid-hours').value = [24, 48, 72, 168].includes(Number(p.pdfValidHours)) ? String(p.pdfValidHours) : '24';
   document.getElementById('pdf-terms').value = typeof p.pdfTerms === 'string' ? p.pdfTerms : '';
+  fillSections(p.pdfSections, p.pdfAccessorials);
   if(p.logoBase64){
     // Reuse applyLogo so the preview state (remove + adjust buttons) stays in
     // sync with the upload path — no duplicated show/hide logic.

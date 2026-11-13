@@ -6,8 +6,9 @@
 //
 //   pro   Pro       $9.99/mo    automatic miles on 100 quotes per day
 //   plus  Pro Plus  $19.99/mo   automatic miles on 250 quotes per day, plus
-//                               win/loss tracking (index.html) and the customer
-//                               list (customers.js); comp accounts too
+//                               win/loss tracking (index.html), the customer
+//                               list (customers.js) and emailing quotes
+//                               (email-quote.js, send-quote-email.js); comp accounts too
 //   max   Pro Max   $49.99/mo   everything in Pro Plus, automatic miles on 1,000
 //                               quotes per day and white-label PDFs (pdf-quote.js)
 //   api   API       $199.99/mo  Pro Max on the site + API access with
