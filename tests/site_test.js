@@ -302,12 +302,12 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   const emailRow = await t.page.$$eval('.su-plan', (els) => els.map((e) => [...e.querySelectorAll('li')].find((li) => /Email the PDF/.test(li.innerText))).map((li) => li && `${li.className}:${li.innerText.replace(/\s+/g, ' ').replace(/ \((not )?included\)$/, '').trim()}`));
   check('emailing quotes is listed from Pro Plus, with each plan\u2019s daily limit', JSON.stringify(emailRow) === JSON.stringify([
     'no:Email the PDF to your customer', 'yes:Email the PDF to your customer: 100 a day', 'yes:Email the PDF to your customer: 300 a day', 'yes:Email the PDF to your customer: 300 a day']), JSON.stringify(emailRow));
-  check('?plan=plus marks Pro Plus (14-day free trial)', (await t.page.$$eval('.su-plan.sel', (e) => e.map((x) => x.dataset.plan))).join() === 'plus'
-    && (await text(t.page, '#su-selected-name')) === 'Pro Plus $19.99/month · 14-day free trial');
+  check('?plan=plus marks Pro Plus (7-day free trial)', (await t.page.$$eval('.su-plan.sel', (e) => e.map((x) => x.dataset.plan))).join() === 'plus'
+    && (await text(t.page, '#su-selected-name')) === 'Pro Plus $19.99/month · 7-day free trial');
   await t.page.click('.su-plan[data-plan="max"] .su-start');
   await t.page.waitForTimeout(700);
   check('Start free trial picks the plan and goes to the account form', await t.page.isChecked('input[name="su-plan"][value="max"]')
-    && (await text(t.page, '#su-selected-name')) === 'Pro Max $49.99/month · 14-day free trial' && (await text(t.page, '#su-btn')) === 'Start my 14-day free trial →'
+    && (await text(t.page, '#su-selected-name')) === 'Pro Max $49.99/month · 7-day free trial' && (await text(t.page, '#su-btn')) === 'Start my 7-day free trial →'
     && await t.page.evaluate(() => document.activeElement && document.activeElement.id === 'su-email'));
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();

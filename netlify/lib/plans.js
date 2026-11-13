@@ -158,7 +158,7 @@ function intervalForPriceIds(priceIds) {
 // (a Stripe customer or subscription on their pro_users row) pays from day one.
 // During a trial, automatic miles are capped at TRIAL_DAILY_LIMIT quotes a day
 // (routes.js); everything else on the plan is there.
-const TRIAL_DAYS = 14;
+const TRIAL_DAYS = 7;
 const TRIAL_PLANS = ['plus', 'max'];
 const TRIAL_DAILY_LIMIT = 100;
 

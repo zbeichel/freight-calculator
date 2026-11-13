@@ -18,7 +18,7 @@
   const DEFAULT = {
     yearly: [],
     prices: { pro: { month: '$9.99', year: '$99' }, plus: { month: '$19.99', year: '$199' }, max: { month: '$49.99', year: '$499' }, api: { month: '$199.99' } },
-    trial: { days: 14, plans: ['plus', 'max'], dailyLimit: 100 },
+    trial: { days: 7, plans: ['plus', 'max'], dailyLimit: 100 },
   };
   const CACHE_KEY = 'qfc_plan_options';
   const LIMIT_NEXT = { free: { plan: 'pro', n: 100 }, pro: { plan: 'plus', n: 250 }, plus: { plan: 'max', n: 1000 } };

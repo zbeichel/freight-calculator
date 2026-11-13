@@ -34,7 +34,7 @@ function serve() {
 }
 
 const PRICES = { pro: { month: '$9.99', year: '$99' }, plus: { month: '$19.99', year: '$199' }, max: { month: '$49.99', year: '$499' }, api: { month: '$199.99' } };
-const OPTIONS = (yearly = ['pro', 'plus', 'max']) => ({ yearly, prices: PRICES, trial: { days: 14, plans: ['plus', 'max'], dailyLimit: 100 } });
+const OPTIONS = (yearly = ['pro', 'plus', 'max']) => ({ yearly, prices: PRICES, trial: { days: 7, plans: ['plus', 'max'], dailyLimit: 100 } });
 const ROW = (o) => Object.assign({ id: 'user-1', email: 'pat@example.com', company_name: 'Morgan Freight', contact_name: 'Pat Morgan', is_active: true, plan: 'pro',
   stripe_customer_id: 'cus_1', stripe_subscription_id: 'sub_1', grandfathered: false, quote_prefix: 'MF', quote_counter: 1001 }, o);
 const FREE_ROW = ROW({ is_active: false, stripe_customer_id: null, stripe_subscription_id: null });
@@ -118,7 +118,7 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
     start: e.querySelector('.su-start').innerText.trim() })));
   let c = await cols();
   check('monthly by default, with the monthly/yearly switch', c.map((x) => x.price).join() === '$9.99/month,$19.99/month,$49.99/month,$199.99/month', JSON.stringify(c));
-  check('14-day free trial on Pro Plus and Pro Max (not Pro or API)', c.map((x) => x.trial).join('|') === '|14-day free trial|14-day free trial|'
+  check('7-day free trial on Pro Plus and Pro Max (not Pro or API)', c.map((x) => x.trial).join('|') === '|7-day free trial|7-day free trial|'
     && c.map((x) => x.start).join('|') === 'Start now|Start free trial|Start free trial|Start now', JSON.stringify(c));
   await v.p.click('#su-interval .su-int[data-int="year"]');
   c = await cols();
@@ -129,9 +129,9 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   await v.p.screenshot({ path: path.join(SHOTS, 'signup-yearly.png') });
   await v.p.click('.su-plan[data-plan="plus"] .su-start');
   await v.p.waitForTimeout(600);
-  check('Pro Plus yearly picked: "Pro Plus $199/year · 14-day free trial"', (await text(v.p, '#su-selected-name')) === 'Pro Plus $199/year · 14-day free trial'
-    && (await text(v.p, '#su-btn')) === 'Start my 14-day free trial →', await text(v.p, '#su-selected-name'));
-  check('…and it says the card is charged only when the trial ends', /14-day free trial starts right away, and you're charged \$199\/year when it ends unless you cancel before then/.test(await text(v.p, '#su-side-note')),
+  check('Pro Plus yearly picked: "Pro Plus $199/year · 7-day free trial"', (await text(v.p, '#su-selected-name')) === 'Pro Plus $199/year · 7-day free trial'
+    && (await text(v.p, '#su-btn')) === 'Start my 7-day free trial →', await text(v.p, '#su-selected-name'));
+  check('…and it says the card is charged only when the trial ends', /7-day free trial starts right away, and you're charged \$199\/year when it ends unless you cancel before then/.test(await text(v.p, '#su-side-note')),
     await text(v.p, '#su-side-note'));
   await v.p.fill('#su-email', 'new@example.com');
   await v.p.fill('#su-password', 'Abcdef1!x');
@@ -148,7 +148,7 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   v = await open(t, base, '/signup.html?plan=max&interval=year');
   await v.p.waitForSelector('#su-interval:not([hidden])');
   await v.p.waitForTimeout(300);
-  check('/signup.html?plan=max&interval=year: Pro Max yearly picked', (await text(v.p, '#su-selected-name')) === 'Pro Max $499/year · 14-day free trial');
+  check('/signup.html?plan=max&interval=year: Pro Max yearly picked', (await text(v.p, '#su-selected-name')) === 'Pro Max $499/year · 7-day free trial');
   await v.p.check('#su-agree');
   await v.p.evaluate(() => handleGoogleAuth());
   await v.p.waitForTimeout(500);
@@ -158,8 +158,8 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   check('Google sign-up remembers the plan and the yearly billing through the redirect', stored.join() === 'max,year', stored.join());
   const terms = await kept.evaluate(() => [document.getElementById('yearly') && document.getElementById('yearly').innerText, document.getElementById('trial') && document.getElementById('trial').innerText]);
   check('Terms: yearly billing (charged up front, switching starts a new period, API monthly only)', /charged up front for the year/.test(terms[0]) && /The API plan is billed monthly only/.test(terms[0]) && /less credit for the unused part/.test(terms[0]), terms[0]);
-  check('Terms: the free trial (never subscribed, 14 days, card charged when it ends, reminder, 100 a day, one per person)',
-    /never had a subscription/.test(terms[1]) && /14 days/.test(terms[1]) && /reminder 3 days before/.test(terms[1]) && /100 quotes per day/.test(terms[1]) && /One free trial per person or business/.test(terms[1]), terms[1]);
+  check('Terms: the free trial (never subscribed, 7 days, card charged when it ends, reminder, 100 a day, one per person)',
+    /never had a subscription/.test(terms[1]) && /7 days/.test(terms[1]) && /reminder 3 days before/.test(terms[1]) && /100 quotes per day/.test(terms[1]) && /One free trial per person or business/.test(terms[1]), terms[1]);
   await t.context.close();
 
   t = await setup(browser, base, { signedIn: false, row: null, options: OPTIONS([]) });
@@ -188,8 +188,8 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   await v.p.evaluate(() => showUpgradeModal());
   await v.p.waitForSelector('#upg-billing:not([hidden])');
   await v.p.waitForFunction(() => /free trial/.test(document.getElementById('upg-modal-btn').textContent));
-  check('a free account that never subscribed: "Start my 14-day free trial", then $19.99/month', (await text(v.p, '#upg-modal-btn')) === 'Start my 14-day free trial →'
-    && (await text(v.p, '#upg-modal-billing')) === "Free for 14 days, then $19.99/month. Cancel before then and you won't be charged.", await text(v.p, '#upg-modal-billing'));
+  check('a free account that never subscribed: "Start my 7-day free trial", then $19.99/month', (await text(v.p, '#upg-modal-btn')) === 'Start my 7-day free trial →'
+    && (await text(v.p, '#upg-modal-billing')) === "Free for 7 days, then $19.99/month. Cancel before then and you won't be charged.", await text(v.p, '#upg-modal-billing'));
   await v.p.click('#upg-billing .upg-int[data-int="year"]');
   check('yearly in the upgrade window: $199/year and $499/year', (await text(v.p, '#upg-option-plus .upg-price')) === '$199/year' && (await text(v.p, '#upg-option-max .upg-price')) === '$499/year'
     && /then \$199\/year/.test(await text(v.p, '#upg-modal-billing')));
@@ -204,8 +204,8 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   await v.p.waitForFunction(() => typeof showProModal === 'function' && window.QFCPlans);
   await v.p.evaluate(() => showProModal());
   await v.p.waitForFunction(() => /Pro Plus free/.test(document.getElementById('pro-modal-more').textContent));
-  check('the Pro window: $9.99/month or $99/year, and "Or try Pro Plus free for 14 days"', /\$9\.99\/month or \$99\/year/.test(await text(v.p, '#pro-modal-price'))
-    && (await text(v.p, '#pro-modal-more')) === 'Or try Pro Plus free for 14 days →', await text(v.p, '#pro-modal-price'));
+  check('the Pro window: $9.99/month or $99/year, and "Or try Pro Plus free for 7 days"', /\$9\.99\/month or \$99\/year/.test(await text(v.p, '#pro-modal-price'))
+    && (await text(v.p, '#pro-modal-more')) === 'Or try Pro Plus free for 7 days →', await text(v.p, '#pro-modal-price'));
   await v.p.evaluate(() => closeProModal());
 
   console.log('\n=== Grayed-out previews ===');
@@ -215,8 +215,8 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
     (await v.p.textContent('#quote-log-gate .qf-lp-badge')).trim() === 'Pro' && (await text(v.p, '#quote-log-gate .qf-lp-title')) === 'Your quote log'
     && (await v.p.$$eval('#quote-log-gate .ql-sample tbody tr', (r) => r.length)) === 4
     && (await v.p.getAttribute('#quote-log-gate .qf-lp-sample', 'aria-hidden')) === 'true');
-  check('…with "Get Pro" and "Try Pro Plus free for 14 days"', (await text(v.p, '#quote-log-gate .qf-lp-main')) === 'Get Pro'
-    && (await text(v.p, '#quote-log-gate .qf-lp-trial')) === 'Try Pro Plus free for 14 days');
+  check('…with "Get Pro" and "Try Pro Plus free for 7 days"', (await text(v.p, '#quote-log-gate .qf-lp-main')) === 'Get Pro'
+    && (await text(v.p, '#quote-log-gate .qf-lp-trial')) === 'Try Pro Plus free for 7 days');
   await v.p.locator('#quote-log-card').screenshot({ path: path.join(SHOTS, 'preview-quote-log.png') });
   await v.p.click('#quote-log-gate .qf-lp-main');
   check('"Get Pro" opens the Pro window', await v.p.isVisible('#pro-modal-overlay'));

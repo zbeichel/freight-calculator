@@ -226,8 +226,8 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   // The free trial: Pro Plus and Pro Max, first subscription only
   const trialDays = () => sessionParams().get('subscription_data[trial_period_days]');
   for (const [plan, interval, rowNow, days, label] of [
-    ['plus', 'month', null, '14', 'first subscription, Pro Plus: 14-day free trial'],
-    ['max', 'year', { is_active: false }, '14', 'first subscription, Pro Max yearly: 14-day free trial'],
+    ['plus', 'month', null, '7', 'first subscription, Pro Plus: 7-day free trial'],
+    ['max', 'year', { is_active: false }, '7', 'first subscription, Pro Max yearly: 7-day free trial'],
     ['pro', 'month', null, null, 'Pro: no trial'],
     ['api', 'month', null, null, 'API: no trial'],
     ['plus', 'month', { is_active: false, stripe_customer_id: 'cus_old' }, null, 'had a subscription before: no second trial'],
@@ -235,7 +235,7 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   ]) {
     calls = []; checkoutRow = rowNow;
     res = await startYearly(plan, interval);
-    ok(res.statusCode === 200 && trialDays() === days && JSON.parse(res.body).trialDays === (days ? 14 : 0)
+    ok(res.statusCode === 200 && trialDays() === days && JSON.parse(res.body).trialDays === (days ? 7 : 0)
        && (days ? sessionParams().get('payment_method_collection') === 'always'
             && sessionParams().get('subscription_data[trial_settings][end_behavior][missing_payment_method]') === 'cancel' : true),
        label);
@@ -601,8 +601,8 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   // ═══ plan-options.js ══════════════════════════════════════════════════════
   const options = require(fn('plan-options.js'));
   let po = JSON.parse((await options.handler({ httpMethod: 'GET' })).body);
-  ok(JSON.stringify(po.yearly) === '["pro","plus","max"]' && po.trial.days === 14 && JSON.stringify(po.trial.plans) === '["plus","max"]'
-     && po.prices.plus.year === '$199' && po.prices.api.year === undefined, 'plan options: yearly Pro, Pro Plus, Pro Max; 14-day trial of Pro Plus and Pro Max');
+  ok(JSON.stringify(po.yearly) === '["pro","plus","max"]' && po.trial.days === 7 && JSON.stringify(po.trial.plans) === '["plus","max"]'
+     && po.prices.plus.year === '$199' && po.prices.api.year === undefined, 'plan options: yearly Pro, Pro Plus, Pro Max; 7-day trial of Pro Plus and Pro Max');
   delete process.env.STRIPE_PRICE_ID_PRO_YEARLY; delete process.env.STRIPE_PRICE_ID_PLUS_YEARLY; delete process.env.STRIPE_PRICE_ID_MAX_YEARLY;
   po = JSON.parse((await options.handler({ httpMethod: 'GET' })).body);
   ok(po.yearly.length === 0, 'plan options: no yearly prices set → no yearly billing offered');
