@@ -3,7 +3,6 @@
 <head>
 <!-- Google AdSense — site ownership verification -->
 <meta name="google-adsense-account" content="ca-pub-5621259704181475">
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5621259704181475" crossorigin="anonymous"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bulk Load Calculator — QuickFreightCalc Pro</title>
@@ -12,483 +11,279 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/site.css">
 <script src="/site.js"></script>
+<link rel="stylesheet" href="/tools.css">
 <style>
-/* Colors (dark and light), the navigation and the footer come from site.css and site.js. */
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{min-height:100%}
-body{background:var(--bg);background-image:var(--glow);background-repeat:no-repeat;color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased}
+/* Bulk load: the diesel price, the fuel surcharge options and the offer check. The layout,
+   cards, fields and quote panel come from tools.css; colors from site.css. */
 
-
-
-
-/* ── Page layout ── */
-.page{max-width:760px;margin:0 auto;padding:40px 20px 24px}
-.page-title{font-size:clamp(28px,4vw,40px);font-weight:700;letter-spacing:-.03em;line-height:1.1;margin:14px 0 8px;text-wrap:balance}
-.page-sub{font-size:14.5px;color:var(--text2);line-height:1.6;margin:0 0 24px}
-
-/* ── Card / section ── */
-.section{
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:18px;
-  padding:20px;
-  margin-bottom:14px;
-}
-.section-h{display:flex;align-items:center;gap:12px;margin:0 0 16px}
-.step-num{
-  width:26px;height:26px;border-radius:50%;
-  background:var(--accentbg);color:var(--accent);
-  font-size:13px;font-weight:700;
-  display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;
-}
-.section-title{font-size:15px;font-weight:700;letter-spacing:-.01em;margin:0}
-.section-sub{font-size:12px;color:var(--text3);margin-top:1px;line-height:1.3}
-.section-h-right{margin-left:auto}
-
-/* ── Diesel pill ── */
-.diesel-pill{
-  display:inline-flex;align-items:center;gap:6px;
-  background:var(--accentbg);border:1px solid var(--accent);
-  border-radius:999px;padding:4px 10px;
-  font-size:11px;color:var(--accent);font-weight:600;
-}
-.diesel-pill .dot{
-  width:6px;height:6px;background:var(--green);border-radius:50%;
-  animation:pulse 2s ease-in-out infinite;
-}
+/* ── Diesel price ── */
+.diesel-pill{display:inline-flex;align-items:center;gap:6px;background:var(--accentbg);border:1px solid rgba(245,165,36,.35);border-radius:999px;
+  padding:4px 10px;font-size:11px;color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums}
+.diesel-pill .dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@media (prefers-reduced-motion:reduce){.diesel-pill .dot{animation:none}}
 
-/* ── Form fields ── */
-.field{margin-bottom:12px}
-.field label{
-  display:block;
-  font-size:11px;font-weight:600;color:var(--text2);
-  text-transform:uppercase;letter-spacing:.04em;
-  margin-bottom:5px;
-}
-.field input,.field select{
-  width:100%;
-  background:var(--card2);
-  border:1px solid var(--border2);
-  border-radius:8px;
-  color:var(--text);
-  font-family:inherit;font-size:14px;
-  padding:10px 12px;
-  outline:none;
-  transition:border-color .15s;
-  font-variant-numeric:tabular-nums;
-}
-.field input:focus,.field select:focus{border-color:var(--accent)}
-.field-help{font-size:11px;color:var(--text3);margin-top:4px}
-.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.field-row.three{grid-template-columns:1fr 1fr 1fr}
-@media(max-width:600px){.field-row,.field-row.three{grid-template-columns:1fr}}
+/* ── Miles ── */
+.miles-source-note{font-size:11px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text3)}
+.miles-status-row{display:none;align-items:center;gap:8px;font-size:11px;color:var(--text2)}
+.miles-status-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;border:1px solid var(--border2);background:var(--card2)}
 
-/* ── Validation state (port from index.html) ── */
-.field.invalid input{
-  border-color:var(--red);
-  box-shadow:0 0 0 3px rgba(248,113,113,.08);
-}
-.field-error{
-  display:none;
-  margin-top:6px;
-  font-size:11px;
-  font-weight:500;
-  color:var(--red);
-  line-height:1.4;
-}
-.field.invalid .field-error{display:block}
-/* Which place a location box was matched to (e.g. "📍 Vernon County, WI") */
-.field-note{font-size:11px;color:var(--text3);margin-top:4px;line-height:1.4}
-.field-note:empty,.field.invalid .field-note{display:none}
+/* ── Fuel surcharge ── */
+.fsc-method-block{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.fsc-method-block .field input{background:var(--card)}
+.fsc-explainer{font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5}
+.fsc-pct-mode{font-size:10px;font-weight:700;color:var(--green);letter-spacing:.06em;margin-left:4px}
 
-/* ── Miles status row — shown below loaded-miles while we look up routes ── */
-.miles-status-row{
-  display:none;
-  align-items:center;
-  gap:8px;
-  margin-top:6px;
-  font-size:11px;
-  color:var(--text2);
-}
-.miles-status-pill{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:3px 10px;
-  border-radius:999px;
-  border:1px solid var(--border2);
-  background:var(--card2);
-}
-.miles-source-note{font-size:11px;color:var(--text3)}
+/* ── Your target ── */
+.mile-mode{margin-top:4px}
+.mile-mode .seg-ctrl{margin-bottom:8px}
 
-/* ── FSC method tabs ── */
-.fsc-tabs{
-  display:flex;
-  background:var(--card2);
-  border:1px solid var(--border);
-  border-radius:8px;
-  padding:3px;
-  margin-bottom:12px;
-}
-.fsc-tab{
-  flex:1;
-  background:transparent;border:none;
-  color:var(--text2);
-  font-family:inherit;font-size:11px;font-weight:600;
-  padding:7px 6px;border-radius:5px;
-  cursor:pointer;
-  text-transform:uppercase;letter-spacing:.04em;
-  transition:all .15s;
-}
-.fsc-tab.on{background:var(--card);color:var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.2)}
-.fsc-method-block{
-  background:var(--card2);
-  border:1px solid var(--border);
-  border-radius:10px;
-  padding:14px;
-}
-.fsc-explainer{
-  font-size:11px;color:var(--text3);
-  font-style:italic;margin-bottom:10px;line-height:1.4;
-}
-
-/* ── Mile-mode toggle ── */
-.mile-mode{
-  margin-top:8px;
-  display:flex;align-items:center;gap:10px;
-  font-size:12px;color:var(--text2);
-  flex-wrap:wrap;
-}
-.mile-mode-pills{
-  display:inline-flex;
-  background:var(--card2);
-  border:1px solid var(--border2);
-  border-radius:7px;
-  padding:2px;
-}
-.mile-mode-pill{
-  background:transparent;border:none;
-  color:var(--text3);
-  font-family:inherit;font-size:11px;font-weight:600;
-  padding:5px 10px;border-radius:5px;
-  cursor:pointer;
-  transition:all .15s;
-}
-.mile-mode-pill.on{background:var(--accent-fill);color:#000}
-
-/* ── Required-rate hero ── */
-.required-rate-box{
-  background:linear-gradient(135deg,var(--accentbg),transparent);
-  border:1px solid var(--accent);
-  border-radius:var(--radius);
-  padding:18px 20px;
-  margin-top:14px;
-  text-align:center;
-}
-.required-rate-label{
-  font-size:11px;color:var(--text2);
-  text-transform:uppercase;letter-spacing:.06em;
-  font-weight:600;margin-bottom:4px;
-}
-.required-rate-val{
-  font-size:38px;font-weight:700;
-  letter-spacing:-.03em;color:var(--accent);
-  font-variant-numeric:tabular-nums;line-height:1.1;
-}
-.required-rate-sub{font-size:12px;color:var(--text3);margin-top:6px}
-
-/* ── Comparison hero (Step 2) ── */
-.comp-result{
-  border-radius:var(--radius);
-  padding:18px 20px;
-  margin-top:14px;
-  border:1px solid var(--border);
-}
-.comp-result.good{background:var(--greenbg);border-color:var(--green)}
-.comp-result.bad{background:var(--redbg);border-color:var(--red)}
-.comp-headline{
-  display:flex;align-items:center;gap:10px;
-  font-size:16px;font-weight:700;
-  margin-bottom:8px;
-}
+/* ── The answer ── */
+.market-strip{display:flex;align-items:flex-start;gap:10px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;
+  margin-top:16px;font-size:12px;line-height:1.5;color:var(--text2);text-align:left}
+.market-strip svg{flex-shrink:0;margin-top:2px;color:var(--blue)}
+.compare-empty{font-size:12px;line-height:1.5;color:var(--text3);padding:12px;border:1px dashed var(--border2);border-radius:10px;text-align:center}
+.comp-result{border-radius:var(--radius);padding:14px 16px;border:1px solid var(--border)}
+.comp-result.good{background:var(--greenbg);border-color:rgba(52,211,153,.45)}
+.comp-result.bad{background:var(--redbg);border-color:rgba(248,113,113,.45)}
+html.light .comp-result.good{border-color:rgba(21,128,61,.35)}
+html.light .comp-result.bad{border-color:rgba(185,28,28,.3)}
+.comp-headline{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;margin-bottom:6px}
 .comp-headline.good{color:var(--green)}
 .comp-headline.bad{color:var(--red)}
-.comp-detail{font-size:12px;color:var(--text2);line-height:1.5}
-
-/* ── Result rows table ── */
-.result-rows{
-  display:flex;flex-direction:column;gap:1px;
-  background:var(--border);
-  border-radius:var(--radius);
-  overflow:hidden;
-  border:1px solid var(--border);
-  margin-top:14px;
-}
-.result-row{
-  background:var(--card2);
-  display:flex;justify-content:space-between;align-items:center;
-  padding:11px 14px;font-size:13px;
-}
-.result-row.head{
-  background:var(--card);
-  font-weight:600;color:var(--text2);
-  font-size:11px;
-  text-transform:uppercase;letter-spacing:.06em;
-}
-.result-row.total{background:var(--card);font-weight:700;font-size:14px}
-.result-row .label{color:var(--text2)}
-.result-row .val{font-variant-numeric:tabular-nums;font-weight:600}
-
-/* ── Empty state ── */
-.empty-state{
-  text-align:center;padding:30px 20px;
-  color:var(--text3);font-size:13px;
-  background:var(--card2);
-  border:1px dashed var(--border2);
-  border-radius:var(--radius);
-  margin-top:14px;
-}
-
-/* ── Market reference strip ── */
-.market-strip{
-  background:var(--card2);
-  border:1px solid var(--border);
-  border-radius:10px;
-  padding:10px 14px;
-  margin-top:12px;
-  font-size:12px;color:var(--text2);
-  display:flex;align-items:center;gap:10px;
-}
-
-.page{position:relative;z-index:1}
+.comp-detail{font-size:12px;color:var(--text2);line-height:1.55}
+.compare-rows{padding:10px 0 0}
+.rrow.head{padding-top:14px;border-bottom:none}
+.rrow.head .rrow-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)}
+.rrow.total .rrow-label{color:var(--text);font-weight:600}
+.rrow.total .rrow-val{color:var(--accent);font-size:16px}
 </style>
 </head>
 <body>
 
-<div class="page">
+<section class="hero">
+  <span class="qf-pill">Bulk loads · Pro</span>
+  <h1>Price bulk loads <em>per cwt</em></h1>
+  <p class="hero-sub">Set the rate per mile you need to see the lowest rate per cwt that covers it, then check any offer against it.</p>
+</section>
 
-  <span class="qf-pill">Pro</span>
-  <h1 class="page-title">Bulk load calculator</h1>
-  <p class="page-sub">
-    Per-cwt rate calculator for bulk haulers. Set your target, then compare any offer against it.
-  </p>
+<main class="main">
 
-  <!-- ── Trip details ── -->
-  <div class="section">
-    <div class="section-h">
-      <div>
-        <div class="section-title">Trip details</div>
-        <div class="section-sub">Origin, destination, weight</div>
-      </div>
-      <div class="section-h-right">
+  <!-- LEFT: the load, your target and the offer -->
+  <div class="col">
+
+    <!-- ── Trip details ── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Trip details</span>
         <span class="diesel-pill" id="diesel-pill">
           <span class="dot"></span>
           <span id="diesel-text">EIA Diesel: $3.85/gal</span>
         </span>
       </div>
-    </div>
-
-    <div class="field-row">
-      <div class="field">
-        <label>Origin</label>
-        <input type="text" id="origin" placeholder="City, ST or ZIP"
-          oninput="onLocationInput(this)"
-          onblur="validateLocation(this)" />
-        <div class="field-help">e.g. Hastings, FL or 32145</div>
-        <div class="field-error"></div>
-      </div>
-      <div class="field">
-        <label>Destination</label>
-        <input type="text" id="dest" placeholder="City, ST or ZIP"
-          oninput="onLocationInput(this)"
-          onblur="validateLocation(this)" />
-        <div class="field-error"></div>
-      </div>
-    </div>
-
-    <div class="field-row three">
-      <div class="field">
-        <label>Loaded miles <span id="miles-source" class="miles-source-note"></span></label>
-        <input type="number" id="loaded-miles" placeholder="950"
-          oninput="onMilesManualEdit()" />
-        <div class="miles-status-row" id="miles-status-row">
-          <span class="miles-status-pill">
-            <span id="miles-status-icon">⏳</span>
-            <span id="miles-status-text">Calculating…</span>
-          </span>
-        </div>
-      </div>
-      <div class="field">
-        <label>Deadhead miles</label>
-        <input type="number" id="deadhead-miles" placeholder="0" oninput="calc()" />
-        <div class="field-help">Empty miles to/from load</div>
-      </div>
-      <div class="field">
-        <label>Load weight (cwt)</label>
-        <input type="number" id="cwt" value="500" oninput="calc()" />
-        <div class="field-help">500 cwt = 50,000 lbs</div>
-      </div>
-    </div>
-
-    <div style="margin-top:8px">
-      <label style="display:block;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">Fuel surcharge method</label>
-
-      <div class="fsc-tabs">
-        <button class="fsc-tab on" onclick="setFsc('permile')" id="fsc-permile">Per-mile (most common)</button>
-        <button class="fsc-tab" onclick="setFsc('percent')" id="fsc-percent">% of base rate</button>
-      </div>
-
-      <div class="fsc-method-block" id="fsc-permile-block">
-        <div class="fsc-explainer">
-          FSC per mile = (current diesel − baseline) ÷ MPG. Multiplied by loaded miles to get total surcharge.
-        </div>
+      <div class="card-body">
         <div class="field-row">
-          <div class="field" style="margin-bottom:0">
-            <label>Baseline diesel ($/gal)</label>
-            <input type="number" step="0.01" value="1.25" oninput="calc()" id="baseline" />
-            <div class="field-help">Industry standard: $1.25</div>
+          <div class="field">
+            <label for="origin">Origin</label>
+            <input type="text" id="origin" placeholder="e.g. Hastings, FL or 32145"
+              oninput="onLocationInput(this)"
+              onblur="validateLocation(this)" />
+            <div class="field-error"></div>
           </div>
-          <div class="field" style="margin-bottom:0">
-            <label>MPG assumption</label>
-            <input type="number" step="0.1" value="6.0" oninput="calc()" id="mpg" />
-            <div class="field-help">Loaded truck avg: 6.0</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="fsc-method-block" id="fsc-percent-block" style="display:none">
-        <div class="fsc-explainer">
-          For every $0.05 diesel rises above the base, FSC% goes up by 1%. The driver's surcharge is then that percentage of the base load rate.
-        </div>
-        <div class="field-row">
-          <div class="field" style="margin-bottom:0">
-            <label>Base diesel ($/gal)</label>
-            <input type="number" step="0.01" value="1.30" oninput="calc()" id="fsc-pct-base" />
-            <div class="field-help">Industry common: $1.20–$1.30</div>
-          </div>
-          <div class="field" style="margin-bottom:0">
-            <label>FSC % <span id="fsc-pct-mode" style="font-size:9px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-left:4px">Auto</span></label>
-            <input type="number" step="1" value="" placeholder="auto" oninput="onFscPctEdit()" id="fsc-pct" />
-            <div class="field-help" id="fsc-pct-help">Calculated from current diesel</div>
+          <div class="field">
+            <label for="dest">Destination</label>
+            <input type="text" id="dest" placeholder="e.g. Charlotte, NC or 28202"
+              oninput="onLocationInput(this)"
+              onblur="validateLocation(this)" />
+            <div class="field-error"></div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- ── Step 1 — Required rate ── -->
-  <div class="section">
-    <div class="section-h">
-      <div class="step-num">1</div>
-      <div>
-        <div class="section-title">What rate do I need?</div>
-        <div class="section-sub">Enter your target $/mile to find the minimum cwt rate</div>
-      </div>
-    </div>
+        <div class="field-row three">
+          <div class="field">
+            <label for="loaded-miles">Loaded miles <span id="miles-source" class="miles-source-note"></span></label>
+            <input type="number" id="loaded-miles" placeholder="950"
+              oninput="onMilesManualEdit()" />
+            <div class="miles-status-row" id="miles-status-row">
+              <span class="miles-status-pill">
+                <span id="miles-status-icon">⏳</span>
+                <span id="miles-status-text">Calculating…</span>
+              </span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="deadhead-miles">Deadhead miles</label>
+            <input type="number" id="deadhead-miles" placeholder="0" oninput="calc()" />
+            <div class="field-help">Empty miles to and from the load</div>
+          </div>
+          <div class="field">
+            <label for="cwt">Load weight (cwt)</label>
+            <input type="number" id="cwt" value="500" oninput="calc()" />
+            <div class="field-help">500 cwt = 50,000 lbs</div>
+          </div>
+        </div>
 
-    <div class="field" style="margin-bottom:0">
-      <label>Target $ per mile</label>
-      <input type="number" step="0.01" id="target-rpm" value="2.50" oninput="calc()" />
-      <div class="mile-mode">
-        <span>Apply to:</span>
-        <div class="mile-mode-pills">
-          <button class="mile-mode-pill on" onclick="setMileMode('loaded')" id="mm-loaded">Loaded miles only</button>
-          <button class="mile-mode-pill" onclick="setMileMode('all')" id="mm-all">All miles (incl. deadhead)</button>
+        <div class="field" style="margin-bottom:0">
+          <span class="field-label">Fuel surcharge method</span>
+          <div class="seg-ctrl fsc-tabs" style="margin-bottom:10px">
+            <button type="button" class="seg-btn fsc-tab on" onclick="setFsc('permile')" id="fsc-permile">Per mile (most common)</button>
+            <button type="button" class="seg-btn fsc-tab" onclick="setFsc('percent')" id="fsc-percent">% of base rate</button>
+          </div>
+
+          <div class="fsc-method-block" id="fsc-permile-block">
+            <div class="fsc-explainer">
+              FSC per mile = (current diesel − baseline) ÷ MPG, times the loaded miles for the total surcharge.
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="baseline">Baseline diesel ($/gal)</label>
+                <input type="number" step="0.01" value="1.25" oninput="calc()" id="baseline" />
+                <div class="field-help">Industry standard: $1.25</div>
+              </div>
+              <div class="field">
+                <label for="mpg">MPG assumption</label>
+                <input type="number" step="0.1" value="6.0" oninput="calc()" id="mpg" />
+                <div class="field-help">Loaded truck average: 6.0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="fsc-method-block" id="fsc-percent-block" style="display:none">
+            <div class="fsc-explainer">
+              For every $0.05 diesel rises above the base, the FSC goes up 1%. The surcharge is then that percentage of the base load rate.
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="fsc-pct-base">Base diesel ($/gal)</label>
+                <input type="number" step="0.01" value="1.30" oninput="calc()" id="fsc-pct-base" />
+                <div class="field-help">Common: $1.20–$1.30</div>
+              </div>
+              <div class="field">
+                <label for="fsc-pct">FSC % <span id="fsc-pct-mode" class="fsc-pct-mode">Auto</span></label>
+                <input type="number" step="1" value="" placeholder="auto" oninput="onFscPctEdit()" id="fsc-pct" />
+                <div class="field-help" id="fsc-pct-help">Calculated from current diesel</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="field-help" id="mile-mode-help" style="margin-top:8px">
-        Auto-adjusts based on whether you have deadhead miles.
+    </div>
+
+    <!-- ── Step 1 — your target ── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">1 · Your target</span>
+        <span class="card-meta">The lowest rate per cwt that pays it</span>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label for="target-rpm">Target $ per mile</label>
+          <input type="number" step="0.01" id="target-rpm" value="2.50" oninput="calc()" />
+        </div>
+        <div class="field mile-mode">
+          <span class="field-label">Apply it to</span>
+          <div class="seg-ctrl mile-mode-pills">
+            <button type="button" class="seg-btn mile-mode-pill on" onclick="setMileMode('loaded')" id="mm-loaded">Loaded miles only</button>
+            <button type="button" class="seg-btn mile-mode-pill" onclick="setMileMode('all')" id="mm-all">All miles (incl. deadhead)</button>
+          </div>
+          <div class="field-help" id="mile-mode-help">
+            Auto-adjusts based on whether you have deadhead miles.
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="required-rate-box">
-      <div class="required-rate-label">You need at least</div>
-      <div class="required-rate-val" id="required-rate">$0.00/cwt</div>
-      <div class="required-rate-sub" id="required-rate-sub">Enter loaded miles to calculate</div>
-    </div>
-
-    <div class="market-strip" id="market-strip" style="display:none">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 14l4-4 4 4 5-5"/></svg>
-      <span id="market-text"></span>
-    </div>
-  </div>
-
-  <!-- ── Step 2 — Compare offer ── -->
-  <div class="section">
-    <div class="section-h">
-      <div class="step-num">2</div>
-      <div>
-        <div class="section-title">Compare to an offer</div>
-        <div class="section-sub">Enter what the customer is offering to see how it stacks up</div>
+    <!-- ── Step 2 — the offer ── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">2 · The offer</span>
+        <span class="card-meta">What the customer is offering</span>
       </div>
-    </div>
+      <div class="card-body">
+        <div class="field">
+          <label for="offered-rate">Offered rate per cwt</label>
+          <input type="number" step="0.01" id="offered-rate" placeholder="e.g. 1.85" oninput="calc()" />
+          <div class="field-help">The base rate per cwt the customer is offering you</div>
+        </div>
 
-    <div class="field" style="margin-bottom:0">
-      <label>Offered rate per cwt</label>
-      <input type="number" step="0.01" id="offered-rate" placeholder="e.g. $1.85" oninput="calc()" />
-      <div class="field-help">The base rate per cwt the customer is offering you</div>
-    </div>
-
-    <div class="empty-state" id="empty-state">
-      Enter an offered rate above to see how it compares to your target.
-    </div>
-
-    <div id="compare-output" style="display:none">
-      <div class="comp-result" id="comp-result">
-        <div class="comp-headline" id="comp-headline">
-          <span id="comp-icon">▲</span>
-          <span id="comp-headline-text"></span>
-        </div>
-        <div class="comp-detail" id="comp-detail"></div>
-      </div>
-
-      <div class="result-rows">
-        <div class="result-row head"><span>What this load actually pays</span></div>
-        <div class="result-row">
-          <span class="label">Base × cwt</span>
-          <span class="val" id="r-base">—</span>
-        </div>
-        <div class="result-row">
-          <span class="label" id="r-fsc-label">Fuel surcharge</span>
-          <span class="val" id="r-fsc">—</span>
-        </div>
-        <div class="result-row total">
-          <span class="label">Total revenue</span>
-          <span class="val" id="r-total">—</span>
-        </div>
-        <div class="result-row head"><span>Per-mile economics</span></div>
-        <div class="result-row">
-          <span class="label">$/mi loaded</span>
-          <span class="val" id="r-rpm-loaded">—</span>
-        </div>
-        <div class="result-row" id="r-rpm-total-row" style="display:none">
-          <span class="label" id="r-rpm-total-label">$/mi all miles</span>
-          <span class="val" id="r-rpm-total">—</span>
-        </div>
-      </div>
-
-      <!-- Customer -->
-      <div style="margin-top:14px">
-          <label for="bulk-customer" style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px">Customer <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(optional · appears on PDF quote)</span></label>
-          <input type="text" id="bulk-customer" maxlength="120" autocomplete="off" placeholder="e.g. Keystone Produce"
-            style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;padding:8px 12px;outline:none"
-            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'" />
+        <!-- Customer -->
+        <div class="field">
+          <label for="bulk-customer">Customer <span class="opt">(optional · appears on PDF quote)</span></label>
+          <input type="text" id="bulk-customer" maxlength="120" autocomplete="off" placeholder="e.g. Keystone Produce" />
           <div id="bulk-customer-details" hidden></div>
         </div>
+      </div>
+    </div>
 
-      <!-- Download PDF — enabled once an offered rate is entered -->
-      <button id="btn-download-bulk-pdf" onclick="generateBulkPDF()" disabled
-        style="width:100%;margin-top:14px;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;padding:11px;border-radius:8px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:not-allowed;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;opacity:.45"
-        onmouseover="if(!this.disabled){this.style.background='var(--accent)';this.style.color='#000'}"
-        onmouseout="if(!this.disabled){this.style.background='var(--accentbg)';this.style.color='var(--accent)'}">
-        📄 Download Bulk Load PDF
-      </button>
+  </div>
+
+  <!-- RIGHT: the answer -->
+  <div class="result-col">
+    <div class="result-card">
+      <div class="result-inner">
+
+        <div class="result-hero">
+          <div class="result-hero-label">You need at least</div>
+          <div class="result-hero-val" id="required-rate">$0.00/cwt</div>
+          <div class="result-hero-rpm" id="required-rate-sub">Enter loaded miles to calculate</div>
+          <div class="market-strip" id="market-strip" style="display:none">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3v18h18M7 14l4-4 4 4 5-5"/></svg>
+            <span id="market-text"></span>
+          </div>
+        </div>
+
+        <div class="result-sec">
+          <div class="result-sec-title">Compared with the offer</div>
+          <div class="compare-empty" id="empty-state">
+            Enter the offered rate to see how it compares with your target.
+          </div>
+
+          <div id="compare-output" style="display:none">
+            <div class="comp-result" id="comp-result">
+              <div class="comp-headline" id="comp-headline">
+                <span id="comp-icon">▲</span>
+                <span id="comp-headline-text"></span>
+              </div>
+              <div class="comp-detail" id="comp-detail"></div>
+            </div>
+
+            <div class="compare-rows">
+              <div class="rrow head"><span class="rrow-label">What this load pays</span></div>
+              <div class="rrow">
+                <span class="rrow-label">Base × cwt</span>
+                <span class="rrow-val" id="r-base">—</span>
+              </div>
+              <div class="rrow">
+                <span class="rrow-label" id="r-fsc-label">Fuel surcharge</span>
+                <span class="rrow-val" id="r-fsc">—</span>
+              </div>
+              <div class="rrow total">
+                <span class="rrow-label">Total revenue</span>
+                <span class="rrow-val" id="r-total">—</span>
+              </div>
+              <div class="rrow head"><span class="rrow-label">Per mile</span></div>
+              <div class="rrow">
+                <span class="rrow-label">$/mi loaded</span>
+                <span class="rrow-val" id="r-rpm-loaded">—</span>
+              </div>
+              <div class="rrow" id="r-rpm-total-row" style="display:none">
+                <span class="rrow-label" id="r-rpm-total-label">$/mi all miles</span>
+                <span class="rrow-val" id="r-rpm-total">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download PDF — enabled once an offered rate is entered -->
+        <div class="result-actions">
+          <button type="button" class="act-btn" id="btn-download-bulk-pdf" onclick="generateBulkPDF()" disabled>📄 Download bulk load PDF</button>
+        </div>
+
+      </div>
     </div>
   </div>
 
-</div>
+</main>
 
 <!-- ── Footer (matches lanes / multistop / profile pattern) ── -->
 <footer data-qf-footer>
@@ -1292,8 +1087,6 @@ function setPdfButtonEnabled(enabled){
   const btn = document.getElementById('btn-download-bulk-pdf');
   if(!btn) return;
   btn.disabled = !enabled;
-  btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
-  btn.style.opacity = enabled ? '1' : '.45';
 }
 
 // ── Customer: "Prepared for" on the PDF. With the customer list (Pro Plus

@@ -51,6 +51,7 @@ async function setup(browser, base, { profile = {}, signedIn = false, row = null
     const url = req.url();
     const json = (b, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(b) });
     if (url.startsWith('blob:') || (url.startsWith(base) && !url.includes('/.netlify/functions/'))) return route.continue();
+    if (url.includes('/rest/v1/rpc/my_account')) return json({ row: db.row || null, team: null });
     if (url.includes('/rest/v1/pro_users')) {
       if (req.method() === 'PATCH') { db.patches.push(JSON.parse(req.postData())); return route.fulfill({ status: 204, body: '' }); }
       return json(db.row ? [db.row] : []);

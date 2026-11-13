@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Google AdSense — site ownership verification + ad library loader -->
+<!-- Google AdSense — site ownership verification. The ad library itself loads only when there is an ad to show (see activateAds below). -->
 <meta name="google-adsense-account" content="ca-pub-5621259704181475">
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5621259704181475" crossorigin="anonymous"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -1027,6 +1026,7 @@ td.dim{color:var(--text3)}
 .wl-pill.lost{border-style:solid;background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.45);color:var(--red)}
 .wl-pill.locked{border-style:solid}
 .wl-cust{display:block;font-size:10px;color:var(--text3);margin-top:2px;max-width:170px;overflow:hidden;text-overflow:ellipsis}
+.ql-by{display:block;font-size:10px;color:var(--text3);margin-top:2px;max-width:170px;overflow:hidden;text-overflow:ellipsis;font-style:italic}
 .log-more{padding:10px 20px;border-top:1px solid var(--border);text-align:center}
 .wl-panel{border-bottom:1px solid var(--border)}
 .wl-panel:empty{display:none}
@@ -1538,13 +1538,31 @@ html.light .hos-day-header{background:var(--card2)}
 .weather-loading{padding:20px;text-align:center;font-size:12px;color:var(--text3)}
 @media(max-width:480px){.weather-locations{grid-template-columns:1fr}}
 </style>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18077158957"></script>
+<!-- Google tag (gtag.js) for Google Ads. The gtag() queue is set up right away,
+     so nothing is lost, but the ~165 KB library loads after the page is up: on the
+     visitor's first tap, click, key or scroll, or a few seconds after load, so it
+     doesn't compete with the calculator while it starts. Visits from an ad click
+     or back from checkout load it as soon as the page has loaded. -->
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
   gtag('config', 'AW-18077158957');
+  (function(){
+    var loaded = false, evs = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+    function load(){
+      if (loaded) return;
+      loaded = true;
+      evs.forEach(function(e){ window.removeEventListener(e, load, true); });
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://www.googletagmanager.com/gtag/js?id=AW-18077158957';
+      document.head.appendChild(s);
+    }
+    var soon = /[?&](gclid|gbraid|wbraid|gad_source|checkout)=/.test(location.search);
+    evs.forEach(function(e){ window.addEventListener(e, load, { capture: true, passive: true }); });
+    window.addEventListener('load', function(){ setTimeout(load, soon ? 0 : 3500); });
+  })();
 </script>
 </head>
 <body>
@@ -1848,7 +1866,7 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="ftl-only" id="ftl-fields">
           <div class="grid2">
             <div class="field">
-              <label>Trailer Type</label>
+              <label for="trailer">Trailer Type</label>
               <select id="trailer" onchange="calc()">
                 <option value="van">Dry Van</option>
                 <option value="reefer">Reefer</option>
@@ -1856,7 +1874,7 @@ html.light .hos-day-header{background:var(--card2)}
               </select>
             </div>
             <div class="field">
-              <label>Commodity</label>
+              <label for="commodity">Commodity</label>
               <select id="commodity" onchange="calc()">
                 <option value="standard">Standard General Freight</option>
                 <option value="food">Food / Perishable</option>
@@ -2219,8 +2237,11 @@ html.light .hos-day-header{background:var(--card2)}
               <input type="text" id="rate-date" placeholder="Loading rates..." style="background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-family:'Space Grotesk',sans-serif;font-size:10px;padding:3px 8px;outline:none;width:min(160px,100%)" readonly />
             </div>
           </div>
-          <!-- Regional / National toggle -->
-          <div style="display:flex;gap:6px;margin-bottom:10px">
+          <!-- My rates (your rate sheet) / Regional / National toggle -->
+          <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+            <button id="btn-rate-sheet" onclick="setRateMode('sheet')" style="display:none;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--card);color:var(--text3);cursor:pointer;transition:all .15s" title="Your own base rates, from your Profile page">
+              ⭐ My rates
+            </button>
             <button id="btn-rate-regional" onclick="setRateMode('regional')"
               style="font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:pointer;transition:all .15s">
               📍 Regional
@@ -2675,7 +2696,7 @@ function toggleSeoBlock(){
 
 <footer data-qf-footer>
   <p>Rates are regional market averages · Diesel from <a href="https://www.eia.gov/petroleum/gasdiesel/" target="_blank" rel="noopener noreferrer">EIA Weekly</a> · LTL FSC calibrated to <a href="https://www.odfl.com/us/en/resources/fuel-surcharge.html" target="_blank" rel="noopener noreferrer">ODFL published rates</a> · For informational use — always verify before quoting</p>
-  <p style="margin-top:10px;font-size:11px;color:var(--text3)">Questions or problems? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent);text-decoration:none">info@quickfreightcalc.com</a></p>
+  <p style="margin-top:10px;font-size:11px;color:var(--text3)">Questions or problems? Email <a href="mailto:info@quickfreightcalc.com" style="color:var(--accent);text-decoration:underline">info@quickfreightcalc.com</a></p>
   <p style="margin-top:10px;font-size:12px;color:var(--text3)">By using QuickFreightCalc you agree to our <a href="/terms.html" style="color:var(--accent);text-decoration:underline;font-weight:600" target="_blank" rel="noopener noreferrer">Terms of Service</a> and <a href="/privacy.html" style="color:var(--accent);text-decoration:underline;font-weight:600" target="_blank" rel="noopener noreferrer">Privacy Policy</a>. Rates are estimates only — not guaranteed quotes.</p>
 </footer>
 
@@ -3033,25 +3054,36 @@ async function _verifyProAuthBackground(){
       const userId = val.user?.id || val.user?.sub;
       if(!userId) continue;
 
-      const resp = await fetch(`https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users?id=eq.${userId}&select=*`, {
+      // The account this login works in (my_account in the database): its own,
+      // or, with a seat on a team, the owner's plan and company settings with
+      // this person's own name, phone and email.
+      const resp = await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/rpc/my_account', {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'apikey': 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ',
           'Authorization': `Bearer ${val.access_token}`
-        }
+        },
+        body: '{}'
       });
-      const rows = await resp.json();
+      if(!resp.ok) break;   // keep what's cached; try again next load
+      const acct = await resp.json();
+      const team = acct && acct.team ? {
+        role: acct.team.role, seated: acct.team.seated !== false, company: acct.team.company || null,
+        ownerName: acct.team.owner_name || null, size: acct.team.size || 1, members: acct.team.members || 0, tag: acct.team.tag || null,
+      } : null;
 
-      if(rows?.[0]){
-        if(rows[0].is_active === true) isProUser = true;
+      if(acct && acct.row){
+        const p = acct.row;
+        if(p.is_active === true) isProUser = true;
 
         // Cache Pro status for instant load next time — tied to userId
         localStorage.setItem('qfc_pro_status', JSON.stringify({
-          isActive: rows[0].is_active === true,
+          isActive: p.is_active === true,
           userId,
           cachedAt: Date.now()
         }));
 
-        const p = rows[0];
         // Quote numbers advance in this browser as PDFs are made; keep the
         // higher of the two counters so a number is never reused here.
         let prev = {};
@@ -3069,7 +3101,9 @@ async function _verifyProAuthBackground(){
           pdfAccent: p.pdf_accent || '', pdfInk: p.pdf_ink || '',
           pdfWhiteLabel: p.pdf_white_label === true, pdfValidHours: p.pdf_valid_hours || 24, pdfTerms: p.pdf_terms || '',
           pdfSections: p.pdf_sections || null, pdfAccessorials: p.pdf_accessorials || null,
+          rateSheet: p.rate_sheet || null,
           plan: p.plan, comp: p.is_active === true && !p.stripe_subscription_id,
+          team,
         }));
         if(p.rate_profiles && Array.isArray(p.rate_profiles)){
           // Key matches PROFILES_KEY in lanes.html — keep them in sync.
@@ -3078,7 +3112,8 @@ async function _verifyProAuthBackground(){
       } else {
         // Clear cache if no longer active
         localStorage.setItem('qfc_pro_status', JSON.stringify({ isActive: false, cachedAt: Date.now() }));
-        if(val.user?.email){
+        // A team member (even one waiting for a seat) has no account row of their own to make
+        if(val.user?.email && !team){
           await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users', {
             method: 'POST',
             headers: {
@@ -3096,6 +3131,7 @@ async function _verifyProAuthBackground(){
   } catch(e){ console.warn('checkProAuth error:', e); }
   updateProUI();
   updateProAccountBtn();
+  refreshMyRates();
 }
 
 function updateProAccountBtn(){
@@ -5654,7 +5690,9 @@ function clearShipmentForm(){
   manualMiles = false;
   ratesManualOverride = false;
   transitChargeAdded = false;
-  rateMode = 'auto';
+  rateModeChosen = false;
+  rateMode = myRateSheet() ? 'sheet' : 'auto';
+  styleRateButtons(rateMode === 'sheet' ? 'sheet' : 'regional');
   setMilesSource('none');
   showMilesStatus('', '', '');
 
@@ -6282,6 +6320,8 @@ function updateRateDisclaimer(){
   if(!el) return;
   if(ratesManualOverride){
     el.innerHTML = 'This quote is based on a base rate, per mile, that was entered manually.';
+  } else if(rateMode === 'sheet' && myRateSheet()){
+    el.innerHTML = 'This quote starts from <strong style="color:var(--text2)">your rate sheet</strong> (set on your Profile page), with the market rate wherever your sheet is blank. Pick <strong style="color:var(--text2)">Regional</strong> or <strong style="color:var(--text2)">National Avg</strong> in the Base Rates box for market rates.';
   } else {
     el.innerHTML = 'This quote is based on current <strong style="color:var(--text2)">US AVERAGE</strong> market rates and can be inflated. If you know the current rate per mile for your region/lane, please adjust it in the <strong style="color:var(--text2)">Base Rates ($/mi)</strong> box accordingly.';
   }
@@ -6290,11 +6330,7 @@ function updateRateDisclaimer(){
 function saveRates(){
   ratesManualOverride = true;
   rateMode = 'manual';
-  // Deactivate both toggle buttons
-  const btnReg = document.getElementById('btn-rate-regional');
-  const btnNat = document.getElementById('btn-rate-national');
-  if(btnReg){ btnReg.style.background='var(--card)'; btnReg.style.borderColor='var(--border2)'; btnReg.style.color='var(--text3)'; }
-  if(btnNat){ btnNat.style.background='var(--card)'; btnNat.style.borderColor='var(--border2)'; btnNat.style.color='var(--text3)'; }
+  styleRateButtons(null);   // none of My rates / Regional / National is on
   const regionEl = document.getElementById('rate-region-label');
   if(regionEl){ regionEl.textContent='✏️ Rates entered manually'; regionEl.style.color='var(--accent)'; }
   updateHeaderRates();
@@ -6302,25 +6338,50 @@ function saveRates(){
 }
 // ── Regional rates storage ────────────────────────────────────────────────
 let regionalRates = null; // populated from rates.json
-let rateMode = 'regional'; // 'regional' or 'national'
+let rateMode = 'regional'; // 'sheet' (your rate sheet), 'regional', 'national', 'manual' or 'auto'
+let rateModeChosen = false; // the user picked My rates / Regional / National on this visit
 
-function setRateMode(mode){
+// ── Your rate sheet (Pro Plus and up; rate-sheet.js, saved on the Profile page) ──
+// With one, quotes start from it ("My rates"): the pickup region's own rate, then the
+// sheet's all-regions rate, then the market rate for the region.
+function myRateSheet(){
+  if(!isProUser || !window.QFCRateSheet) return null;
+  let p = {};
+  try { p = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
+  return QFCRateSheet.allowed(p.plan, p.comp) ? QFCRateSheet.clean(p.rateSheet) : null;
+}
+// Shows My rates when there's a sheet, and starts from it unless the user chose otherwise.
+function refreshMyRates(){
+  const sheet = myRateSheet();
+  const btn = document.getElementById('btn-rate-sheet');
+  if(btn) btn.style.display = sheet ? '' : 'none';
+  if(sheet && rateMode === 'sheet' && !ratesManualOverride){ applyRegionalRates(); updateRateDisclaimer(); calc(); }
+  else if(sheet && !rateModeChosen && !ratesManualOverride) setRateMode('sheet', false);
+  else if(!sheet && rateMode === 'sheet') setRateMode('regional', false);
+}
+document.addEventListener('DOMContentLoaded', refreshMyRates);
+
+function styleRateButtons(mode){
+  const set = (id, on, color, bg) => {
+    const b = document.getElementById(id);
+    if(!b) return;
+    b.style.background  = on ? bg    : 'var(--card)';
+    b.style.borderColor = on ? color : 'var(--border2)';
+    b.style.color       = on ? color : 'var(--text3)';
+  };
+  set('btn-rate-sheet', mode === 'sheet', 'var(--accent)', 'var(--accentbg)');
+  set('btn-rate-regional', mode === 'regional', 'var(--accent)', 'var(--accentbg)');
+  set('btn-rate-national', mode === 'national', 'var(--blue)', 'rgba(96,165,250,.12)');
+}
+
+function setRateMode(mode, fromUser){
+  if(fromUser !== false) rateModeChosen = true;
   rateMode = mode;
   ratesManualOverride = false;
-  // Update button styles
-  const btnReg = document.getElementById('btn-rate-regional');
-  const btnNat = document.getElementById('btn-rate-national');
-  if(btnReg){
-    btnReg.style.background   = mode==='regional' ? 'var(--accentbg)' : 'var(--card)';
-    btnReg.style.borderColor  = mode==='regional' ? 'var(--accent)'   : 'var(--border2)';
-    btnReg.style.color        = mode==='regional' ? 'var(--accent)'   : 'var(--text3)';
-  }
-  if(btnNat){
-    btnNat.style.background   = mode==='national' ? 'rgba(96,165,250,.12)' : 'var(--card)';
-    btnNat.style.borderColor  = mode==='national' ? 'var(--blue)'          : 'var(--border2)';
-    btnNat.style.color        = mode==='national' ? 'var(--blue)'          : 'var(--text3)';
-  }
-  if(mode === 'national'){
+  styleRateButtons(mode);
+  if(mode === 'sheet'){
+    applyRegionalRates();
+  } else if(mode === 'national'){
     // Apply national rates — use regionalRates if loaded, fall back to hardcoded defaults
     const nat = getRatesForRegion('national') || { van:2.73, reefer:3.15, flatbed:3.38 };
     document.getElementById('rate-van').value    = parseFloat(nat.van).toFixed(2);
@@ -6380,9 +6441,27 @@ function detectOriginState(){
 
 // Apply regional rates to inputs — called when origin changes or rates load
 function applyRegionalRates(){
-  if(!regionalRates || ratesManualOverride || rateMode === 'national') return;
+  if(ratesManualOverride || rateMode === 'national') return;
   const state  = detectOriginState();
   const region = getRegionForState(state);
+  const sheet  = rateMode === 'sheet' ? myRateSheet() : null;
+  if(sheet){
+    const mine = QFCRateSheet.ratesFor(sheet, regionalRates || {}, region);
+    const fallback = { van: 2.73, reefer: 3.15, flatbed: 3.38 };
+    ['van', 'reefer', 'flatbed'].forEach(t => {
+      document.getElementById('rate-' + t).value = parseFloat(mine.rates[t] || fallback[t]).toFixed(2);
+    });
+    const regionEl = document.getElementById('rate-region-label');
+    if(regionEl){
+      const blanks = ['van', 'reefer', 'flatbed'].filter(t => mine.from[t] === 'market').length;
+      regionEl.textContent = `⭐ Your rate sheet${state ? ` · ${REGION_LABELS[region] || 'National'} (${state})` : ''}` +
+        (blanks ? ' · market rate where your sheet is blank' : '');
+      regionEl.style.color = 'var(--accent)';
+    }
+    updateHeaderRates();
+    return;
+  }
+  if(!regionalRates) return;
   const rates  = getRatesForRegion(region);
   if(!rates) return;
 
@@ -7185,7 +7264,6 @@ async function saveQuote(){
         'Prefer': 'return=representation'
       },
       body: JSON.stringify({
-        user_id: userId,
         date: entry.date,
         origin: entry.orig,
         destination: entry.dest,
@@ -7241,7 +7319,7 @@ async function loadQuoteLogFromSupabase(){
     let rows = [];
     for(let offset = 0; offset < QUOTE_LOG_LOAD_MAX; offset += 1000){
       const resp = await fetch(
-        `${SUPABASE_URL_QL}/rest/v1/quote_log?user_id=eq.${userId}&order=created_at.desc,id.desc&limit=1000&offset=${offset}`,
+        `${SUPABASE_URL_QL}/rest/v1/quote_log?order=created_at.desc,id.desc&limit=1000&offset=${offset}`,
         { headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` } }
       );
       const page = await resp.json();
@@ -7267,7 +7345,7 @@ async function saveQuoteNote(id, notes){
   if(!session) return;
   const userId = session.user?.id || session.user?.sub;
   try {
-    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}&user_id=eq.${userId}`, {
+    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY_QL,
@@ -7292,7 +7370,7 @@ async function toggleTrack(id, checked){
   if(session){
     const userId = session.user?.id || session.user?.sub;
     try {
-      await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}&user_id=eq.${userId}`, {
+      await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
         method: 'PATCH',
         headers: {
           'apikey': SUPABASE_KEY_QL,
@@ -7374,9 +7452,11 @@ async function syncTrackedToProfiles(){
     miles:   q.miles || 0,
     trailer: q.trailer || 'van',
   }));
-  // Sync to pro_users.rate_profiles
+  // Sync to pro_users.rate_profiles (lanes.html reads the quote log itself; a team
+  // member has no account row of their own to keep these in)
   const session = getProSession();
   if(!session) return;
+  if(teamMember()){ localStorage.setItem('qfc_rate_profiles', JSON.stringify(profiles)); return; }
   try {
     const userId = session.user?.id || session.user?.sub;
     await fetch(`https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users?id=eq.${userId}`, {
@@ -7454,30 +7534,50 @@ function showToast(msg){
 }
 
 async function deleteQuote(id){
-  if(!quoteReady(id)) return;
-  quoteLog = quoteLog.filter(q => q.id != id);
+  const q = quoteReady(id);
+  if(!q) return;
+  if(!canDeleteQuote(q)){ showToast('Only the team owner or whoever saved a quote can delete it'); return; }
+  quoteLog = quoteLog.filter(x => x.id != id);
   renderLog();
   const session = getProSession();
   if(!session) return;
   try {
-    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
+    const resp = await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
       method: 'DELETE',
-      headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` }
+      headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}`, 'Prefer': 'return=representation' }
     });
+    const gone = resp.ok ? await resp.json().catch(() => null) : null;
+    if(Array.isArray(gone) && !gone.length){
+      // The database kept it (someone else's quote): show the log as it is
+      showToast('Only the team owner or whoever saved a quote can delete it');
+      loadQuoteLogFromSupabase();
+      return;
+    }
     syncTrackedToProfiles();
   } catch(e){}
 }
 
 async function clearLog(){
   if(!quoteLog.length) return;
-  if(!confirm('Clear all saved quotes? This cannot be undone.')) return;
-  quoteLog = [];
-  renderLog();
   const session = getProSession();
+  const userId = session ? (session.user?.id || session.user?.sub) : null;
+  // On a team, Clear All clears only the quotes you saved (an owner's quotes from
+  // before the team included); everyone else's stay.
+  const team = onTeam();
+  const mine = team ? quoteLog.filter(q => q.createdBy ? q.createdBy === userId : !teamMember()) : quoteLog;
+  if(team && !mine.length){ showToast('You haven’t saved any quotes in the team’s log'); return; }
+  const ask = team
+    ? `Clear the ${mine.length.toLocaleString()} quote${mine.length === 1 ? '' : 's'} you saved? Your teammates’ quotes stay. This cannot be undone.`
+    : 'Clear all saved quotes? This cannot be undone.';
+  if(!confirm(ask)) return;
+  quoteLog = team ? quoteLog.filter(q => !mine.includes(q)) : [];
+  renderLog();
   if(!session) return;
-  const userId = session.user?.id || session.user?.sub;
+  const which = !team ? `user_id=eq.${userId}`
+    : teamMember() ? `created_by=eq.${userId}`
+    : `or=(created_by.eq.${userId},created_by.is.null)`;
   try {
-    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?user_id=eq.${userId}`, {
+    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?${which}`, {
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` }
     });
@@ -7549,6 +7649,27 @@ function accountTier(){
   return ['plus', 'max', 'api'].includes(p.plan) ? p.plan : 'pro';
 }
 function winLossAllowed(){ return ['plus', 'max', 'api', 'comp'].includes(accountTier()); }
+
+// ── Team (team.js): the team cached with the account by the Pro check above ──
+function teamInfo(){
+  if(!isProUser) return null;
+  try { const p = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; return p.team || null; } catch(e){ return null; }
+}
+// A member using a seat on someone else's team
+function teamMember(){ const t = teamInfo(); return !!t && t.role === 'member' && t.seated !== false; }
+// Quotes here are shared with other people: a member, or an owner with members
+function onTeam(){ const t = teamInfo(); return !!t && (t.role === 'member' ? t.seated !== false : (t.members || 0) > 0); }
+function myUserId(){ const s = getProSession(); return s ? (s.user?.id || s.user?.sub || null) : null; }
+// Who can delete a saved quote: the account owner, or whoever saved it
+function canDeleteQuote(q){ return !teamMember() || (!!q.createdBy && q.createdBy === myUserId()); }
+// "you", or the teammate who saved it (quotes saved before the team are the owner's)
+function quoteSavedBy(q){
+  const me = myUserId();
+  if(q.createdBy ? q.createdBy === me : !teamMember()) return 'you';
+  if(q.createdByName) return q.createdByName;
+  const t = teamInfo();
+  return (!q.createdBy && t && t.ownerName) || 'a teammate';
+}
 function savedQuoteLimit(){ return SAVED_QUOTE_LIMIT[accountTier()] || 100; }
 
 function showWinLossUpgrade(){
@@ -7597,6 +7718,8 @@ function quoteFromRow(r){
     lostReason: r.lost_reason || null,
     outcomeAt: r.outcome_at || null,
     createdAt: r.created_at || null,
+    createdBy: r.created_by || null,
+    createdByName: r.created_by_name || '',
   };
 }
 
@@ -7875,7 +7998,7 @@ async function saveOutcomeModal(){
   btn.disabled = true;
   setOutcomeStatus('');
   try {
-    const resp = await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${q.id}&user_id=eq.${userId}`, {
+    const resp = await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${q.id}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY_QL,
@@ -7938,7 +8061,7 @@ function renderLog(){
 
   // Saved quotes against this plan's limit
   const note = document.getElementById('profile-count-note');
-  if(note) note.textContent = `${quoteLog.length.toLocaleString()} / ${savedQuoteLimit().toLocaleString()} quotes saved`;
+  if(note) note.textContent = `${quoteLog.length.toLocaleString()} / ${savedQuoteLimit().toLocaleString()} quotes saved${onTeam() ? ' by your team' : ''}`;
 
   renderLogFilters(allowed);
   renderWinLossPanel();
@@ -7961,7 +8084,8 @@ function renderLog(){
     </td>
     <td class="dim">${escapeHTML(q.date)}</td>
     <td style="font-size:11px;max-width:170px;white-space:normal">${escapeHTML(q.orig)||'—'}${q.dest?' → '+escapeHTML(q.dest):''}${q.customer
-      ? `<span class="wl-cust" title="${escapeHTML(q.customer)}">${escapeHTML(q.customer)}</span>` : ''}</td>
+      ? `<span class="wl-cust" title="${escapeHTML(q.customer)}">${escapeHTML(q.customer)}</span>` : ''}${onTeam()
+      ? `<span class="ql-by">by ${escapeHTML(quoteSavedBy(q))}</span>` : ''}</td>
     <td>${Number(q.miles).toLocaleString()}</td>
     <td><span class="tag ${TTAG[q.trailer]||'tag-van'}">${TLABEL[q.trailer]||escapeHTML(q.trailer)}</span></td>
     <td class="dim">${escapeHTML(q.commodity)}</td>
@@ -7995,7 +8119,7 @@ function renderLog(){
         onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
         onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">📄 PDF</button>
       ${emailButtonHTML(q)}
-      <button class="del-btn" onclick="deleteQuote(${q.id})">✕</button>
+      ${canDeleteQuote(q) ? `<button class="del-btn" onclick="deleteQuote(${q.id})" title="Delete quote">✕</button>` : ''}
     </td>
   </tr>`).join('');
   if(more){
@@ -8784,13 +8908,13 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
           <input type="radio" name="upg-plan" value="plus" onchange="updateUpgradeButton()" />
           <span class="upg-name">Pro Plus</span>
           <span class="upg-price"><strong>$19.99</strong>/month</span>
-          <span class="upg-detail">Automatic miles on 250 quotes per day, win/loss tracking, a customer list and emailed quotes</span>
+          <span class="upg-detail">Automatic miles on 250 quotes per day, win/loss tracking, a customer list, emailed quotes and your own rate sheet</span>
         </label>
         <label class="upg-option" id="upg-option-max">
           <input type="radio" name="upg-plan" value="max" onchange="updateUpgradeButton()" />
           <span class="upg-name">Pro Max</span>
           <span class="upg-price"><strong>$49.99</strong>/month</span>
-          <span class="upg-detail">Everything in Pro Plus, with automatic miles on 1,000 quotes per day and white-label PDFs</span>
+          <span class="upg-detail">Everything in Pro Plus, with automatic miles on 1,000 quotes per day, white-label PDFs and a team of 3 people</span>
         </label>
       </div>
       <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">
@@ -9059,8 +9183,29 @@ function _activateAdUnit(u){
   const ins = u.el.querySelector('ins.adsbygoogle');
   ins.setAttribute('data-ad-client', ADS_CONFIG.client);
   ins.setAttribute('data-ad-slot', u.slot);
-  (window.adsbygoogle = window.adsbygoogle || []).push({});
+  (window.adsbygoogle = window.adsbygoogle || []).push({});   // queued until the library loads
   u.el.dataset.adFilled = '1';
+  _loadAdLibrary();
+}
+
+// The AdSense library is ~250 KB of script, so it loads only when there is an ad
+// to show (a real slot ID, a visitor who isn't Pro, a unit on screen), and only
+// after the page has finished loading so it never slows the calculator down.
+// The verification meta tag in <head> and ads.txt keep the site connected to
+// AdSense without it.
+let _adLibRequested = false;
+function _loadAdLibrary(){
+  if(_adLibRequested) return;
+  _adLibRequested = true;
+  const add = () => {
+    const s = document.createElement('script');
+    s.async = true;
+    s.crossOrigin = 'anonymous';
+    s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' + encodeURIComponent(ADS_CONFIG.client);
+    document.head.appendChild(s);
+  };
+  if(document.readyState === 'complete') add();
+  else window.addEventListener('load', add, { once: true });
 }
 
 function activateAds(){
@@ -9105,5 +9250,6 @@ window.addEventListener('resize', () => {
 <script src="/customers.js" defer></script>
 <script src="/email-quote.js" defer></script>
 <script src="/lane.js" defer></script>
+<script src="/rate-sheet.js" defer></script>
 </body>
 </html>

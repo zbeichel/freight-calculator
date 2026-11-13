@@ -17,6 +17,7 @@
 // 15% margin.
 
 const RATES = require('../../rates.json');
+const SHEET = require('../../rate-sheet.js');   // your own rate sheet, as the pages read it
 
 // ── Copied from index.html ──────────────────────────────────────────────────
 const CMULT={standard:1.0,food:1.08,hazmat:1.20,highval:1.12,oversized:1.25};
@@ -200,8 +201,9 @@ function round4(n) { return Math.round(n * 10000) / 10000; }
 // validateQuoteInput); every field but miles is optional.
 //   miles, trailer, weight, commodity, pickupDate, deliveryDate, marginPercent,
 //   rateRegion (a rates.json region) or baseRatePerMile (your own rate),
-//   dieselPrice, capacity (bool), seasonRegion, holidays [ids], marketPercent,
-//   extraDayRate
+//   rateSheet (the account's rate sheet: its rate for the region and trailer,
+//   when it has one, replaces the market rate), dieselPrice, capacity (bool),
+//   seasonRegion, holidays [ids], marketPercent, extraDayRate
 function computeQuote(input) {
   const miles = input.miles;
   const trailer = input.trailer || 'van';
@@ -211,7 +213,9 @@ function computeQuote(input) {
   const marginPct = (input.marginPercent == null ? 15 : input.marginPercent) / 100;
   const region = input.rateRegion || 'national';
 
-  const base = input.baseRatePerMile != null ? input.baseRatePerMile : baseRate(trailer, region);
+  const own = input.baseRatePerMile == null && input.rateSheet ? SHEET.sheetRate(input.rateSheet, region, trailer) : null;
+  const base = input.baseRatePerMile != null ? input.baseRatePerMile : own != null ? own : baseRate(trailer, region);
+  const rateSource = input.baseRatePerMile != null ? 'provided' : own != null ? 'sheet' : 'market';
   const wt = weight ? wTier(weight).m : 1.0;
   const dm = miles ? dMult(miles, trailer) : 1.0;
   const cm = CMULT[commodity];
@@ -246,6 +250,7 @@ function computeQuote(input) {
     margin: total - cost - extraDayCharge,
     marginPercent: marginPct * 100,
     rateRegion: input.baseRatePerMile != null ? null : region,
+    rateSource,
     baseRatePerMile: base,
     adjustedRatePerMile: adjRpm,
     fuelSurchargePerMile: fscPerMile,
@@ -270,6 +275,7 @@ function presentQuote(q) {
     ratePerMile: round2(q.ratePerMile),
     breakdown: {
       rateRegion: q.rateRegion,
+      rateSource: q.rateSource,
       baseRatePerMile: round2(q.baseRatePerMile),
       multipliers: m,
       adjustedRatePerMile: round4(q.adjustedRatePerMile),

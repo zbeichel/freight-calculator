@@ -7,11 +7,15 @@
 //     summary  { quoteNumber, origin, destination, equipment, miles, rate, pickup, delivery } for the email body
 //     sendKey  a random key per click, so a retried request can't send twice
 //
-// Checks who is sending (signed in; Pro Plus, Pro Max, API or comp), what (one recipient, a real PDF
-// under 3 MB, sensible text) and how many (a rolling 24-hour cap per plan, so a misused account can't
-// send in bulk). Sends through Resend from quotes@quickfreightcalc.com as "<Company> via QuickFreightCalc"
-// (just the company for white-label accounts) with Reply-To the user, then records the send in
-// quote_emails (the quote log shows it).
+// Checks who is sending (signed in; Pro Plus, Pro Max, API or comp, or a seat on such a team), what (one
+// recipient, a real PDF under 3 MB, sensible text) and how many (a rolling 24-hour cap per plan, shared
+// by a team, so a misused account can't send in bulk). Sends through Resend from
+// quotes@quickfreightcalc.com as "<Company> via QuickFreightCalc" (just the company for white-label
+// accounts) with Reply-To the person sending, then records the send in quote_emails under the account
+// (the team's quote log shows it).
+//
+// A team member sends under the owner's company and settings, signed with their own name, phone
+// and email (netlify/lib/account.js).
 //
 // Responses: 200 { status: 'sent', id, sentAt }
 //            400 { error: 'invalid', field, message }    401 { error: 'auth', message }
@@ -20,6 +24,8 @@
 //            503 { error: 'not_configured', message }
 const { buildQuoteEmail, headerName } = require('../lib/quote-email');
 const { normalizePlan, PLAN_NAME: PLANS_NAME } = require('../lib/plans');
+const { effectiveAccount, onTeamSeat } = require('../lib/account');
+const { siteBase } = require('../lib/site-url');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const FROM_ADDRESS = 'quotes@quickfreightcalc.com';
@@ -121,18 +127,13 @@ function parseRequest(body) {
 
 // Where the email's logo image loads from: the live site, or the Netlify deploy the quote was sent
 // from (so a test email from a preview shows that deploy's copy). Only the site's own hosts count.
-function assetBase(event) {
-  const h = (event && event.headers) || {};
-  const host = String(h['x-forwarded-host'] || h.host || h.Host || '').toLowerCase().split(':')[0].trim();
-  if (/^(www\.)?quickfreightcalc\.com$/.test(host)) return 'https://quickfreightcalc.com';
-  if (/^([a-z0-9-]+--)?quickfreightcalculator\.netlify\.app$/.test(host)) return `https://${host}`;
-  return process.env.SITE_URL || 'https://quickfreightcalc.com';
-}
+const assetBase = siteBase;
 
-// Emails sent in the last 24 hours (null if the count couldn't be read).
-async function sentToday(userId) {
+// Emails the account (a whole team, when there is one) sent in the last 24 hours (null if the
+// count couldn't be read).
+async function sentToday(accountId) {
   const since = new Date(Date.now() - 24 * 3600000).toISOString();
-  const r = await supabase(`/rest/v1/quote_emails?user_id=eq.${userId}&created_at=gte.${encodeURIComponent(since)}&select=id`,
+  const r = await supabase(`/rest/v1/quote_emails?user_id=eq.${accountId}&created_at=gte.${encodeURIComponent(since)}&select=id`,
     { headers: { Prefer: 'count=exact', 'Range-Unit': 'items', Range: '0-0' } });
   if (!r.ok && r.status !== 416) return null;
   const range = (r.headers && r.headers.get('content-range')) || '';
@@ -172,12 +173,15 @@ exports.handler = async function (event) {
   const user = await authUser(token);
   if (!user) return json(401, { error: 'auth', message: 'Sign in again to send quotes.' });
 
-  const pr = await supabase(`/rest/v1/pro_users?id=eq.${user.id}&select=id,email,company_name,contact_name,phone,plan,is_active,comp,stripe_subscription_id,pdf_white_label`);
-  if (!pr.ok) {
-    console.error('[send-quote-email] pro_users lookup failed', pr.status);
+  // Whose plan this runs on: their own, or their team owner's while they have a seat
+  const acct = await effectiveAccount(user.id, serviceKey());
+  if (!acct) {
+    console.error('[send-quote-email] account lookup failed');
     return json(502, { error: 'send', message: 'Couldn’t check your account right now. Try again in a minute.' });
   }
-  const row = Array.isArray(pr.data) ? pr.data[0] : null;
+  const row = acct.row;
+  const member = onTeamSeat(acct);
+  const accountId = acct.accountId;
   const tier = tierOf(row);
   if (!tier) return json(403, { error: 'plan', message: 'Emailing quotes comes with Pro Plus, Pro Max and the API plan.' });
 
@@ -188,32 +192,36 @@ exports.handler = async function (event) {
 
   // How many today
   const cap = DAILY_CAP[tier];
-  const count = await sentToday(user.id);
+  const count = await sentToday(accountId);
   if (count === null) {
     console.error('[send-quote-email] could not count today’s emails');
     return json(502, { error: 'send', message: 'Couldn’t send the quote right now. Try again in a minute.' });
   }
   if (count >= cap) {
     const more = tier === 'plus' ? ' Pro Max sends up to 300 a day.' : '';
-    return json(429, { error: 'limit', limit: cap, message: `You’ve emailed ${cap} quotes in the last 24 hours, the most ${PLAN_NAME[tier]} allows. Try again later.${more}` });
+    const who = member ? 'Your team has' : 'You’ve';
+    return json(429, { error: 'limit', limit: cap, message: `${who} emailed ${cap} quotes in the last 24 hours, the most ${PLAN_NAME[tier]} allows. Try again later.${member ? '' : more}` });
   }
 
-  // A quote id only counts if it's this user's logged quote
+  // A quote id only counts if it's a logged quote of this account (the team's log, for a member)
   let quoteId = null;
   if (req.quoteId) {
-    const q = await supabase(`/rest/v1/quote_log?id=eq.${req.quoteId}&user_id=eq.${user.id}&select=id`);
+    const q = await supabase(`/rest/v1/quote_log?id=eq.${req.quoteId}&user_id=eq.${accountId}&select=id`);
     if (q.ok && Array.isArray(q.data) && q.data.length) quoteId = req.quoteId;
   }
 
-  const userEmail = tidy(user.email || row.email, 200).toLowerCase();
+  // The person sending signs the email; a team member under the owner's company
+  const userEmail = tidy(user.email || (member ? '' : row.email), 200).toLowerCase();
+  const contactName = member ? acct.memberName : row.contact_name;
+  const phone = member ? acct.memberPhone : row.phone;
   const whiteLabel = row.pdf_white_label === true && ['max', 'api', 'comp'].includes(tier);
-  const company = headerName(row.company_name) || headerName(row.contact_name);
+  const company = headerName(row.company_name) || headerName(contactName);
   const fromName = company ? (whiteLabel ? company : `${company} via QuickFreightCalc`) : 'QuickFreightCalc Quotes';
   const siteUrl = process.env.SITE_URL || 'https://quickfreightcalc.com';
   const { html, text } = buildQuoteEmail({
     message: req.message,
     summary: req.summary,
-    sender: { company: tidy(row.company_name, 120), contactName: tidy(row.contact_name, 120), phone: tidy(row.phone, 40), email: userEmail },
+    sender: { company: tidy(row.company_name, 120), contactName: tidy(contactName, 120), phone: tidy(phone, 40), email: userEmail },
     validUntil: req.validUntil,
     validLabel: req.validLabel,
     whiteLabel,
@@ -253,11 +261,11 @@ exports.handler = async function (event) {
   const log = await supabase('/rest/v1/quote_emails', {
     method: 'POST',
     headers: { Prefer: 'return=minimal' },
-    body: { user_id: user.id, quote_id: quoteId, to_email: req.to, cc_me: !!payload.cc, subject: req.subject, valid_until: req.validUntil, resend_id: resendId },
+    body: { user_id: accountId, sent_by: user.id, quote_id: quoteId, to_email: req.to, cc_me: !!payload.cc, subject: req.subject, valid_until: req.validUntil, resend_id: resendId },
   });
   if (!log.ok) console.error('[send-quote-email] sent, but logging failed', log.status, JSON.stringify(log.data));
 
-  console.log(`[send-quote-email] sent ${resendId || '(no id)'} for ${user.id} (${tier}, ${count + 1}/${cap} today)`);
+  console.log(`[send-quote-email] sent ${resendId || '(no id)'} for ${user.id}${member ? ` on ${accountId}'s team` : ''} (${tier}, ${count + 1}/${cap} today)`);
   return json(200, { status: 'sent', id: resendId, sentAt, quoteId });
 };
 

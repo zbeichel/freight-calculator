@@ -3,7 +3,6 @@
 <head>
 <!-- Google AdSense — site ownership verification -->
 <meta name="google-adsense-account" content="ca-pub-5621259704181475">
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5621259704181475" crossorigin="anonymous"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Account — QuickFreightCalc Pro</title>
@@ -21,31 +20,45 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 
 
 /* ── Layout ── */
-.page{max-width:1100px;margin:0 auto;padding:44px 24px 24px}
-.page-title{font-size:clamp(28px,4vw,40px);font-weight:700;letter-spacing:-.03em;line-height:1.1;margin:14px 0 8px}
-.page-sub{font-size:14.5px;color:var(--text2);line-height:1.6;margin-bottom:32px}
+.page{max-width:1100px;margin:0 auto;padding:0 24px 24px}
+.page-head{text-align:center;padding:56px 0 34px}
+.page-head .qf-pill{margin-bottom:18px}
+.page-title{font-size:clamp(30px,5vw,54px);font-weight:700;letter-spacing:-.035em;line-height:1.05;margin:0 0 12px;text-wrap:balance}
+.page-title em{font-style:normal;color:var(--accent-fill)}
+html.light .page-title em{color:#d48200}
+.page-sub{font-size:16px;color:var(--text2);line-height:1.6;max-width:560px;margin:0 auto}
+@media (max-width:740px){
+  .page{padding:0 12px 24px}
+  .page-head{padding:28px 2px 20px}
+  .page-head .qf-pill{margin-bottom:12px}
+  .page-title{font-size:clamp(24px,7vw,32px);line-height:1.15}
+  .page-sub{font-size:14px}
+}
 
 .sections{display:flex;flex-direction:column;gap:28px}
 
 /* ── Section card ── */
 .section-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow)}
-.section-header{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
-.section-icon{font-size:16px}
-.section-title{font-size:14px;font-weight:700;color:var(--text)}
+.section-header{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.section-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex-shrink:0;
+  background:var(--accentbg);color:var(--accent);border:1px solid rgba(245,165,36,.22)}
+.section-icon .qf-icon{width:17px;height:17px}
+.section-title{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text2)}
 .section-sub{font-size:12px;color:var(--text3);margin-left:auto}
 .section-body{padding:24px}
 
 /* ── Form fields ── */
 .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .field-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
-.field{display:flex;flex-direction:column;gap:6px}
-.field label{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.field{display:flex;flex-direction:column;gap:7px}
+.field label{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em}
 .field input,.field textarea,.field select{
-  background:var(--card2);border:1px solid var(--border2);border-radius:8px;
-  color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:14px;
-  padding:9px 12px;outline:none;transition:border-color .15s;width:100%
+  background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius);
+  color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:500;
+  padding:12px 14px;outline:none;transition:border-color .15s,box-shadow .15s;width:100%
 }
-.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.field input::placeholder,.field textarea::placeholder{color:var(--text3)}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(240,165,0,.1)}
 .field textarea{resize:vertical;min-height:70px;line-height:1.5}
 .field-note{font-size:10px;color:var(--text3);margin-top:2px}
 
@@ -128,6 +141,50 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 .api-foot a{color:var(--accent);text-decoration:none}
 #api-status{font-size:12px;margin-top:10px;line-height:1.5}
 
+/* ── Rate sheet ── */
+.rs-intro{font-size:13px;color:var(--text2);line-height:1.6;margin:0 0 14px}
+.rs-grid{display:grid;grid-template-columns:minmax(84px,1.3fr) repeat(3,minmax(56px,1fr));gap:6px 10px;align-items:center}
+.rs-head{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
+.rs-region{font-size:13px;font-weight:600;color:var(--text);line-height:1.25}
+.rs-region small{display:block;font-size:10px;font-weight:500;color:var(--text3);margin-top:2px;line-height:1.35}
+.rs-grid input{width:100%;min-width:0;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);
+  font-family:'Space Grotesk',sans-serif;font-size:13px;padding:8px 9px;outline:none;transition:border-color .15s}
+.rs-grid input:focus{border-color:var(--accent)}
+.rs-grid input.bad{border-color:var(--red)}
+.rs-grid .rs-sep{grid-column:1/-1;border-top:1px solid var(--border);margin:4px 0}
+.rs-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.rs-btn{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;
+  border:1px solid var(--border2);background:var(--card);color:var(--text2)}
+.rs-btn:hover{border-color:var(--accent);color:var(--accent)}
+.rs-btn:disabled{opacity:.6;cursor:default}
+.rs-status{font-size:12px;color:var(--text3);line-height:1.5}
+
+/* ── Team ── */
+.team-list{border:1px solid var(--border2);border-radius:10px;margin:0 0 14px;background:var(--card2)}
+.team-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--border)}
+.team-row:first-child{border-top:none}
+.team-main{flex:1;min-width:180px}
+.team-name{font-size:13px;font-weight:600;color:var(--text);overflow-wrap:anywhere}
+.team-meta{font-size:11px;color:var(--text3);margin-top:2px;overflow-wrap:anywhere}
+.team-meta .warn{color:var(--red)}
+.team-tag{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px}
+.team-row-actions{display:flex;gap:6px}
+.team-invite{display:flex;gap:8px;flex-wrap:wrap}
+.team-invite input{flex:1;min-width:160px;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);
+  font-family:'Space Grotesk',sans-serif;font-size:13px;padding:8px 12px;outline:none}
+.team-invite input:focus{border-color:var(--accent)}
+.team-note{font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6}
+.team-warn{font-size:12px;line-height:1.6;color:var(--text2);background:var(--accentbg);border:1px solid var(--accent);border-radius:8px;padding:10px 12px;margin:0 0 14px}
+#team-status{font-size:12px;margin-top:10px;line-height:1.5}
+#team-status.ok{color:var(--green)}
+#team-status.err{color:var(--red)}
+/* A team member's view: company settings belong to the team owner */
+.member-banner{display:none;font-size:13px;line-height:1.6;color:var(--text2);background:var(--accentbg);border:1px solid var(--accent);border-radius:10px;padding:12px 14px;margin:0 0 16px}
+body.pf-member .member-banner{display:block}
+body.pf-member .pf-locked .section-body{pointer-events:none;opacity:.55}
+body.pf-member .pf-locked .section-sub::after{content:' · Set by the team owner'}
+body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
+
 /* ── PDF quote style ── */
 .pdf-style-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .pdf-style-option{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:start;padding:14px 16px;border:1px solid var(--border2);border-radius:10px;cursor:pointer;background:var(--card);transition:border-color .15s,background .15s}
@@ -151,7 +208,8 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 .logo-preview-box:hover{border-color:var(--accent)}
 .logo-preview-box img{max-width:100%;max-height:100%;object-fit:contain}
 .logo-placeholder{text-align:center;color:var(--text3)}
-.logo-placeholder-icon{font-size:24px;margin-bottom:4px}
+.logo-placeholder-icon{display:flex;justify-content:center;margin-bottom:6px;color:var(--accent)}
+.logo-placeholder-icon .qf-icon{width:22px;height:22px}
 .logo-placeholder-text{font-size:10px;line-height:1.4}
 .logo-upload-controls{flex:1;min-width:200px}
 .logo-upload-btn{
@@ -392,6 +450,10 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
   .scheme-grid-row{grid-template-columns:repeat(2,1fr)}
   .logo-upload-wrap{flex-direction:column}
   .save-btn{width:100%;padding:14px}
+  .section-header{padding:12px 14px}
+  .section-body{padding:16px 14px}
+  /* 16px stops iPhones from zooming in on a box when it's tapped */
+  .field input,.field textarea,.field select{font-size:16px}
 }
 /* The save bar stays at the bottom of the window; keep the footer clear of it */
 .qf-footer{padding-bottom:72px}
@@ -400,16 +462,20 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 <body>
 
 <div class="page">
-  <span class="qf-pill">Account</span>
-  <h1 class="page-title">My account</h1>
-  <div class="page-sub">Manage your profile and customize how your PDF quotes look to customers.</div>
+  <div class="page-head">
+    <span class="qf-pill">Account</span>
+    <h1 class="page-title">My <em>account</em></h1>
+    <p class="page-sub">Manage your profile and customize how your PDF quotes look to customers.</p>
+  </div>
+
+  <div class="member-banner" id="member-banner"></div>
 
   <div class="sections">
 
     <!-- ── Company Info ── -->
     <div class="section-card">
       <div class="section-header">
-        <span class="section-icon">🏢</span>
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16"/><path d="M15 9h4a1 1 0 0 1 1 1v11"/><path d="M3 21h18M8 8h3M8 12h3M8 16h3"/></svg></span>
         <span class="section-title">Company Information</span>
         <span class="section-sub">Appears on your PDF quotes</span>
       </div>
@@ -451,10 +517,32 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       </div>
     </div>
 
+    <!-- ── Your rate sheet (Pro Plus and up; rate-sheet.js) ── -->
+    <div class="section-card" id="rate-sheet-card">
+      <div class="section-header">
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M16.5 7.5c-.6-1.4-2.2-2.3-4.5-2.3-2.6 0-4.3 1.2-4.3 3.1 0 4.4 9 2.4 9 6.9 0 2-1.9 3.3-4.7 3.3-2.5 0-4.3-1-5-2.6"/></svg></span>
+        <span class="section-title">Your Rate Sheet</span>
+        <span class="section-sub">Pro Plus and up</span>
+      </div>
+      <div class="section-body">
+        <div class="wl-locked" id="rs-locked" style="display:none">
+          Your rate sheet comes with <strong>Pro Plus</strong> ($19.99/month) and up: save your own base rates, and every quote starts from them.
+          <a href="#subscription-paid">Change plan →</a>
+        </div>
+        <p class="rs-intro">Your own base rates, in dollars per mile. The calculator and the multi-stop builder start every quote from these (<strong>My rates</strong>) instead of the market averages: the pickup region’s rate, or your all-regions rate where a region is blank. Leave a box blank to use the rate shown in grey. You can still switch any quote to market rates, and API quotes use your sheet too.</p>
+        <div class="rs-grid" id="rs-grid"></div>
+        <div class="rs-actions">
+          <button type="button" class="rs-btn" id="rs-fill-btn" onclick="fillRateSheetFromMarket()">Fill blanks with this month’s market rates</button>
+          <button type="button" class="rs-btn" id="rs-clear-btn" onclick="clearRateSheet()">Clear</button>
+          <span class="rs-status" id="rs-status" role="status"></span>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Logo ── -->
     <div class="section-card">
       <div class="section-header">
-        <span class="section-icon">🖼</span>
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-8.5 8.5"/></svg></span>
         <span class="section-title">Company Logo</span>
         <span class="section-sub">Replaces the 🚛 emoji on your PDF</span>
       </div>
@@ -462,14 +550,14 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
         <div class="logo-upload-wrap">
           <div class="logo-preview-box" onclick="document.getElementById('logo-file-input').click()">
             <div class="logo-placeholder" id="logo-placeholder">
-              <div class="logo-placeholder-icon">📁</div>
+              <div class="logo-placeholder-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></div>
               <div class="logo-placeholder-text">Click to upload<br>PNG, JPG, SVG</div>
             </div>
             <img id="logo-preview-img" src="" alt="" style="display:none;max-width:160px;max-height:80px;object-fit:contain" />
           </div>
           <div class="logo-upload-controls">
             <div>
-              <label class="logo-upload-btn" for="logo-file-input">📁 Choose File</label>
+              <label class="logo-upload-btn" for="logo-file-input">Choose file</label>
               <button type="button" class="logo-adjust-btn" id="logo-adjust-btn" onclick="LogoCropper.openForCurrent()">✂ Adjust crop</button>
               <button type="button" class="logo-remove-btn" id="logo-remove-btn" onclick="removeLogo()">✕ Remove</button>
             </div>
@@ -492,7 +580,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     <!-- ── PDF quote style ── -->
     <div class="section-card">
       <div class="section-header">
-        <span class="section-icon">📄</span>
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></span>
         <span class="section-title">PDF Quote Style</span>
         <span class="section-sub">How your quotes look</span>
       </div>
@@ -522,7 +610,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     <!-- ── Quote sections (the Modern design) ── -->
     <div class="section-card" id="quote-sections-card">
       <div class="section-header">
-        <span class="section-icon">🧩</span>
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="7" height="6" rx="1.5"/><rect x="13" y="14" width="7" height="6" rx="1.5"/></svg></span>
         <span class="section-title">Quote Sections</span>
         <span class="section-sub">More detail on your quotes</span>
       </div>
@@ -557,7 +645,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     <!-- ── White-label PDFs (Pro Max, API and comp accounts) ── -->
     <div class="section-card" id="white-label-card">
       <div class="section-header">
-        <span class="section-icon">🏷</span>
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4.5A1.5 1.5 0 0 1 4.5 3H12l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.3"/></svg></span>
         <span class="section-title">White-Label PDFs</span>
         <span class="section-sub">Pro Max and API</span>
       </div>
@@ -593,7 +681,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     <!-- ── Color Scheme ── -->
     <div class="section-card">
       <div class="section-header">
-        <span class="section-icon">🎨</span>
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/></svg></span>
         <span class="section-title">PDF Color Scheme</span>
         <span class="section-sub">Choose your header and accent colors</span>
       </div>
@@ -655,7 +743,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     <!-- ── Quote Numbering ── -->
     <div class="section-card">
       <div class="section-header">
-        <span class="section-icon">🔢</span>
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h14M5 15h14M10 4 8 20M16 4l-2 16"/></svg></span>
         <span class="section-title">Quote Numbering</span>
         <span class="section-sub">Customize your quote reference numbers</span>
       </div>
@@ -685,7 +773,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
            lives at Google, not in Supabase). JS picks one in loadProfile(). -->
     <div class="section-card" id="change-password-form" style="display:none">
       <div class="section-header">
-        <span class="section-icon">🔒</span>
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg></span>
         <span class="section-title">Change Password</span>
         <span class="section-sub">Update your account password</span>
       </div>
@@ -751,7 +839,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     <!-- Google OAuth users — they don't have a Supabase password to change. -->
     <div class="section-card" id="change-password-google" style="display:none">
       <div class="section-header">
-        <span class="section-icon">🔒</span>
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg></span>
         <span class="section-title">Password</span>
         <span class="section-sub">Managed by Google</span>
       </div>
@@ -767,7 +855,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
          #subscription-comp card below shows instead. -->
     <div class="section-card" id="subscription-paid" style="display:none">
       <div class="section-header">
-        <span class="section-icon">💳</span>
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg></span>
         <span class="section-title">Subscription</span>
         <span class="section-sub">Manage your Pro billing</span>
       </div>
@@ -780,7 +868,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <select id="sub-plan-select" aria-label="Plan" style="
-            display:none;
+            display:none;max-width:100%;min-width:0;
             font-family:'Space Grotesk',sans-serif;font-size:12px;
             padding:8px 10px;border-radius:8px;
             border:1px solid var(--border2);background:var(--card);color:var(--text);
@@ -824,7 +912,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
          going through Stripe Checkout (manually granted by admin). -->
     <div class="section-card" id="subscription-comp" style="display:none">
       <div class="section-header">
-        <span class="section-icon">⭐</span>
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.5 2.6 5.3 5.9.8-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z"/></svg></span>
         <span class="section-title">Pro Access</span>
         <span class="section-sub">Comp account</span>
       </div>
@@ -840,11 +928,25 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       </div>
     </div>
 
+    <!-- Team — owner: the people on the account and invites; member: whose team
+         it is, and leaving it. Filled in by loadTeamSection() (team function). -->
+    <div class="section-card" id="team-card" style="display:none">
+      <div class="section-header">
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8"/><path d="M15.5 5.6a3.2 3.2 0 0 1 0 5.8M17.3 14.9c1.6.6 2.8 2.2 3.2 4.6"/></svg></span>
+        <span class="section-title">Team</span>
+        <span class="section-sub" id="team-sub">People on your account</span>
+      </div>
+      <div class="section-body">
+        <div id="team-body"></div>
+        <div id="team-status" role="status" style="display:none"></div>
+      </div>
+    </div>
+
     <!-- API access — keys and usage for the API plan, or what the plan is
          for everyone else. Filled in by loadApiSection() (api-keys function). -->
     <div class="section-card" id="api-access" style="display:none">
       <div class="section-header">
-        <span class="section-icon">🔌</span>
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg></span>
         <span class="section-title">API Access</span>
         <span class="section-sub">Quotes in your own website or software</span>
       </div>
@@ -898,6 +1000,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 <div class="toast" id="toast">✓ Profile saved successfully</div>
 
 <script src="/pdf-quote.js"></script>
+<script src="/rate-sheet.js"></script>
 <script>
 // ── Color schemes ─────────────────────────────────────────────────────────
 // Each scheme defines a PDF header background + text colors. The text colors
@@ -1077,7 +1180,111 @@ function updatePreviewLogo(){
 // Pro Max, API and comp accounts (pdf-quote.js checks the same thing when it
 // builds a PDF). accountTier comes from the account row and plan changes.
 let accountTier = { plan: 'pro', comp: false };
+// ── Your rate sheet (Pro Plus and up; rate-sheet.js) ──────────────────────
+// Rows: all regions, then each market region; blank boxes show (in grey) the rate a quote
+// would use instead: the all-regions rate if set, otherwise this month's market rate.
+let rsMarket = null;   // rates.json regions
+function buildRateSheetGrid(){
+  const grid = document.getElementById('rs-grid');
+  if(!grid || !window.QFCRateSheet || grid.childElementCount) return;
+  const RS = QFCRateSheet;
+  let html = '<div class="rs-head">Pickup region</div>' + RS.TRAILERS.map(t => `<div class="rs-head">${RS.TRAILER_LABEL[t]}</div>`).join('');
+  RS.ROWS.forEach((r, i) => {
+    html += `<div class="rs-region">${RS.ROW_LABEL[r]}<small id="rs-states-${r}">${r === 'all' ? 'Any region left blank below' : ''}</small></div>` +
+      RS.TRAILERS.map(t => `<input id="rs-${r}-${t}" type="text" inputmode="decimal" maxlength="7" autocomplete="off"
+        aria-label="${RS.ROW_LABEL[r]} ${RS.TRAILER_LABEL[t].toLowerCase()} rate, dollars per mile" oninput="onRateSheetInput(this)" onchange="tidyRateSheetBox(this)" />`).join('');
+    if(i === 0) html += '<div class="rs-sep"></div>';
+  });
+  grid.innerHTML = html;
+}
+function rsInput(r, t){ return document.getElementById(`rs-${r}-${t}`); }
+// The grey hint in each blank box: what a quote uses when it's left blank.
+function updateRateSheetHints(){
+  if(!window.QFCRateSheet) return;
+  const RS = QFCRateSheet;
+  RS.TRAILERS.forEach(t => {
+    const all = RS.parseRate(rsInput('all', t) && rsInput('all', t).value);
+    const nat = rsMarket && rsMarket.national ? rsMarket.national[t] : null;
+    if(rsInput('all', t)) rsInput('all', t).placeholder = nat ? Number(nat).toFixed(2) : '';
+    RS.ROWS.slice(1).forEach(r => {
+      const el = rsInput(r, t);
+      if(!el) return;
+      const market = rsMarket && rsMarket[r] ? rsMarket[r][t] : null;
+      const hint = all != null && !Number.isNaN(all) ? all : market;
+      el.placeholder = hint ? Number(hint).toFixed(2) : '';
+    });
+  });
+  if(rsMarket) RS.ROWS.slice(1).forEach(r => {
+    const el = document.getElementById(`rs-states-${r}`);
+    if(el && rsMarket[r] && rsMarket[r].states) el.textContent = rsMarket[r].states.join(', ');
+  });
+}
+function onRateSheetInput(el){
+  el.classList.toggle('bad', Number.isNaN(QFCRateSheet.parseRate(el.value)));
+  updateRateSheetHints();
+  setRateSheetStatus('');
+}
+// "$4.25" → "4.25" when you leave the box (anything that isn't a rate stays as typed, marked)
+function tidyRateSheetBox(el){
+  const v = QFCRateSheet.parseRate(el.value);
+  if(v !== null && !Number.isNaN(v)) el.value = v.toFixed(2);
+}
+function setRateSheetStatus(text){ const el = document.getElementById('rs-status'); if(el) el.textContent = text || ''; }
+function fillRateSheet(sheet){
+  buildRateSheetGrid();
+  if(!window.QFCRateSheet) return;
+  const clean = QFCRateSheet.clean(sheet) || {};
+  QFCRateSheet.ROWS.forEach(r => QFCRateSheet.TRAILERS.forEach(t => {
+    const el = rsInput(r, t);
+    if(el){ const v = clean[r] && clean[r][t]; el.value = v != null ? Number(v).toFixed(2) : ''; el.classList.remove('bad'); }
+  }));
+  updateRateSheetHints();
+}
+// The sheet as typed: { sheet (cleaned, or null when empty), bad (the first box that isn't a rate) }
+function rateSheetFromForm(){
+  if(!window.QFCRateSheet) return { sheet: null, bad: null };
+  const raw = {};
+  let bad = null;
+  QFCRateSheet.ROWS.forEach(r => QFCRateSheet.TRAILERS.forEach(t => {
+    const el = rsInput(r, t);
+    if(!el) return;
+    const v = QFCRateSheet.parseRate(el.value);
+    if(Number.isNaN(v)){ el.classList.add('bad'); if(!bad) bad = el; return; }
+    if(v !== null) (raw[r] = raw[r] || {})[t] = v;
+  }));
+  return { sheet: QFCRateSheet.clean(raw), bad };
+}
+function fillRateSheetFromMarket(){
+  if(!rsMarket){ setRateSheetStatus('This month’s market rates haven’t loaded yet. Try again in a moment.'); return; }
+  let n = 0;
+  QFCRateSheet.ROWS.slice(1).forEach(r => QFCRateSheet.TRAILERS.forEach(t => {
+    const el = rsInput(r, t);
+    if(el && !el.value.trim() && rsMarket[r] && rsMarket[r][t]){ el.value = Number(rsMarket[r][t]).toFixed(2); n++; }
+  }));
+  updateRateSheetHints();
+  setRateSheetStatus(n ? `Filled ${n} blank box${n === 1 ? '' : 'es'} with this month’s market rates. Change any you like, then save.` : 'Every region already has a rate.');
+}
+function clearRateSheet(){
+  if(!confirm('Clear your whole rate sheet? Quotes go back to market rates once you save.')) return;
+  fillRateSheet(null);
+  setRateSheetStatus('Cleared. Save to go back to market rates.');
+}
+function applyRateSheetAccess(){
+  const allowed = !!window.QFCRateSheet && QFCRateSheet.allowed(accountTier.plan, accountTier.comp);
+  const locked = document.getElementById('rs-locked');
+  if(locked) locked.style.display = allowed ? 'none' : '';
+  if(document.body.classList.contains('pf-member')) return;   // the team owner's sheet, read-only
+  document.querySelectorAll('#rs-grid input, #rs-fill-btn, #rs-clear-btn').forEach(el => { el.disabled = !allowed; });
+  const grid = document.getElementById('rs-grid');
+  if(grid) grid.style.opacity = allowed ? '1' : '.55';
+}
+buildRateSheetGrid();
+fetch('/rates.json').then(r => r.ok ? r.json() : null).then(d => {
+  if(d && d.regions){ rsMarket = d.regions; updateRateSheetHints(); }
+}).catch(() => {});
+
 function applyWhiteLabelAccess(){
+  applyRateSheetAccess();
   const allowed = accountTier.comp || accountTier.plan === 'max' || accountTier.plan === 'api';
   const locked = document.getElementById('wl-locked');
   if(locked) locked.style.display = allowed ? 'none' : '';
@@ -1594,6 +1801,13 @@ async function checkAuth(){
 
 // ── Save to Supabase + localStorage ───────────────────────────────────────
 async function saveProfile(){
+  if(teamMemberMode()) return saveMemberDetails();
+  const rs = rateSheetFromForm();
+  if(rs.bad){
+    showToast(`Check your rate sheet: rates are $${QFCRateSheet.MIN.toFixed(2)} to $${QFCRateSheet.MAX.toFixed(2)} a mile`);
+    rs.bad.focus();
+    return;
+  }
   const profile = {
     companyName:  document.getElementById('company-name').value.trim(),
     contactName:  document.getElementById('contact-name').value.trim(),
@@ -1613,6 +1827,7 @@ async function saveProfile(){
     pdfInk:       customColorValue('pdf-ink', '#1a1f2e'),
     pdfSections:  sectionsFromForm(),
     pdfAccessorials: accessorialsFromForm(),
+    rateSheet:    rs.sheet,
     ...whiteLabelFromForm(),
     savedAt:      new Date().toISOString(),
   };
@@ -1654,6 +1869,7 @@ async function saveProfile(){
           pdf_terms:     profile.pdfTerms || null,
           pdf_sections:  profile.pdfSections,
           pdf_accessorials: profile.pdfAccessorials,
+          rate_sheet:    profile.rateSheet,
           updated_at:    new Date().toISOString(),
         })
       });
@@ -1687,12 +1903,24 @@ async function loadProfile(){
   // Try Supabase first
   if(session && userId){
     try {
-      const resp = await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${userId}&select=*`, {
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` }
+      // my_account: this login's account, or, with a seat on a team, the team
+      // owner's company settings and plan with this person's own name and phone.
+      const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/my_account`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: '{}'
       });
-      const rows = await resp.json();
-      if(rows?.[0]){
-        const p = rows[0];
+      const acct = resp.ok ? await resp.json() : null;
+      profileTeam = (acct && acct.team) || null;
+      if(acct && !acct.row && profileTeam){
+        // A team member waiting for a seat, with no account of their own
+        updateHeaderUser(session.user.email);
+        applyChangePasswordCardState(session);
+        loadTeamSection();
+        return;
+      }
+      if(acct && acct.row){
+        const p = acct.row;
         populateForm({
           companyName: p.company_name,
           contactName: p.contact_name,
@@ -1715,16 +1943,27 @@ async function loadProfile(){
           pdfTerms:    p.pdf_terms,
           pdfSections: p.pdf_sections,
           pdfAccessorials: p.pdf_accessorials,
+          rateSheet:   p.rate_sheet,
         });
         // Update header with user name
         updateHeaderUser(p.contact_name || p.company_name || session.user.email);
-        // Pick which subscription card to show based on whether they're a
-        // paid subscriber (has Stripe customer ID) or a comp account.
         accountTier = { plan: normalizeProfilePlan(p.plan), comp: p.is_active === true && !p.stripe_subscription_id };
-        applySubscriptionCardState(p.stripe_customer_id, p.plan, p.is_active === true);
+        if(teamMemberMode()){
+          // The team owner handles billing, API keys and company settings
+          applyPlanState(normalizeProfilePlan(p.plan), p.is_active === true, false, null);
+          applyMemberMode();
+        } else {
+          // Pick which subscription card to show based on whether they're a
+          // paid subscriber (has Stripe customer ID) or a comp account.
+          applySubscriptionCardState(p.stripe_customer_id, p.plan, p.is_active === true);
+        }
         applyWhiteLabelAccess();
         // Pick which password card to show based on auth provider.
         applyChangePasswordCardState(session);
+        loadTeamSection();
+        if(new URLSearchParams(window.location.search).get('team') === 'joined' && profileTeam && profileTeam.role === 'member'){
+          showToast(`✓ You’re on ${profileTeam.company || 'the team'}`);
+        }
         return;
       }
     } catch(e){}
@@ -1766,9 +2005,9 @@ function applySubscriptionCardState(stripeCustomerId, plan, isActive){
 // 5,000 API quotes per month). Same names and limits as netlify/lib/plans.js.
 const PROFILE_PLANS = {
   pro:  { name: 'Pro',      price: '$9.99',   detail: 'Automatic miles on 100 quotes per day' },
-  plus: { name: 'Pro Plus', price: '$19.99',  detail: 'Automatic miles on 250 quotes per day, win/loss tracking, a customer list and emailed quotes' },
-  max:  { name: 'Pro Max',  price: '$49.99',  detail: 'Everything in Pro Plus, with automatic miles on 1,000 quotes per day and white-label PDFs' },
-  api:  { name: 'API',      price: '$199.99', detail: 'Pro Max plus 5,000 API quotes per month' },
+  plus: { name: 'Pro Plus', price: '$19.99',  detail: 'Automatic miles on 250 quotes per day, win/loss tracking, a customer list, emailed quotes and your own rate sheet' },
+  max:  { name: 'Pro Max',  price: '$49.99',  detail: 'Everything in Pro Plus, with automatic miles on 1,000 quotes per day, white-label PDFs and a team of 3 people' },
+  api:  { name: 'API',      price: '$199.99', detail: 'Pro Max with a team of 6 people, plus 5,000 API quotes per month' },
 };
 const PROFILE_PLAN_RANK = { pro: 1, plus: 2, max: 3, api: 4 };
 function normalizeProfilePlan(plan){ return PROFILE_PLANS[plan] ? plan : 'pro'; }
@@ -1853,7 +2092,7 @@ async function handleSwitchPlan(){
     : onOriginalPlan || PROFILE_PLAN_RANK[target] > PROFILE_PLAN_RANK[currentPlan]
       ? `Upgrade to ${info.name} for ${info.price}/month?\n\nYou'll be charged the prorated difference today${target === 'api' ? ', and API access starts right away' : ''}.`
       : `Switch to ${info.name} for ${info.price}/month?\n\nThe unused part of your current plan is credited on your next invoice.`;
-  if(!confirm(question)) return;
+  if(!confirm(question + teamDowngradeNote(target))) return;
 
   const session = await getSessionRefreshed();
   if(!session){ window.location.href = '/signup.html?login'; return; }
@@ -1920,6 +2159,265 @@ function setApiStatus(text, isError){
   el.textContent = text || '';
   el.style.display = text ? 'block' : 'none';
   el.style.color = isError ? 'var(--red)' : 'var(--text2)';
+}
+
+// ── Team (team function) ──────────────────────────────────────────────────
+// Pro Max includes 3 people and the API plan 6, counting the owner. Members sign
+// in with their own login and work in the owner's account: plan, daily limits,
+// quote log, customers and company settings. The team function does the work;
+// my_account (loadProfile) says whether this login is an owner or a member.
+let profileTeam = null;   // my_account's team: { role, seated, company, owner_name, size, members, tag }
+let teamState = null;     // the team function's last status
+const TEAM_SIZES = { pro: 1, plus: 1, max: 3, api: 6 };
+const teamEsc = (v) => String(v === null || v === undefined ? '' : v)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+const teamDate = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
+const teamPlanName = (plan) => plan === 'comp' ? 'your plan' : (PROFILE_PLANS[plan] ? PROFILE_PLANS[plan].name : 'your plan');
+// With a seat on someone else's team (not one waiting for a seat)
+function teamMemberMode(){ return !!profileTeam && profileTeam.role === 'member' && profileTeam.seated !== false; }
+
+async function teamCall(body){
+  const session = await getSessionRefreshed();
+  if(!session) throw Object.assign(new Error('Sign in again to manage your team.'), { status: 401 });
+  const resp = await fetch('/.netlify/functions/team', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+    body: JSON.stringify(body)
+  });
+  const data = await resp.json().catch(() => ({}));
+  if(!resp.ok) throw Object.assign(new Error(data.message || 'Something went wrong. Try again in a minute.'), { status: resp.status, data });
+  return data;
+}
+function setTeamStatus(text, kind){
+  const el = document.getElementById('team-status');
+  if(!el) return;
+  el.textContent = text || '';
+  el.className = kind || '';
+  el.style.display = text ? 'block' : 'none';
+}
+
+async function loadTeamSection(){
+  const card = document.getElementById('team-card');
+  if(!card) return;
+  try { teamState = await teamCall({ action: 'status' }); }
+  catch(e){ return; }   // leave the card hidden if the team function can't be reached
+  card.style.display = '';
+  renderTeam();
+}
+
+function renderTeam(){
+  const t = teamState;
+  const body = document.getElementById('team-body');
+  const sub = document.getElementById('team-sub');
+  if(!t || !body) return;
+
+  if(t.role === 'member'){
+    const team = t.team || {};
+    const teamName = team.company || `${team.ownerName}’s team`;
+    sub.textContent = `On ${teamName}`;
+    body.innerHTML = `
+      <p class="api-copy">You’re on <strong>${teamEsc(teamName)}</strong>, run by ${teamEsc(team.ownerName)}, on its ${teamEsc(teamPlanName(team.plan))} plan. You share the team’s quote log, customers and company settings. Quotes you send are signed with your own name and phone (Company Information above)${t.me && t.me.tag ? `, and your quote numbers carry your initials, <strong>${teamEsc(t.me.tag)}</strong>` : ''}.</p>
+      ${t.seated === false ? `<div class="team-warn">The team’s plan has room for ${team.size > 1 ? `${team.size} people` : 'no team members'} right now, so you’re waiting for a seat. Ask ${teamEsc(team.ownerName)} to make room, or leave the team.</div>` : ''}
+      ${t.ownPlan ? `<div class="team-warn">You still pay for your own ${teamEsc(teamPlanName(t.ownPlan))} plan. You don’t need it while you’re on this team. <a href="#" onclick="event.preventDefault();handleManageBilling()" style="color:var(--accent)">Manage billing</a></div>` : ''}
+      <div class="team-list">${(t.people || []).map(p => `
+        <div class="team-row"><div class="team-main">
+          <div class="team-name">${teamEsc(p.name)}${p.owner ? '<span class="team-tag">Owner</span>' : ''}${p.you ? '<span class="team-tag">You</span>' : ''}</div>
+          ${p.seated === false ? '<div class="team-meta"><span class="warn">Waiting for a seat</span></div>' : ''}
+        </div></div>`).join('')}
+      </div>
+      <div class="api-actions"><button class="api-btn secondary" id="team-leave-btn" onclick="leaveTeam()">Leave team</button></div>`;
+    return;
+  }
+
+  const members = t.members || [];
+  const active = members.filter(m => m.status === 'active');
+  const seatless = active.filter(m => m.seated === false);
+  const names = (list) => list.map(m => m.name || m.email).join(', ');
+  const plan = teamPlanName(t.plan);
+
+  if(!t.size || t.size <= 1){
+    sub.textContent = 'Add people to your account';
+    body.innerHTML = `
+      ${active.length ? `<div class="team-warn">Your plan doesn’t include team members, so ${teamEsc(names(active))} can’t use your account. Move to Pro Max (3 people) or the API plan (6 people) to bring them back, or remove them below.</div>` : ''}
+      <p class="api-copy">Pro Max includes a team of 3 people and the API plan 6, counting you. Everyone signs in with their own login and quotes on your plan: they share your quote log, customers, company settings and daily limits, and send quotes signed with their own name.</p>
+      ${members.length ? `<div class="team-list">${members.map(teamMemberRow).join('')}</div>` : ''}
+      ${t.onOtherTeam ? '' : `<div class="api-actions"><button class="api-btn" onclick="pickPlanForTeam()">Get Pro Max</button></div>`}`;
+    return;
+  }
+
+  sub.textContent = `${t.used} of ${t.size} people`;
+  const full = t.used >= t.size;
+  body.innerHTML = `
+    <p class="api-copy">Everyone you add signs in with their own login and quotes on your ${teamEsc(plan)} plan. They share your quote log, customers, company settings and daily limits, and send quotes signed with their own name. Only you change company settings and billing. A quote or customer can be deleted by you or by whoever saved it.</p>
+    ${seatless.length ? `<div class="team-warn">${teamEsc(plan.charAt(0).toUpperCase() + plan.slice(1))} has room for ${t.size} people, so ${teamEsc(names(seatless))} can’t use your account right now. Remove someone, or move to a plan with more room.</div>` : ''}
+    ${t.onOtherTeam ? `<div class="team-warn">You’re on someone else’s team, so you can’t add your own team members. Leave that team first.</div>` : ''}
+    <div class="team-list">
+      <div class="team-row"><div class="team-main">
+        <div class="team-name">${teamEsc((t.me && t.me.name) || 'You')}<span class="team-tag">Owner</span></div>
+        <div class="team-meta">${teamEsc((t.me && t.me.email) || '')}</div>
+      </div></div>
+      ${members.map(teamMemberRow).join('')}
+    </div>
+    ${!t.canInvite ? '' : full
+      ? `<div class="team-note">Your team is full. Remove someone to invite another person${t.size < 6 ? ', or move to the API plan for a team of 6' : ''}.</div>`
+      : `<div class="team-invite">
+          <input id="team-invite-email" type="email" maxlength="200" placeholder="Their email" aria-label="Email address to invite"
+            onkeydown="if(event.key==='Enter')inviteTeammate()" />
+          <input id="team-invite-name" type="text" maxlength="120" placeholder="Their name (optional)" aria-label="Their name"
+            onkeydown="if(event.key==='Enter')inviteTeammate()" />
+          <button class="api-btn" id="team-invite-btn" onclick="inviteTeammate()">Send invite</button>
+        </div>
+        <div class="team-note">They’ll get an email with a link to join, good for 14 days. They sign in or create a free login with that email.</div>`}`;
+}
+
+function teamMemberRow(m){
+  if(m.status === 'invited'){
+    return `<div class="team-row"><div class="team-main">
+        <div class="team-name">${teamEsc(m.name || m.email)}</div>
+        <div class="team-meta">${m.name ? teamEsc(m.email) + ' · ' : ''}${m.expired ? '<span class="warn">Invite expired</span>' : 'Invited ' + teamEsc(teamDate(m.invitedAt))}</div>
+      </div>
+      <div class="team-row-actions">
+        <button class="api-key-revoke" onclick="resendInvite(${m.id})">Resend</button>
+        <button class="api-key-revoke" onclick="removeTeammate(${m.id}, true)">Cancel</button>
+      </div></div>`;
+  }
+  return `<div class="team-row"><div class="team-main">
+      <div class="team-name">${teamEsc(m.name || m.email)}</div>
+      <div class="team-meta">${teamEsc(m.email)} · Joined ${teamEsc(teamDate(m.joinedAt))}${m.seated === false ? ' · <span class="warn">No seat on this plan</span>' : ''}</div>
+    </div>
+    <div class="team-row-actions"><button class="api-key-revoke" onclick="removeTeammate(${m.id}, false)">Remove</button></div></div>`;
+}
+
+async function inviteTeammate(){
+  const emailEl = document.getElementById('team-invite-email');
+  const nameEl = document.getElementById('team-invite-name');
+  const btn = document.getElementById('team-invite-btn');
+  const email = (emailEl && emailEl.value || '').trim();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ setTeamStatus('Enter their email address.', 'err'); if(emailEl) emailEl.focus(); return; }
+  if(btn) btn.disabled = true;
+  setTeamStatus('Sending the invite…');
+  try {
+    await teamCall({ action: 'invite', email, name: (nameEl && nameEl.value || '').trim() });
+    teamState = await teamCall({ action: 'status' });
+    renderTeam();
+    setTeamStatus(`✓ Invite sent to ${email}.`, 'ok');
+  } catch(e){
+    setTeamStatus(e.message, 'err');
+    if(btn) btn.disabled = false;
+  }
+}
+
+async function resendInvite(id){
+  setTeamStatus('Sending the invite again…');
+  try {
+    const r = await teamCall({ action: 'resend', id });
+    teamState = await teamCall({ action: 'status' });
+    renderTeam();
+    setTeamStatus(`✓ Sent a new link to ${r.member ? r.member.email : 'them'}. The old link no longer works.`, 'ok');
+  } catch(e){ setTeamStatus(e.message, 'err'); }
+}
+
+async function removeTeammate(id, invite){
+  const m = teamState && (teamState.members || []).find(x => x.id === id);
+  const who = m ? (m.name || m.email) : 'them';
+  const question = invite
+    ? `Cancel the invite to ${who}? Their link stops working.`
+    : `Remove ${who} from your team? They lose access right away. The quotes and customers they saved stay with your account.`;
+  if(!confirm(question)) return;
+  setTeamStatus(invite ? 'Canceling the invite…' : 'Removing…');
+  try {
+    await teamCall({ action: 'remove', id });
+    teamState = await teamCall({ action: 'status' });
+    renderTeam();
+    setTeamStatus(invite ? '✓ Invite canceled.' : `✓ ${who} is off your team.`, 'ok');
+  } catch(e){ setTeamStatus(e.message, 'err'); }
+}
+
+async function leaveTeam(){
+  const team = teamState && teamState.team || {};
+  const teamName = team.company || `${team.ownerName || 'this'}’s team`;
+  if(!confirm(`Leave ${teamName}? You’ll lose the team’s plan, quote log and customers. What you saved stays with the team.`)) return;
+  const btn = document.getElementById('team-leave-btn');
+  if(btn) btn.disabled = true;
+  setTeamStatus('Leaving the team…');
+  try {
+    await teamCall({ action: 'leave' });
+    try { localStorage.removeItem('qfc_pro_profile'); localStorage.removeItem('qfc_pro_status'); } catch(e){}
+    setTeamStatus('✓ You’ve left the team.', 'ok');
+    setTimeout(() => window.location.reload(), 900);
+  } catch(e){
+    setTeamStatus(e.message, 'err');
+    if(btn) btn.disabled = false;
+  }
+}
+
+// Pro and Pro Plus owners: pick Pro Max in the plan switcher
+function pickPlanForTeam(){
+  const select = document.getElementById('sub-plan-select');
+  const card = document.getElementById('subscription-paid');
+  if(select && card && card.style.display !== 'none'){
+    select.value = 'max';
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    select.focus();
+  } else {
+    window.location.href = '/signup.html';
+  }
+}
+
+// What a smaller plan means for the team (added to the plan switch question)
+function teamDowngradeNote(target){
+  const t = teamState;
+  if(!t || t.role !== 'owner') return '';
+  const people = (t.members || []).filter(m => m.status === 'active').length;
+  const room = Math.max(0, (TEAM_SIZES[target] || 1) - 1);
+  if(people <= room) return '';
+  const out = people - room;
+  return room
+    ? `\n\n${PROFILE_PLANS[target].name} has room for ${room + 1} people, so ${out} of your team member${out === 1 ? '' : 's'} will lose access until you make room or move back.`
+    : `\n\n${PROFILE_PLANS[target].name} doesn’t include team members, so your ${people} team member${people === 1 ? '' : 's'} will lose access until you move back to Pro Max or the API plan.`;
+}
+
+// A team member's page: company settings belong to the owner (read-only here);
+// the member keeps their own name and phone, which go on the quotes they send.
+function applyMemberMode(){
+  document.body.classList.add('pf-member');
+  const t = profileTeam || {};
+  const banner = document.getElementById('member-banner');
+  if(banner){
+    banner.innerHTML = `You’re on <strong>${teamEsc(t.company || ((t.owner_name || 'a') + '’s team'))}</strong>. ${teamEsc(t.owner_name || 'The team owner')} sets the company details, logo and PDF options; you can change your own name and phone, which go on the quotes you send.`;
+  }
+  const own = new Set(['contact-name', 'contact-phone']);
+  document.querySelectorAll('.sections > .section-card').forEach(card => {
+    const id = card.id || '';
+    if(['team-card', 'change-password-form', 'change-password-google'].includes(id)) return;
+    if(['subscription-paid', 'subscription-comp', 'api-access'].includes(id)){ card.style.display = 'none'; return; }
+    const hasOwn = [...own].some(f => card.querySelector('#' + f));
+    if(!hasOwn) card.classList.add('pf-locked');
+    card.querySelectorAll('input, select, textarea, button').forEach(el => { if(!own.has(el.id)) el.disabled = true; });
+  });
+  const save = document.querySelector('.save-btn');
+  if(save) save.textContent = '💾 Save my details';
+  const note = document.getElementById('save-note');
+  if(note) note.textContent = 'Your name and phone go on the quotes you send.';
+}
+
+async function saveMemberDetails(){
+  const name = document.getElementById('contact-name').value.trim();
+  const phone = document.getElementById('contact-phone').value.trim();
+  try {
+    await teamCall({ action: 'me', name, phone });
+    try {
+      const p = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {};
+      p.contactName = name; p.phone = phone;
+      localStorage.setItem('qfc_pro_profile', JSON.stringify(p));
+    } catch(e){}
+    updateHeaderUser(name || (profileTeam && profileTeam.company) || 'Account');
+    showToast('✓ Your details are saved');
+    document.getElementById('save-note').innerHTML =
+      'Last saved: <span>' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + '</span>';
+  } catch(e){
+    showToast(e.message);
+  }
 }
 
 async function loadApiSection(){
@@ -2273,6 +2771,7 @@ function populateForm(p){
   document.getElementById('pdf-valid-hours').value = [24, 48, 72, 168].includes(Number(p.pdfValidHours)) ? String(p.pdfValidHours) : '24';
   document.getElementById('pdf-terms').value = typeof p.pdfTerms === 'string' ? p.pdfTerms : '';
   fillSections(p.pdfSections, p.pdfAccessorials);
+  fillRateSheet(p.rateSheet);
   if(p.logoBase64){
     // Reuse applyLogo so the preview state (remove + adjust buttons) stays in
     // sync with the upload path — no duplicated show/hide logic.

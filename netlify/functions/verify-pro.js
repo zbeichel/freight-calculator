@@ -1,32 +1,14 @@
 // netlify/functions/verify-pro.js
 // Server-side Pro status verification — cannot be faked by client-side JS
-// Called from Pro pages on load to verify the user has an active subscription
+// Called from Pro pages on load to verify the user has an active subscription:
+// their own, or their team owner's while they have a seat on the team (team.js).
+// A team member gets the owner's plan but none of the owner's billing details.
 
 const https = require('https');
 const { normalizePlan, legacyUnlimited, NEW_PLANS_START } = require('../lib/plans.js');
+const { effectiveAccount, onTeamSeat } = require('../lib/account.js');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
-
-function supabaseRequest(path, serviceKey){
-  return new Promise((resolve, reject) => {
-    const url = new URL(SUPABASE_URL + path);
-    https.get({
-      hostname: url.hostname,
-      path: url.pathname + url.search,
-      headers: {
-        'apikey': serviceKey,
-        'Authorization': `Bearer ${serviceKey}`,
-      }
-    }, res => {
-      let d = '';
-      res.on('data', chunk => d += chunk);
-      res.on('end', () => {
-        try { resolve({ status: res.statusCode, body: JSON.parse(d) }); }
-        catch(e){ resolve({ status: res.statusCode, body: d }); }
-      });
-    }).on('error', reject);
-  });
-}
 
 exports.handler = async function(event){
   if(event.httpMethod !== 'POST'){
@@ -80,20 +62,22 @@ exports.handler = async function(event){
       };
     }
 
-    // Now check pro_users with service key — bypasses RLS, authoritative
-    const resp = await supabaseRequest(
-      `/rest/v1/pro_users?id=eq.${userId}&select=is_active,plan,next_plan,grandfathered,billing_period_start,renews_at,stripe_subscription_id`,
-      serviceKey
-    );
-
-    const row = resp.body?.[0] || {};
+    // The account this person quotes on (service key, authoritative): their own
+    // pro_users row, or their team owner's while they have a team seat.
+    const acct = await effectiveAccount(userId, serviceKey);
+    if(!acct){
+      return { statusCode: 200, body: JSON.stringify({ active: false, reason: 'Verification failed' }) };
+    }
+    const member = onTeamSeat(acct);
+    const row = acct.row || {};
     const isActive = row.is_active === true;
     const plan = normalizePlan(row.plan);
     // Subscribers on the original Pro plan keep unlimited quotes until their
     // first bill on or after January 1, 2027; the pages use this to show the
     // change notice. nextPlan is the plan they move to then (Pro by default).
     // Someone who has already moved to the API plan has nothing left to choose.
-    const unlimitedUntilRenewal = isActive && plan !== 'api' && legacyUnlimited(row);
+    // Billing notices are the owner's business, not their team members'.
+    const unlimitedUntilRenewal = !member && isActive && plan !== 'api' && legacyUnlimited(row);
 
     return {
       statusCode: 200,
@@ -104,8 +88,10 @@ exports.handler = async function(event){
         unlimitedUntilRenewal,
         nextPlan: unlimitedUntilRenewal ? normalizePlan(row.next_plan) : null,
         newPlansStart: new Date(NEW_PLANS_START).toISOString(),
-        paid: !!row.stripe_subscription_id,
-        renewsAt: row.renews_at || null,
+        paid: !member && !!row.stripe_subscription_id,
+        renewsAt: member ? null : (row.renews_at || null),
+        // role 'owner' | 'member'; a member without a seat isn't active on the team's plan
+        team: acct.role ? { role: acct.role, seated: acct.role === 'member' ? acct.seated : true, size: acct.teamSize } : null,
       })
     };
 

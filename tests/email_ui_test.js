@@ -87,6 +87,7 @@ async function setup(browser, base, { account, customers = SEED_CUSTOMERS, quote
       }
       return json([]);
     }
+    if (url.includes('/rest/v1/rpc/my_account')) return json({ row: db.account || null, team: db.team || null });
     if (url.includes('/rest/v1/pro_users')) {
       if (method === 'PATCH') return route.fulfill({ status: 204, body: '' });
       return json(db.account ? [db.account] : []);

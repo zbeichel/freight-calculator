@@ -8,7 +8,8 @@
 //   QFCCustomers.allowed()             this account can save customers
 //   QFCCustomers.all() / byId(id) / byName(name)
 //   QFCCustomers.save(customer, id?)   add or update (Promise of the saved customer)
-//   QFCCustomers.remove(id)            delete (saved quotes keep the name)
+//   QFCCustomers.remove(id)            delete (saved quotes keep the name); on a team, only the
+//                                      owner or whoever added it (QFCCustomers.canDelete(c))
 //   QFCCustomers.onChange(fn)          after the list loads or changes
 //   QFCCustomers.attachPicker(input, { details, onChange })
 //                                      search-as-you-type on a customer text box
@@ -24,6 +25,7 @@
 
   let customers = [];
   let tier = null;
+  let team = null;      // the team this account shares the list with (my_account), or null
   let readyPromise = null;
   const listeners = [];
 
@@ -90,6 +92,7 @@
       defaultMargin: r.default_margin === null || r.default_margin === undefined ? null : Number(r.default_margin),
       createdAt: r.created_at || null,
       updatedAt: r.updated_at || null,
+      createdBy: r.created_by || null,
     };
   }
   function sortList() { customers.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })); }
@@ -101,15 +104,18 @@
   const byName = (name) => { const k = key(name); return k ? customers.find((c) => key(c.name) === k) || null : null; };
 
   // Works out the account's plan from the database (multi-stop and bulk only
-  // check that Pro is active) and, with the customer list, loads it.
+  // check that Pro is active) and, with the customer list, loads it. A team
+  // member works in the team owner's account (my_account), so the team shares
+  // one list.
   function ready() {
     if (readyPromise) return readyPromise;
     readyPromise = (async () => {
       const uid = userIdOf(session());
       if (!uid) { tier = 'none'; return customers; }
       try {
-        const rows = await api('GET', `/rest/v1/pro_users?id=eq.${encodeURIComponent(uid)}&select=is_active,plan,stripe_subscription_id`);
-        const row = Array.isArray(rows) ? rows[0] : null;
+        const acct = await api('POST', '/rest/v1/rpc/my_account', {});
+        const row = acct && acct.row;
+        team = acct && acct.team && (acct.team.role !== 'member' || acct.team.seated !== false) ? acct.team : null;
         tier = !row || row.is_active !== true ? 'none'
           : !row.stripe_subscription_id ? 'comp'
           : ['plus', 'max', 'api'].includes(row.plan) ? row.plan : 'pro';
@@ -123,10 +129,10 @@
   }
 
   async function load() {
-    const uid = userIdOf(session());
     let rows = [];
     for (let offset = 0; offset < 5000; offset += 1000) {
-      const page = await api('GET', `/rest/v1/customers?user_id=eq.${encodeURIComponent(uid)}&select=*&order=name.asc&limit=1000&offset=${offset}`);
+      // The access rules return this account's list (the team's, for a team member)
+      const page = await api('GET', `/rest/v1/customers?select=*&order=name.asc&limit=1000&offset=${offset}`);
       if (!Array.isArray(page)) break;
       rows = rows.concat(page);
       if (page.length < 1000) break;
@@ -140,9 +146,9 @@
   function friendly(e, name) {
     if (e && e.friendly) return e;
     const code = e && e.code;
-    const msg = code === '23505' ? `You already have a customer named ${name}.`
+    const msg = code === '23505' ? `${team ? 'Your team already has' : 'You already have'} a customer named ${name}.`
       : code === '42501' ? 'The customer list comes with Pro Plus and up.'
-      : code === '54000' ? `You've saved ${limit().toLocaleString()} customers, the most your plan allows.`
+      : code === '54000' ? `${team ? 'Your team has' : "You've"} saved ${limit().toLocaleString()} customers, the most your plan allows.`
       : code === '23514' ? 'One of the fields is too long, or the margin is outside 0–200%.'
       : code === 'auth' ? e.message
       : "Couldn't save. Check your connection and try again.";
@@ -165,7 +171,7 @@
     };
     if (!body.name) throw Object.assign(new Error("Enter the customer's name."), { friendly: true });
     const dupe = byName(body.name);
-    if (dupe && String(dupe.id) !== String(id)) throw Object.assign(new Error(`You already have a customer named ${dupe.name}.`), { friendly: true });
+    if (dupe && String(dupe.id) !== String(id)) throw Object.assign(new Error(`${team ? 'Your team already has' : 'You already have'} a customer named ${dupe.name}.`), { friendly: true });
     let rows;
     try {
       rows = id
@@ -180,12 +186,24 @@
     return saved;
   }
 
+  // On a team, only the owner or whoever added a customer can delete it (the
+  // database keeps anyone else's delete from touching it).
   async function remove(id) {
+    let gone;
     try {
-      await api('DELETE', `/rest/v1/customers?id=eq.${encodeURIComponent(id)}`);
+      gone = await api('DELETE', `/rest/v1/customers?id=eq.${encodeURIComponent(id)}`, undefined, 'return=representation');
     } catch (e) { throw friendly(e, ''); }
+    if (Array.isArray(gone) && !gone.length) {
+      throw Object.assign(new Error('Only the team owner or whoever added this customer can delete it.'), { friendly: true });
+    }
     customers = customers.filter((x) => String(x.id) !== String(id));
     emit();
+  }
+
+  // A team member can delete only the customers they added; the owner, any.
+  function canDelete(c) {
+    if (!c || !team || team.role !== 'member') return true;
+    return !!c.createdBy && c.createdBy === userIdOf(session());
   }
 
   function summary(c) {
@@ -270,7 +288,7 @@
             <label>Default margin % <span>(optional)</span><input name="defaultMargin" type="number" inputmode="decimal" min="0" max="200" step="0.5" /></label>
             <div class="qfcc-hint">Picking this customer on the calculator sets the margin.</div>
           </div>
-          <label>Notes <span>(only you see these)</span><textarea name="notes" rows="2" maxlength="2000"></textarea></label>
+          <label>Notes <span>(not shown on quotes)</span><textarea name="notes" rows="2" maxlength="2000"></textarea></label>
           <div class="qfcc-help">The name, contact, email, phone and address print under “Prepared for” on your PDF quotes.</div>
           <div class="qfcc-actions">
             <button type="button" class="qfcc-btn qfcc-del">Delete</button>
@@ -352,7 +370,7 @@
           f.notes.value = src.notes || '';
           f.defaultMargin.value = src.defaultMargin === null || src.defaultMargin === undefined ? '' : String(src.defaultMargin);
           wrap.querySelector('.qfcc-title').textContent = existing ? 'Edit customer' : 'New customer';
-          delBtn.hidden = !existing;
+          delBtn.hidden = !existing || !canDelete(existing);
           status.textContent = '';
           wrap.hidden = false;
           // Focus the first field to fill, unless the user is already typing in one
@@ -513,6 +531,6 @@
 
   window.QFCCustomers = {
     ready, load, allowed, limit, tier: currentTier, all, byId, byName, save, remove, onChange,
-    attachPicker, openEditor, forPDF, summary,
+    attachPicker, openEditor, forPDF, summary, canDelete, team: () => team,
   };
 })();

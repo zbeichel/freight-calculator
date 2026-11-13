@@ -229,11 +229,11 @@
         '<div class="qf-footer-brand"><a class="qf-logo" href="/"><span class="qf-logo-mark">' + LOGO + '</span>' +
         '<span class="qf-logo-text">Quick<b>Freight</b>Calc</span></a>' +
         '<p>Truckload rate quotes in seconds for brokers, dispatchers and owner-operators — van, reefer and flatbed, anywhere in the US.</p></div>' +
-        '<div class="qf-footer-col"><h4>Quote</h4><a href="/">Rate calculator</a><a href="/multistop.html">Multi-stop builder</a>' +
+        '<div class="qf-footer-col"><h2 class="qf-footer-h">Quote</h2><a href="/">Rate calculator</a><a href="/multistop.html">Multi-stop builder</a>' +
         '<a href="/bulk.html">Bulk load calculator</a><a href="/lanes.html">Lane rate tracker</a></div>' +
-        '<div class="qf-footer-col"><h4>Market</h4><a href="/rates.html">Market rates map</a><a href="/signup.html">Plans &amp; pricing</a>' +
+        '<div class="qf-footer-col"><h2 class="qf-footer-h">Market</h2><a href="/rates.html">Market rates map</a><a href="/signup.html">Plans &amp; pricing</a>' +
         '<a href="/api.html">API</a><a href="/customers.html">Customers</a></div>' +
-        '<div class="qf-footer-col"><h4>Company</h4><a href="/terms.html">Terms of Service</a><a href="/privacy.html">Privacy Policy</a>' +
+        '<div class="qf-footer-col"><h2 class="qf-footer-h">Company</h2><a href="/terms.html">Terms of Service</a><a href="/privacy.html">Privacy Policy</a>' +
         '<a href="mailto:info@quickfreightcalc.com">info@quickfreightcalc.com</a></div>' +
         '</div>' +
         (note ? '<div class="qf-footer-note">' + note + '</div>' : '') +

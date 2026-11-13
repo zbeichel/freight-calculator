@@ -18,7 +18,9 @@ const PDF = Buffer.from('%PDF-1.3\n' + '%'.repeat(600) + '\n%%EOF\n', 'latin1').
 let world;
 function reset(over = {}) {
   world = {
-    users: { 'tok-sam': { id: 'u-sam', email: 'sam@keystone.example' } },
+    users: { 'tok-sam': { id: 'u-sam', email: 'sam@keystone.example' }, 'tok-jo': { id: 'u-jo', email: 'jo@keystone.example' } },
+    // Team seats: member id → { owner, name, phone, seated } (the database decides seats)
+    team: {},
     pro: { 'u-sam': { id: 'u-sam', email: 'sam@keystone.example', company_name: 'Keystone Produce Logistics', contact_name: 'Sam Rivera', phone: '555-0100', plan: 'plus', is_active: true, comp: false, stripe_subscription_id: 'sub_123', pdf_white_label: false } },
     quotes: { 1700000000001: 'u-sam', 1700000000002: 'u-other' },
     sent24h: 0,
@@ -42,6 +44,17 @@ global.fetch = async (url, init = {}) => {
   if (u.pathname === '/auth/v1/user') {
     const tok = (call.headers.Authorization || '').replace('Bearer ', '');
     return world.users[tok] ? reply(200, world.users[tok]) : reply(401, { msg: 'bad jwt' });
+  }
+  if (u.pathname === '/rest/v1/rpc/effective_account') {
+    // As public.effective_account: a seated member works on the owner's account
+    const uid = call.body.p_uid;
+    const m = world.team[uid];
+    const seated = !!m && m.seated !== false;
+    const accountId = seated ? m.owner : uid;
+    return reply(200, {
+      account_id: accountId, role: m ? 'member' : null, seated, owner_id: m ? m.owner : null,
+      member_name: m ? m.name : null, member_phone: m ? m.phone : null, team_size: 3, row: world.pro[accountId] || null,
+    });
   }
   if (u.pathname === '/rest/v1/pro_users') {
     const id = u.searchParams.get('id').replace('eq.', '');
@@ -192,6 +205,32 @@ const logCall = () => world.calls.find((c) => c.url.includes('/rest/v1/quote_ema
   check('Resend refuses: 502, nothing recorded', rFail.statusCode === 502 && !logCall(), rFail.body);
   reset({ logStatus: 500 });
   check('sent but not recorded: still reported as sent', (await call(goodBody())).statusCode === 200);
+
+  console.log('\n=== Team members ===');
+  const jo = { owner: 'u-sam', name: 'Jo Lee', phone: '555-0177' };
+  reset(); Object.assign(world.pro['u-sam'], { plan: 'max' }); world.team['u-jo'] = jo;
+  const rJo = await call(goodBody({ ccMe: true }), { token: 'tok-jo' });
+  const pj = resendCall() && resendCall().body;
+  check('a team member on Pro Max can email quotes', rJo.statusCode === 200, rJo.body);
+  check('…under the owner’s company, signed with their own name and phone (not the owner’s)',
+    pj.from === '"Keystone Produce Logistics via QuickFreightCalc" <quotes@quickfreightcalc.com>'
+    && pj.html.includes('Jo Lee') && pj.html.includes('555-0177') && !pj.html.includes('Sam Rivera') && !pj.html.includes('555-0100'), pj.from);
+  check('…replies and the copy go to the member', pj.reply_to === 'jo@keystone.example' && JSON.stringify(pj.cc) === '["jo@keystone.example"]');
+  const countCall = world.calls.find((c) => c.url.includes('/rest/v1/quote_emails') && c.method === 'GET');
+  check('…the daily limit is counted for the whole team (the owner’s account)', countCall && countCall.url.includes('user_id=eq.u-sam'), countCall && countCall.url);
+  const jlog = logCall();
+  check('…recorded under the team, with who sent it, and the team’s quote id counts',
+    jlog && jlog.body.user_id === 'u-sam' && jlog.body.sent_by === 'u-jo' && jlog.body.quote_id === '1700000000001', JSON.stringify(jlog && jlog.body));
+  check('…retries keyed to the member', resendCall().headers['Idempotency-Key'] === 'quote-u-jo-k-12345678');
+  reset({ sent24h: 300 }); Object.assign(world.pro['u-sam'], { plan: 'max' }); world.team['u-jo'] = jo;
+  const rTeamCap = await call(goodBody(), { token: 'tok-jo' });
+  check('the team’s 301st email in 24 hours is refused, worded for the team', rTeamCap.statusCode === 429 && /^Your team has emailed 300 quotes/.test(out(rTeamCap).message), rTeamCap.body);
+  reset(); Object.assign(world.pro['u-sam'], { plan: 'max', pdf_white_label: true }); world.team['u-jo'] = jo;
+  await call(goodBody(), { token: 'tok-jo' });
+  check('the owner’s white-label setting applies to the team', resendCall().body.from === '"Keystone Produce Logistics" <quotes@quickfreightcalc.com>');
+  reset(); Object.assign(world.pro['u-sam'], { plan: 'max' }); world.team['u-jo'] = { ...jo, seated: false };
+  const rNoSeat = await call(goodBody(), { token: 'tok-jo' });
+  check('a member waiting for a seat (no plan of their own) can’t send', rNoSeat.statusCode === 403 && !resendCall(), rNoSeat.body);
 
   console.log('\n=== Helpers ===');
   const sub = { stripe_subscription_id: 'sub_1' };

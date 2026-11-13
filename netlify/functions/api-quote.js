@@ -20,6 +20,7 @@
 const crypto = require('crypto');
 const { API_MONTHLY_QUOTES, API_PER_MINUTE, normalizePlan } = require('../lib/plans.js');
 const engine = require('../lib/quote-engine.js');
+const SHEET = require('../../rate-sheet.js');
 const { geocodePlace, computeRoute } = require('../lib/google.js');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
@@ -60,7 +61,7 @@ async function lookupKey(apiKey, serviceKey) {
   const hash = crypto.createHash('sha256').update(apiKey).digest('hex');
   const resp = await fetch(
     `${SUPABASE_URL}/rest/v1/api_keys?key_hash=eq.${hash}&revoked_at=is.null` +
-      '&select=id,user_id,pro_users(is_active,plan,billing_period_start,renews_at)',
+      '&select=id,user_id,pro_users(is_active,plan,billing_period_start,renews_at,rate_sheet)',
     { headers: supaHeaders(serviceKey), signal: AbortSignal.timeout(5000) }
   );
   if (!resp.ok) throw new Error(`api_keys lookup HTTP ${resp.status}`);
@@ -154,7 +155,7 @@ function validate(body) {
     () => num('weight', 1, 999999, 'the weight in pounds, from 1 to 999,999'),
     () => choice('commodity', engine.COMMODITIES, 'standard'),
     () => num('margin', 0, 100, 'a percentage from 0 to 100'),
-    () => choice('rates', ['regional', 'national'], 'regional'),
+    () => choice('rates', ['sheet', 'regional', 'national'], null),   // default: 'sheet' once the account has one
     () => num('baseRatePerMile', 0.01, 50, 'a rate in dollars per mile, from 0.01 to 50'),
     () => num('dieselPrice', 0.01, 20, 'a diesel price in dollars per gallon, from 0.01 to 20'),
     () => num('market', engine.MP_MIN, engine.MP_MAX, `a percentage from ${engine.MP_MIN} to ${engine.MP_MAX}`),
@@ -328,7 +329,11 @@ exports.handler = async function (event) {
   lane.milesSource = auto ? 'google' : 'provided';
 
   // ── The quote ──
-  const rateRegion = input.rates === 'national' ? 'national' : engine.regionForState(pickupState);
+  // Your rate sheet (Profile page) is the default once you've saved one; rates: 'regional'
+  // or 'national' asks for the market rate instead.
+  const sheet = SHEET.clean(sub.rate_sheet);
+  const rates = input.rates || (sheet ? 'sheet' : 'regional');
+  const rateRegion = rates === 'national' ? 'national' : engine.regionForState(pickupState);
   const q = engine.computeQuote({
     miles: input.miles,
     trailer: input.trailer,
@@ -338,6 +343,7 @@ exports.handler = async function (event) {
     deliveryDate: input.deliveryDate,
     marginPercent: input.margin == null ? 15 : input.margin,
     rateRegion,
+    rateSheet: rates === 'sheet' ? sheet : null,
     baseRatePerMile: input.baseRatePerMile,
     dieselPrice: input.dieselPrice,
     capacity: input.capacity === true,

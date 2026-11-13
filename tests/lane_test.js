@@ -83,8 +83,10 @@ async function setup(browser, base, { plan = 'plus', signedIn = true, theme = 'd
         windspeed_10m_max: [18], precipitation_probability_max: [35], relative_humidity_2m_max: [78] } });
     }
     if (url.includes('/.netlify/functions/verify-pro')) return json({ active: signedIn, plan, paid: true, unlimitedUntilRenewal: false });
-    if (url.includes('/rest/v1/pro_users')) return json(signedIn ? [{ id: 'user-1', is_active: true, plan, stripe_customer_id: 'cus_1', stripe_subscription_id: 'sub_1',
-      contact_name: 'Sam Rivera', company_name: 'Keystone Produce Logistics', email: 'sam@example.com' }] : []);
+    const account = { id: 'user-1', is_active: true, plan, stripe_customer_id: 'cus_1', stripe_subscription_id: 'sub_1',
+      contact_name: 'Sam Rivera', company_name: 'Keystone Produce Logistics', email: 'sam@example.com' };
+    if (url.includes('/rest/v1/rpc/my_account')) return json({ row: signedIn ? account : null, team: null });
+    if (url.includes('/rest/v1/pro_users')) return json(signedIn ? [account] : []);
     if (url.includes('/rest/v1/quote_log')) return json(signedIn && req.method() === 'GET' ? quotes : []);
     if (url.includes('/.netlify/functions/')) return json({});
     if (url.includes('supabase.co')) return json([]);

@@ -45,6 +45,7 @@ async function setup(browser, base, profileOverrides, opts = {}) {
     const url = route.request().url();
     const json = (b) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(b) });
     if (url.startsWith('blob:') || (url.startsWith(base) && !url.includes('/.netlify/functions/'))) return route.continue();
+    if (url.includes('/rest/v1/rpc/my_account')) return json({ row: supa.row || null, team: null });
     if (url.includes('/rest/v1/pro_users')) {
       if (route.request().method() === 'PATCH') { supa.patches.push(JSON.parse(route.request().postData())); return route.fulfill({ status: 204, body: '' }); }
       return json(supa.row ? [supa.row] : []);
