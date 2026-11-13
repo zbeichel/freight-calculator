@@ -5,7 +5,7 @@
 // A team member gets the owner's plan but none of the owner's billing details.
 
 const https = require('https');
-const { normalizePlan, legacyUnlimited, NEW_PLANS_START } = require('../lib/plans.js');
+const { normalizePlan, legacyUnlimited, NEW_PLANS_START, onTrial, trialEligible } = require('../lib/plans.js');
 const { effectiveAccount, onTeamSeat } = require('../lib/account.js');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
@@ -93,6 +93,11 @@ exports.handler = async function(event){
         // subscription to end (cancelAt, from the Stripe webhook).
         planChosen: unlimitedUntilRenewal && row.next_plan != null,
         cancelAt: member ? null : (row.cancel_at || null),
+        // Monthly or yearly billing; the end of a free trial while on one; and
+        // whether this person can still start one (never had a subscription).
+        interval: member || !isActive ? null : (row.billing_interval === 'year' ? 'year' : 'month'),
+        trialEndsAt: member ? null : (onTrial(row) ? row.trial_ends_at : null),
+        trialEligible: !member && !isActive && trialEligible(row),
         paid: !member && !!row.stripe_subscription_id,
         renewsAt: member ? null : (row.renews_at || null),
         // role 'owner' | 'member'; a member without a seat isn't active on the team's plan

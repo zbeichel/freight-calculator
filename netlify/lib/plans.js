@@ -17,6 +17,10 @@
 //                               access with API_MONTHLY_QUOTES automatic-miles
 //                               quotes per billing month (see api-quote.js)
 //
+// Pro, Pro Plus and Pro Max can also be billed yearly, two months free ($99,
+// $199 and $499 a year); the API plan is monthly only. First-time subscribers
+// can try Pro Plus or Pro Max free for TRIAL_DAYS (see "Free trial" below).
+//
 // Saved quotes in the quote log: Pro 100, Pro Plus 1,000, Pro Max / API /
 // comp 5,000. Saved customers: Pro Plus 1,000, Pro Max / API / comp 5,000.
 // The database enforces these and who can record win/loss results or save
@@ -63,10 +67,36 @@ function normalizePlan(plan) {
 // Stripe prices (Netlify env vars) for the new plans:
 //   STRIPE_PRICE_ID_PRO ($9.99), _PLUS ($19.99), _MAX ($49.99), _API ($199.99).
 // Each holds the monthly price's ID (price_…), not the product's ID (prod_…).
+// Yearly billing, two months free: STRIPE_PRICE_ID_PRO_YEARLY ($99/year),
+// _PLUS_YEARLY ($199/year) and _MAX_YEARLY ($499/year), each a yearly price on
+// the same product as the monthly one. A plan is offered yearly only once its
+// yearly price is set (yearlyPlans, plan-options.js). The API plan is monthly
+// only: its API quotes are counted by billing month.
 // STRIPE_PRICE_ID stays the original $4.99 Pro price that current subscribers
 // pay; any subscription on a price that isn't one of these new ones is on the
 // original plan (see "Subscribers on the original Pro plan" below).
-function newPriceIdFor(plan) {
+const INTERVALS = ['month', 'year'];
+const YEARLY_PLANS = ['pro', 'plus', 'max'];
+// What each plan costs, for messages and emails (Stripe's prices are what's charged).
+const PLAN_PRICE = {
+  pro: { month: '$9.99', year: '$99' },
+  plus: { month: '$19.99', year: '$199' },
+  max: { month: '$49.99', year: '$499' },
+  api: { month: '$199.99' },
+};
+
+function normalizeInterval(interval) {
+  return interval === 'year' ? 'year' : 'month';
+}
+
+function newPriceIdFor(plan, interval) {
+  if (normalizeInterval(interval) === 'year') {
+    return {
+      pro: process.env.STRIPE_PRICE_ID_PRO_YEARLY,
+      plus: process.env.STRIPE_PRICE_ID_PLUS_YEARLY,
+      max: process.env.STRIPE_PRICE_ID_MAX_YEARLY,
+    }[plan];
+  }
   return {
     pro: process.env.STRIPE_PRICE_ID_PRO,
     plus: process.env.STRIPE_PRICE_ID_PLUS,
@@ -76,14 +106,21 @@ function newPriceIdFor(plan) {
 }
 
 function newPlanPriceIds() {
-  return PLANS.map(newPriceIdFor).filter(Boolean);
+  return PLANS.flatMap((plan) => INTERVALS.map((interval) => newPriceIdFor(plan, interval))).filter(Boolean);
+}
+
+// The plans that can be bought yearly right now (their yearly price is set).
+function yearlyPlans() {
+  return YEARLY_PLANS.filter((plan) => !!newPriceIdFor(plan, 'year'));
 }
 
 // The price to sell a plan at. Until STRIPE_PRICE_ID_PRO is set, Pro is still
 // sold at the original price, so checkout keeps working; those subscribers
 // are treated as being on the original plan and move in January like the rest.
-function priceIdFor(plan) {
-  return newPriceIdFor(plan) || (plan === 'pro' ? process.env.STRIPE_PRICE_ID : undefined);
+// Yearly: the yearly price, or nothing while it isn't set.
+function priceIdFor(plan, interval) {
+  if (normalizeInterval(interval) === 'year') return newPriceIdFor(plan, 'year');
+  return newPriceIdFor(plan, 'month') || (plan === 'pro' ? process.env.STRIPE_PRICE_ID : undefined);
 }
 
 // True for a price that isn't one of the new plans (the original $4.99 Pro).
@@ -96,10 +133,46 @@ function isOriginalPlanPrice(priceId) {
 function planForPriceIds(priceIds) {
   const ids = (priceIds || []).filter(Boolean);
   for (const plan of ['api', 'max', 'plus']) {
-    const price = newPriceIdFor(plan);
-    if (price && ids.includes(price)) return plan;
+    for (const interval of INTERVALS) {
+      const price = newPriceIdFor(plan, interval);
+      if (price && ids.includes(price)) return plan;
+    }
   }
   return 'pro';
+}
+
+// 'year' for a subscription on one of the yearly prices, otherwise 'month'.
+function intervalForPriceIds(priceIds) {
+  const ids = (priceIds || []).filter(Boolean);
+  return YEARLY_PLANS.some((plan) => {
+    const price = newPriceIdFor(plan, 'year');
+    return !!price && ids.includes(price);
+  }) ? 'year' : 'month';
+}
+
+// ── Free trial ──────────────────────────────────────────────────────────────
+// First-time subscribers can try Pro Plus or Pro Max free for TRIAL_DAYS: a Stripe
+// trial (create-checkout.js), card up front, charged when it ends unless they
+// cancel. Three days before it ends they get an email with the date and the price
+// (trial-reminders.js). Once per account: anyone who has had a subscription
+// (a Stripe customer or subscription on their pro_users row) pays from day one.
+// During a trial, automatic miles are capped at TRIAL_DAILY_LIMIT quotes a day
+// (routes.js); everything else on the plan is there.
+const TRIAL_DAYS = 14;
+const TRIAL_PLANS = ['plus', 'max'];
+const TRIAL_DAILY_LIMIT = 100;
+
+// `row`: a pro_users row (stripe_customer_id / stripe_subscription_id), or the
+// effective_account row (had_subscription); null for someone without one.
+function trialEligible(row) {
+  if (!row) return true;
+  return !row.stripe_customer_id && !row.stripe_subscription_id && row.had_subscription !== true;
+}
+
+// Whether a pro_users row is on a free trial right now.
+function onTrial(row, now = Date.now()) {
+  const end = Date.parse((row && row.trial_ends_at) || '');
+  return Number.isFinite(end) && end > now;
 }
 
 // ── Subscribers on the original Pro plan ($4.99) ────────────────────────────
@@ -158,11 +231,22 @@ module.exports = {
   API_MONTHLY_QUOTES,
   API_PER_MINUTE,
   normalizePlan,
+  INTERVALS,
+  YEARLY_PLANS,
+  PLAN_PRICE,
+  normalizeInterval,
   newPriceIdFor,
   newPlanPriceIds,
+  yearlyPlans,
   priceIdFor,
   isOriginalPlanPrice,
   planForPriceIds,
+  intervalForPriceIds,
+  TRIAL_DAYS,
+  TRIAL_PLANS,
+  TRIAL_DAILY_LIMIT,
+  trialEligible,
+  onTrial,
   legacyUnlimited,
   dueForNewPlan,
   subscriptionPeriod,

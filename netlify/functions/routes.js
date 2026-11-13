@@ -38,12 +38,18 @@ const MSG_UNAVAILABLE = 'Distance lookup is temporarily unavailable — please e
 //     (legacyUnlimited).
 //   - Comp accounts (Pro granted without a Stripe subscription, e.g. coworkers):
 //     no limit.
-const { PLAN_DAILY_LIMIT, normalizePlan, legacyUnlimited } = require('../lib/plans.js');
+//   - On a free trial: TRIAL_DAILY_LIMIT (100) whatever the plan.
+// Every answer to a signed-in or anonymous caller with a limit carries
+// usage: { used, limit, plan, trial } for the meter on the pages; a request with
+// { usage: true } and no lane just reads it (no Google call, nothing counted).
+const { PLAN_DAILY_LIMIT, TRIAL_DAILY_LIMIT, normalizePlan, legacyUnlimited, onTrial } = require('../lib/plans.js');
 const { effectiveAccount } = require('../lib/account.js');
 
 const FREE_DAILY_LIMIT = 5;
 const MSG_LIMIT =
   "You've used today's 5 free quotes with automatic miles. Upgrade to Pro for 100 a day — or enter the miles manually.";
+const MSG_TRIAL_LIMIT =
+  "You've used today's 100 quotes with automatic miles on your free trial — enter the miles manually for the rest of today. Your plan's full daily amount starts when the trial ends.";
 const MSG_TOP_LIMIT =
   "You've used today's 1,000 quotes with automatic miles — enter the miles manually for the rest of today.";
 const MSG_PLAN_LIMIT = {
@@ -157,6 +163,7 @@ async function resolveIdentity(event, serviceKey) {
               grandfathered: row ? row.grandfathered === true : false,
               comp: isPro && !row.stripe_subscription_id,
               billingPeriodStart: row ? row.billing_period_start : null,
+              trialing: isPro && onTrial(row),
               team: acct.role === 'owner' || (acct.role === 'member' && acct.seated),
               identity: `user:${acct.accountId}`,
             };
@@ -172,21 +179,44 @@ async function resolveIdentity(event, serviceKey) {
 }
 
 // Today's lane limit for this caller, or null for no limit.
-function dailyLaneLimit({ pro, plan, grandfathered, billingPeriodStart, comp }) {
+function dailyLaneLimit({ pro, plan, grandfathered, billingPeriodStart, comp, trialing }) {
   if (!pro) return FREE_DAILY_LIMIT;
   if (comp) return null;
   if (legacyUnlimited({ grandfathered, billing_period_start: billingPeriodStart })) return null;
-  return PLAN_DAILY_LIMIT[normalizePlan(plan)];
+  const limit = PLAN_DAILY_LIMIT[normalizePlan(plan)];
+  return trialing ? Math.min(limit, TRIAL_DAILY_LIMIT) : limit;
+}
+
+// For the usage meter: how many of today's quotes are used, out of how many.
+function usageOf(caller, limit, used) {
+  return { used: Number.isFinite(used) ? used : null, limit, plan: caller.pro ? caller.plan : 'free', trial: !!caller.trialing, team: !!caller.team };
+}
+
+async function usedToday(identity, serviceKey) {
+  if (!serviceKey) return null;
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/lanes_used_today`, {
+      method: 'POST',
+      headers: supaHeaders(serviceKey),
+      body: JSON.stringify({ p_identity: identity }),
+    });
+    if (!resp.ok) return null;
+    const n = await resp.json();
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
 }
 
 // Records a lane against today's usage and returns whether it's allowed.
 // Re-pricing a lane already used today is always allowed (no new slot spent).
 // FAILS OPEN: if the counter is unreachable we allow the request, so an infra
 // hiccup never blocks a customer — the Google daily quota is the hard ceiling.
+// Returns { allowed, used } (used: today's count after this lane, or null if unknown).
 async function withinDailyLimit(identity, laneKey, limit, serviceKey) {
-  if (!serviceKey) return true;
+  if (!serviceKey) return { allowed: true, used: null };
   try {
-    const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/record_free_lane`, {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/record_lane_usage`, {
       method: 'POST',
       headers: supaHeaders(serviceKey),
       body: JSON.stringify({
@@ -195,10 +225,11 @@ async function withinDailyLimit(identity, laneKey, limit, serviceKey) {
         p_limit: limit,
       }),
     });
-    if (!resp.ok) return true;
-    return (await resp.json()) === true;
+    if (!resp.ok) return { allowed: true, used: null };
+    const r = await resp.json();
+    return { allowed: !(r && r.allowed === false), used: r && Number.isFinite(r.used) ? r.used : null };
   } catch {
-    return true;
+    return { allowed: true, used: null };
   }
 }
 
@@ -227,6 +258,13 @@ exports.handler = async (event) => {
     return json(400, { error: 'Invalid request' });
   }
 
+  // Just today's usage, for the meter (nothing counted, no Google call).
+  if (body.usage === true && !body.origin && !body.destination) {
+    const caller = await resolveIdentity(event, serviceKey);
+    const limit = dailyLaneLimit(caller);
+    return json(200, { usage: usageOf(caller, limit, limit ? await usedToday(caller.identity, serviceKey) : null) });
+  }
+
   const originAddr = String(body.origin || '').trim().slice(0, MAX_ADDR_LEN);
   const destAddr = String(body.destination || '').trim().slice(0, MAX_ADDR_LEN);
   if (!originAddr || !destAddr) {
@@ -242,16 +280,19 @@ exports.handler = async (event) => {
   // `plan` in the limit response tells the page which upgrade to offer.
   const caller = await resolveIdentity(event, serviceKey);
   const limit = dailyLaneLimit(caller);
+  let usage = usageOf(caller, limit, null);
   if (limit) {
     const laneKey = crypto
       .createHash('sha256')
       .update(`${laneEnd(originAddr, originLatLng)}|${laneEnd(destAddr, destLatLng)}`)
       .digest('hex');
-    const allowed = await withinDailyLimit(caller.identity, laneKey, limit, serviceKey);
-    if (!allowed) {
+    const counted = await withinDailyLimit(caller.identity, laneKey, limit, serviceKey);
+    usage = usageOf(caller, limit, counted.used);
+    if (!counted.allowed) {
+      if (caller.pro && caller.trialing) return json(200, { error: MSG_TRIAL_LIMIT, limit: true, plan: caller.plan, trial: true, usage });
       return caller.pro
-        ? json(200, { error: (caller.team && MSG_TEAM_LIMIT[caller.plan]) || MSG_PLAN_LIMIT[caller.plan] || MSG_PLAN_LIMIT.pro, limit: true, plan: caller.plan })
-        : json(200, { error: MSG_LIMIT, limit: true, plan: 'free' });
+        ? json(200, { error: (caller.team && MSG_TEAM_LIMIT[caller.plan]) || MSG_PLAN_LIMIT[caller.plan] || MSG_PLAN_LIMIT.pro, limit: true, plan: caller.plan, usage })
+        : json(200, { error: MSG_LIMIT, limit: true, plan: 'free', usage });
     }
   }
 
@@ -284,12 +325,12 @@ exports.handler = async (event) => {
 
   // 2) Success → return it.
   if (resp.ok && route && route.distanceMeters != null) {
-    return json(200, { routes: [route] });
+    return json(200, { routes: [route], usage });
   }
 
   // 3) Valid request but no route between the points → let the client say so.
   if (resp.ok && !route) {
-    return json(200, { notFound: true });
+    return json(200, { notFound: true, usage });
   }
 
   // 4) Real error (quota, denied, etc.) → log the truth, return a safe message.
