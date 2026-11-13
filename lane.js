@@ -46,6 +46,7 @@
   try { if (localStorage.getItem(MODE_KEY) === 'mile') mode = 'mile'; } catch (e) {}
   let showTable = false, showAllQuotes = false;
   let timer = null, resizeTimer = null;
+  let tapAwayWired = false;  // one page-wide listener puts a chart's tapped numbers away
   let diesel;                // undefined: not asked yet · null: unavailable · { price, period }
   let mapsKey;               // undefined: not asked yet · null: none set · 'key'
   let current = null;        // the model on screen
@@ -328,7 +329,7 @@
       tip.style.top = Math.max(0, Math.min(cy * scale - 20, r.height - tip.offsetHeight)) + 'px';
     };
     const hide = () => { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); };
-    svg.addEventListener('pointermove', (e) => {
+    const show = (e) => {
       const g = e.target.closest && e.target.closest('.lv-q');
       const r = box.getBoundingClientRect(), px = (e.clientX - r.left) * (W / r.width);
       if (g) {
@@ -356,8 +357,31 @@
         (mine ? `<div class="row"><span>Your quotes that month</span><strong>${mine}</strong></div>` : '');
       tip.hidden = false;
       place(cx, pad.t + 8);
+    };
+    // A mouse shows the numbers on hover. A finger or pen shows them on a tap, and they stay
+    // up until a tap somewhere else: a touch "leaves" the chart as soon as the finger lifts.
+    svg.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') show(e); });
+    svg.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hide(); });
+    let down = null;
+    svg.addEventListener('pointerdown', (e) => { down = e.pointerType === 'mouse' ? null : { x: e.clientX, y: e.clientY, t: Date.now() }; });
+    svg.addEventListener('pointercancel', () => { down = null; });
+    svg.addEventListener('pointerup', (e) => {
+      const d = down;
+      down = null;
+      if (d && e.pointerType !== 'mouse' && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12 && Date.now() - d.t < 800) show(e);
     });
-    svg.addEventListener('pointerleave', hide);
+    if (!tapAwayWired) {
+      tapAwayWired = true;
+      document.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse') return;
+        document.querySelectorAll('.lv-chart').forEach((b) => {
+          if (b.contains(e.target)) return;
+          const t = b.querySelector('.lv-tip'), c = b.querySelector('.lv-cross');
+          if (t) t.hidden = true;
+          if (c) c.setAttribute('visibility', 'hidden');
+        });
+      });
+    }
   }
 
   function quotesHTML(m) {
@@ -561,9 +585,15 @@
       if (a.dataset.act === 'table') { showTable = !showTable; if (current) { parts.chart.innerHTML = chartPanelHTML(current); drawChart(current); } }
       if (a.dataset.act === 'more') { showAllQuotes = !showAllQuotes; if (current) parts.quotes.innerHTML = quotesHTML(current); }
     });
+    // Redraw when the chart gets wider or narrower. A phone's address bar showing and hiding
+    // while scrolling only changes the height, and a redraw then would put tapped numbers away.
+    let chartW = 0;
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => { if (current) drawChart(current); }, 150);
+      resizeTimer = setTimeout(() => {
+        const b = host && host.querySelector('.lv-chart'), w = b ? b.clientWidth : 0;
+        if (current && w !== chartW) { chartW = w; drawChart(current); }
+      }, 150);
     });
     refresh();
   }

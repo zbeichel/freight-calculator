@@ -134,6 +134,39 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
 
+  // A phone can't hover: a tap shows a state's numbers, and they stay up until a tap elsewhere
+  console.log('\n=== Market Rates on a phone: tapping the map and the chart ===');
+  t = await setup(browser, base, { phone: true });
+  await t.page.goto(base + '/rates.html');
+  await t.page.waitForFunction(() => document.querySelectorAll('#mr-svg path[data-state]').length === 51 && document.querySelector('#mr-hit'));
+  const tapOn = async (sel, dx) => {
+    const el = t.page.locator(sel);
+    await el.scrollIntoViewIfNeeded();
+    const b = await el.boundingBox();
+    await t.page.touchscreen.tap(dx === undefined ? b.x + b.width / 2 : b.x + b.width + dx, b.y + b.height / 2);
+    await t.page.waitForTimeout(250);
+  };
+  await tapOn('#mr-svg path[data-state="TX"]');
+  let ptip = await text(t.page, '#mr-tip');
+  const ptipBox = await t.page.locator('#mr-tip').boundingBox().catch(() => null);
+  check('tapping a state shows its region and rate, and it stays up', ptip.startsWith('Texas Southwest region') && ptip.includes('/mi van')
+    && !!ptipBox && ptipBox.x >= 0 && ptipBox.x + ptipBox.width <= 390, ptip + ' ' + JSON.stringify(ptipBox));
+  check('the tapped region lights up and is picked in the table and chart', await t.page.$eval('#mr-svg path[data-state="NM"]', (p) => p.classList.contains('on'))
+    && await t.page.$eval('#mr-regions tbody tr[data-region="southwest"]', (tr) => tr.classList.contains('sel')) && (await text(t.page, '#mr-hist-legend')).includes('Southwest'));
+  await tapOn('#mr-svg path[data-state="PA"]');
+  ptip = await text(t.page, '#mr-tip');
+  check('tapping another state switches to it', ptip.startsWith('Pennsylvania Northeast region'), ptip);
+  await tapOn('#map-title');
+  check('a tap somewhere else puts it away', await t.page.isHidden('#mr-tip'));
+  await tapOn('#mr-hit', -12);
+  const pctip = await text(t.page, '#mr-chart-tip');
+  check('tapping the chart lists every series for that month', pctip.startsWith(new Date(last.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }))
+    && pctip.includes('National') && pctip.includes('Northeast'), pctip);
+  await tapOn('#hist-title');
+  check('…and a tap somewhere else puts that away too', await t.page.isHidden('#mr-chart-tip'));
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
   // ── Market Rates ─────────────────────────────────────────────────────────
   console.log('\n=== Market Rates ===');
   t = await setup(browser, base);
@@ -176,7 +209,10 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   await t.page.hover('#mr-svg path[data-state="TX"]');
   tip = await text(t.page, '#mr-tip');
   check('the tooltip follows: Texas, Southwest reefer', tip.startsWith('Texas Southwest region') && tip.includes(`${money(RATES.regions.southwest.reefer)} /mi reefer`), tip);
+  await t.page.click('#mr-svg path[data-state="CA"]');
+  check('clicking a state picks its region in the table', await t.page.$eval('#mr-regions tbody tr[data-region="west"]', (tr) => tr.classList.contains('sel')));
   await t.page.mouse.move(5, 5);
+  check('…and with a mouse its numbers go away when the pointer leaves', await t.page.isHidden('#mr-tip'));
 
   await t.page.click('#mr-regions tbody tr[data-region="southeast"]');
   check('picking a region highlights it in the chart', (await t.page.$eval('#mr-regions tbody tr[data-region="southeast"]', (tr) => tr.classList.contains('sel')))

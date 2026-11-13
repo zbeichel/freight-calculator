@@ -354,6 +354,22 @@ const tiles = (pg) => pg.$$eval('#lane-view .lv-tile', (els) => els.map((e) => e
   const cols = await t.page.$eval('#lane-view .lv-tiles', (e) => getComputedStyle(e).gridTemplateColumns.split(' ').length);
   check('phone: tiles two across, panels stacked', cols === 2
     && await t.page.$eval('#lane-view .lv-row-wide', (e) => getComputedStyle(e).gridTemplateColumns.split(' ').length) === 1);
+  // A phone can't hover: a tap on the chart shows that month, and it stays up until a tap elsewhere
+  await t.page.locator('#lane-view .lv-chart').scrollIntoViewIfNeeded();
+  const pbox = await t.page.$eval('#lane-view .lv-chart svg', (s) => { const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+  await t.page.touchscreen.tap(pbox.x + pbox.w * 0.55, pbox.y + pbox.h * 0.85);
+  await t.page.waitForTimeout(250);
+  const ptip = await text(t.page, '#lane-view .lv-tip');
+  check('phone: tapping the chart shows that month, and it stays up', /^\w+ \d{4} This lane \$[\d,]+ National \$[\d,]+/.test(ptip), ptip);
+  const pdot = await t.page.$eval('#lane-view .lv-q[data-i="0"] circle', (c) => { const r = c.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  await t.page.touchscreen.tap(pdot.x, pdot.y);
+  await t.page.waitForTimeout(250);
+  check('phone: tapping a dot shows that quote', (await text(t.page, '#lane-view .lv-tip')).includes('Hanover Foods'));
+  await t.page.locator('#lane-view .lv-tiles').scrollIntoViewIfNeeded();
+  const away = await t.page.$eval('#lane-view .lv-tiles', (e) => { const r = e.getBoundingClientRect(); return { x: r.x + 10, y: r.y + 10 }; });
+  await t.page.touchscreen.tap(away.x, away.y);
+  await t.page.waitForTimeout(200);
+  check('phone: a tap somewhere else puts it away', await t.page.isHidden('#lane-view .lv-tip'));
   await t.page.addStyleTag({ content: '.qf-nav{position:relative!important}' });
   await t.page.locator('#lane-view').screenshot({ path: path.join(SHOTS, 'lane_phone.png') });
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
