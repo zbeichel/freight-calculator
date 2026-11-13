@@ -104,8 +104,8 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   await t.page.click('#qf-nav .qf-dd-btn');
   await t.page.waitForSelector('#qf-nav .qf-dd-menu a', { state: 'visible', timeout: 2000 }).catch(() => {});
   const tools = await t.page.$$eval('#qf-nav .qf-dd-menu a', (as) => as.map((a) => a.getAttribute('href')));
-  check('Tools opens the five tools', await t.page.isVisible('#qf-nav .qf-dd-menu a')
-    && JSON.stringify(tools) === JSON.stringify(['/multistop.html', '/bulk.html', '/lanes.html', '/customers.html', '/api.html']), JSON.stringify(tools));
+  check('Tools opens the six tools (Carrier check after the lane tracker)', await t.page.isVisible('#qf-nav .qf-dd-menu a')
+    && JSON.stringify(tools) === JSON.stringify(['/multistop.html', '/bulk.html', '/lanes.html', '/carriers.html', '/customers.html', '/api.html']), JSON.stringify(tools));
   await t.page.locator('#qf-nav .qf-dd').screenshot({ path: path.join(SHOTS, 'nav_tools.png') }).catch(() => {});
   await t.page.keyboard.press('Escape');
   check('Escape closes it', (await t.page.getAttribute('#qf-nav .qf-dd-btn', 'aria-expanded')) === 'false');
@@ -294,8 +294,8 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   const cols = await t.page.$$eval('.su-plan', (els) => els.map((e) => ({ plan: e.dataset.plan, price: e.querySelector('.su-price').innerText.replace(/\s+/g, ''),
     yes: e.querySelectorAll('li.yes').length, no: e.querySelectorAll('li.no').length })));
   check('four plans with their prices', cols.map((c) => `${c.plan} ${c.price}`).join(' | ') === 'pro $9.99/month | plus $19.99/month | max $49.99/month | api $199.99/month');
-  check('each lists every feature, checked or crossed (Pro 9 crossed, Plus 3, Max 1, API 0)',
-    cols.every((c) => c.yes + c.no === 20) && cols.map((c) => c.no).join() === '9,3,1,0', JSON.stringify(cols));
+  check('each lists every feature, checked or crossed (Pro 11 crossed, Plus 4, Max 1, API 0)',
+    cols.every((c) => c.yes + c.no === 22) && cols.map((c) => c.no).join() === '11,4,1,0', JSON.stringify(cols));
   const teamRow = await t.page.$$eval('.su-plan', (els) => els.map((e) => [...e.querySelectorAll('li')].find((li) => /Team/.test(li.innerText))).map((li) => li && `${li.className}:${li.innerText.replace(/\s+/g, ' ').replace(/ \((not )?included\)$/, '').trim()}`));
   check('team members are listed from Pro Max: 3 people, 6 on API', JSON.stringify(teamRow) === JSON.stringify([
     'no:Team members', 'no:Team members', 'yes:Team of 3: you and 2 more, each with their own login', 'yes:Team of 6: you and 5 more, each with their own login']), JSON.stringify(teamRow));
@@ -341,7 +341,7 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   // ── Every other page ─────────────────────────────────────────────────────
   console.log('\n=== Every page has the shared look ===');
   const PAGES = [['/profile.html', null], ['/market-news.html', 'Market News'], ['/multistop.html', 'Tools'], ['/bulk.html', 'Tools'], ['/lanes.html', 'Tools'],
-    ['/customers.html', 'Tools'], ['/api.html', 'Tools'], ['/terms.html', null], ['/privacy.html', null]];
+    ['/customers.html', 'Tools'], ['/carriers.html', 'Tools'], ['/api.html', 'Tools'], ['/terms.html', null], ['/privacy.html', null]];
   for (const theme of ['dark', 'light']) {
     t = await setup(browser, base, { signedIn: true, plan: 'plus', theme });
     for (const [url, active] of PAGES) {

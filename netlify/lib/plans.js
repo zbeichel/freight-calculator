@@ -17,6 +17,10 @@
 //                               access with API_MONTHLY_QUOTES automatic-miles
 //                               quotes per billing month (see api-quote.js)
 //
+// Carrier check (carriers.html, carrier-check.js): Pro Plus checks 100 carriers a day;
+// Pro Max, API and comp 500 a day, and they can watch up to 500 carriers, re-checked
+// every morning with emailed alerts (carrier-monitor.js).
+//
 // Pro, Pro Plus and Pro Max can also be billed yearly, two months free ($99,
 // $199 and $499 a year); the API plan is monthly only. First-time subscribers
 // can try Pro Plus or Pro Max free for TRIAL_DAYS (see "Free trial" below).

@@ -32,6 +32,7 @@
     chart: '<path d="M4 19.5h16"/><path d="m5.5 15 4-4.5 3.5 3 5.5-6.5"/><path d="M15 7h3.5v3.5"/>',
     users: '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8"/><path d="M15.5 5.6a3.2 3.2 0 0 1 0 5.8M17.3 14.9c1.6.6 2.8 2.2 3.2 4.6"/>',
     code: '<path d="m8.5 8-4 4 4 4M15.5 8l4 4-4 4M13.5 5.5l-3 13"/>',
+    shield: '<path d="M12 3.5 5 6.2v5.6c0 4.2 2.9 7.4 7 8.7 4.1-1.3 7-4.5 7-8.7V6.2z"/><path d="m9 12 2.2 2.2L15.2 10"/>',
     tag: '<path d="M3.5 12.5V4.5a1 1 0 0 1 1-1h8l8 8-9 9z"/><circle cx="8" cy="8" r="1.4"/>',
     user: '<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.6 7-5.6s6.2 2 7 5.6"/>',
     logout: '<path d="M14 4.5h4.5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H14"/><path d="M10 16l-4-4 4-4M6 12h9"/>',
@@ -88,6 +89,7 @@
     ['/multistop.html', 'route', 'Multi-Stop Builder', 'Several pickups and drops, per-stop charges', 'Pro'],
     ['/bulk.html', 'box', 'Bulk Load Calculator', 'Rate per cwt with fuel surcharge', 'Pro'],
     ['/lanes.html', 'chart', 'Lane Rate Tracker', 'Follow rates on the lanes you run', 'Pro'],
+    ['/carriers.html', 'shield', 'Carrier Check', 'Authority, insurance and safety by MC or DOT', 'Plus'],
     ['/customers.html', 'users', 'Customers', 'Saved customers on every quote', 'Plus'],
     ['/api.html', 'code', 'API', 'Quotes inside your own site or TMS', 'API'],
   ];
@@ -233,7 +235,7 @@
         '<span class="qf-logo-text">Quick<b>Freight</b>Calc</span></a>' +
         '<p>Truckload rate quotes in seconds for brokers, dispatchers and owner-operators — van, reefer and flatbed, anywhere in the US.</p></div>' +
         '<div class="qf-footer-col"><h2 class="qf-footer-h">Quote</h2><a href="/">Rate calculator</a><a href="/multistop.html">Multi-stop builder</a>' +
-        '<a href="/bulk.html">Bulk load calculator</a><a href="/lanes.html">Lane rate tracker</a></div>' +
+        '<a href="/bulk.html">Bulk load calculator</a><a href="/lanes.html">Lane rate tracker</a><a href="/carriers.html">Carrier check</a></div>' +
         '<div class="qf-footer-col"><h2 class="qf-footer-h">Market</h2><a href="/rates.html">Market rates map</a><a href="/market-news.html">Market news</a><a href="/signup.html">Plans &amp; pricing</a>' +
         '<a href="/api.html">API</a><a href="/customers.html">Customers</a></div>' +
         '<div class="qf-footer-col"><h2 class="qf-footer-h">Company</h2><a href="/terms.html">Terms of Service</a><a href="/privacy.html">Privacy Policy</a>' +

@@ -18,6 +18,11 @@
 [functions."trial-reminders"]
   schedule = "@hourly"
 
+# Re-checks saved carriers against FMCSA's data every morning (6:20 a.m. Eastern
+# Standard Time) and emails alerts (see netlify/functions/carrier-monitor.js).
+[functions."carrier-monitor"]
+  schedule = "20 11 * * *"
+
 # Redirect www to non-www (301 permanent — Google will update its index)
 [[redirects]]
   from = "https://www.quickfreightcalc.com/*"
