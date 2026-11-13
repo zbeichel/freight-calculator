@@ -7114,7 +7114,9 @@ async function saveQuote(){
   const dm=dMult(miles,trailer);
   const adjRpm=base*wt.m*dm.m*CMULT[commodity]*getCapacityMult(trailer)*getSeasonMult(trailer,pickup)*getHolidayMult()*getMarketPanicMult();
   const cost=(adjRpm + getDieselFSC())*miles;
-  const quote=cost*(1+marginPct);
+  // The same total the calculator shows: extra transit days (when added) are part of the quote
+  const transitAdj = transitChargeAdded ? transitChargeAmount : 0;
+  const quote=(cost+transitAdj)*(1+marginPct);
   const qRpm=quote/miles;
   const dateStr=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
 

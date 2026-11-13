@@ -296,6 +296,24 @@ async function send(t) {
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
 
+  console.log('\n=== A saved quote keeps the extra transit-day charge (what the log emails) ===');
+  t = await setup(browser, base, { account: ACCT() });
+  await openCalculator(t, base, 3);
+  const totals = await t.page.evaluate(async () => {
+    document.getElementById('pickup').value = '2026-11-16';
+    document.getElementById('delivery').value = '2026-11-20';   // 4 days for a 1-day run: 3 extra
+    document.getElementById('extra-day-rate').value = 200;
+    calc();
+    const before = Math.round(lastFtlQuote.quote);
+    addTransitCharge();
+    const shown = Math.round(lastFtlQuote.quote);
+    await saveQuote();
+    return { before, shown, extra: transitChargeAmount, saved: quoteLog[0].quote };
+  });
+  check('the logged total matches the calculator\u2019s, extra days included', totals.extra === 600 && totals.shown > totals.before && totals.saved === totals.shown, JSON.stringify(totals));
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
   console.log('\n=== Pro and signed out ===');
   t = await setup(browser, base, { account: ACCT({ plan: 'pro' }) });
   await openCalculator(t, base, 3, { customers: 0 });
