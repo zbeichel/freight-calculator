@@ -1,0 +1,246 @@
+/* tools.css — the calculator's look for the tool pages (Multi-stop, Bulk load,
+   Lane tracker): the centered page title, the two-column layout, cards with
+   small uppercase titles, large form fields, the quote panel, buttons and the
+   log table. The values are the calculator's own (index.html keeps its copy
+   inline). Load it after site.css; a page's own <style> comes after this. */
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{background:var(--bg);background-image:var(--glow);background-repeat:no-repeat;color:var(--text);
+  font-family:var(--font);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:var(--font)}
+
+/* ── Page title ──────────────────────────────────────────────────────────── */
+.hero{position:relative;z-index:1;text-align:center;padding:56px 24px 34px;max-width:1200px;margin:0 auto}
+.hero .qf-pill{margin-bottom:18px}
+.hero h1{font-size:clamp(30px,5vw,54px);font-weight:700;line-height:1.05;letter-spacing:-.035em;color:var(--text);
+  margin-bottom:12px;text-wrap:balance}
+.hero h1 em{font-style:normal;color:var(--accent-fill)}
+html.light .hero h1 em{color:#d48200}
+.hero-sub{font-size:16px;line-height:1.6;color:var(--text2);max-width:560px;margin:0 auto;text-wrap:pretty}
+
+/* ── Layout: the form on the left, the quote on the right ─────────────────── */
+.main{position:relative;z-index:1;max-width:1200px;width:100%;margin:0 auto;padding:0 24px 60px;
+  display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:stretch}
+.main>*{min-width:0}
+.main>.span-all{grid-column:1/-1}
+/* A list on the left, its details on the right (Lane tracker) */
+.main.main-list{grid-template-columns:340px minmax(0,1fr);align-items:start}
+.col{display:flex;flex-direction:column;gap:20px;min-width:0}
+/* The quote column stretches to the form's height; its contents stay in view
+   below the navigation while the form scrolls past (.result-inner). */
+.result-col{display:flex;flex-direction:column;min-width:0}
+.result-col>.result-card{flex:1 0 auto}
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;min-width:0}
+.card-header{padding:18px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;
+  justify-content:space-between;gap:12px;flex-wrap:wrap;min-width:0}
+.card-title{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)}
+.card-meta{font-size:12px;color:var(--text3)}
+.card-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card-body{padding:22px 24px;min-width:0}
+
+/* A box inside a card (base rates, extra days, fuel surcharge) */
+.box{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px}
+.box-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.box-title{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)}
+.box-note{font-size:11px;line-height:1.5;color:var(--text3);margin-top:8px}
+.box-note.ruled{padding-top:8px;border-top:1px solid var(--border)}
+.box .input,.box .field input,.box .field select{background:var(--card)}
+.box .field-row{margin-bottom:0}
+
+/* ── Form fields ─────────────────────────────────────────────────────────── */
+.field{display:flex;flex-direction:column;gap:7px;margin-bottom:16px;min-width:0}
+.field:last-child{margin-bottom:0}
+.field label,.field-label{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)}
+.field label .opt,.field-label .opt{font-size:11px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text3)}
+.field input,.field select,.field textarea,.input{background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius);
+  color:var(--text);font-size:15px;font-weight:500;padding:12px 14px;width:100%;outline:none;
+  transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;appearance:none;font-variant-numeric:tabular-nums}
+.field textarea{font-size:14px;line-height:1.5;resize:vertical;min-height:84px}
+.field input::placeholder,.field textarea::placeholder,.input::placeholder{color:var(--text3)}
+.field input:focus,.field select:focus,.field textarea:focus,.input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(240,165,0,.1)}
+.field select,select.input{cursor:pointer;padding-right:36px;background-repeat:no-repeat;background-position:right 12px center;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+.field select option{background:var(--card2)}
+.field input[type=date]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.7}
+html:not(.light) .field input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.8)}
+.field.invalid input{border-color:var(--red);box-shadow:0 0 0 3px rgba(239,68,68,.08)}
+.field-error{display:none;font-size:11px;font-weight:500;color:var(--red);line-height:1.4}
+.field.invalid .field-error{display:block}
+.field-help{font-size:11px;color:var(--text3);line-height:1.4}
+/* Which place a location box was matched to (e.g. "📍 Vernon County, WI") */
+.field-note{font-size:11px;color:var(--text3);line-height:1.4}
+.field-note:empty,.field.invalid .field-note{display:none}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.field-row.three{grid-template-columns:1fr 1fr 1fr}
+.field-row:last-child{margin-bottom:0}
+.field-row>.field{margin-bottom:0}
+
+/* Small numbers in a row (base rates, load-to-truck) */
+.mini-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+.mini-input-group{display:flex;flex-direction:column;gap:5px}
+.mini-label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase}
+.mini-input{background:var(--card2);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:18px;font-weight:700;
+  padding:8px 10px;width:100%;outline:none;transition:border-color .15s}
+.mini-input:focus{border-color:var(--accent)}
+.mini-sub{font-size:11px;color:var(--text3);margin-top:3px}
+
+/* Round choice buttons (My rates / Regional / National) */
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:11px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--card);
+  color:var(--text3);cursor:pointer;transition:all .15s;white-space:nowrap}
+.chip:hover{color:var(--text2);border-color:var(--text3)}
+.chip.on{border-color:var(--accent);background:var(--accentbg);color:var(--accent)}
+.chip.on.blue{border-color:var(--blue);background:rgba(96,165,250,.12);color:var(--blue)}
+
+/* Two or three options in a bar (the calculator's FTL / LTL switch) */
+.seg-ctrl{display:flex;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:3px;margin-bottom:14px}
+.seg-btn{flex:1;min-width:0;padding:8px 6px;font-size:12px;font-weight:600;letter-spacing:.04em;border:none;border-radius:9px;background:transparent;
+  color:var(--text2);cursor:pointer;transition:all .15s}
+.seg-btn:hover{color:var(--text)}
+.seg-btn.on,.seg-btn.active{background:var(--accent-fill);color:#000}
+
+/* On/off switch */
+.tog{display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:12px}
+.tog input[type=checkbox]{display:none}
+.tog-track{width:34px;height:20px;background:var(--card2);border:1px solid var(--border2);border-radius:10px;position:relative;
+  transition:background .2s,border-color .2s;flex-shrink:0}
+.tog-thumb{position:absolute;top:3px;left:3px;width:12px;height:12px;background:var(--text3);border-radius:50%;transition:transform .2s,background .2s}
+.tog input:checked+.tog-track{background:rgba(240,165,0,.15);border-color:var(--accent)}
+.tog input:checked+.tog-track .tog-thumb{transform:translateX(14px);background:var(--accent-fill)}
+.tog-label{font-size:13px;font-weight:500;color:var(--text2)}
+.tog input:checked~.tog-label{color:var(--accent)}
+
+/* Advanced adjustments: a box that opens */
+.adv-card{margin-top:4px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.adv-toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;padding:12px 14px;user-select:none;
+  width:100%;background:transparent;border:0;color:inherit;text-align:left}
+.adv-toggle:hover{background:rgba(255,255,255,.02)}
+html.light .adv-toggle:hover{background:rgba(15,23,42,.02)}
+.adv-toggle-left{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)}
+.adv-arrow{transition:transform .2s;font-size:11px;color:var(--text3);line-height:1}
+.adv-arrow.open{transform:rotate(180deg)}
+.adv-body{display:none;padding:14px;border-top:1px solid var(--border)}
+.adv-body.open{display:block}
+.adv-sub{font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin:16px 0 9px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.adv-body>.adv-sub:first-child{margin-top:0}
+.adv-note{background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:var(--radius);padding:10px 12px;
+  font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6}
+.adv-note strong{color:var(--text)}
+.adv-warn{background:rgba(240,165,0,.06);border:1px solid rgba(240,165,0,.2);border-radius:var(--radius);padding:10px 12px;
+  font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6;display:none}
+.adv-warn.show{display:block}
+.adv-count{background:var(--accentbg);color:var(--accent);border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;letter-spacing:0;text-transform:none}
+
+/* Seasonal calendar strip */
+.seas-strip{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;margin:8px 0 4px}
+.seas-month{border-radius:4px;padding:5px 2px;text-align:center;font-size:11px;font-weight:700}
+.seas-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:8px}
+
+/* ── The quote panel ─────────────────────────────────────────────────────── */
+.result-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;
+  overflow:clip}  /* rounds the corners without stopping .result-inner from sticking */
+.result-inner{position:sticky;top:calc(var(--nav-h,64px) + 16px)}
+.result-hero{padding:28px 24px 24px;text-align:center;border-bottom:1px solid var(--border)}
+.result-hero-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+.result-hero-val{font-size:48px;font-weight:700;letter-spacing:-.03em;line-height:1;color:var(--accent);margin-bottom:6px;
+  font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.result-hero-rpm{font-size:14px;color:var(--text2)}
+.result-rows{padding:16px 20px}
+.rrow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.rrow:last-child{border-bottom:none}
+.rrow-label{color:var(--text2)}
+.rrow-val{font-weight:600;font-size:14px;color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
+.rrow-val.green{color:var(--green)}
+.rrow-val.accent{color:var(--accent)}
+.result-sec{padding:14px 20px;border-top:1px solid var(--border)}
+.result-sec-title{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+.result-actions{padding:14px 16px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px}
+.result-actions .row{display:flex;gap:8px}
+
+/* The quote panel's buttons: amber outline, filled on hover */
+.act-btn{flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;
+  font-size:13px;font-weight:700;padding:11px 8px;border-radius:8px;border:1px solid var(--accent);background:var(--accentbg);
+  color:var(--accent);cursor:pointer;transition:all .15s}
+.act-btn:hover:not(:disabled){background:var(--accent-fill);border-color:var(--accent-fill);color:#000}
+.act-btn:disabled{opacity:.45;cursor:not-allowed}
+.act-btn.quiet{border-color:var(--border2);background:transparent;color:var(--text2)}
+.act-btn.quiet:hover:not(:disabled){background:var(--card2);border-color:var(--text3);color:var(--text)}
+.act-btn .qf-icon{width:16px;height:16px}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 16px;font-size:12px;font-weight:600;
+  letter-spacing:.03em;border-radius:var(--radius);cursor:pointer;transition:all .15s;border:none;white-space:nowrap}
+.btn .qf-icon{width:14px;height:14px}
+.btn-primary{background:var(--accent-fill);color:#000}
+.btn-primary:hover{background:var(--accent2)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover{border-color:var(--text2);color:var(--text)}
+.btn-ghost.on{border-color:var(--accent);color:var(--accent);background:var(--accentbg)}
+.btn-danger{background:transparent;color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.btn-danger:hover{background:rgba(239,68,68,.1)}
+.btn-sm{padding:6px 12px;font-size:11px}
+
+/* ── Saved quotes table ──────────────────────────────────────────────────── */
+.log-wrap{overflow-x:auto;max-width:100%}
+.log-wrap table{width:100%;border-collapse:collapse;font-size:12px}
+.log-wrap thead th{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);padding:10px 16px;
+  text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.log-wrap tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+.log-wrap tbody tr:last-child{border-bottom:none}
+.log-wrap tbody tr:hover{background:rgba(255,255,255,.02)}
+html.light .log-wrap tbody tr:hover{background:rgba(0,0,0,.02)}
+.log-wrap tbody td{padding:10px 16px;vertical-align:middle;white-space:nowrap;color:var(--text2)}
+.log-wrap td.money,.log-wrap .money{font-size:15px;font-weight:700;color:var(--accent)}
+.log-wrap td.dim,.log-wrap .dim{color:var(--text3)}
+.empty-log{text-align:center;color:var(--text3);padding:32px;font-size:13px;white-space:normal}
+/* On a phone the table scrolls sideways; the message stays as wide as the screen */
+.empty-log-msg{display:block;max-width:calc(100vw - 64px)}
+
+/* ── Nothing to show yet ─────────────────────────────────────────────────── */
+.tool-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 24px;color:var(--text3)}
+.tool-empty-icon{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;margin-bottom:16px;
+  background:var(--accentbg);color:var(--accent);border:1px solid rgba(245,165,36,.22)}
+.tool-empty-icon .qf-icon{width:24px;height:24px}
+.tool-empty h3{font-size:16px;font-weight:600;color:var(--text);margin-bottom:6px;letter-spacing:-.01em}
+.tool-empty p{font-size:13px;line-height:1.6;max-width:340px}
+.tool-empty.small{padding:28px 12px}
+.tool-empty.small .tool-empty-icon{width:44px;height:44px;border-radius:12px;margin-bottom:12px}
+.tool-empty.small .tool-empty-icon .qf-icon{width:20px;height:20px}
+
+/* ── Narrower screens ────────────────────────────────────────────────────── */
+@media (max-width:900px){
+  .main,.main.main-list{grid-template-columns:minmax(0,1fr)}
+  .result-inner{position:static}
+}
+@media (max-width:740px){
+  .hero{padding:28px 14px 20px}
+  .hero .qf-pill{margin-bottom:12px}
+  .hero h1{font-size:clamp(24px,7vw,32px);line-height:1.15}
+  .hero-sub{font-size:14px}
+  .main,.main.main-list{padding:0 12px 40px;gap:14px}
+  .col{gap:14px}
+  .card-header{padding:12px 14px}
+  .card-body{padding:14px}
+  .result-hero{padding:22px 16px 18px}
+  .result-rows{padding:12px 16px}
+  .result-sec{padding:12px 16px}
+  .btn,.act-btn{min-height:44px;font-size:14px}
+  .btn-sm{min-height:36px;font-size:12px}
+  /* 16px stops iPhones from zooming in on a box when it's tapped */
+  .field input,.field select,.field textarea,.input,.mini-input{font-size:16px}
+}
+@media (max-width:480px){
+  .main,.main.main-list{padding:0 10px 40px}
+  .field-row,.field-row.three{grid-template-columns:1fr;gap:16px}
+  .mini-grid{grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .result-hero-val{font-size:clamp(32px,11vw,42px)}
+  .log-wrap table{min-width:520px}
+  .empty-log{padding:24px 16px;text-align:left}
+  .empty-log-msg{text-align:center}
+  .seas-labels{font-size:8px}
+  .seas-month{font-size:9px;padding:4px 1px}
+}

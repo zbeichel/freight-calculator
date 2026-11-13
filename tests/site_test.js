@@ -1,7 +1,8 @@
 // tests/site_test.js — the shared look (site.js / site.css): navigation,
 // account menu, light/dark, footer; the Market Rates page (map, tooltip,
 // region table, history chart, equipment switch); the plan columns on the
-// signup page; and the calculator's national rates. In a real browser (needs
+// signup page; the calculator's national rates; the tool pages in the
+// calculator's look (tools.css); and no sideways scrolling on a 320px phone. In a real browser (needs
 // Playwright with Chromium); network calls other than this site are stubbed.
 // Run from the repository root:
 //   node tests/site_test.js [folder for screenshots]
@@ -29,8 +30,10 @@ function serve() {
   return new Promise((r) => server.listen(0, '127.0.0.1', () => r(server)));
 }
 
-async function setup(browser, base, { signedIn = false, plan = 'plus', theme = 'dark', phone = false, diesel = true } = {}) {
-  const context = await browser.newContext(phone
+async function setup(browser, base, { signedIn = false, plan = 'plus', theme = 'dark', phone = false, diesel = true, width = 0 } = {}) {
+  const context = await browser.newContext(width
+    ? { viewport: { width, height: 700 }, isMobile: true, hasTouch: true }
+    : phone
     ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
     : { viewport: { width: 1440, height: 900 } });
   const calls = { logout: 0 };
@@ -286,6 +289,64 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   await t.page.waitForTimeout(300);
   const below = await t.page.evaluate(() => { const s = document.getElementById('quotes'); return s ? Math.round(s.getBoundingClientRect().top) : -1; });
   check('a link to a section lands below the navigation', below >= 64 && below <= 120, `${below}px`);
+  await t.context.close();
+
+  // ── The tool pages in the calculator's look ─────────────────────────────
+  console.log('\n=== Tool pages: the calculator\'s look ===');
+  t = await setup(browser, base, { signedIn: true, plan: 'max' });
+  for (const [url, twoCol] of [['/multistop.html', true], ['/bulk.html', true], ['/lanes.html', true], ['/customers.html', false]]) {
+    t.errors.length = 0;
+    await t.page.goto(base + url);
+    await t.page.waitForSelector('#qf-nav .qf-acct-btn');
+    await t.page.waitForTimeout(300);
+    const r = await t.page.evaluate(() => {
+      const hero = document.querySelector('.hero');
+      const main = document.querySelector('.main');
+      const title = document.querySelector('.card-title');
+      return {
+        css: !!document.querySelector('link[rel=stylesheet][href="/tools.css"]'),
+        centered: !!hero && getComputedStyle(hero).textAlign === 'center' && !!hero.querySelector('h1 em') && !!hero.querySelector('.hero-sub'),
+        cols: main ? getComputedStyle(main).gridTemplateColumns.split(' ').length : 0,
+        upper: !!title && getComputedStyle(title).textTransform === 'uppercase',
+      };
+    });
+    check(`${url}: tools.css, the centered title, ${twoCol ? 'two columns, ' : ''}uppercase card titles`,
+      r.css && r.centered && (!twoCol || r.cols === 2) && r.upper && t.errors.length === 0, JSON.stringify(r) + ' ' + t.errors.join(' | '));
+  }
+  await t.page.goto(base + '/multistop.html');
+  await t.page.waitForFunction(() => document.querySelectorAll('#stops-list .stop-card').length === 2);
+  const ms = await t.page.evaluate(() => ({
+    labels: [...document.querySelectorAll('#stops-list .stop-mini-label')].map((e) => e.textContent.trim()),
+    quote: getComputedStyle(document.getElementById('ms-quote')).fontSize,
+    sticky: getComputedStyle(document.querySelector('.result-inner')).position,
+    logWide: document.getElementById('ms-log-card').getBoundingClientRect().width > document.querySelector('.main > .col').getBoundingClientRect().width,
+  }));
+  check('multi-stop: each stop labels its location and date; the quote panel stays in view; the log is full width',
+    JSON.stringify(ms.labels.slice(0, 2)) === JSON.stringify(['Pickup location', 'Pickup date']) && ms.quote === '48px' && ms.sticky === 'sticky' && ms.logWide, JSON.stringify(ms));
+  await t.page.click('#edit-mode-btn');
+  check('multi-stop: Edit order switches to Done', /Done/.test(await text(t.page, '#edit-mode-btn')) && await t.page.$eval('#edit-mode-btn', (b) => b.classList.contains('on')));
+  await t.page.goto(base + '/profile.html');
+  await t.page.waitForSelector('.section-icon');
+  const sectionIcons = await t.page.$$eval('.section-icon', (els) => els.map((e) => !!e.querySelector('svg') && !/\p{Extended_Pictographic}/u.test(e.textContent)));
+  check('Profile: every section has a drawn icon, no emoji', sectionIcons.length >= 10 && sectionIcons.every(Boolean), JSON.stringify(sectionIcons));
+  await t.context.close();
+
+  // ── Small phones ─────────────────────────────────────────────────────────
+  console.log('\n=== A 320px phone: nothing runs off the side ===');
+  t = await setup(browser, base, { signedIn: true, plan: 'max', width: 320 });
+  const wide = [];
+  for (const url of ['/', '/rates.html', '/signup.html', '/multistop.html', '/bulk.html', '/lanes.html', '/customers.html', '/profile.html', '/api.html', '/terms.html', '/privacy.html']) {
+    await t.page.goto(base + url);
+    await t.page.waitForSelector('#qf-nav .qf-acct-btn');
+    await t.page.waitForTimeout(250);
+    const sw = await t.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    if (sw > 1) wide.push(`${url} +${sw}px`);
+  }
+  check('every page fits a 320px screen (no sideways scrolling)', wide.length === 0, wide.join(', '));
+  await t.context.close();
+  t = await setup(browser, base, { signedIn: true, plan: 'plus' });
+  await t.page.goto(base + '/terms.html');
+  await t.page.waitForSelector('#qf-nav .qf-acct-btn');
 
   // The logo: a drawn truck mark (no tile), centered in its box; the same mark is the tab and app icon
   const logo = await t.page.$eval('#qf-nav .qf-logo-mark', (m) => {

@@ -114,7 +114,14 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
   .mr-tile{padding:16px 18px}
   .mr-tile-value{font-size:30px}
 }
-@media (max-width:420px){.mr-tiles.four{grid-template-columns:1fr}}
+@media (max-width:420px){
+  .mr-tiles.four{grid-template-columns:1fr}
+  /* The region table fits a 320px phone; if it ever doesn't, it scrolls in its own box */
+  .mr-map-grid{grid-template-columns:minmax(0,1fr)}
+  .mr-map-grid > div:last-child{overflow-x:auto}
+  .mr-card{padding:16px 12px}
+  .mr-table th,.mr-table td{padding-left:4px;padding-right:4px}
+}
 </style>
 </head>
 <body>

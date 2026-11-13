@@ -172,6 +172,17 @@ html.light .qf-logo-text b{color:#d48200}
   .qf-mobile .qf-mobile-cta .qf-btn{flex:1}
 }
 @media (max-width:420px){.qf-logo-text{font-size:15px}}
+/* The smallest phones (320px wide): a tighter bar so nothing runs off the side */
+@media (max-width:360px){
+  .qf-nav-inner{gap:8px;padding:0 10px}
+  .qf-logo{gap:7px}
+  .qf-logo-mark{width:30px;height:34px}
+  .qf-logo-text{font-size:14px}
+  .qf-actions{gap:6px}
+  .qf-icon-btn{width:34px;height:34px}
+  .qf-acct-btn{height:34px;padding:0 4px;gap:0}
+  .qf-acct-btn .qf-icon{display:none}
+}
 
 /* ── Footer ────────────────────────────────────────────────────────────── */
 .qf-footer{border-top:1px solid var(--border);background:var(--bg2);font-family:var(--font);color:var(--text3);margin-top:48px}

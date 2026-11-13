@@ -9,19 +9,18 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/tools.css">
 <script src="/site.js"></script>
 <style>
-/* Colors (dark and light), the navigation and the footer come from site.css and site.js. */
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{min-height:100%}
-body{background:var(--bg);background-image:var(--glow);background-repeat:no-repeat;color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased}
-.page{max-width:1100px;margin:0 auto;padding:44px 24px 64px}
-h1{font-size:clamp(28px,4vw,40px);font-weight:700;letter-spacing:-.03em;line-height:1.1;margin-top:14px}
-.sub{font-size:14.5px;color:var(--text2);line-height:1.65;margin-top:10px;max-width:680px}
-.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:22px 0 14px}
-.search{flex:1;min-width:200px;max-width:360px;background:var(--card);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-family:inherit;font-size:13.5px;padding:10px 13px;outline:none}
-.search:focus{border-color:var(--accent-fill);box-shadow:0 0 0 3px rgba(245,165,36,.16)}
-.count{font-size:12px;color:var(--text3);margin-right:auto}
+/* The page title, cards and colors come from tools.css and site.css; the navigation and
+   the footer from site.js. */
+.page{max-width:1100px;margin:0 auto;padding:0 24px 64px}
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--border)}
+.search{flex:1;min-width:200px;max-width:380px;background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);
+  font-family:inherit;font-size:14px;padding:10px 14px;outline:none;transition:border-color .15s,box-shadow .15s}
+.search::placeholder{color:var(--text3)}
+.search:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(240,165,0,.1)}
+.toolbar .spacer{flex:1}
 .btn{font-family:inherit;font-size:12.5px;font-weight:700;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap;text-decoration:none;display:inline-block}
 .btn:hover{border-color:var(--accent);color:var(--accent)}
 .btn.primary{background:var(--accent-fill);border-color:var(--accent-fill);color:var(--accent-ink)}
@@ -45,37 +44,44 @@ tbody td{padding:11px 14px;vertical-align:middle}
 .edit:hover{border-color:var(--accent);color:var(--accent)}
 .empty{padding:36px 24px;text-align:center;font-size:13px;color:var(--text3);line-height:1.7}
 .empty strong{color:var(--text)}
-.gate{margin-top:26px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:30px 28px;max-width:620px;box-shadow:var(--shadow)}
+.gate{margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:30px 28px;max-width:620px;box-shadow:var(--shadow)}
 .gate h2{font-size:17px;font-weight:700;margin-bottom:8px}
 .gate p{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px}
 .gate ul{font-size:13px;color:var(--text2);line-height:1.8;margin:0 0 18px 18px}
 .status{font-size:12px;color:var(--text3);margin-top:10px;min-height:16px}
 [hidden]{display:none!important}
-@media (max-width:720px){
-  .page{padding:30px 16px 56px}
+@media (max-width:740px){
+  .page{padding:0 12px 56px}
   .hide-sm{display:none}
-  .search{max-width:none}
-  .count{width:100%;order:3}
+  .toolbar{padding:12px 14px}
+  .search{max-width:none;font-size:16px}
+  .toolbar .spacer{display:none}
 }
 </style>
 </head>
 <body>
 
-<main class="page">
-  <span class="qf-pill">Pro Plus</span>
-  <h1>Customers</h1>
-  <p class="sub">Save a customer once. Pick them on the calculator, multi-stop or bulk page and their contact details print under “Prepared for” on your PDF quotes. Win/loss results show for each customer.</p>
+<section class="hero">
+  <span class="qf-pill">Customers · Pro Plus</span>
+  <h1>Save your <em>customers</em> once</h1>
+  <p class="hero-sub">Pick them on the calculator, multi-stop or bulk page and their contact details print under “Prepared for” on your PDF quotes. Win/loss results show for each customer.</p>
+</section>
 
+<main class="page">
   <div id="gate" class="gate" hidden></div>
 
   <div id="app" hidden>
-    <div class="toolbar">
-      <input id="search" class="search" type="search" placeholder="Search by name, contact or email" autocomplete="off" />
-      <span id="count" class="count"></span>
-      <button id="import-btn" class="btn" hidden></button>
-      <button id="add-btn" class="btn primary">+ New customer</button>
-    </div>
     <div class="card">
+      <div class="card-header">
+        <span class="card-title">Your customers</span>
+        <span id="count" class="card-meta"></span>
+      </div>
+      <div class="toolbar">
+        <input id="search" class="search" type="search" placeholder="Search by name, contact or email" autocomplete="off" aria-label="Search customers" />
+        <span class="spacer"></span>
+        <button id="import-btn" class="btn" hidden></button>
+        <button id="add-btn" class="btn primary">+ New customer</button>
+      </div>
       <div class="list-wrap">
         <table>
           <thead>
