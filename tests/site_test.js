@@ -51,7 +51,9 @@ async function setup(browser, base, { signedIn = false, plan = 'plus', theme = '
     if (url.startsWith(base) && !url.includes('/.netlify/functions/')) return route.continue();
     if (url.includes('/auth/v1/logout')) { calls.logout++; return route.fulfill({ status: 204, body: '' }); }
     if (url.includes('diesel-price')) return diesel ? json({ price: 3.851, previous: 3.951, period: '2026-11-09', previousPeriod: '2026-11-02' }) : route.fulfill({ status: 502, body: '{}' });
-    if (url.includes('/rest/v1/pro_users')) return json(signedIn ? [{ id: 'user-1', is_active: true, plan, stripe_customer_id: 'c', stripe_subscription_id: 's', contact_name: 'Sam Rivera', company_name: 'Keystone Produce Logistics' }] : []);
+    const account = { id: 'user-1', is_active: true, plan, stripe_customer_id: 'c', stripe_subscription_id: 's', contact_name: 'Sam Rivera', company_name: 'Keystone Produce Logistics' };
+    if (url.includes('/rest/v1/rpc/my_account')) return json({ row: signedIn ? account : null, team: null });
+    if (url.includes('/rest/v1/pro_users')) return json(signedIn ? [account] : []);
     if (url.includes('/.netlify/functions/verify-pro')) return json({ active: signedIn, plan, paid: true, unlimitedUntilRenewal: false });
     if (url.includes('/.netlify/functions/')) return json({});
     if (url.includes('supabase.co')) return json([]);
@@ -205,8 +207,11 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   const cols = await t.page.$$eval('.su-plan', (els) => els.map((e) => ({ plan: e.dataset.plan, price: e.querySelector('.su-price').innerText.replace(/\s+/g, ''),
     yes: e.querySelectorAll('li.yes').length, no: e.querySelectorAll('li.no').length })));
   check('four plans with their prices', cols.map((c) => `${c.plan} ${c.price}`).join(' | ') === 'pro $9.99/month | plus $19.99/month | max $49.99/month | api $199.99/month');
-  check('each lists every feature, checked or crossed (Pro 7 crossed, Plus 2, Max 1, API 0)',
-    cols.every((c) => c.yes + c.no === 18) && cols.map((c) => c.no).join() === '7,2,1,0', JSON.stringify(cols));
+  check('each lists every feature, checked or crossed (Pro 8 crossed, Plus 3, Max 1, API 0)',
+    cols.every((c) => c.yes + c.no === 19) && cols.map((c) => c.no).join() === '8,3,1,0', JSON.stringify(cols));
+  const teamRow = await t.page.$$eval('.su-plan', (els) => els.map((e) => [...e.querySelectorAll('li')].find((li) => /Team/.test(li.innerText))).map((li) => li && `${li.className}:${li.innerText.replace(/\s+/g, ' ').replace(/ \((not )?included\)$/, '').trim()}`));
+  check('team members are listed from Pro Max: 3 people, 6 on API', JSON.stringify(teamRow) === JSON.stringify([
+    'no:Team members', 'no:Team members', 'yes:Team of 3: you and 2 more, each with their own login', 'yes:Team of 6: you and 5 more, each with their own login']), JSON.stringify(teamRow));
   const emailRow = await t.page.$$eval('.su-plan', (els) => els.map((e) => [...e.querySelectorAll('li')].find((li) => /Email the PDF/.test(li.innerText))).map((li) => li && `${li.className}:${li.innerText.replace(/\s+/g, ' ').replace(/ \((not )?included\)$/, '').trim()}`));
   check('emailing quotes is listed from Pro Plus, with each plan\u2019s daily limit', JSON.stringify(emailRow) === JSON.stringify([
     'no:Email the PDF to your customer', 'yes:Email the PDF to your customer: 100 a day', 'yes:Email the PDF to your customer: 300 a day', 'yes:Email the PDF to your customer: 300 a day']), JSON.stringify(emailRow));

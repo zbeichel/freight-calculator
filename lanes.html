@@ -668,6 +668,21 @@ async function loadProfiles(){
       if(val?.access_token){
         const userId = val.user?.id || val.user?.sub;
         if(!userId) continue;
+        // The 100 most recent tracked quotes in the quote log, as the calculator
+        // keeps them (the team's log, for a team member: the access rules decide).
+        const qResp = await fetch(`${SUPABASE_URL}/rest/v1/quote_log?select=origin,destination,miles,trailer,date&tracked=not.is.false&order=created_at.desc,id.desc&limit=100`, {
+          headers:{ 'apikey':SUPABASE_KEY, 'Authorization':`Bearer ${val.access_token}` }
+        });
+        const quotes = qResp.ok ? await qResp.json() : null;
+        if(Array.isArray(quotes) && quotes.length){
+          profiles = quotes.map(q => ({
+            name: `${q.origin || '?'} → ${q.destination || '?'} (${q.date})`,
+            origin: q.origin || '', dest: q.destination || '', miles: q.miles || 0, trailer: q.trailer || 'van',
+          }));
+          localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+          renderLaneList();
+          return;
+        }
         const resp = await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${userId}&select=rate_profiles`, {
           headers:{ 'apikey':SUPABASE_KEY, 'Authorization':`Bearer ${val.access_token}` }
         });

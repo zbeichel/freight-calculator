@@ -70,7 +70,7 @@
       '<ul style="margin:0 0 12px;padding-left:18px">' +
         '<li><strong style="color:var(--text,#fff)">Pro</strong> — $9.99/month · automatic miles on 100 quotes per day</li>' +
         '<li><strong style="color:var(--text,#fff)">Pro Plus</strong> — $19.99/month · automatic miles on 250 quotes per day, win/loss tracking, a customer list and emailed quotes</li>' +
-        '<li><strong style="color:var(--text,#fff)">Pro Max</strong> — $49.99/month · everything in Pro Plus, automatic miles on 1,000 quotes per day and white-label PDFs</li>' +
+        '<li><strong style="color:var(--text,#fff)">Pro Max</strong> — $49.99/month · everything in Pro Plus, automatic miles on 1,000 quotes per day, white-label PDFs and a team of 3 people</li>' +
       '</ul>' +
       '<p style="margin:0 0 12px">If you don\'t choose, you\'ll move to Pro. You can choose a plan or cancel anytime before then from your Profile.</p>' +
       '<p style="margin:0 0 4px"><strong style="color:var(--text,#fff)">New: API access</strong> — $199.99/month · get quotes on your own website or system, 5,000 quotes per month, and everything in Pro Max. ' +

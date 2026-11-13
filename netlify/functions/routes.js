@@ -39,6 +39,7 @@ const MSG_UNAVAILABLE = 'Distance lookup is temporarily unavailable — please e
 //   - Comp accounts (Pro granted without a Stripe subscription, e.g. coworkers):
 //     no limit.
 const { PLAN_DAILY_LIMIT, normalizePlan, legacyUnlimited } = require('../lib/plans.js');
+const { effectiveAccount } = require('../lib/account.js');
 
 const FREE_DAILY_LIMIT = 5;
 const MSG_LIMIT =
@@ -50,6 +51,12 @@ const MSG_PLAN_LIMIT = {
   plus: "You've used today's 250 quotes with automatic miles. Pro Max ($49.99/mo) gives you 1,000 a day — or enter the miles manually.",
   max: MSG_TOP_LIMIT,
   api: MSG_TOP_LIMIT,
+};
+
+// A team (team.js) shares its owner's daily limit.
+const MSG_TEAM_LIMIT = {
+  max: "Your team has used today's 1,000 quotes with automatic miles. Enter the miles manually for the rest of today.",
+  api: "Your team has used today's 1,000 quotes with automatic miles. Enter the miles manually for the rest of today.",
 };
 
 function isAllowedOrigin(origin) {
@@ -121,10 +128,12 @@ function clientIp(event) {
 }
 
 // Works out who is calling, whether they're Pro and on which plan. Signed-in
-// users are verified against Supabase Auth + pro_users so a client can't just
-// claim to be Pro. Anonymous callers are identified by IP.
-// Returns { pro, plan, createdAt, identity } where identity is 'user:<uuid>'
-// or 'ip:<addr>'.
+// users are verified against Supabase Auth and the database's effective account
+// (their own plan, or their team owner's while they have a team seat) so a client
+// can't just claim to be Pro. Anonymous callers are identified by IP.
+// Returns { pro, plan, createdAt, identity } where identity is 'user:<uuid>' of the
+// account whose limit applies (the owner's for a whole team, so a team shares one
+// daily limit) or 'ip:<addr>'.
 async function resolveIdentity(event, serviceKey) {
   const authHeader = event.headers.authorization || event.headers.Authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
@@ -138,13 +147,9 @@ async function resolveIdentity(event, serviceKey) {
         const user = await uResp.json();
         const uid = user && user.id;
         if (uid) {
-          const pResp = await fetch(
-            `${SUPABASE_URL}/rest/v1/pro_users?id=eq.${uid}&select=is_active,plan,grandfathered,billing_period_start,stripe_subscription_id`,
-            { headers: supaHeaders(serviceKey) }
-          );
-          if (pResp.ok) {
-            const rows = await pResp.json();
-            const row = Array.isArray(rows) && rows[0];
+          const acct = await effectiveAccount(uid, serviceKey);
+          if (acct) {
+            const row = acct.row;
             const isPro = !!row && row.is_active === true;
             return {
               pro: isPro,
@@ -152,7 +157,8 @@ async function resolveIdentity(event, serviceKey) {
               grandfathered: row ? row.grandfathered === true : false,
               comp: isPro && !row.stripe_subscription_id,
               billingPeriodStart: row ? row.billing_period_start : null,
-              identity: `user:${uid}`,
+              team: acct.role === 'owner' || (acct.role === 'member' && acct.seated),
+              identity: `user:${acct.accountId}`,
             };
           }
           return { pro: false, identity: `user:${uid}` };
@@ -244,7 +250,7 @@ exports.handler = async (event) => {
     const allowed = await withinDailyLimit(caller.identity, laneKey, limit, serviceKey);
     if (!allowed) {
       return caller.pro
-        ? json(200, { error: MSG_PLAN_LIMIT[caller.plan] || MSG_PLAN_LIMIT.pro, limit: true, plan: caller.plan })
+        ? json(200, { error: (caller.team && MSG_TEAM_LIMIT[caller.plan]) || MSG_PLAN_LIMIT[caller.plan] || MSG_PLAN_LIMIT.pro, limit: true, plan: caller.plan })
         : json(200, { error: MSG_LIMIT, limit: true, plan: 'free' });
     }
   }

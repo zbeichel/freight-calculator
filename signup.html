@@ -144,6 +144,12 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 .su-auth-plans{display:none;text-align:center;margin-top:16px;font-size:13px}
 .su-auth-plans a{color:var(--accent);text-decoration:none;font-weight:600}
 .su-auth-only .su-auth-plans{display:block}
+/* Team invite link (team.js): who invited them, and the email to use */
+.su-invite{background:var(--accentbg);border:1px solid rgba(245,165,36,.35);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.6;color:var(--text2);margin:0 0 16px}
+.su-invite b{color:var(--text)}
+.su-invite .su-invite-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.su-invite[hidden]{display:none}
+.su-invite-only .su-auth-plans{display:none}
 </style>
 </head>
 <body>
@@ -152,7 +158,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
   <section class="su-hero">
     <span class="qf-pill">Plans &amp; pricing</span>
     <h1>Plans for every size of freight desk</h1>
-    <p>Every plan includes branded PDF quotes, the quote log, the multi-stop and bulk calculators and the lane tracker. Higher plans add more automatic miles, sales tools and white-label PDFs.</p>
+    <p>Every plan includes branded PDF quotes, the quote log, the multi-stop and bulk calculators and the lane tracker. Higher plans add more automatic miles, sales tools, white-label PDFs and room for your team.</p>
   </section>
 
   <section class="su-plans plan-picker" id="su-plans" role="radiogroup" aria-label="Plan"></section>
@@ -180,6 +186,9 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
         <button class="tab active" id="tab-signup" onclick="switchTab('signup')">Create Account</button>
         <button class="tab" id="tab-login" onclick="switchTab('login')">Sign In</button>
       </div>
+
+      <!-- Team invite (signup.html?team_invite=…) -->
+      <div class="su-invite" id="su-invite" hidden></div>
 
       <!-- Error / success -->
       <div class="error-msg" id="error-msg"></div>
@@ -310,7 +319,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
   const PLANS = [
     { id: 'pro',  name: 'Pro',      price: '9.99',   tag: 'For owner-operators and dispatchers pricing their own loads.' },
     { id: 'plus', name: 'Pro Plus', price: '19.99',  tag: 'For brokers who quote every day and want to see what wins.' },
-    { id: 'max',  name: 'Pro Max',  price: '49.99',  tag: 'For busy desks sending quotes under their own name.' },
+    { id: 'max',  name: 'Pro Max',  price: '49.99',  tag: 'For busy desks and small teams quoting under their own name.' },
     { id: 'api',  name: 'API',      price: '199.99', tag: 'For teams quoting from their own website, TMS or spreadsheet.' },
   ];
   const ORDER = PLANS.map((p) => p.id);
@@ -337,6 +346,9 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       [from('plus'), 'Win/loss tracking by lane and customer'],
       [from('plus'), per({ pro: 'Customer list', plus: 'Customer list: 1,000 customers', max: 'Customer list: 5,000 customers', api: 'Customer list: 5,000 customers' })],
       [from('plus'), 'A default margin for each customer'],
+    ]],
+    ['Team', [
+      [from('max'), per({ pro: 'Team members', plus: 'Team members', max: 'Team of 3: you and 2 more, each with their own login', api: 'Team of 6: you and 5 more, each with their own login' })],
     ]],
     ['API', [
       [from('api'), per({ pro: 'API access', plus: 'API access', max: 'API access', api: 'API access: 5,000 quotes a month' })],
@@ -410,7 +422,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 
   // Sign-in links and returns from checkout, Google or a reset email: just the card.
   const q = window.location.search + window.location.hash;
-  if (/login|reason=|checkout=|google=return|access_token|type=recovery/.test(q)) document.body.classList.add('su-auth-only');
+  if (/login|reason=|checkout=|google=return|access_token|type=recovery|team_invite=/.test(q)) document.body.classList.add('su-auth-only');
 
   // Already signed in: the plans stay, plan changes happen on Profile.
   window.showSignedIn = function (session) {
@@ -440,6 +452,111 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 <script>
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
+
+// ── Team invites (team.js) ─────────────────────────────────────────────────
+// A team owner's invite email links to signup.html?team_invite=<token>. The
+// token is kept for this tab (sessionStorage) so it survives a Google sign-in.
+// Signing in or creating a login with the invited email joins the team, on the
+// team's plan: no checkout.
+const TEAM_INVITE_KEY = 'qfc_team_invite';
+const INVITE_TOKEN_RE = /^[A-Za-z0-9_-]{40,64}$/;
+let teamInvite = null;   // the team function's preview: { email, company, ownerName, plan, expired }
+function teamInviteToken(){
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get('team_invite');
+    if(fromUrl && INVITE_TOKEN_RE.test(fromUrl)){ sessionStorage.setItem(TEAM_INVITE_KEY, fromUrl); return fromUrl; }
+    const kept = sessionStorage.getItem(TEAM_INVITE_KEY);
+    return kept && INVITE_TOKEN_RE.test(kept) ? kept : null;
+  } catch(e){ return null; }
+}
+function forgetTeamInvite(){ try { sessionStorage.removeItem(TEAM_INVITE_KEY); } catch(e){} }
+async function teamFn(body, accessToken){
+  const resp = await fetch('/.netlify/functions/team', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(accessToken ? { Authorization: 'Bearer ' + accessToken } : {}) },
+    body: JSON.stringify(body)
+  });
+  const data = await resp.json().catch(() => ({}));
+  if(!resp.ok) throw Object.assign(new Error(data.message || 'Something went wrong. Try the link again in a minute.'), { status: resp.status, data });
+  return data;
+}
+const inviteTeamName = (t) => (t && (t.company || (t.ownerName ? `${t.ownerName}’s team` : ''))) || 'the team';
+const inviteEsc = (v) => String(v === null || v === undefined ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// Joins the team with this login, then opens the Profile page. False if it couldn't.
+async function finishTeamInvite(accessToken){
+  try {
+    const r = await teamFn({ action: 'accept', token: teamInviteToken() }, accessToken);
+    forgetTeamInvite();
+    // The pages load the account again: now the team's
+    try { ['qfc_pro_status', 'qfc_pro_profile', 'qfc_pending_checkout'].forEach(k => localStorage.removeItem(k)); } catch(e){}
+    showSuccess(`You’re on ${inviteTeamName(r.team || teamInvite)}. Opening your profile...`);
+    setTimeout(() => { window.location.href = '/profile.html?team=joined'; }, 700);
+    return true;
+  } catch(e){
+    showError(e.message);
+    return false;
+  }
+}
+
+// Shows who invited them and the email to use (or a Join button if already
+// signed in with it). True while there's a usable invite.
+async function setupTeamInvite(){
+  const token = teamInviteToken();
+  if(!token) return false;
+  document.body.classList.add('su-auth-only', 'su-invite-only');
+  let t;
+  try { t = teamInvite = await teamFn({ action: 'preview', token }); }
+  catch(e){ forgetTeamInvite(); showError(e.message); return false; }
+  if(t.expired){ forgetTeamInvite(); showError('This invite has expired. Ask whoever invited you to send a new one.'); return false; }
+  ['su-email', 'li-email'].forEach(id => { const el = document.getElementById(id); if(el && !el.value) el.value = t.email; });
+  const box = document.getElementById('su-invite');
+  box.hidden = false;
+  const session = getSession();
+  const signedInAs = session && session.user ? String(session.user.email || '').toLowerCase() : '';
+  const lead = `<b>${inviteEsc(t.ownerName)}</b> invited you to join <b>${inviteEsc(inviteTeamName(t))}</b> on QuickFreightCalc.`;
+  if(signedInAs){
+    const same = signedInAs === t.email;
+    box.innerHTML = lead + (same
+      ? ` You’re signed in as ${inviteEsc(signedInAs)}.<div class="su-invite-actions"><button class="submit-btn" id="su-join-btn" style="margin:0" onclick="joinTeamNow()">Join the team</button></div>`
+      : ` The invite is for <b>${inviteEsc(t.email)}</b>, but you’re signed in as ${inviteEsc(signedInAs)}. Sign out, then sign in with ${inviteEsc(t.email)}.<div class="su-invite-actions"><button class="submit-btn" style="margin:0" onclick="signOutForInvite()">Sign out</button></div>`);
+    document.querySelector('.tabs').style.display = 'none';
+    document.getElementById('form-signup').style.display = 'none';
+    document.getElementById('form-login').style.display = 'none';
+    return true;
+  }
+  box.innerHTML = lead + ` Sign in, or create your free login, with <b>${inviteEsc(t.email)}</b> to join. No payment needed: you’ll quote on the team’s plan.`;
+  window.signupButtonLabel = () => 'Create login & join the team →';
+  const btn = document.getElementById('su-btn');
+  if(btn) btn.textContent = window.signupButtonLabel();
+  return true;
+}
+async function joinTeamNow(){
+  const session = getSession();
+  if(!session) return;
+  const btn = document.getElementById('su-join-btn');
+  if(btn) btn.disabled = true;
+  if(!(await finishTeamInvite(session.access_token)) && btn) btn.disabled = false;
+}
+function signOutForInvite(){
+  try {
+    Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k));
+    ['qfc_session', 'qfc_pro_status', 'qfc_pro_profile'].forEach(k => localStorage.removeItem(k));
+    Object.keys(sessionStorage).filter(k => k.startsWith('sb-')).forEach(k => sessionStorage.removeItem(k));
+    document.cookie = 'qfc_rt=;path=/;max-age=0';
+    document.cookie = 'qfc_uid=;path=/;max-age=0';
+  } catch(e){}
+  window.location.reload();
+}
+
+// A login that signed up but never paid goes to checkout, unless a team's plan covers it.
+async function onTeamPlan(userId, accessToken){
+  try {
+    const r = await fetch('/.netlify/functions/verify-pro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, accessToken }) });
+    const d = await r.json();
+    return d.active === true;
+  } catch(e){ return false; }
+}
 
 // ── Check if already logged in ─────────────────────────────────────────────
 async function checkSession(){
@@ -696,6 +813,8 @@ async function handleGoogleReturn(){
     const intent = localStorage.getItem('qfc_google_intent') || 'login';
     localStorage.removeItem('qfc_google_intent');
 
+    if(teamInviteToken()){ document.body.classList.add('su-invite-only'); await finishTeamInvite(accessToken); return; }
+
     if(intent === 'signup'){
       // New signup via Google — create pro_users row and send to Stripe
       await createProUserRow(user.id, user.email, '', '', accessToken);
@@ -759,6 +878,11 @@ async function handleSignup(){
     // Store session
     if(data.access_token){
       storeSession(data);
+      if(teamInviteToken()){
+        btn.textContent = 'Joining the team...';
+        if(!(await finishTeamInvite(data.access_token))){ btn.disabled = false; btn.textContent = window.signupButtonLabel(); }
+        return;
+      }
       // Create pro_users row (is_active defaults to false in the DB until payment)
       await createProUserRow(data.user.id, email, '', '', data.access_token);
       // Redirect to Stripe checkout
@@ -796,13 +920,17 @@ async function handleSignup(){
         if(checkData.access_token){
           // Account exists with this password — check if they need to complete checkout
           storeSession(checkData);
+          if(teamInviteToken()){
+            if(!(await finishTeamInvite(checkData.access_token))){ btn.disabled = false; btn.textContent = window.signupButtonLabel(); }
+            return;
+          }
           const userId = checkData.user?.id;
           const proResp = await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${userId}&select=is_active,stripe_subscription_id`, {
             headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${checkData.access_token}` }
           });
           const proRows = await proResp.json();
           const proRow = proRows?.[0];
-          if(proRow && !proRow.is_active && !proRow.stripe_subscription_id){
+          if(proRow && !proRow.is_active && !proRow.stripe_subscription_id && !(await onTeamPlan(userId, checkData.access_token))){
             // They signed up but never paid — send to checkout
             showSuccess('Account found! Completing your Pro signup...');
             const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
@@ -865,7 +993,13 @@ async function handleLogin(){
 
     storeSession(data);
 
-    // Check if this user signed up but never completed checkout
+    if(teamInviteToken()){
+      if(!(await finishTeamInvite(data.access_token))){ btn.disabled = false; btn.textContent = 'Sign In'; }
+      return;
+    }
+
+    // Check if this user signed up but never completed checkout (a team member
+    // quotes on the team's plan and never needs to)
     try {
       const userId = data.user?.id;
       const proResp = await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${userId}&select=is_active,stripe_subscription_id`, {
@@ -874,7 +1008,7 @@ async function handleLogin(){
       const proRows = await proResp.json();
       const proRow = proRows?.[0];
       // If they have a pro_users row but never paid (no subscription ID and not active)
-      if(proRow && !proRow.is_active && !proRow.stripe_subscription_id){
+      if(proRow && !proRow.is_active && !proRow.stripe_subscription_id && !(await onTeamPlan(userId, data.access_token))){
         showSuccess('Welcome back! Completing your Pro signup...');
         const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
           method: 'POST',
@@ -984,7 +1118,7 @@ if(detectRecoveryFlow()){
     switchTab('login');
     showSuccess('Payment successful! Sign in to access your Pro account.');
   }
-  if(!isPostCheckout){ checkSession(); }
+  if(!isPostCheckout){ setupTeamInvite().then(active => { if(!active) checkSession(); }); }
 }
 </script>
 <!-- Floating theme button -->
@@ -994,7 +1128,7 @@ if(detectRecoveryFlow()){
   const sw = window.switchTab;
   window.switchTab = function (tab) {
     sw(tab);
-    if (tab === 'signup' && document.body.classList.contains('su-auth-only')) {
+    if (tab === 'signup' && document.body.classList.contains('su-auth-only') && !document.body.classList.contains('su-invite-only')) {
       document.body.classList.remove('su-auth-only');
       window.scrollTo(0, 0);
     }

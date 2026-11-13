@@ -1026,6 +1026,7 @@ td.dim{color:var(--text3)}
 .wl-pill.lost{border-style:solid;background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.45);color:var(--red)}
 .wl-pill.locked{border-style:solid}
 .wl-cust{display:block;font-size:10px;color:var(--text3);margin-top:2px;max-width:170px;overflow:hidden;text-overflow:ellipsis}
+.ql-by{display:block;font-size:10px;color:var(--text3);margin-top:2px;max-width:170px;overflow:hidden;text-overflow:ellipsis;font-style:italic}
 .log-more{padding:10px 20px;border-top:1px solid var(--border);text-align:center}
 .wl-panel{border-bottom:1px solid var(--border)}
 .wl-panel:empty{display:none}
@@ -3050,25 +3051,36 @@ async function _verifyProAuthBackground(){
       const userId = val.user?.id || val.user?.sub;
       if(!userId) continue;
 
-      const resp = await fetch(`https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users?id=eq.${userId}&select=*`, {
+      // The account this login works in (my_account in the database): its own,
+      // or, with a seat on a team, the owner's plan and company settings with
+      // this person's own name, phone and email.
+      const resp = await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/rpc/my_account', {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'apikey': 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ',
           'Authorization': `Bearer ${val.access_token}`
-        }
+        },
+        body: '{}'
       });
-      const rows = await resp.json();
+      if(!resp.ok) break;   // keep what's cached; try again next load
+      const acct = await resp.json();
+      const team = acct && acct.team ? {
+        role: acct.team.role, seated: acct.team.seated !== false, company: acct.team.company || null,
+        ownerName: acct.team.owner_name || null, size: acct.team.size || 1, members: acct.team.members || 0, tag: acct.team.tag || null,
+      } : null;
 
-      if(rows?.[0]){
-        if(rows[0].is_active === true) isProUser = true;
+      if(acct && acct.row){
+        const p = acct.row;
+        if(p.is_active === true) isProUser = true;
 
         // Cache Pro status for instant load next time — tied to userId
         localStorage.setItem('qfc_pro_status', JSON.stringify({
-          isActive: rows[0].is_active === true,
+          isActive: p.is_active === true,
           userId,
           cachedAt: Date.now()
         }));
 
-        const p = rows[0];
         // Quote numbers advance in this browser as PDFs are made; keep the
         // higher of the two counters so a number is never reused here.
         let prev = {};
@@ -3087,6 +3099,7 @@ async function _verifyProAuthBackground(){
           pdfWhiteLabel: p.pdf_white_label === true, pdfValidHours: p.pdf_valid_hours || 24, pdfTerms: p.pdf_terms || '',
           pdfSections: p.pdf_sections || null, pdfAccessorials: p.pdf_accessorials || null,
           plan: p.plan, comp: p.is_active === true && !p.stripe_subscription_id,
+          team,
         }));
         if(p.rate_profiles && Array.isArray(p.rate_profiles)){
           // Key matches PROFILES_KEY in lanes.html — keep them in sync.
@@ -3095,7 +3108,8 @@ async function _verifyProAuthBackground(){
       } else {
         // Clear cache if no longer active
         localStorage.setItem('qfc_pro_status', JSON.stringify({ isActive: false, cachedAt: Date.now() }));
-        if(val.user?.email){
+        // A team member (even one waiting for a seat) has no account row of their own to make
+        if(val.user?.email && !team){
           await fetch('https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users', {
             method: 'POST',
             headers: {
@@ -7202,7 +7216,6 @@ async function saveQuote(){
         'Prefer': 'return=representation'
       },
       body: JSON.stringify({
-        user_id: userId,
         date: entry.date,
         origin: entry.orig,
         destination: entry.dest,
@@ -7258,7 +7271,7 @@ async function loadQuoteLogFromSupabase(){
     let rows = [];
     for(let offset = 0; offset < QUOTE_LOG_LOAD_MAX; offset += 1000){
       const resp = await fetch(
-        `${SUPABASE_URL_QL}/rest/v1/quote_log?user_id=eq.${userId}&order=created_at.desc,id.desc&limit=1000&offset=${offset}`,
+        `${SUPABASE_URL_QL}/rest/v1/quote_log?order=created_at.desc,id.desc&limit=1000&offset=${offset}`,
         { headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` } }
       );
       const page = await resp.json();
@@ -7284,7 +7297,7 @@ async function saveQuoteNote(id, notes){
   if(!session) return;
   const userId = session.user?.id || session.user?.sub;
   try {
-    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}&user_id=eq.${userId}`, {
+    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY_QL,
@@ -7309,7 +7322,7 @@ async function toggleTrack(id, checked){
   if(session){
     const userId = session.user?.id || session.user?.sub;
     try {
-      await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}&user_id=eq.${userId}`, {
+      await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
         method: 'PATCH',
         headers: {
           'apikey': SUPABASE_KEY_QL,
@@ -7391,9 +7404,11 @@ async function syncTrackedToProfiles(){
     miles:   q.miles || 0,
     trailer: q.trailer || 'van',
   }));
-  // Sync to pro_users.rate_profiles
+  // Sync to pro_users.rate_profiles (lanes.html reads the quote log itself; a team
+  // member has no account row of their own to keep these in)
   const session = getProSession();
   if(!session) return;
+  if(teamMember()){ localStorage.setItem('qfc_rate_profiles', JSON.stringify(profiles)); return; }
   try {
     const userId = session.user?.id || session.user?.sub;
     await fetch(`https://xgrmbhmgcsbnazupfybd.supabase.co/rest/v1/pro_users?id=eq.${userId}`, {
@@ -7471,30 +7486,50 @@ function showToast(msg){
 }
 
 async function deleteQuote(id){
-  if(!quoteReady(id)) return;
-  quoteLog = quoteLog.filter(q => q.id != id);
+  const q = quoteReady(id);
+  if(!q) return;
+  if(!canDeleteQuote(q)){ showToast('Only the team owner or whoever saved a quote can delete it'); return; }
+  quoteLog = quoteLog.filter(x => x.id != id);
   renderLog();
   const session = getProSession();
   if(!session) return;
   try {
-    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
+    const resp = await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
       method: 'DELETE',
-      headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` }
+      headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}`, 'Prefer': 'return=representation' }
     });
+    const gone = resp.ok ? await resp.json().catch(() => null) : null;
+    if(Array.isArray(gone) && !gone.length){
+      // The database kept it (someone else's quote): show the log as it is
+      showToast('Only the team owner or whoever saved a quote can delete it');
+      loadQuoteLogFromSupabase();
+      return;
+    }
     syncTrackedToProfiles();
   } catch(e){}
 }
 
 async function clearLog(){
   if(!quoteLog.length) return;
-  if(!confirm('Clear all saved quotes? This cannot be undone.')) return;
-  quoteLog = [];
-  renderLog();
   const session = getProSession();
+  const userId = session ? (session.user?.id || session.user?.sub) : null;
+  // On a team, Clear All clears only the quotes you saved (an owner's quotes from
+  // before the team included); everyone else's stay.
+  const team = onTeam();
+  const mine = team ? quoteLog.filter(q => q.createdBy ? q.createdBy === userId : !teamMember()) : quoteLog;
+  if(team && !mine.length){ showToast('You haven’t saved any quotes in the team’s log'); return; }
+  const ask = team
+    ? `Clear the ${mine.length.toLocaleString()} quote${mine.length === 1 ? '' : 's'} you saved? Your teammates’ quotes stay. This cannot be undone.`
+    : 'Clear all saved quotes? This cannot be undone.';
+  if(!confirm(ask)) return;
+  quoteLog = team ? quoteLog.filter(q => !mine.includes(q)) : [];
+  renderLog();
   if(!session) return;
-  const userId = session.user?.id || session.user?.sub;
+  const which = !team ? `user_id=eq.${userId}`
+    : teamMember() ? `created_by=eq.${userId}`
+    : `or=(created_by.eq.${userId},created_by.is.null)`;
   try {
-    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?user_id=eq.${userId}`, {
+    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?${which}`, {
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` }
     });
@@ -7566,6 +7601,27 @@ function accountTier(){
   return ['plus', 'max', 'api'].includes(p.plan) ? p.plan : 'pro';
 }
 function winLossAllowed(){ return ['plus', 'max', 'api', 'comp'].includes(accountTier()); }
+
+// ── Team (team.js): the team cached with the account by the Pro check above ──
+function teamInfo(){
+  if(!isProUser) return null;
+  try { const p = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; return p.team || null; } catch(e){ return null; }
+}
+// A member using a seat on someone else's team
+function teamMember(){ const t = teamInfo(); return !!t && t.role === 'member' && t.seated !== false; }
+// Quotes here are shared with other people: a member, or an owner with members
+function onTeam(){ const t = teamInfo(); return !!t && (t.role === 'member' ? t.seated !== false : (t.members || 0) > 0); }
+function myUserId(){ const s = getProSession(); return s ? (s.user?.id || s.user?.sub || null) : null; }
+// Who can delete a saved quote: the account owner, or whoever saved it
+function canDeleteQuote(q){ return !teamMember() || (!!q.createdBy && q.createdBy === myUserId()); }
+// "you", or the teammate who saved it (quotes saved before the team are the owner's)
+function quoteSavedBy(q){
+  const me = myUserId();
+  if(q.createdBy ? q.createdBy === me : !teamMember()) return 'you';
+  if(q.createdByName) return q.createdByName;
+  const t = teamInfo();
+  return (!q.createdBy && t && t.ownerName) || 'a teammate';
+}
 function savedQuoteLimit(){ return SAVED_QUOTE_LIMIT[accountTier()] || 100; }
 
 function showWinLossUpgrade(){
@@ -7614,6 +7670,8 @@ function quoteFromRow(r){
     lostReason: r.lost_reason || null,
     outcomeAt: r.outcome_at || null,
     createdAt: r.created_at || null,
+    createdBy: r.created_by || null,
+    createdByName: r.created_by_name || '',
   };
 }
 
@@ -7892,7 +7950,7 @@ async function saveOutcomeModal(){
   btn.disabled = true;
   setOutcomeStatus('');
   try {
-    const resp = await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${q.id}&user_id=eq.${userId}`, {
+    const resp = await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${q.id}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY_QL,
@@ -7955,7 +8013,7 @@ function renderLog(){
 
   // Saved quotes against this plan's limit
   const note = document.getElementById('profile-count-note');
-  if(note) note.textContent = `${quoteLog.length.toLocaleString()} / ${savedQuoteLimit().toLocaleString()} quotes saved`;
+  if(note) note.textContent = `${quoteLog.length.toLocaleString()} / ${savedQuoteLimit().toLocaleString()} quotes saved${onTeam() ? ' by your team' : ''}`;
 
   renderLogFilters(allowed);
   renderWinLossPanel();
@@ -7978,7 +8036,8 @@ function renderLog(){
     </td>
     <td class="dim">${escapeHTML(q.date)}</td>
     <td style="font-size:11px;max-width:170px;white-space:normal">${escapeHTML(q.orig)||'—'}${q.dest?' → '+escapeHTML(q.dest):''}${q.customer
-      ? `<span class="wl-cust" title="${escapeHTML(q.customer)}">${escapeHTML(q.customer)}</span>` : ''}</td>
+      ? `<span class="wl-cust" title="${escapeHTML(q.customer)}">${escapeHTML(q.customer)}</span>` : ''}${onTeam()
+      ? `<span class="ql-by">by ${escapeHTML(quoteSavedBy(q))}</span>` : ''}</td>
     <td>${Number(q.miles).toLocaleString()}</td>
     <td><span class="tag ${TTAG[q.trailer]||'tag-van'}">${TLABEL[q.trailer]||escapeHTML(q.trailer)}</span></td>
     <td class="dim">${escapeHTML(q.commodity)}</td>
@@ -8012,7 +8071,7 @@ function renderLog(){
         onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
         onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">📄 PDF</button>
       ${emailButtonHTML(q)}
-      <button class="del-btn" onclick="deleteQuote(${q.id})">✕</button>
+      ${canDeleteQuote(q) ? `<button class="del-btn" onclick="deleteQuote(${q.id})" title="Delete quote">✕</button>` : ''}
     </td>
   </tr>`).join('');
   if(more){
@@ -8807,7 +8866,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
           <input type="radio" name="upg-plan" value="max" onchange="updateUpgradeButton()" />
           <span class="upg-name">Pro Max</span>
           <span class="upg-price"><strong>$49.99</strong>/month</span>
-          <span class="upg-detail">Everything in Pro Plus, with automatic miles on 1,000 quotes per day and white-label PDFs</span>
+          <span class="upg-detail">Everything in Pro Plus, with automatic miles on 1,000 quotes per day, white-label PDFs and a team of 3 people</span>
         </label>
       </div>
       <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">

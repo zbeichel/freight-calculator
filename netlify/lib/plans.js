@@ -10,16 +10,22 @@
 //                               list (customers.js) and emailing quotes
 //                               (email-quote.js, send-quote-email.js); comp accounts too
 //   max   Pro Max   $49.99/mo   everything in Pro Plus, automatic miles on 1,000
-//                               quotes per day and white-label PDFs (pdf-quote.js)
-//   api   API       $199.99/mo  Pro Max on the site + API access with
-//                               API_MONTHLY_QUOTES automatic-miles quotes per
-//                               billing month (see api-quote.js)
+//                               quotes per day, white-label PDFs (pdf-quote.js)
+//                               and a team of 3 people (team.js)
+//   api   API       $199.99/mo  Pro Max on the site with a team of 6 people + API
+//                               access with API_MONTHLY_QUOTES automatic-miles
+//                               quotes per billing month (see api-quote.js)
 //
 // Saved quotes in the quote log: Pro 100, Pro Plus 1,000, Pro Max / API /
 // comp 5,000. Saved customers: Pro Plus 1,000, Pro Max / API / comp 5,000.
 // The database enforces these and who can record win/loss results or save
 // customers (quote_log_enforce_plan, customers_enforce_plan); the pages show
 // the same limits.
+//
+// Teams (team.js): the owner of a Pro Max, API or comp account can add people, up to
+// teamSize() including the owner. Members sign in with their own logins and share the
+// owner's plan, daily limits, quote log, customers and company settings; the database
+// decides who has a seat (private.team_size / team_owner_of, effective_account).
 //
 // Comp accounts (free, every feature): active with no Stripe subscription.
 // pro_users.comp (set by an admin) keeps them that way: the database ignores
@@ -34,6 +40,16 @@ const PLANS = ['pro', 'plus', 'max', 'api'];
 const PLAN_NAME = { pro: 'Pro', plus: 'Pro Plus', max: 'Pro Max', api: 'API' };
 const PLAN_DAILY_LIMIT = { pro: 100, plus: 250, max: 1000, api: 1000 };
 const PLAN_RANK = { pro: 1, plus: 2, max: 3, api: 4 };
+
+// People on a team, owner included. Comp accounts get Pro Max's team (the API plan's
+// on the API plan). Keep in step with private.team_size() in the database.
+const TEAM_SIZE = { max: 3, api: 6 };
+function teamSize(row) {
+  if (!row || row.is_active !== true) return 1;
+  const plan = normalizePlan(row.plan);
+  if (row.comp === true || !row.stripe_subscription_id) return plan === 'api' ? TEAM_SIZE.api : TEAM_SIZE.max;
+  return TEAM_SIZE[plan] || 1;
+}
 
 // API plan: automatic-miles quotes per billing month, and requests per minute per key.
 const API_MONTHLY_QUOTES = 5000;
@@ -136,6 +152,8 @@ module.exports = {
   PLAN_NAME,
   PLAN_DAILY_LIMIT,
   PLAN_RANK,
+  TEAM_SIZE,
+  teamSize,
   API_MONTHLY_QUOTES,
   API_PER_MINUTE,
   normalizePlan,

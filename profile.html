@@ -127,6 +127,32 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 .api-foot a{color:var(--accent);text-decoration:none}
 #api-status{font-size:12px;margin-top:10px;line-height:1.5}
 
+/* ── Team ── */
+.team-list{border:1px solid var(--border2);border-radius:10px;margin:0 0 14px;background:var(--card2)}
+.team-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--border)}
+.team-row:first-child{border-top:none}
+.team-main{flex:1;min-width:180px}
+.team-name{font-size:13px;font-weight:600;color:var(--text);overflow-wrap:anywhere}
+.team-meta{font-size:11px;color:var(--text3);margin-top:2px;overflow-wrap:anywhere}
+.team-meta .warn{color:var(--red)}
+.team-tag{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px}
+.team-row-actions{display:flex;gap:6px}
+.team-invite{display:flex;gap:8px;flex-wrap:wrap}
+.team-invite input{flex:1;min-width:160px;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);
+  font-family:'Space Grotesk',sans-serif;font-size:13px;padding:8px 12px;outline:none}
+.team-invite input:focus{border-color:var(--accent)}
+.team-note{font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6}
+.team-warn{font-size:12px;line-height:1.6;color:var(--text2);background:var(--accentbg);border:1px solid var(--accent);border-radius:8px;padding:10px 12px;margin:0 0 14px}
+#team-status{font-size:12px;margin-top:10px;line-height:1.5}
+#team-status.ok{color:var(--green)}
+#team-status.err{color:var(--red)}
+/* A team member's view: company settings belong to the team owner */
+.member-banner{display:none;font-size:13px;line-height:1.6;color:var(--text2);background:var(--accentbg);border:1px solid var(--accent);border-radius:10px;padding:12px 14px;margin:0 0 16px}
+body.pf-member .member-banner{display:block}
+body.pf-member .pf-locked .section-body{pointer-events:none;opacity:.55}
+body.pf-member .pf-locked .section-sub::after{content:' · Set by the team owner'}
+body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
+
 /* ── PDF quote style ── */
 .pdf-style-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .pdf-style-option{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:start;padding:14px 16px;border:1px solid var(--border2);border-radius:10px;cursor:pointer;background:var(--card);transition:border-color .15s,background .15s}
@@ -402,6 +428,8 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
   <span class="qf-pill">Account</span>
   <h1 class="page-title">My account</h1>
   <div class="page-sub">Manage your profile and customize how your PDF quotes look to customers.</div>
+
+  <div class="member-banner" id="member-banner"></div>
 
   <div class="sections">
 
@@ -836,6 +864,20 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Team — owner: the people on the account and invites; member: whose team
+         it is, and leaving it. Filled in by loadTeamSection() (team function). -->
+    <div class="section-card" id="team-card" style="display:none">
+      <div class="section-header">
+        <span class="section-icon">👥</span>
+        <span class="section-title">Team</span>
+        <span class="section-sub" id="team-sub">People on your account</span>
+      </div>
+      <div class="section-body">
+        <div id="team-body"></div>
+        <div id="team-status" role="status" style="display:none"></div>
       </div>
     </div>
 
@@ -1593,6 +1635,7 @@ async function checkAuth(){
 
 // ── Save to Supabase + localStorage ───────────────────────────────────────
 async function saveProfile(){
+  if(teamMemberMode()) return saveMemberDetails();
   const profile = {
     companyName:  document.getElementById('company-name').value.trim(),
     contactName:  document.getElementById('contact-name').value.trim(),
@@ -1686,12 +1729,24 @@ async function loadProfile(){
   // Try Supabase first
   if(session && userId){
     try {
-      const resp = await fetch(`${SUPABASE_URL}/rest/v1/pro_users?id=eq.${userId}&select=*`, {
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` }
+      // my_account: this login's account, or, with a seat on a team, the team
+      // owner's company settings and plan with this person's own name and phone.
+      const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/my_account`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: '{}'
       });
-      const rows = await resp.json();
-      if(rows?.[0]){
-        const p = rows[0];
+      const acct = resp.ok ? await resp.json() : null;
+      profileTeam = (acct && acct.team) || null;
+      if(acct && !acct.row && profileTeam){
+        // A team member waiting for a seat, with no account of their own
+        updateHeaderUser(session.user.email);
+        applyChangePasswordCardState(session);
+        loadTeamSection();
+        return;
+      }
+      if(acct && acct.row){
+        const p = acct.row;
         populateForm({
           companyName: p.company_name,
           contactName: p.contact_name,
@@ -1717,13 +1772,23 @@ async function loadProfile(){
         });
         // Update header with user name
         updateHeaderUser(p.contact_name || p.company_name || session.user.email);
-        // Pick which subscription card to show based on whether they're a
-        // paid subscriber (has Stripe customer ID) or a comp account.
         accountTier = { plan: normalizeProfilePlan(p.plan), comp: p.is_active === true && !p.stripe_subscription_id };
-        applySubscriptionCardState(p.stripe_customer_id, p.plan, p.is_active === true);
+        if(teamMemberMode()){
+          // The team owner handles billing, API keys and company settings
+          applyPlanState(normalizeProfilePlan(p.plan), p.is_active === true, false, null);
+          applyMemberMode();
+        } else {
+          // Pick which subscription card to show based on whether they're a
+          // paid subscriber (has Stripe customer ID) or a comp account.
+          applySubscriptionCardState(p.stripe_customer_id, p.plan, p.is_active === true);
+        }
         applyWhiteLabelAccess();
         // Pick which password card to show based on auth provider.
         applyChangePasswordCardState(session);
+        loadTeamSection();
+        if(new URLSearchParams(window.location.search).get('team') === 'joined' && profileTeam && profileTeam.role === 'member'){
+          showToast(`✓ You’re on ${profileTeam.company || 'the team'}`);
+        }
         return;
       }
     } catch(e){}
@@ -1766,8 +1831,8 @@ function applySubscriptionCardState(stripeCustomerId, plan, isActive){
 const PROFILE_PLANS = {
   pro:  { name: 'Pro',      price: '$9.99',   detail: 'Automatic miles on 100 quotes per day' },
   plus: { name: 'Pro Plus', price: '$19.99',  detail: 'Automatic miles on 250 quotes per day, win/loss tracking, a customer list and emailed quotes' },
-  max:  { name: 'Pro Max',  price: '$49.99',  detail: 'Everything in Pro Plus, with automatic miles on 1,000 quotes per day and white-label PDFs' },
-  api:  { name: 'API',      price: '$199.99', detail: 'Pro Max plus 5,000 API quotes per month' },
+  max:  { name: 'Pro Max',  price: '$49.99',  detail: 'Everything in Pro Plus, with automatic miles on 1,000 quotes per day, white-label PDFs and a team of 3 people' },
+  api:  { name: 'API',      price: '$199.99', detail: 'Pro Max with a team of 6 people, plus 5,000 API quotes per month' },
 };
 const PROFILE_PLAN_RANK = { pro: 1, plus: 2, max: 3, api: 4 };
 function normalizeProfilePlan(plan){ return PROFILE_PLANS[plan] ? plan : 'pro'; }
@@ -1852,7 +1917,7 @@ async function handleSwitchPlan(){
     : onOriginalPlan || PROFILE_PLAN_RANK[target] > PROFILE_PLAN_RANK[currentPlan]
       ? `Upgrade to ${info.name} for ${info.price}/month?\n\nYou'll be charged the prorated difference today${target === 'api' ? ', and API access starts right away' : ''}.`
       : `Switch to ${info.name} for ${info.price}/month?\n\nThe unused part of your current plan is credited on your next invoice.`;
-  if(!confirm(question)) return;
+  if(!confirm(question + teamDowngradeNote(target))) return;
 
   const session = await getSessionRefreshed();
   if(!session){ window.location.href = '/signup.html?login'; return; }
@@ -1919,6 +1984,265 @@ function setApiStatus(text, isError){
   el.textContent = text || '';
   el.style.display = text ? 'block' : 'none';
   el.style.color = isError ? 'var(--red)' : 'var(--text2)';
+}
+
+// ── Team (team function) ──────────────────────────────────────────────────
+// Pro Max includes 3 people and the API plan 6, counting the owner. Members sign
+// in with their own login and work in the owner's account: plan, daily limits,
+// quote log, customers and company settings. The team function does the work;
+// my_account (loadProfile) says whether this login is an owner or a member.
+let profileTeam = null;   // my_account's team: { role, seated, company, owner_name, size, members, tag }
+let teamState = null;     // the team function's last status
+const TEAM_SIZES = { pro: 1, plus: 1, max: 3, api: 6 };
+const teamEsc = (v) => String(v === null || v === undefined ? '' : v)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+const teamDate = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
+const teamPlanName = (plan) => plan === 'comp' ? 'your plan' : (PROFILE_PLANS[plan] ? PROFILE_PLANS[plan].name : 'your plan');
+// With a seat on someone else's team (not one waiting for a seat)
+function teamMemberMode(){ return !!profileTeam && profileTeam.role === 'member' && profileTeam.seated !== false; }
+
+async function teamCall(body){
+  const session = await getSessionRefreshed();
+  if(!session) throw Object.assign(new Error('Sign in again to manage your team.'), { status: 401 });
+  const resp = await fetch('/.netlify/functions/team', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+    body: JSON.stringify(body)
+  });
+  const data = await resp.json().catch(() => ({}));
+  if(!resp.ok) throw Object.assign(new Error(data.message || 'Something went wrong. Try again in a minute.'), { status: resp.status, data });
+  return data;
+}
+function setTeamStatus(text, kind){
+  const el = document.getElementById('team-status');
+  if(!el) return;
+  el.textContent = text || '';
+  el.className = kind || '';
+  el.style.display = text ? 'block' : 'none';
+}
+
+async function loadTeamSection(){
+  const card = document.getElementById('team-card');
+  if(!card) return;
+  try { teamState = await teamCall({ action: 'status' }); }
+  catch(e){ return; }   // leave the card hidden if the team function can't be reached
+  card.style.display = '';
+  renderTeam();
+}
+
+function renderTeam(){
+  const t = teamState;
+  const body = document.getElementById('team-body');
+  const sub = document.getElementById('team-sub');
+  if(!t || !body) return;
+
+  if(t.role === 'member'){
+    const team = t.team || {};
+    const teamName = team.company || `${team.ownerName}’s team`;
+    sub.textContent = `On ${teamName}`;
+    body.innerHTML = `
+      <p class="api-copy">You’re on <strong>${teamEsc(teamName)}</strong>, run by ${teamEsc(team.ownerName)}, on its ${teamEsc(teamPlanName(team.plan))} plan. You share the team’s quote log, customers and company settings. Quotes you send are signed with your own name and phone (Company Information above)${t.me && t.me.tag ? `, and your quote numbers carry your initials, <strong>${teamEsc(t.me.tag)}</strong>` : ''}.</p>
+      ${t.seated === false ? `<div class="team-warn">The team’s plan has room for ${team.size > 1 ? `${team.size} people` : 'no team members'} right now, so you’re waiting for a seat. Ask ${teamEsc(team.ownerName)} to make room, or leave the team.</div>` : ''}
+      ${t.ownPlan ? `<div class="team-warn">You still pay for your own ${teamEsc(teamPlanName(t.ownPlan))} plan. You don’t need it while you’re on this team. <a href="#" onclick="event.preventDefault();handleManageBilling()" style="color:var(--accent)">Manage billing</a></div>` : ''}
+      <div class="team-list">${(t.people || []).map(p => `
+        <div class="team-row"><div class="team-main">
+          <div class="team-name">${teamEsc(p.name)}${p.owner ? '<span class="team-tag">Owner</span>' : ''}${p.you ? '<span class="team-tag">You</span>' : ''}</div>
+          ${p.seated === false ? '<div class="team-meta"><span class="warn">Waiting for a seat</span></div>' : ''}
+        </div></div>`).join('')}
+      </div>
+      <div class="api-actions"><button class="api-btn secondary" id="team-leave-btn" onclick="leaveTeam()">Leave team</button></div>`;
+    return;
+  }
+
+  const members = t.members || [];
+  const active = members.filter(m => m.status === 'active');
+  const seatless = active.filter(m => m.seated === false);
+  const names = (list) => list.map(m => m.name || m.email).join(', ');
+  const plan = teamPlanName(t.plan);
+
+  if(!t.size || t.size <= 1){
+    sub.textContent = 'Add people to your account';
+    body.innerHTML = `
+      ${active.length ? `<div class="team-warn">Your plan doesn’t include team members, so ${teamEsc(names(active))} can’t use your account. Move to Pro Max (3 people) or the API plan (6 people) to bring them back, or remove them below.</div>` : ''}
+      <p class="api-copy">Pro Max includes a team of 3 people and the API plan 6, counting you. Everyone signs in with their own login and quotes on your plan: they share your quote log, customers, company settings and daily limits, and send quotes signed with their own name.</p>
+      ${members.length ? `<div class="team-list">${members.map(teamMemberRow).join('')}</div>` : ''}
+      ${t.onOtherTeam ? '' : `<div class="api-actions"><button class="api-btn" onclick="pickPlanForTeam()">Get Pro Max</button></div>`}`;
+    return;
+  }
+
+  sub.textContent = `${t.used} of ${t.size} people`;
+  const full = t.used >= t.size;
+  body.innerHTML = `
+    <p class="api-copy">Everyone you add signs in with their own login and quotes on your ${teamEsc(plan)} plan. They share your quote log, customers, company settings and daily limits, and send quotes signed with their own name. Only you change company settings and billing. A quote or customer can be deleted by you or by whoever saved it.</p>
+    ${seatless.length ? `<div class="team-warn">${teamEsc(plan.charAt(0).toUpperCase() + plan.slice(1))} has room for ${t.size} people, so ${teamEsc(names(seatless))} can’t use your account right now. Remove someone, or move to a plan with more room.</div>` : ''}
+    ${t.onOtherTeam ? `<div class="team-warn">You’re on someone else’s team, so you can’t add your own team members. Leave that team first.</div>` : ''}
+    <div class="team-list">
+      <div class="team-row"><div class="team-main">
+        <div class="team-name">${teamEsc((t.me && t.me.name) || 'You')}<span class="team-tag">Owner</span></div>
+        <div class="team-meta">${teamEsc((t.me && t.me.email) || '')}</div>
+      </div></div>
+      ${members.map(teamMemberRow).join('')}
+    </div>
+    ${!t.canInvite ? '' : full
+      ? `<div class="team-note">Your team is full. Remove someone to invite another person${t.size < 6 ? ', or move to the API plan for a team of 6' : ''}.</div>`
+      : `<div class="team-invite">
+          <input id="team-invite-email" type="email" maxlength="200" placeholder="Their email" aria-label="Email address to invite"
+            onkeydown="if(event.key==='Enter')inviteTeammate()" />
+          <input id="team-invite-name" type="text" maxlength="120" placeholder="Their name (optional)" aria-label="Their name"
+            onkeydown="if(event.key==='Enter')inviteTeammate()" />
+          <button class="api-btn" id="team-invite-btn" onclick="inviteTeammate()">Send invite</button>
+        </div>
+        <div class="team-note">They’ll get an email with a link to join, good for 14 days. They sign in or create a free login with that email.</div>`}`;
+}
+
+function teamMemberRow(m){
+  if(m.status === 'invited'){
+    return `<div class="team-row"><div class="team-main">
+        <div class="team-name">${teamEsc(m.name || m.email)}</div>
+        <div class="team-meta">${m.name ? teamEsc(m.email) + ' · ' : ''}${m.expired ? '<span class="warn">Invite expired</span>' : 'Invited ' + teamEsc(teamDate(m.invitedAt))}</div>
+      </div>
+      <div class="team-row-actions">
+        <button class="api-key-revoke" onclick="resendInvite(${m.id})">Resend</button>
+        <button class="api-key-revoke" onclick="removeTeammate(${m.id}, true)">Cancel</button>
+      </div></div>`;
+  }
+  return `<div class="team-row"><div class="team-main">
+      <div class="team-name">${teamEsc(m.name || m.email)}</div>
+      <div class="team-meta">${teamEsc(m.email)} · Joined ${teamEsc(teamDate(m.joinedAt))}${m.seated === false ? ' · <span class="warn">No seat on this plan</span>' : ''}</div>
+    </div>
+    <div class="team-row-actions"><button class="api-key-revoke" onclick="removeTeammate(${m.id}, false)">Remove</button></div></div>`;
+}
+
+async function inviteTeammate(){
+  const emailEl = document.getElementById('team-invite-email');
+  const nameEl = document.getElementById('team-invite-name');
+  const btn = document.getElementById('team-invite-btn');
+  const email = (emailEl && emailEl.value || '').trim();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ setTeamStatus('Enter their email address.', 'err'); if(emailEl) emailEl.focus(); return; }
+  if(btn) btn.disabled = true;
+  setTeamStatus('Sending the invite…');
+  try {
+    await teamCall({ action: 'invite', email, name: (nameEl && nameEl.value || '').trim() });
+    teamState = await teamCall({ action: 'status' });
+    renderTeam();
+    setTeamStatus(`✓ Invite sent to ${email}.`, 'ok');
+  } catch(e){
+    setTeamStatus(e.message, 'err');
+    if(btn) btn.disabled = false;
+  }
+}
+
+async function resendInvite(id){
+  setTeamStatus('Sending the invite again…');
+  try {
+    const r = await teamCall({ action: 'resend', id });
+    teamState = await teamCall({ action: 'status' });
+    renderTeam();
+    setTeamStatus(`✓ Sent a new link to ${r.member ? r.member.email : 'them'}. The old link no longer works.`, 'ok');
+  } catch(e){ setTeamStatus(e.message, 'err'); }
+}
+
+async function removeTeammate(id, invite){
+  const m = teamState && (teamState.members || []).find(x => x.id === id);
+  const who = m ? (m.name || m.email) : 'them';
+  const question = invite
+    ? `Cancel the invite to ${who}? Their link stops working.`
+    : `Remove ${who} from your team? They lose access right away. The quotes and customers they saved stay with your account.`;
+  if(!confirm(question)) return;
+  setTeamStatus(invite ? 'Canceling the invite…' : 'Removing…');
+  try {
+    await teamCall({ action: 'remove', id });
+    teamState = await teamCall({ action: 'status' });
+    renderTeam();
+    setTeamStatus(invite ? '✓ Invite canceled.' : `✓ ${who} is off your team.`, 'ok');
+  } catch(e){ setTeamStatus(e.message, 'err'); }
+}
+
+async function leaveTeam(){
+  const team = teamState && teamState.team || {};
+  const teamName = team.company || `${team.ownerName || 'this'}’s team`;
+  if(!confirm(`Leave ${teamName}? You’ll lose the team’s plan, quote log and customers. What you saved stays with the team.`)) return;
+  const btn = document.getElementById('team-leave-btn');
+  if(btn) btn.disabled = true;
+  setTeamStatus('Leaving the team…');
+  try {
+    await teamCall({ action: 'leave' });
+    try { localStorage.removeItem('qfc_pro_profile'); localStorage.removeItem('qfc_pro_status'); } catch(e){}
+    setTeamStatus('✓ You’ve left the team.', 'ok');
+    setTimeout(() => window.location.reload(), 900);
+  } catch(e){
+    setTeamStatus(e.message, 'err');
+    if(btn) btn.disabled = false;
+  }
+}
+
+// Pro and Pro Plus owners: pick Pro Max in the plan switcher
+function pickPlanForTeam(){
+  const select = document.getElementById('sub-plan-select');
+  const card = document.getElementById('subscription-paid');
+  if(select && card && card.style.display !== 'none'){
+    select.value = 'max';
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    select.focus();
+  } else {
+    window.location.href = '/signup.html';
+  }
+}
+
+// What a smaller plan means for the team (added to the plan switch question)
+function teamDowngradeNote(target){
+  const t = teamState;
+  if(!t || t.role !== 'owner') return '';
+  const people = (t.members || []).filter(m => m.status === 'active').length;
+  const room = Math.max(0, (TEAM_SIZES[target] || 1) - 1);
+  if(people <= room) return '';
+  const out = people - room;
+  return room
+    ? `\n\n${PROFILE_PLANS[target].name} has room for ${room + 1} people, so ${out} of your team member${out === 1 ? '' : 's'} will lose access until you make room or move back.`
+    : `\n\n${PROFILE_PLANS[target].name} doesn’t include team members, so your ${people} team member${people === 1 ? '' : 's'} will lose access until you move back to Pro Max or the API plan.`;
+}
+
+// A team member's page: company settings belong to the owner (read-only here);
+// the member keeps their own name and phone, which go on the quotes they send.
+function applyMemberMode(){
+  document.body.classList.add('pf-member');
+  const t = profileTeam || {};
+  const banner = document.getElementById('member-banner');
+  if(banner){
+    banner.innerHTML = `You’re on <strong>${teamEsc(t.company || ((t.owner_name || 'a') + '’s team'))}</strong>. ${teamEsc(t.owner_name || 'The team owner')} sets the company details, logo and PDF options; you can change your own name and phone, which go on the quotes you send.`;
+  }
+  const own = new Set(['contact-name', 'contact-phone']);
+  document.querySelectorAll('.sections > .section-card').forEach(card => {
+    const id = card.id || '';
+    if(['team-card', 'change-password-form', 'change-password-google'].includes(id)) return;
+    if(['subscription-paid', 'subscription-comp', 'api-access'].includes(id)){ card.style.display = 'none'; return; }
+    const hasOwn = [...own].some(f => card.querySelector('#' + f));
+    if(!hasOwn) card.classList.add('pf-locked');
+    card.querySelectorAll('input, select, textarea, button').forEach(el => { if(!own.has(el.id)) el.disabled = true; });
+  });
+  const save = document.querySelector('.save-btn');
+  if(save) save.textContent = '💾 Save my details';
+  const note = document.getElementById('save-note');
+  if(note) note.textContent = 'Your name and phone go on the quotes you send.';
+}
+
+async function saveMemberDetails(){
+  const name = document.getElementById('contact-name').value.trim();
+  const phone = document.getElementById('contact-phone').value.trim();
+  try {
+    await teamCall({ action: 'me', name, phone });
+    try {
+      const p = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {};
+      p.contactName = name; p.phone = phone;
+      localStorage.setItem('qfc_pro_profile', JSON.stringify(p));
+    } catch(e){}
+    updateHeaderUser(name || (profileTeam && profileTeam.company) || 'Account');
+    showToast('✓ Your details are saved');
+    document.getElementById('save-note').innerHTML =
+      'Last saved: <span>' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + '</span>';
+  } catch(e){
+    showToast(e.message);
+  }
 }
 
 async function loadApiSection(){

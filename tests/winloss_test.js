@@ -104,6 +104,7 @@ async function setup(browser, base, { account, quotes = [], capOverride = null, 
         return route.fulfill({ status: 204, body: '' });
       }
     }
+    if (url.includes('/rest/v1/rpc/my_account')) return json({ row: db.account || null, team: null });
     if (url.includes('/rest/v1/pro_users')) {
       if (method === 'PATCH') { db.profilePatches.push(JSON.parse(req.postData())); return route.fulfill({ status: 204, body: '' }); }
       return json(db.account ? [db.account] : []);
@@ -346,6 +347,7 @@ const SEED = [
   await t.page.evaluate(() => { document.getElementById('miles').value = 300; applyRegionalRates(); calc(); saveQuote(); });
   await t.page.waitForFunction(() => document.getElementById('upg-modal-overlay').style.display === 'flex');
   check('a save the database refuses is taken back out of the log', (await t.page.evaluate(() => quoteLog.length)) === 3 && t.db.posts.length === 1);
+  check('a saved quote doesn’t name its account: the database files it (the team’s, for a team member)', t.db.posts[0] && !('user_id' in t.db.posts[0].body), JSON.stringify(t.db.posts[0] && Object.keys(t.db.posts[0].body)));
   await t.context.close();
 
   console.log("\n=== A result the database refuses ===");

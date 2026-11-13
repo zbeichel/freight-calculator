@@ -70,9 +70,12 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   const routes = require(fn('routes.js'));
   let proRow = null;
   let laneAllowed = true;
+  let seatOn = null;   // a team owner whose plan user-1 has a seat on (effective_account)
   fetchRespond = (url) => {
     if (url.endsWith('/auth/v1/user')) return { body: { id: 'user-1' } };
-    if (url.includes('/rest/v1/pro_users')) return { body: proRow ? [proRow] : [] };
+    if (url.includes('/rest/v1/rpc/effective_account')) {
+      return { body: { account_id: seatOn || 'user-1', role: seatOn ? 'member' : null, seated: !!seatOn, owner_id: seatOn, team_size: seatOn ? 3 : 1, row: proRow } };
+    }
     if (url.includes('/rest/v1/rpc/record_free_lane')) return { body: laneAllowed };
     if (url.startsWith('https://routes.googleapis.com/')) return { body: { routes: [{ distanceMeters: 1609, duration: '60s' }] } };
     throw new Error('unexpected fetch ' + url);
@@ -126,6 +129,14 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   ok(rpc().length === 0 && google() === 1, 'comp account: still unlimited after January (no backstop)');
   await run({ ...comp, is_active: false }, '2027-03-01T15:00:00Z');
   ok(rpc()[0].p_limit === 5, 'comp access turned off: free limit');
+
+  // A team member quotes on the owner's plan and shares the owner's daily limit
+  seatOn = 'owner-1';
+  await run(active({ plan: 'max' }), '2026-11-21T15:00:00Z');
+  ok(rpc()[0].p_limit === 1000 && rpc()[0].p_identity === 'user:owner-1', 'team member: the owner\'s Pro Max limit, counted for the whole team');
+  r = await run(active({ plan: 'max' }), '2026-11-21T15:00:00Z', false);
+  ok(r.plan === 'max' && /^Your team has used today's 1,000 quotes/.test(r.error) && google() === 0, 'team over the limit: worded for the team, no upsell');
+  seatOn = null;
 
   // ═══ create-checkout.js ═══════════════════════════════════════════════════
   const checkout = require(fn('create-checkout.js'));
@@ -277,10 +288,16 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   // ═══ verify-pro.js ════════════════════════════════════════════════════════
   const verify = require(fn('verify-pro.js'));
   let vrow = null;
+  let vseat = null;   // { owner } while user-1 has a seat on someone's team
   respond = (c) => {
     if (c.path === '/auth/v1/user') return { status: 200, body: { id: 'user-1' } };
-    if (c.path.startsWith('/rest/v1/pro_users')) return { status: 200, body: [vrow] };
     return { status: 404, body: {} };
+  };
+  fetchRespond = (url) => {
+    if (url.includes('/rest/v1/rpc/effective_account')) {
+      return { body: { account_id: vseat ? vseat.owner : 'user-1', role: vseat ? 'member' : null, seated: !!vseat, owner_id: vseat && vseat.owner, team_size: vseat ? 3 : 1, row: vrow } };
+    }
+    throw new Error('unexpected fetch ' + url);
   };
   const vp = async () => JSON.parse((await verify.handler({ httpMethod: 'POST', body: JSON.stringify({ userId: 'user-1', accessToken: 'tok' }) })).body);
   at('2026-11-20T15:00:00Z');
@@ -298,6 +315,17 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   at('2027-01-11T15:00:00Z');
   vrow = { is_active: true, plan: 'plus', grandfathered: true, billing_period_start: '2027-01-10T12:00:00Z', stripe_subscription_id: 'sub_1' };
   ok((await vp()).unlimitedUntilRenewal === false, 'verify-pro: after the first January bill → on the new plan');
+  at('2026-11-20T15:00:00Z');
+  vseat = { owner: 'owner-1' };
+  vrow = { is_active: true, plan: 'max', grandfathered: true, billing_period_start: null, renews_at: '2026-12-01T00:00:00Z', stripe_subscription_id: 'sub_9' };
+  v = await vp();
+  ok(v.active && v.plan === 'max' && v.team && v.team.role === 'member' && v.team.seated === true && v.team.size === 3,
+     'verify-pro: a team member is active on the owner\'s plan');
+  ok(v.paid === false && v.renewsAt === null && v.unlimitedUntilRenewal === false && v.nextPlan === null,
+     'verify-pro: …with none of the owner\'s billing (no renewal date or plan-change notice)');
+  vseat = null;
+  vrow = { is_active: true, plan: 'max', grandfathered: false, stripe_subscription_id: 'sub_3' };
+  ok((await vp()).team === null, 'verify-pro: no team → team is null');
   Date.now = realNow;
 
   // ═══ apply-plan-changes.js (scheduled) ════════════════════════════════════

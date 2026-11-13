@@ -2107,6 +2107,17 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
   }
 }
 
+// ── Team (team.js): set by verifyProAccess. A team shares one multi-stop log;
+// a member can delete only the quotes they saved. ───────────────────────────
+let msTeam = null;
+const msTeamMember = () => !!msTeam && msTeam.role === 'member' && msTeam.seated !== false;
+function msUserId(){ const s = getMsSession(); return s ? (s.user?.id || s.user?.sub || null) : null; }
+function msCanDelete(q){ return !msTeamMember() || (!!q.createdBy && q.createdBy === msUserId()); }
+function msSavedBy(q){
+  if(q.createdBy ? q.createdBy === msUserId() : !msTeamMember()) return 'you';
+  return q.createdByName || 'a teammate';
+}
+
 // ── Pro gate — server-side verification ───────────────────────────────────
 async function verifyProAccess(){
   try {
@@ -2124,7 +2135,7 @@ async function verifyProAccess(){
       });
       if(!resp.ok) return clientSideProCheck(); // function not deployed yet — fallback
       const data = await resp.json();
-      if(data.active) return true;
+      if(data.active){ msTeam = data.team || null; return true; }
       break;
     }
   } catch(e){
@@ -2195,7 +2206,7 @@ async function loadMsLogFromSupabase(){
   try {
     setMsLogStatus('Syncing...');
     const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/ms_quote_log?user_id=eq.${userId}&order=created_at.desc&limit=50`,
+      `${SUPABASE_URL}/rest/v1/ms_quote_log?order=created_at.desc&limit=50`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` } }
     );
     const rows = await resp.json();
@@ -2215,7 +2226,9 @@ async function loadMsLogFromSupabase(){
         trailer:     r.trailer || '',
         commodityKey:r.commodity_key || '',
         marginVal:   r.margin_val || 15,
-        baseRate:    r.base_rate || 3.15
+        baseRate:    r.base_rate || 3.15,
+        createdBy:   r.created_by || null,
+        createdByName: r.created_by_name || ''
       }));
       saveMsLog(log);
       renderMsLog();
@@ -2238,7 +2251,8 @@ function renderMsLog(){
   }
   tbody.innerHTML = log.map(q => `<tr>
     <td class="dim">${escapeHTML(q.date)}</td>
-    <td style="font-size:11px;max-width:160px;white-space:normal">${escapeHTML(q.route)||'—'}</td>
+    <td style="font-size:11px;max-width:160px;white-space:normal">${escapeHTML(q.route)||'—'}${msTeam
+      ? `<span style="display:block;font-size:10px;color:var(--text3);margin-top:2px;font-style:italic">by ${escapeHTML(msSavedBy(q))}</span>` : ''}</td>
     <td>${Number(q.miles||0).toLocaleString()}</td>
     <td class="dim">${escapeHTML(q.stopsCount)||'—'}</td>
     <td class="dim">${escapeHTML(q.commodity)||'—'}</td>
@@ -2263,7 +2277,7 @@ function renderMsLog(){
         background:transparent;color:var(--text3);cursor:pointer;margin-right:4px;transition:all .15s"
         onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
         onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">⬆ Load</button>
-      <button class="ms-del-btn" onclick="deleteMsQuote(${q.id})">✕</button>
+      ${msCanDelete(q) ? `<button class="ms-del-btn" onclick="deleteMsQuote(${q.id})" title="Delete quote">✕</button>` : ''}
     </td>
   </tr>`).join('');
 }
@@ -2323,7 +2337,8 @@ async function saveMsQuote(){
     trailer: document.getElementById('ms-trailer')?.value || '',
     commodityKey: commodity,
     marginVal: marginPct,
-    baseRate: parseFloat(document.getElementById('ms-rate')?.value) || 3.15
+    baseRate: parseFloat(document.getElementById('ms-rate')?.value) || 3.15,
+    createdBy: msUserId()
   };
 
   log.unshift(entry);
@@ -2346,7 +2361,6 @@ async function saveMsQuote(){
         },
         body: JSON.stringify({
           id:           entry.id,
-          user_id:      userId,
           date:         entry.date,
           route:        entry.route,
           miles:        entry.miles,
@@ -2370,30 +2384,43 @@ async function saveMsQuote(){
 
 // ── Delete ────────────────────────────────────────────────────────────────
 async function deleteMsQuote(id){
+  const q = getMsLog().find(x => x.id === id);
+  if(q && !msCanDelete(q)){ alert('Only the team owner or whoever saved a quote can delete it.'); return; }
   const log = getMsLog().filter(q => q.id !== id);
   saveMsLog(log);
   renderMsLog();
   const session = getMsSession();
   if(!session) return;
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log?id=eq.${id}`, {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log?id=eq.${id}`, {
       method: 'DELETE',
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` }
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}`, 'Prefer': 'return=representation' }
     });
+    const gone = resp.ok ? await resp.json().catch(() => null) : null;
+    if(msTeam && Array.isArray(gone) && !gone.length) loadMsLogFromSupabase();   // the database kept it
   } catch(e){}
 }
 
 // ── Clear All ─────────────────────────────────────────────────────────────
 async function clearMsLog(){
   if(!getMsLog().length) return;
-  if(!confirm('Clear all saved multi-stop quotes? This cannot be undone.')) return;
-  saveMsLog([]);
-  renderMsLog();
   const session = getMsSession();
+  const userId = session ? (session.user?.id || session.user?.sub) : null;
+  // On a team, Clear All clears only the quotes you saved; your teammates' stay.
+  const mine = msTeam ? getMsLog().filter(q => q.createdBy ? q.createdBy === userId : !msTeamMember()) : getMsLog();
+  if(msTeam && !mine.length){ alert('You haven’t saved any multi-stop quotes in the team’s log.'); return; }
+  const ask = msTeam
+    ? `Clear the ${mine.length} multi-stop quote${mine.length === 1 ? '' : 's'} you saved? Your teammates’ quotes stay. This cannot be undone.`
+    : 'Clear all saved multi-stop quotes? This cannot be undone.';
+  if(!confirm(ask)) return;
+  saveMsLog(msTeam ? getMsLog().filter(q => !mine.includes(q)) : []);
+  renderMsLog();
   if(!session) return;
-  const userId = session.user?.id || session.user?.sub;
+  const which = !msTeam ? `user_id=eq.${userId}`
+    : msTeamMember() ? `created_by=eq.${userId}`
+    : `or=(created_by.eq.${userId},created_by.is.null)`;
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log?user_id=eq.${userId}`, {
+    await fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log?${which}`, {
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` }
     });
