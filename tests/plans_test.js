@@ -267,9 +267,11 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   ok(p.plan === 'plus' && p.is_active === true && p.grandfathered === false && p.next_plan === 'plus'
      && p.billing_period_start === '2026-11-20T10:00:00.000Z' && p.renews_at === '2026-12-20T10:00:00.000Z',
      'webhook: new Pro Plus checkout → new plan from day one, billing period recorded');
+  ok(p.cancel_at === null, 'webhook: new checkout → not set to end');
   newSubPrice = 'price_original';
   await send(checkoutEvent());
   ok(patches.at(-1).grandfathered === true, 'webhook: checkout at the original price (new Pro price not set) → original plan');
+  ok(patches.at(-1).next_plan === null, 'webhook: …with the January plan still to choose');
   const updated = (price, extra = {}) => ({ type: 'customer.subscription.updated', data: { object: { id: 'sub_1', status: 'active',
     metadata: { userId: 'user-1' }, current_period_start: secs('2026-12-15T10:00:00Z'), current_period_end: secs('2027-01-15T10:00:00Z'),
     items: { data: [{ price: { id: price } }] }, ...extra } } });
@@ -277,12 +279,20 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   p = patches.at(-1);
   ok(p.plan === 'pro' && p.grandfathered === true && p.billing_period_start === '2026-12-15T10:00:00.000Z',
      'webhook: renewal on the original price → stays marked, period recorded');
+  ok(p.cancel_at === null, 'webhook: renewal → not set to end');
+  await send(updated('price_original', { cancel_at_period_end: true, cancel_at: secs('2027-01-15T10:00:00Z') }));
+  ok(patches.at(-1).cancel_at === '2027-01-15T10:00:00.000Z' && patches.at(-1).is_active === true,
+     'webhook: set to cancel at the end of the period → cancel_at recorded, still active');
+  await send(updated('price_original', { cancel_at_period_end: true }));
+  ok(patches.at(-1).cancel_at === '2027-01-15T10:00:00.000Z', 'webhook: …from the period end when Stripe leaves cancel_at out');
+  await send(updated('price_original', { cancel_at_period_end: false, cancel_at: null }));
+  ok(patches.at(-1).cancel_at === null, 'webhook: renewed again → cancel_at cleared');
   await send(updated('price_max'));
   p = patches.at(-1);
   ok(p.plan === 'max' && !('grandfathered' in p), 'webhook: new price → plan from the price, marker untouched');
   await send({ type: 'customer.subscription.deleted', data: { object: { id: 'sub_1', metadata: { userId: 'user-1' } } } });
   p = patches.at(-1);
-  ok(p.is_active === false && p.plan === 'pro' && p.grandfathered === false && p.next_plan === null,
+  ok(p.is_active === false && p.plan === 'pro' && p.grandfathered === false && p.next_plan === null && p.cancel_at === null,
      'webhook: cancelled → inactive; a later subscription starts on the new plans');
 
   // ═══ verify-pro.js ════════════════════════════════════════════════════════
@@ -305,23 +315,31 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   let v = await vp();
   ok(v.active && v.paid && v.unlimitedUntilRenewal === true && v.nextPlan === 'plus' && v.newPlansStart === JAN1,
      'verify-pro: original plan → unlimited until January, with the chosen plan');
+  ok(v.planChosen === true && v.cancelAt === null, 'verify-pro: …marked as chosen, not set to end');
   vrow.next_plan = null;
-  ok((await vp()).nextPlan === 'pro', 'verify-pro: no choice yet → moves to Pro');
+  v = await vp();
+  ok(v.nextPlan === 'pro' && v.planChosen === false, 'verify-pro: no choice yet → moves to Pro, not chosen');
+  vrow.cancel_at = '2026-12-14T10:00:00Z';
+  ok((await vp()).cancelAt === '2026-12-14T10:00:00Z', 'verify-pro: set to end → cancelAt');
+  delete vrow.cancel_at;
   vrow = { is_active: true, plan: 'api', next_plan: 'api', grandfathered: true, billing_period_start: '2026-11-10T00:00:00Z', stripe_subscription_id: 'sub_1' };
   ok((await vp()).unlimitedUntilRenewal === false, 'verify-pro: moved to the API plan → nothing left to choose');
   vrow = { is_active: true, plan: 'plus', grandfathered: false, stripe_subscription_id: 'sub_2' };
   v = await vp();
-  ok(v.active && v.plan === 'plus' && v.unlimitedUntilRenewal === false && v.nextPlan === null, 'verify-pro: new subscriber → their plan, no notice');
+  ok(v.active && v.plan === 'plus' && v.unlimitedUntilRenewal === false && v.nextPlan === null && v.planChosen === false,
+     'verify-pro: new subscriber → their plan, no notice');
   at('2027-01-11T15:00:00Z');
   vrow = { is_active: true, plan: 'plus', grandfathered: true, billing_period_start: '2027-01-10T12:00:00Z', stripe_subscription_id: 'sub_1' };
   ok((await vp()).unlimitedUntilRenewal === false, 'verify-pro: after the first January bill → on the new plan');
   at('2026-11-20T15:00:00Z');
   vseat = { owner: 'owner-1' };
-  vrow = { is_active: true, plan: 'max', grandfathered: true, billing_period_start: null, renews_at: '2026-12-01T00:00:00Z', stripe_subscription_id: 'sub_9' };
+  vrow = { is_active: true, plan: 'max', grandfathered: true, billing_period_start: null, renews_at: '2026-12-01T00:00:00Z', stripe_subscription_id: 'sub_9',
+    cancel_at: '2026-12-01T00:00:00Z' };
   v = await vp();
   ok(v.active && v.plan === 'max' && v.team && v.team.role === 'member' && v.team.seated === true && v.team.size === 3,
      'verify-pro: a team member is active on the owner\'s plan');
-  ok(v.paid === false && v.renewsAt === null && v.unlimitedUntilRenewal === false && v.nextPlan === null,
+  ok(v.paid === false && v.renewsAt === null && v.unlimitedUntilRenewal === false && v.nextPlan === null
+     && v.cancelAt === null && v.planChosen === false,
      'verify-pro: …with none of the owner\'s billing (no renewal date or plan-change notice)');
   vseat = null;
   vrow = { is_active: true, plan: 'max', grandfathered: false, stripe_subscription_id: 'sub_3' };

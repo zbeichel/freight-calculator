@@ -122,6 +122,26 @@ html.light .page-title em{color:#d48200}
 .api-key-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .api-key-row code{flex:1;min-width:0;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
   background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;color:var(--text)}
+.pn-summary{font-size:13px;color:var(--text2);line-height:1.6;margin:0 0 12px}
+.pn-table{width:100%;border-collapse:collapse;font-size:12px}
+.pn-table th{text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;padding:0 10px 8px 0;border-bottom:1px solid var(--border2)}
+.pn-table td{padding:10px 10px 10px 0;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top;line-height:1.45}
+.pn-table td:first-child{color:var(--text);font-weight:600;word-break:break-all}
+.pn-table td small{display:block;color:var(--text3);font-size:11px}
+.pn-table .pn-num{font-variant-numeric:tabular-nums}
+.pn-table .pn-none{color:var(--text3)}
+.pn-foot{font-size:11px;color:var(--text3);line-height:1.6;margin-top:12px}
+@media (max-width:640px){
+  .pn-table thead{display:none}
+  .pn-table,.pn-table tbody,.pn-table tr,.pn-table td{display:block;width:100%}
+  .pn-table tr{border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+  .pn-table td{border:none;padding:3px 0;display:flex;gap:10px;justify-content:space-between}
+  .pn-table td::before{content:attr(data-label);color:var(--text3);font-weight:600;flex-shrink:0}
+  .pn-table td:first-child{display:block;padding-bottom:6px}
+  .pn-table td:first-child::before{content:none}
+  .pn-table td .pn-v{text-align:right}
+  .pn-table td small{display:inline;margin-left:4px}
+}
 .api-keys-title{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
 .api-key-item{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--border)}
 .api-key-item:first-child{border-top:none}
@@ -868,15 +888,15 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <select id="sub-plan-select" aria-label="Plan" style="
-            display:none;max-width:100%;min-width:0;
+            display:none;max-width:min(100%,380px);min-width:0;text-overflow:ellipsis;
             font-family:'Space Grotesk',sans-serif;font-size:12px;
             padding:8px 10px;border-radius:8px;
             border:1px solid var(--border2);background:var(--card);color:var(--text);
           ">
             <option value="pro">Pro — $9.99/mo · 100 quotes/day</option>
-            <option value="plus">Pro Plus — $19.99/mo · 250 quotes/day, win/loss + customer list</option>
-            <option value="max">Pro Max — $49.99/mo · 1,000 quotes/day, all of Pro Plus + white-label PDFs</option>
-            <option value="api">API — $199.99/mo · Pro Max + 5,000 API quotes/mo</option>
+            <option value="plus">Pro Plus — $19.99/mo · 250 quotes/day, win/loss, customer list, emailed quotes, your own rate sheet</option>
+            <option value="max">Pro Max — $49.99/mo · 1,000 quotes/day, all of Pro Plus, white-label PDFs, team of 3</option>
+            <option value="api">API — $199.99/mo · Pro Max with a team of 6, plus 5,000 API quotes/mo</option>
           </select>
           <button id="sub-plan-switch" onclick="handleSwitchPlan()" style="
             display:none;
@@ -899,7 +919,7 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
         </div>
         <div id="sub-plan-status" role="status" style="display:none;font-size:12px;margin-top:10px;line-height:1.5"></div>
         <div id="sub-plan-footnote" style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
-          Pro $9.99/month: automatic miles on 100 quotes per day · Pro Plus $19.99/month: 250 per day, win/loss tracking and a customer list · Pro Max $49.99/month: everything in Pro Plus, 1,000 per day and white-label PDFs · API $199.99/month: Pro Max plus 5,000 API quotes per month.
+          Pro $9.99/month: automatic miles on 100 quotes per day · Pro Plus $19.99/month: 250 per day, win/loss tracking, a customer list, emailed quotes and your own rate sheet · Pro Max $49.99/month: everything in Pro Plus, 1,000 per day, white-label PDFs and a team of 3 people · API $199.99/month: Pro Max with a team of 6 people, plus 5,000 API quotes per month.
           <a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">What counts as a quote?</a>
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
@@ -984,6 +1004,28 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
           </div>
         </div>
         <div id="api-status" role="status" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- Plan change notice: the site owner only (rpc/is_site_admin). Each subscriber on
+         the original plan, their January plan, and what they did with the reminder
+         (pro-notice.js), from plan_notice_report. Filled in by loadPlanNoticeReport(). -->
+    <div class="section-card" id="plan-notice-report" style="display:none">
+      <div class="section-header">
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.8h-15z"/><path d="M10 20.6a2.1 2.1 0 0 0 4 0"/></svg></span>
+        <span class="section-title">Plan change notice</span>
+        <span class="section-sub">Only you can see this</span>
+      </div>
+      <div class="section-body">
+        <p class="pn-summary" id="pn-summary"></p>
+        <table class="pn-table">
+          <thead><tr><th>Subscriber</th><th>January plan</th><th>Shown</th><th>Read it</th><th>Closed without “Got it”</th><th>Last action</th></tr></thead>
+          <tbody id="pn-rows"></tbody>
+        </table>
+        <div class="pn-foot">
+          “Read it” counts clicks on “Got it” or “Choose my plan or cancel”. “Closed without ‘Got it’” counts the ✕, a click outside the pop-up, or the Escape key; the pop-up comes back on their next visit.
+          The reminder stops once they choose their January plan or cancel.
+        </div>
       </div>
     </div>
 
@@ -1961,6 +2003,7 @@ async function loadProfile(){
         // Pick which password card to show based on auth provider.
         applyChangePasswordCardState(session);
         loadTeamSection();
+        loadPlanNoticeReport();
         if(new URLSearchParams(window.location.search).get('team') === 'joined' && profileTeam && profileTeam.role === 'member'){
           showToast(`✓ You’re on ${profileTeam.company || 'the team'}`);
         }
@@ -2013,15 +2056,20 @@ const PROFILE_PLAN_RANK = { pro: 1, plus: 2, max: 3, api: 4 };
 function normalizeProfilePlan(plan){ return PROFILE_PLANS[plan] ? plan : 'pro'; }
 
 // onOriginal (verify-pro's unlimitedUntilRenewal): a subscriber on the original
-// Pro plan, who keeps unlimited quotes at their current price until their first
+// Pro plan ($4.99/month), who keeps unlimited quotes at that price until their first
 // bill on or after January 1, 2027, then moves to `nextPlan` (Pro by default).
+// `more`: { planChosen, cancelAt } from verify-pro: whether they've picked their
+// January plan here, and when their subscription ends if they've cancelled.
 let currentPlan = 'pro';
 let onOriginalPlan = false;
 let currentNextPlan = 'pro';
-function applyPlanState(plan, isActive, onOriginal, renewsAt, nextPlan){
+const planDate = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); };
+function applyPlanState(plan, isActive, onOriginal, renewsAt, nextPlan, more){
   currentPlan = plan;
   onOriginalPlan = !!onOriginal;
   currentNextPlan = normalizeProfilePlan(nextPlan);
+  const planChosen = !!(more && more.planChosen);
+  const cancelAt = more && more.cancelAt && planDate(more.cancelAt);
   accountTier.plan = plan;
   applyWhiteLabelAccess();
   const info = PROFILE_PLANS[plan];
@@ -2029,7 +2077,7 @@ function applyPlanState(plan, isActive, onOriginal, renewsAt, nextPlan){
   const setText = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
   if(onOriginalPlan){
     setText('sub-plan-name', 'QuickFreightCalc Pro · original plan');
-    setText('sub-plan-detail', 'Unlimited quotes with automatic miles until January 2027 · Cancel anytime');
+    setText('sub-plan-detail', '$4.99/month · Unlimited quotes with automatic miles until January 2027 · Cancel anytime');
   } else {
     setText('sub-plan-name', 'QuickFreightCalc ' + info.name);
     setText('sub-plan-detail', `${info.price}/month · ${info.detail} · Cancel anytime`);
@@ -2039,9 +2087,14 @@ function applyPlanState(plan, isActive, onOriginal, renewsAt, nextPlan){
   const legacy = document.getElementById('sub-plan-legacy');
   if(legacy){
     if(onOriginalPlan){
-      legacy.textContent = 'Our plans change on January 1, 2027. You keep unlimited quotes with automatic miles at your current price ' +
-        `until your first bill on or after January 1. Then your subscription moves to ${next.name} at ${next.price}/month. ` +
-        'Choose a different plan below, or cancel anytime before then.';
+      const keep = 'Our plans change on January 1, 2027. You keep unlimited quotes with automatic miles at $4.99/month ' +
+        'until your first bill on or after January 1. ';
+      legacy.textContent = cancelAt
+        ? `Your subscription is set to end on ${cancelAt}, so the January 1, 2027 plan change won't apply to you.`
+        : planChosen
+          ? keep + `From that bill, you'll be on ${next.name} at ${next.price}/month, the plan you chose. You can change your choice below or cancel anytime before then.`
+          : keep + `From that bill, your subscription moves to ${next.name} at ${next.price}/month unless you choose a different plan or cancel before then. ` +
+            'Choose your plan for January below.';
       legacy.style.display = '';
     } else {
       legacy.style.display = 'none';
@@ -2051,7 +2104,10 @@ function applyPlanState(plan, isActive, onOriginal, renewsAt, nextPlan){
   const select = document.getElementById('sub-plan-select');
   const btn = document.getElementById('sub-plan-switch');
   if(select){ select.style.display = isActive ? '' : 'none'; select.value = onOriginalPlan ? currentNextPlan : plan; }
-  if(btn) btn.style.display = isActive ? '' : 'none';
+  if(btn){
+    btn.style.display = isActive ? '' : 'none';
+    btn.textContent = onOriginalPlan && !planChosen ? 'Choose this plan' : 'Change plan';
+  }
 }
 
 async function refreshPlanFromServer(){
@@ -2065,7 +2121,8 @@ async function refreshPlanFromServer(){
     });
     if(!resp.ok) return;
     const data = await resp.json();
-    if(data.active) applyPlanState(normalizeProfilePlan(data.plan), true, data.unlimitedUntilRenewal, data.renewsAt, data.nextPlan);
+    if(data.active) applyPlanState(normalizeProfilePlan(data.plan), true, data.unlimitedUntilRenewal, data.renewsAt, data.nextPlan,
+      { planChosen: data.planChosen === true, cancelAt: data.cancelAt || null });
   } catch(e){}
 }
 
@@ -2108,10 +2165,10 @@ async function handleSwitchPlan(){
     const data = await resp.json().catch(() => ({}));
     if(data.status === 'ok'){
       const chosen = normalizeProfilePlan(data.plan);
-      if(data.atRenewal) applyPlanState(currentPlan, true, true, data.renewsAt, chosen);
+      if(data.atRenewal) applyPlanState(currentPlan, true, true, data.renewsAt, chosen, { planChosen: true });
       else applyPlanState(chosen, true, false, data.renewsAt, chosen);
       setPlanStatus(data.atRenewal
-        ? `✅ From your first bill on or after January 1, 2027, you'll be on ${PROFILE_PLANS[chosen].name}.`
+        ? `✅ From your first bill on or after January 1, 2027, you'll be on ${PROFILE_PLANS[chosen].name} at ${PROFILE_PLANS[chosen].price}/month.`
         : `✅ You're on ${PROFILE_PLANS[chosen].name}.`);
       refreshPlanFromServer();
       loadApiSection();
@@ -2418,6 +2475,70 @@ async function saveMemberDetails(){
   } catch(e){
     showToast(e.message);
   }
+}
+
+// ── Plan change notice (site owner only) ───────────────────────────────────
+// Who on the original plan has seen the January reminder (pro-notice.js) and how
+// they closed it: plan_notice_report, which is empty for anyone but the site owner.
+const PN_ACTION = { got_it: 'Got it', choose_plan: 'Choose my plan', closed_x: 'Closed with ✕', clicked_outside: 'Clicked outside', escape_key: 'Pressed Escape' };
+const PN_NEW_PLANS = Date.parse('2027-01-01T05:00:00Z');   // NEW_PLANS_START in netlify/lib/plans.js
+const pnWhen = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); };
+const pnEsc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+async function loadPlanNoticeReport(){
+  const card = document.getElementById('plan-notice-report');
+  if(!card) return;
+  try {
+    const session = await getSessionRefreshed();
+    if(!session) return;
+    const headers = { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: 'Bearer ' + session.access_token };
+    const admin = await fetch(`${SUPABASE_URL}/rest/v1/rpc/is_site_admin`, { method: 'POST', headers, body: '{}' });
+    if(!admin.ok || (await admin.json()) !== true) return;
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/plan_notice_report`, { method: 'POST', headers, body: '{}' });
+    if(!resp.ok) return;
+    const rows = await resp.json();
+    renderPlanNoticeReport(Array.isArray(rows) ? rows : []);
+    card.style.display = '';
+  } catch(e){}
+}
+function pnJanuary(r){
+  const name = (p) => PROFILE_PLANS[normalizeProfilePlan(p)].name;
+  if(r.cancel_at) return `Cancelling<small>ends ${pnEsc(planDate(r.cancel_at))}</small>`;
+  if(r.plan === 'api') return 'Moved to API';
+  if(r.billing_period_start && Date.parse(r.billing_period_start) >= PN_NEW_PLANS) return `Moved to ${name(r.plan)}`;
+  if(r.next_plan) return `${name(r.next_plan)}<small>they chose it</small>`;
+  return 'Pro<small>hasn’t chosen yet</small>';
+}
+function renderPlanNoticeReport(rows){
+  const body = document.getElementById('pn-rows');
+  const summary = document.getElementById('pn-summary');
+  if(!body || !summary) return;
+  const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  if(!rows.length){
+    summary.textContent = 'No subscribers are on the original plan.';
+    body.innerHTML = '';
+    return;
+  }
+  const chosen = rows.filter((r) => r.next_plan || r.cancel_at).length;
+  const read = rows.filter((r) => (r.got_it || 0) + (r.chose_plan || 0) > 0).length;
+  const unseen = rows.filter((r) => !r.times_shown).length;
+  summary.textContent = `${count(rows.length, 'subscriber is', 'subscribers are')} on the original plan. ` +
+    `${chosen} chose a January plan or cancelled, ${read} clicked “Got it” or “Choose my plan” at least once, ` +
+    `and ${unseen} ${unseen === 1 ? 'hasn’t' : 'haven’t'} seen the reminder yet.`;
+  body.innerHTML = rows.map((r) => {
+    const shown = r.times_shown
+      ? `${count(r.times_shown, 'time', 'times')}<small>last ${pnEsc(pnWhen(r.last_shown))}</small>`
+      : '<span class="pn-none">Not yet</span>';
+    const read = (r.got_it || 0) + (r.chose_plan || 0);
+    const last = r.last_action
+      ? `${pnEsc(PN_ACTION[r.last_action] || r.last_action)}<small>${pnEsc(pnWhen(r.last_action_at))}</small>`
+      : '<span class="pn-none">None</span>';
+    return `<tr><td data-label="Subscriber">${pnEsc(r.email || 'No email on file')}</td>` +
+      `<td data-label="January plan"><span class="pn-v">${pnJanuary(r)}</span></td>` +
+      `<td data-label="Shown" class="pn-num"><span class="pn-v">${shown}</span></td>` +
+      `<td data-label="Read it" class="pn-num"><span class="pn-v">${read ? count(read, 'time', 'times') : '<span class="pn-none">0</span>'}</span></td>` +
+      `<td data-label="Closed without “Got it”" class="pn-num"><span class="pn-v">${r.closed ? count(r.closed, 'time', 'times') : '<span class="pn-none">0</span>'}</span></td>` +
+      `<td data-label="Last action"><span class="pn-v">${last}</span></td></tr>`;
+  }).join('');
 }
 
 async function loadApiSection(){

@@ -88,6 +88,11 @@ exports.handler = async function(event){
         unlimitedUntilRenewal,
         nextPlan: unlimitedUntilRenewal ? normalizePlan(row.next_plan) : null,
         newPlansStart: new Date(NEW_PLANS_START).toISOString(),
+        // For the reminder (pro-notice.js), which stops once they've picked their
+        // January plan in Profile (change-plan records it in next_plan) or set their
+        // subscription to end (cancelAt, from the Stripe webhook).
+        planChosen: unlimitedUntilRenewal && row.next_plan != null,
+        cancelAt: member ? null : (row.cancel_at || null),
         paid: !member && !!row.stripe_subscription_id,
         renewsAt: member ? null : (row.renews_at || null),
         // role 'owner' | 'member'; a member without a seat isn't active on the team's plan
