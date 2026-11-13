@@ -198,3 +198,36 @@ html.light .qf-logo-text b{color:#d48200}
 .qf-footer-note p{max-width:none;font-size:12px;margin:6px 0 0}
 .qf-footer-bottom{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:12px}
 @media (max-width:760px){.qf-footer-top{grid-template-columns:1fr 1fr}.qf-footer-brand{grid-column:1/-1}}
+
+/* ── Usage meter (plans-ui.js): quotes with automatic miles used today ── */
+.qf-usage{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text3);line-height:1.4;margin:0 0 14px}
+.qf-usage[hidden]{display:none}
+.qf-usage-text b{color:var(--text);font-weight:700}
+.qf-usage-bar{flex:1 1 90px;max-width:180px;height:6px;border-radius:999px;background:var(--card2);border:1px solid var(--border);overflow:hidden}
+.qf-usage-bar>span{display:block;height:100%;background:var(--accent-fill);border-radius:inherit;transition:width .3s}
+.qf-usage.near .qf-usage-bar>span{background:#e8833a}
+.qf-usage.full .qf-usage-bar>span{background:var(--red)}
+.qf-usage.full .qf-usage-text b{color:var(--red)}
+.qf-usage-up{font:inherit;font-weight:700;color:var(--accent);background:none;border:0;padding:0;cursor:pointer}
+.qf-usage-up:hover{text-decoration:underline}
+
+/* ── Locked previews (plans-ui.js): a higher plan's feature, grayed out with made-up
+      sample content, and a card saying which plan has it. The sample and the card share
+      one grid cell, so the preview is always tall enough for the card. ── */
+.qf-lp{position:relative;display:grid;overflow:hidden;border-radius:var(--radius)}
+.qf-lp-sample,.qf-lp-card{grid-area:1/1}
+.qf-lp-sample{filter:grayscale(.75);opacity:.45;pointer-events:none;user-select:none;padding:14px 18px;min-width:0;overflow:hidden}
+.qf-lp::before{content:"";grid-area:1/1;z-index:1;pointer-events:none;background:linear-gradient(180deg,transparent 0%,var(--panel) 95%)}
+.qf-lp-card{position:relative;z-index:2;align-self:center;justify-self:center;width:min(440px,calc(100% - 32px));box-sizing:border-box;margin:16px 0;
+  background:var(--panel);border:1px solid var(--border2);border-radius:14px;box-shadow:var(--shadow-lg);padding:18px 20px;text-align:center}
+.qf-lp-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--accent);background:var(--accentbg);border:1px solid var(--accent);border-radius:999px;padding:3px 10px}
+.qf-lp-badge svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.qf-lp-title{font-size:15px;font-weight:700;color:var(--text);margin:10px 0 4px}
+.qf-lp-text{font-size:13px;color:var(--text2);line-height:1.55;margin:0 auto 14px;max-width:380px}
+.qf-lp-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.qf-lp-btn{font-family:inherit;font-size:13px;font-weight:700;padding:9px 16px;border-radius:9px;cursor:pointer;border:1px solid var(--border2);background:var(--card);color:var(--text)}
+.qf-lp-main{background:var(--accent-fill);border-color:var(--accent-fill);color:var(--accent-ink,#000)}
+.qf-lp-btn:hover{filter:brightness(1.05)}
+.qf-lp-trial[hidden]{display:none}
+.qf-lp-close{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:7px;border:1px solid var(--border2);background:var(--card2);color:var(--text3);cursor:pointer;font-size:13px;line-height:1}

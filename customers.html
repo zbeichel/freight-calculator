@@ -48,6 +48,13 @@ tbody td{padding:11px 14px;vertical-align:middle}
 .gate h2{font-size:17px;font-weight:700;margin-bottom:8px}
 .gate p{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px}
 .gate ul{font-size:13px;color:var(--text2);line-height:1.8;margin:0 0 18px 18px}
+/* Without Pro Plus: a grayed-out sample of the list (plans-ui.js preview) */
+.gate.gate-preview{max-width:900px;padding:0;overflow:hidden}
+.cu-sample{width:100%;border-collapse:collapse;font-size:13px}
+.cu-sample th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);padding:10px 12px;border-bottom:1px solid var(--border)}
+.cu-sample td{padding:12px;border-bottom:1px solid var(--border);color:var(--text2)}
+.cu-sample td:first-child{color:var(--text);font-weight:600}
+.gate-preview .qf-lp-sample{min-height:320px}
 .status{font-size:12px;color:var(--text3);margin-top:10px;min-height:16px}
 [hidden]{display:none!important}
 @media (max-width:740px){
@@ -109,6 +116,7 @@ tbody td{padding:11px 14px;vertical-align:middle}
 <footer data-qf-footer></footer>
 
 <script src="/customers.js"></script>
+<script src="/plans-ui.js"></script>
 <script>
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
@@ -230,8 +238,35 @@ async function importFromQuotes(){
 
 function setStatus(text){ document.getElementById('status').textContent = text || ''; }
 
+// Signed in without Pro Plus: the list with made-up customers, grayed out, and what
+// Pro Plus adds. (Falls back to the plain card if plans-ui.js didn't load.)
+function showPreviewGate(kind, gate){
+  const row = (name, contact, quotes, won, rate, margin) =>
+    `<tr><td>${name}</td><td>${contact}</td><td>${quotes}</td><td>${won}</td><td>${rate}</td><td>${margin}</td></tr>`;
+  const sample = `<table class="cu-sample"><thead><tr><th>Customer</th><th>Contact</th><th>Quotes</th><th>Won</th><th>Win rate</th><th>Default margin</th></tr></thead><tbody>` +
+    row('Valley Fresh Produce', 'Dana Ruiz', '42', '27', '64%', '14%') +
+    row('Northline Building Supply', 'Chris Patel', '31', '15', '48%', '12%') +
+    row('Harbor Paper Co.', 'Jamie Chen', '18', '12', '67%', '15%') +
+    row('Summit Snack Foods', 'Alex Morgan', '12', '5', '42%', '13%') +
+    row('Ridge Steel Fabricators', 'Sam Lee', '9', '6', '67%', '16%') +
+    `</tbody></table>`;
+  gate.classList.add('gate-preview');
+  QFCPlans.preview(gate, {
+    plan: 'plus',
+    title: 'Your customer list',
+    text: 'Save customers once and pick them on any quote: their details print under “Prepared for” on your PDFs, their default margin fills in, and you see each one’s quotes, wins and losses.',
+    sample,
+    action: kind === 'upgrade'
+      ? { label: 'Change plan', href: '/profile.html#subscription-paid' }
+      : { label: 'Get Pro Plus', href: '/signup.html?plan=plus' },
+    trialAction: kind === 'upgrade' ? undefined : { plan: 'plus', href: '/signup.html?plan=plus' },
+  });
+  gate.hidden = false;
+}
+
 function showGate(kind){
   const gate = document.getElementById('gate');
+  if(kind !== 'signin' && window.QFCPlans){ showPreviewGate(kind, gate); return; }
   gate.innerHTML = kind === 'signin'
     ? `<h2>Sign in to see your customers</h2><p>The customer list is part of your QuickFreightCalc account.</p><a class="btn primary" href="/signup.html?login">Sign in</a>`
     : `<h2>The customer list comes with Pro Plus</h2>

@@ -510,9 +510,18 @@ async function newTab(t, fn) {
   t = await setup(browser, base, { account: ACCT({ plan: 'pro' }), customers: SEED_CUSTOMERS });
   await t.page.goto(base + '/customers.html');
   await t.page.waitForSelector('#gate:not([hidden])');
-  check('Pro: what the list does, and Change plan', flat(await t.page.textContent('#gate')).startsWith('The customer list comes with Pro Plus')
-    && (await t.page.getAttribute('#gate a', 'href')) === '/profile.html#subscription-paid' && await t.page.isHidden('#app'));
+  await t.page.waitForSelector('#gate .qf-lp-card');
+  check('Pro: a grayed-out sample of the list, marked Pro Plus, with Change plan',
+    flat(await t.page.textContent('#gate .qf-lp-title')) === 'Your customer list'
+    && flat(await t.page.textContent('#gate .qf-lp-badge')) === 'Pro Plus'
+    && (await t.page.$$eval('#gate .qf-lp-sample tbody tr', (r) => r.length)) === 5
+    && (await t.page.getAttribute('#gate .qf-lp-sample', 'aria-hidden')) === 'true'
+    && flat(await t.page.textContent('#gate .qf-lp-main')) === 'Change plan'
+    && await t.page.isHidden('#gate .qf-lp-trial') && await t.page.isHidden('#app'));
   await t.page.locator('#gate').screenshot({ path: path.join(SHOTS, 'customers_gate.png') });
+  await t.page.click('#gate .qf-lp-main');
+  await t.page.waitForURL('**/profile.html#subscription-paid', { timeout: 5000 }).catch(() => {});
+  check('…Change plan opens Profile → Subscription', /\/profile\.html#subscription-paid$/.test(t.page.url()), t.page.url());
   await t.context.close();
 
   t = await setup(browser, base, { account: null, signedIn: false });

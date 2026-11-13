@@ -11,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/site.css">
 <script src="/site.js"></script>
+<script src="/plans-ui.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);background-image:var(--glow);background-repeat:no-repeat;color:var(--text);font-family:var(--font);
@@ -35,7 +36,18 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 .su-price{display:flex;align-items:baseline;gap:4px;margin-top:16px}
 .su-price strong{font-size:42px;font-weight:700;letter-spacing:-.035em;line-height:1}
 .su-price span{font-size:15px;color:var(--text3)}
-.su-billing{font-size:13px;color:var(--text3);margin-top:8px}
+.su-billing{font-size:13px;color:var(--text3);margin-top:8px;min-height:18px}
+.su-billing b{color:var(--green);font-weight:700}
+.su-trial{display:inline-block;font:700 10.5px/1 var(--font);letter-spacing:.05em;text-transform:uppercase;color:var(--green);
+  background:var(--greenbg);border:1px solid var(--green);border-radius:999px;padding:4px 8px;margin-top:10px}
+.su-trial[hidden]{display:none}
+.su-interval{display:flex;justify-content:center;margin:0 0 22px}
+.su-interval[hidden]{display:none}
+.su-interval-in{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--border2);border-radius:999px;background:var(--card)}
+.su-int{font:600 14px/1 var(--font);padding:10px 18px;border-radius:999px;border:0;background:none;color:var(--text2);cursor:pointer}
+.su-int span{font-weight:700;color:var(--green);margin-left:6px;font-size:12px}
+.su-int.on{background:var(--text);color:var(--bg)}
+.su-int.on span{color:#7ee2a8}
 .su-tagline{font-size:14px;color:var(--text2);line-height:1.5;margin-top:14px;min-height:42px}
 .su-start{display:flex;align-items:center;justify-content:center;width:100%;height:48px;margin-top:20px;border-radius:12px;border:0;
   background:var(--text);color:var(--bg);font:600 15px/1 var(--font);cursor:pointer;transition:transform .15s,opacity .15s;text-decoration:none}
@@ -161,13 +173,19 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     <p>Every plan includes branded PDF quotes, the quote log, the multi-stop and bulk calculators and the lane tracker. Higher plans add more automatic miles, sales tools, white-label PDFs and room for your team.</p>
   </section>
 
+  <div class="su-interval" id="su-interval" hidden>
+    <div class="su-interval-in" role="group" aria-label="Billing">
+      <button type="button" class="su-int on" data-int="month" aria-pressed="true">Monthly</button>
+      <button type="button" class="su-int" data-int="year" aria-pressed="false">Yearly<span>2 months free</span></button>
+    </div>
+  </div>
   <section class="su-plans plan-picker" id="su-plans" role="radiogroup" aria-label="Plan"></section>
   <p class="su-free">Just pricing a load? The calculator is free — 5 quotes a day with automatic miles, no account needed. <a href="/">Open the calculator</a></p>
 
   <section class="su-account" id="su-account">
     <div class="su-side">
       <h2>Create your account</h2>
-      <p>Set up your login, then finish payment securely with Stripe. Your plan starts as soon as payment goes through.</p>
+      <p id="su-side-note">Set up your login, then finish payment securely with Stripe. Your plan starts as soon as payment goes through.</p>
       <div class="su-selected">
         <div><small>Your plan</small><b id="su-selected-name">Pro <span>$9.99/month</span></b></div>
         <button type="button" class="su-change" id="su-change">Change plan</button>
@@ -367,6 +385,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       <div class="su-plan-name"><span class="plan-name">${p.name}</span><span class="su-chip" aria-hidden="true">Selected</span></div>
       <div class="su-price plan-price"><strong>$${p.price}</strong><span>/month</span></div>
       <div class="su-billing">Billed monthly · cancel anytime</div>
+      <span class="su-trial" hidden></span>
       <p class="su-tagline">${esc(p.tag)}</p>
       <input type="radio" name="su-plan" value="${p.id}" class="qf-sr" aria-label="${esc(p.name)}, $${p.price} a month"${p.id === 'pro' ? ' checked' : ''}>
       <button type="button" class="su-start">Start now</button>
@@ -382,14 +401,73 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 
   const current = () => (host.querySelector('input[name="su-plan"]:checked') || {}).value || 'pro';
   const planOf = (id) => PLANS.find((p) => p.id === id) || PLANS[0];
-  window.signupButtonLabel = () => `Sign up for ${planOf(current()).name} →`;
+
+  // Yearly billing (once its prices are set: plan-options) and the free trial of
+  // Pro Plus and Pro Max for new accounts (plans-ui.js).
+  let offers = { yearly: [], trial: null, prices: null };
+  let interval = new URLSearchParams(window.location.search).get('interval') === 'year' ? 'year' : 'month';
+  const yearlyFor = (id) => interval === 'year' && offers.yearly.includes(id);
+  const trialFor = (id) => !!(offers.trial && offers.trial.plans.includes(id) && !document.body.classList.contains('su-signed-in'));
+  window.getSelectedInterval = () => (yearlyFor(current()) ? 'year' : 'month');
+  const priceOf = (id) => {
+    const pr = offers.prices && offers.prices[id];
+    return yearlyFor(id) && pr && pr.year ? { amount: pr.year, per: 'year' } : { amount: '$' + planOf(id).price, per: 'month' };
+  };
+  window.signupButtonLabel = () => trialFor(current())
+    ? `Start my ${offers.trial.days}-day free trial →` : `Sign up for ${planOf(current()).name} →`;
+
+  function paint() {
+    host.querySelectorAll('.su-plan').forEach((el) => {
+      const id = el.dataset.plan;
+      const p = planOf(id);
+      const { amount, per } = priceOf(id);
+      el.querySelector('.su-price').innerHTML = `<strong>${esc(amount)}</strong><span>/${per}</span>`;
+      const trial = trialFor(id);
+      const saving = window.QFCPlans ? QFCPlans.yearlySaving(id) : '';
+      el.querySelector('.su-billing').innerHTML = per === 'year'
+        ? `${esc(QFCPlans.monthlyEquivalent(id))}/mo, billed yearly${saving ? ` · <b>save ${esc(saving)}</b>` : ''}`
+        : interval === 'year' && offers.yearly.length
+          ? 'Monthly only · cancel anytime'
+          : 'Billed monthly · cancel anytime';
+      const badge = el.querySelector('.su-trial');
+      badge.hidden = !trial;
+      if (trial) badge.textContent = `${offers.trial.days}-day free trial`;
+      const start = el.querySelector('.su-start');
+      if (!document.body.classList.contains('su-signed-in')) start.textContent = trial ? 'Start free trial' : 'Start now';
+      el.querySelector('input[name="su-plan"]').setAttribute('aria-label', `${p.name}, ${amount} a ${per}${trial ? `, ${offers.trial.days}-day free trial` : ''}`);
+    });
+    document.querySelectorAll('#su-interval .su-int').forEach((b) => {
+      b.classList.toggle('on', b.dataset.int === interval);
+      b.setAttribute('aria-pressed', String(b.dataset.int === interval));
+    });
+  }
   function sync() {
     const id = current();
     host.querySelectorAll('.su-plan').forEach((el) => el.classList.toggle('sel', el.dataset.plan === id));
     const p = planOf(id);
-    document.getElementById('su-selected-name').innerHTML = `${p.name} <span>$${p.price}/month</span>`;
+    const { amount, per } = priceOf(id);
+    const trial = trialFor(id);
+    document.getElementById('su-selected-name').innerHTML = `${p.name} <span>${esc(amount)}/${per}${trial ? ` · ${offers.trial.days}-day free trial` : ''}</span>`;
+    const note = document.getElementById('su-side-note');
+    if (note) note.textContent = trial
+      ? `Set up your login, then add your card securely with Stripe. Your ${offers.trial.days}-day free trial starts right away, and you're charged ${amount}/${per} when it ends unless you cancel before then.`
+      : 'Set up your login, then finish payment securely with Stripe. Your plan starts as soon as payment goes through.';
     const btn = document.getElementById('su-btn');
-    if (btn && /^Sign up for /i.test(btn.textContent.trim())) btn.textContent = window.signupButtonLabel();
+    if (btn && /^(Sign up for |Start my )/i.test(btn.textContent.trim())) btn.textContent = window.signupButtonLabel();
+  }
+  document.getElementById('su-interval').addEventListener('click', (e) => {
+    const b = e.target.closest('.su-int');
+    if (!b) return;
+    interval = b.dataset.int === 'year' ? 'year' : 'month';
+    paint(); sync();
+  });
+  if (window.QFCPlans) {
+    QFCPlans.options().then((opt) => {
+      offers = opt;
+      document.getElementById('su-interval').hidden = !opt.yearly.length;
+      if (!opt.yearly.length) interval = 'month';
+      paint(); sync();
+    });
   }
   function choose(id, go) {
     const input = host.querySelector(`input[name="su-plan"][value="${id}"]`);
@@ -776,6 +854,7 @@ function handleGoogleAuth(){
     localStorage.setItem('qfc_google_intent', 'signup');
     // The plan picker is gone after the Google redirect — remember the choice.
     localStorage.setItem('qfc_signup_plan', getSelectedPlan());
+    localStorage.setItem('qfc_signup_interval', getSelectedInterval());
   } else {
     localStorage.setItem('qfc_google_intent', 'login');
   }
@@ -823,11 +902,13 @@ async function handleGoogleReturn(){
 
       const storedPlan = localStorage.getItem('qfc_signup_plan');
       const plan = SIGNUP_PLANS.includes(storedPlan) ? storedPlan : 'pro';
+      const interval = localStorage.getItem('qfc_signup_interval') === 'year' ? 'year' : 'month';
       localStorage.removeItem('qfc_signup_plan');
+      localStorage.removeItem('qfc_signup_interval');
       const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, email: user.email, accessToken, plan })
+        body: JSON.stringify({ userId: user.id, email: user.email, accessToken, plan, interval })
       });
       const checkoutData = await checkoutResp.json();
       if(checkoutData.url){
@@ -892,7 +973,7 @@ async function handleSignup(){
       const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: data.user.id, email, accessToken: data.access_token, plan: getSelectedPlan() })
+        body: JSON.stringify({ userId: data.user.id, email, accessToken: data.access_token, plan: getSelectedPlan(), interval: getSelectedInterval() })
       });
       const checkoutData = await checkoutResp.json();
       if(checkoutData.url){
@@ -937,7 +1018,7 @@ async function handleSignup(){
             const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId, email, accessToken: checkData.access_token, plan: getSelectedPlan() })
+              body: JSON.stringify({ userId, email, accessToken: checkData.access_token, plan: getSelectedPlan(), interval: getSelectedInterval() })
             });
             const checkoutData = await checkoutResp.json();
             if(checkoutData.url){
@@ -1014,7 +1095,7 @@ async function handleLogin(){
         const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, email, accessToken: data.access_token, plan: getSelectedPlan() })
+          body: JSON.stringify({ userId, email, accessToken: data.access_token, plan: getSelectedPlan(), interval: getSelectedInterval() })
         });
         const checkoutData = await checkoutResp.json();
         if(checkoutData.url){

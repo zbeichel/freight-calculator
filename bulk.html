@@ -122,6 +122,7 @@ html.light .comp-result.bad{border-color:rgba(185,28,28,.3)}
             <div class="field-help">500 cwt = 50,000 lbs</div>
           </div>
         </div>
+        <div id="qf-usage" hidden style="margin:-2px 0 16px"></div>
 
         <div class="field" style="margin-bottom:0">
           <span class="field-label">Fuel surcharge method</span>
@@ -732,6 +733,7 @@ async function tryLookupMiles(){
     );
 
     const data = await resp.json().catch(() => ({}));
+    if(window.QFCPlans) QFCPlans.meter.update(data.usage);
 
     if(!resp.ok || data.error){
       showMilesStatus('⚠️', data.error || 'Distance lookup is temporarily unavailable — enter miles manually.', 'var(--red)');
@@ -1463,6 +1465,17 @@ async function init(){
 init();
 </script>
 
+<script src="/plans-ui.js" defer></script>
+<script>
+// Quotes with automatic miles used today (plans-ui.js).
+document.addEventListener('DOMContentLoaded', () => {
+  if(!window.QFCPlans) return;
+  QFCPlans.meter.mount(document.getElementById('qf-usage'));
+  let signedIn = false;
+  try { signedIn = Object.keys(localStorage).some(k => k.indexOf('sb-') === 0 && (JSON.parse(localStorage.getItem(k) || '{}') || {}).access_token); } catch(e){}
+  if(signedIn) QFCPlans.meter.refresh();
+});
+</script>
 <!-- Notice to current Pro subscribers about the plan changes (see pro-notice.js) -->
 <script src="/pro-notice.js" defer></script>
 <script src="/pdf-quote.js" defer></script>

@@ -74,6 +74,7 @@ async function setup(browser, base, { plan = 'plus', signedIn = true, theme = 'd
     if (url.includes('/.netlify/functions/maps-config')) { calls.maps++; return json({ embedKey: mapsKey }); }
     if (url.includes('/.netlify/functions/diesel-price')) { calls.diesel++; return json({ price: 3.851, previous: 3.951, period: '2026-11-09', previousPeriod: '2026-11-02' }); }
     if (url.includes('/.netlify/functions/routes')) {
+      if (JSON.parse(req.postData() || '{}').usage === true) return json({ usage: { used: 3, limit: 1000, plan: 'max', trial: false, team: false } });
       calls.routes++;
       return json({ routes: [{ distanceMeters: 690 * 1609.34, duration: '37800s',
         legs: [{ startLocation: { latLng: { latitude: 40.0379, longitude: -76.3055 } }, endLocation: { latLng: { latitude: 33.749, longitude: -84.388 } } }] }] });
