@@ -299,6 +299,16 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
       const a = db.accounts[body.p_uid];
       return resp(200, a);
     }
+    if (url.includes('/rest/v1/carrier_lookups') && method === 'DELETE') {
+      const cut = q(url).get('created_at').replace(/^lt\./, '');
+      db.lookups = db.lookups.filter((l) => !(l.created_at < cut));
+      return resp(204);
+    }
+    if (url.includes('/rest/v1/carrier_cache') && method === 'DELETE') {
+      const cut = q(url).get('fetched_at').replace(/^lt\./, '');
+      for (const [k, c] of Object.entries(db.cache)) if (c.fetched_at < cut) delete db.cache[k];
+      return resp(204);
+    }
     if (url.includes('/rest/v1/carrier_lookups')) {
       const acct = eq(url, 'account_id');
       const list = db.lookups.filter((l) => l.account_id === acct && (!q(url).get('created_at') || l.created_at >= todayStart) && (!eq(url, 'dot_number') || l.dot_number === eq(url, 'dot_number')));
@@ -451,6 +461,14 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   db.saved = [];
   db.alerts = [];
   db.emails = [];
+  // Housekeeping: old cached reports and check-log rows are cleared every morning.
+  const daysAgo = (d) => new Date(NOW - d * 86400000).toISOString();
+  db.cache['1234'] = { dot_number: '1234', report: {}, fetched_at: daysAgo(3) };
+  db.cache['5678'] = { dot_number: '5678', report: {}, fetched_at: daysAgo(1) };
+  db.lookups.push({ account_id: 'u-old', dot_number: '1', created_at: daysAgo(91) }, { account_id: 'u-old', dot_number: '2', created_at: daysAgo(89) });
+  await monitor();
+  ok(!db.cache['1234'] && db.cache['5678'] && db.cache['80806'] && db.lookups.filter((l) => l.account_id === 'u-old').map((l) => l.dot_number).join() === '2',
+     'every morning: cached reports over 2 days old and checks over 90 days old are cleared (even with no carriers saved)');
   await callFn('t-max', { action: 'save', dot: '80806', name: 'J B Hunt Transport Inc' });
   await callFn('t-max', { action: 'save', dot: '4587322', name: 'Safeway Trucking Company LLC' });
   const newOne = db.saved.find((x) => x.dot_number === '4587322');

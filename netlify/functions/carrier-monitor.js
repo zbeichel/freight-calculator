@@ -75,6 +75,13 @@ exports.handler = async function () {
   const started = Date.now();
   const summary = { saved: 0, accounts: 0, checked: 0, alerts: 0, emailed: 0, skipped: 0, unchecked: 0, errors: 0 };
 
+  // Housekeeping, so the tables don't grow without end: a cached report is only served for
+  // 6 hours (keep 2 days), and the check log only counts today's checks (keep 90 days).
+  const before = (days) => encodeURIComponent(new Date(Date.now() - days * 86400000).toISOString());
+  const c1 = await db(`/rest/v1/carrier_cache?fetched_at=lt.${before(2)}`, { method: 'DELETE', prefer: 'return=minimal' });
+  const c2 = await db(`/rest/v1/carrier_lookups?created_at=lt.${before(90)}`, { method: 'DELETE', prefer: 'return=minimal' });
+  if (!c1.ok || !c2.ok) console.warn('[carrier-monitor] cleanup failed', c1.status, c2.status);
+
   // Every saved carrier, page by page; the ones checked longest ago first, so a carrier
   // missed on a slow morning is first in line the next day.
   const saved = [];
