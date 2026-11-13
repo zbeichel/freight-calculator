@@ -129,7 +129,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
   <section class="mr-hero">
     <span class="qf-pill">Market rates · <span id="mr-month">This month</span></span>
     <h1>Truckload rates across the US</h1>
-    <p>Average spot rates per mile by region for dry van, reefer and flatbed, updated monthly. Hover over a state to see its region's rate, or pick a region in the table.</p>
+    <p>Average spot rates per mile by region for dry van, reefer and flatbed, updated monthly. Tap or hover over a state to see its region's rate, or pick a region in the table.</p>
   </section>
 
   <section aria-labelledby="glance-title">
@@ -314,15 +314,42 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       svg.appendChild(p);
     });
     const map = $('mr-map');
+    // A mouse shows a state's numbers on hover. A finger or pen shows them on a tap, and they
+    // stay up until a tap somewhere else: on a touch screen the pointer "leaves" the map as soon
+    // as the finger lifts, so hiding on leave would hide them at once.
     map.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
       const p = e.target.closest('path[data-state]');
       if (!p) { hideTip(); return; }
-      showStateTip(p, e);
+      showStateTip(p, e, false);
     });
-    map.addEventListener('pointerleave', hideTip);
+    map.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hideTip(); });
+    let tappedAt = 0;
+    onTap(map, (e) => {
+      tappedAt = Date.now();
+      const p = e.target.closest && e.target.closest('path[data-state]');
+      if (!p) { hideTip(); return; }
+      select(p.dataset.region);
+      showStateTip(p, e, true);
+    });
     map.addEventListener('click', (e) => {
+      if (Date.now() - tappedAt < 800) return;   // a tap, already handled
       const p = e.target.closest('path[data-state]');
       if (p) select(p.dataset.region);
+    });
+  }
+  // A tap: a finger or pen that went down and came up without moving much (not a scroll).
+  function onTap(el, fn) {
+    let down = null;
+    el.addEventListener('pointerdown', (e) => {
+      down = e.pointerType === 'mouse' ? null : { x: e.clientX, y: e.clientY, t: Date.now() };
+    });
+    el.addEventListener('pointercancel', () => { down = null; });
+    el.addEventListener('pointerup', (e) => {
+      const d = down;
+      down = null;
+      if (!d || e.pointerType === 'mouse') return;
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12 && Date.now() - d.t < 800) fn(e);
     });
   }
   function paintMap() {
@@ -336,7 +363,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     $('mr-legend-lo').textContent = money(lo);
     $('mr-legend-hi').textContent = money(hi);
   }
-  function showStateTip(p, e) {
+  function showStateTip(p, e, touch) {
     const r = p.dataset.region;
     if (hoverRegion !== r) { hoverRegion = r; paintMap(); }
     const v = rateOf(r), nat = rateOf('national');
@@ -350,10 +377,19 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     tip.querySelector('.reg').textContent = REGION_NAME[r] + ' region';
     const box = $('mr-map').getBoundingClientRect();
     tip.hidden = false;
-    let x = e.clientX - box.left + 16, y = e.clientY - box.top + 16;
-    if (x + tip.offsetWidth > box.width) x = e.clientX - box.left - tip.offsetWidth - 16;
-    if (y + tip.offsetHeight > box.height) y = Math.max(0, e.clientY - box.top - tip.offsetHeight - 16);
-    tip.style.left = Math.max(0, x) + 'px';
+    const px = e.clientX - box.left, py = e.clientY - box.top, w = tip.offsetWidth, h = tip.offsetHeight;
+    let x, y;
+    if (touch) {
+      // Centered on the tap, above the finger when there's room, otherwise below it
+      x = Math.max(0, Math.min(px - w / 2, box.width - w));
+      y = py - h - 18 >= -24 ? py - h - 18 : py + 18;
+    } else {
+      x = px + 16; y = py + 16;
+      if (x + w > box.width) x = px - w - 16;
+      if (y + h > box.height) y = Math.max(0, py - h - 16);
+      x = Math.max(0, x);
+    }
+    tip.style.left = x + 'px';
     tip.style.top = y + 'px';
   }
   function hideTip() {
@@ -450,6 +486,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       <rect id="mr-hit" x="${pad.l}" y="${pad.t}" width="${W - pad.l - pad.r}" height="${H - pad.t - pad.b}" fill="transparent"/>
     </svg>`;
     const tip = $('mr-chart-tip');
+    tip.hidden = true;
     box.innerHTML = svg;
     box.appendChild(tip);
     const hit = box.querySelector('#mr-hit');
@@ -474,8 +511,10 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       tip.style.left = Math.max(0, x) + 'px';
       tip.style.top = '8px';
     };
-    hit.addEventListener('pointermove', move);
-    hit.addEventListener('pointerleave', () => { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); });
+    // Mouse: on hover. Finger or pen: on a tap, until a tap somewhere else (see init).
+    hit.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') move(e); });
+    hit.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); } });
+    onTap(hit, move);
     renderHistTable();
   }
   function renderHistTable() {
@@ -517,8 +556,20 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       e.currentTarget.setAttribute('aria-expanded', String(!t.hidden));
       e.currentTarget.textContent = t.hidden ? 'Show as table' : 'Hide table';
     });
-    let rz = null;
-    window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderChart, 120); });
+    document.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse') return;
+      if (!$('mr-map').contains(e.target)) hideTip();
+      if (!$('mr-chart').contains(e.target)) {
+        $('mr-chart-tip').hidden = true;
+        const c = document.getElementById('mr-cross');
+        if (c) c.setAttribute('visibility', 'hidden');
+      }
+    });
+    let rz = null, chartW = $('mr-chart').clientWidth;
+    window.addEventListener('resize', () => {
+      clearTimeout(rz);
+      rz = setTimeout(() => { const w = $('mr-chart').clientWidth; if (w !== chartW) { chartW = w; renderChart(); } }, 120);
+    });
     document.addEventListener('qf-theme', () => { paintMap(); renderRegions(); });
     fetch('/.netlify/functions/diesel-price').then((r) => (r.ok ? r.json() : null)).then((dz) => { if (dz && dz.price) renderConditions(dz); }).catch(() => {});
   }
