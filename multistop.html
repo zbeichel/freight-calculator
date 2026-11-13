@@ -334,7 +334,11 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
         <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
             <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">Base Rate ($/mi)</label>
-            <div style="display:flex;gap:5px">
+            <div style="display:flex;gap:5px;flex-wrap:wrap">
+              <button id="ms-btn-sheet" onclick="setMsRateMode('sheet')" title="Your own base rates, from your Profile page"
+                style="display:none;font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;border:1px solid var(--border2);background:var(--card);color:var(--text3);cursor:pointer;transition:all .15s">
+                ⭐ My rates
+              </button>
               <button id="ms-btn-regional" onclick="setMsRateMode('regional')"
                 style="font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:pointer;transition:all .15s">
                 📍 Regional
@@ -870,8 +874,17 @@ function placeNote(data){
 }
 
 // ── Regional rate logic ────────────────────────────────────────────────────
-let msRateMode = 'regional'; // 'regional' | 'national'
+let msRateMode = 'regional'; // 'sheet' (your rate sheet) | 'regional' | 'national'
 let msRateManual = false;
+
+// Your rate sheet (Pro Plus and up; rate-sheet.js, saved on the Profile page): with one,
+// the base rate starts from it for the first pickup's region and the trailer.
+function msRateSheet(){
+  if(!window.QFCRateSheet) return null;
+  let p = {};
+  try { p = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
+  return QFCRateSheet.allowed(p.plan, p.comp) ? QFCRateSheet.clean(p.rateSheet) : null;
+}
 let msRegionalRates = null;
 
 const MS_STATE_TO_REGION = {};
@@ -940,6 +953,18 @@ function getMsRateForRegion(state){
 
 function applyMsRate(){
   if(msRateManual) return;
+  const sheet = msRateMode === 'sheet' ? msRateSheet() : null;
+  if(sheet){
+    const state = getFirstPickupState();
+    const region = state ? (MS_STATE_TO_REGION[state] || 'national') : 'national';
+    const trailer = document.getElementById('ms-trailer')?.value || 'reefer';
+    const mine = QFCRateSheet.ratesFor(sheet, msRegionalRates || {}, region);
+    const rate = mine.rates[trailer] || 3.15;
+    document.getElementById('ms-rate').value = parseFloat(rate).toFixed(2);
+    updateMsRateLabel();
+    calcTotal();
+    return;
+  }
   const state = msRateMode === 'regional' ? getFirstPickupState() : null;
   const rate = state
     ? getMsRateForRegion(state)
@@ -958,6 +983,14 @@ function updateMsRateLabel(){
   if(msRateManual){
     label.textContent = '✏️ Rate entered manually';
     label.style.color = 'var(--accent)';
+  } else if(msRateMode === 'sheet' && msRateSheet()){
+    const state = getFirstPickupState();
+    const region = state ? (MS_STATE_TO_REGION[state] || 'national') : 'national';
+    const trailer = document.getElementById('ms-trailer')?.value || 'reefer';
+    const mine = QFCRateSheet.ratesFor(msRateSheet(), msRegionalRates || {}, region);
+    const name = region === 'national' ? 'All regions' : region.charAt(0).toUpperCase() + region.slice(1);
+    label.textContent = `⭐ Your rate sheet${state ? ` · ${name} (${state})` : ''}` + (mine.from[trailer] === 'market' ? ' · market rate (your sheet is blank here)' : '');
+    label.style.color = 'var(--accent)';
   } else if(msRateMode === 'regional'){
     const state = getFirstPickupState();
     const region = state ? (MS_STATE_TO_REGION[state] || 'National') : null;
@@ -975,6 +1008,12 @@ function updateMsRateLabel(){
 function setMsRateMode(mode){
   msRateMode = mode;
   msRateManual = false;
+  const btnSheet = document.getElementById('ms-btn-sheet');
+  if(btnSheet){
+    btnSheet.style.background  = mode==='sheet' ? 'var(--accentbg)' : 'var(--card)';
+    btnSheet.style.borderColor = mode==='sheet' ? 'var(--accent)'   : 'var(--border2)';
+    btnSheet.style.color       = mode==='sheet' ? 'var(--accent)'   : 'var(--text3)';
+  }
   const btnReg = document.getElementById('ms-btn-regional');
   const btnNat = document.getElementById('ms-btn-national');
   if(btnReg){
@@ -2166,7 +2205,13 @@ async function initWithProCheck(){
     window.location.href = '/signup.html?reason=pro-required';
     return;
   }
-  // User is verified Pro — load the page
+  // User is verified Pro — load the page. With a rate sheet (rate-sheet.js loads with
+  // the page), the base rate starts from it.
+  if(document.readyState === 'loading') await new Promise(r => document.addEventListener('DOMContentLoaded', r, { once: true }));
+  if(msRateSheet()){
+    document.getElementById('ms-btn-sheet').style.display = '';
+    setMsRateMode('sheet');
+  }
   loadMsRates();
   addStop('pickup');
   addStop('delivery');
@@ -2560,5 +2605,6 @@ initWithProCheck();
 <script src="/pro-notice.js" defer></script>
 <script src="/pdf-quote.js" defer></script>
 <script src="/customers.js" defer></script>
+<script src="/rate-sheet.js" defer></script>
 </body>
 </html>

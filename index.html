@@ -2237,8 +2237,11 @@ html.light .hos-day-header{background:var(--card2)}
               <input type="text" id="rate-date" placeholder="Loading rates..." style="background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-family:'Space Grotesk',sans-serif;font-size:10px;padding:3px 8px;outline:none;width:min(160px,100%)" readonly />
             </div>
           </div>
-          <!-- Regional / National toggle -->
-          <div style="display:flex;gap:6px;margin-bottom:10px">
+          <!-- My rates (your rate sheet) / Regional / National toggle -->
+          <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+            <button id="btn-rate-sheet" onclick="setRateMode('sheet')" style="display:none;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--card);color:var(--text3);cursor:pointer;transition:all .15s" title="Your own base rates, from your Profile page">
+              ⭐ My rates
+            </button>
             <button id="btn-rate-regional" onclick="setRateMode('regional')"
               style="font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);cursor:pointer;transition:all .15s">
               📍 Regional
@@ -3098,6 +3101,7 @@ async function _verifyProAuthBackground(){
           pdfAccent: p.pdf_accent || '', pdfInk: p.pdf_ink || '',
           pdfWhiteLabel: p.pdf_white_label === true, pdfValidHours: p.pdf_valid_hours || 24, pdfTerms: p.pdf_terms || '',
           pdfSections: p.pdf_sections || null, pdfAccessorials: p.pdf_accessorials || null,
+          rateSheet: p.rate_sheet || null,
           plan: p.plan, comp: p.is_active === true && !p.stripe_subscription_id,
           team,
         }));
@@ -3127,6 +3131,7 @@ async function _verifyProAuthBackground(){
   } catch(e){ console.warn('checkProAuth error:', e); }
   updateProUI();
   updateProAccountBtn();
+  refreshMyRates();
 }
 
 function updateProAccountBtn(){
@@ -5685,7 +5690,9 @@ function clearShipmentForm(){
   manualMiles = false;
   ratesManualOverride = false;
   transitChargeAdded = false;
-  rateMode = 'auto';
+  rateModeChosen = false;
+  rateMode = myRateSheet() ? 'sheet' : 'auto';
+  styleRateButtons(rateMode === 'sheet' ? 'sheet' : 'regional');
   setMilesSource('none');
   showMilesStatus('', '', '');
 
@@ -6313,6 +6320,8 @@ function updateRateDisclaimer(){
   if(!el) return;
   if(ratesManualOverride){
     el.innerHTML = 'This quote is based on a base rate, per mile, that was entered manually.';
+  } else if(rateMode === 'sheet' && myRateSheet()){
+    el.innerHTML = 'This quote starts from <strong style="color:var(--text2)">your rate sheet</strong> (set on your Profile page), with the market rate wherever your sheet is blank. Pick <strong style="color:var(--text2)">Regional</strong> or <strong style="color:var(--text2)">National Avg</strong> in the Base Rates box for market rates.';
   } else {
     el.innerHTML = 'This quote is based on current <strong style="color:var(--text2)">US AVERAGE</strong> market rates and can be inflated. If you know the current rate per mile for your region/lane, please adjust it in the <strong style="color:var(--text2)">Base Rates ($/mi)</strong> box accordingly.';
   }
@@ -6321,11 +6330,7 @@ function updateRateDisclaimer(){
 function saveRates(){
   ratesManualOverride = true;
   rateMode = 'manual';
-  // Deactivate both toggle buttons
-  const btnReg = document.getElementById('btn-rate-regional');
-  const btnNat = document.getElementById('btn-rate-national');
-  if(btnReg){ btnReg.style.background='var(--card)'; btnReg.style.borderColor='var(--border2)'; btnReg.style.color='var(--text3)'; }
-  if(btnNat){ btnNat.style.background='var(--card)'; btnNat.style.borderColor='var(--border2)'; btnNat.style.color='var(--text3)'; }
+  styleRateButtons(null);   // none of My rates / Regional / National is on
   const regionEl = document.getElementById('rate-region-label');
   if(regionEl){ regionEl.textContent='✏️ Rates entered manually'; regionEl.style.color='var(--accent)'; }
   updateHeaderRates();
@@ -6333,25 +6338,50 @@ function saveRates(){
 }
 // ── Regional rates storage ────────────────────────────────────────────────
 let regionalRates = null; // populated from rates.json
-let rateMode = 'regional'; // 'regional' or 'national'
+let rateMode = 'regional'; // 'sheet' (your rate sheet), 'regional', 'national', 'manual' or 'auto'
+let rateModeChosen = false; // the user picked My rates / Regional / National on this visit
 
-function setRateMode(mode){
+// ── Your rate sheet (Pro Plus and up; rate-sheet.js, saved on the Profile page) ──
+// With one, quotes start from it ("My rates"): the pickup region's own rate, then the
+// sheet's all-regions rate, then the market rate for the region.
+function myRateSheet(){
+  if(!isProUser || !window.QFCRateSheet) return null;
+  let p = {};
+  try { p = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
+  return QFCRateSheet.allowed(p.plan, p.comp) ? QFCRateSheet.clean(p.rateSheet) : null;
+}
+// Shows My rates when there's a sheet, and starts from it unless the user chose otherwise.
+function refreshMyRates(){
+  const sheet = myRateSheet();
+  const btn = document.getElementById('btn-rate-sheet');
+  if(btn) btn.style.display = sheet ? '' : 'none';
+  if(sheet && rateMode === 'sheet' && !ratesManualOverride){ applyRegionalRates(); updateRateDisclaimer(); calc(); }
+  else if(sheet && !rateModeChosen && !ratesManualOverride) setRateMode('sheet', false);
+  else if(!sheet && rateMode === 'sheet') setRateMode('regional', false);
+}
+document.addEventListener('DOMContentLoaded', refreshMyRates);
+
+function styleRateButtons(mode){
+  const set = (id, on, color, bg) => {
+    const b = document.getElementById(id);
+    if(!b) return;
+    b.style.background  = on ? bg    : 'var(--card)';
+    b.style.borderColor = on ? color : 'var(--border2)';
+    b.style.color       = on ? color : 'var(--text3)';
+  };
+  set('btn-rate-sheet', mode === 'sheet', 'var(--accent)', 'var(--accentbg)');
+  set('btn-rate-regional', mode === 'regional', 'var(--accent)', 'var(--accentbg)');
+  set('btn-rate-national', mode === 'national', 'var(--blue)', 'rgba(96,165,250,.12)');
+}
+
+function setRateMode(mode, fromUser){
+  if(fromUser !== false) rateModeChosen = true;
   rateMode = mode;
   ratesManualOverride = false;
-  // Update button styles
-  const btnReg = document.getElementById('btn-rate-regional');
-  const btnNat = document.getElementById('btn-rate-national');
-  if(btnReg){
-    btnReg.style.background   = mode==='regional' ? 'var(--accentbg)' : 'var(--card)';
-    btnReg.style.borderColor  = mode==='regional' ? 'var(--accent)'   : 'var(--border2)';
-    btnReg.style.color        = mode==='regional' ? 'var(--accent)'   : 'var(--text3)';
-  }
-  if(btnNat){
-    btnNat.style.background   = mode==='national' ? 'rgba(96,165,250,.12)' : 'var(--card)';
-    btnNat.style.borderColor  = mode==='national' ? 'var(--blue)'          : 'var(--border2)';
-    btnNat.style.color        = mode==='national' ? 'var(--blue)'          : 'var(--text3)';
-  }
-  if(mode === 'national'){
+  styleRateButtons(mode);
+  if(mode === 'sheet'){
+    applyRegionalRates();
+  } else if(mode === 'national'){
     // Apply national rates — use regionalRates if loaded, fall back to hardcoded defaults
     const nat = getRatesForRegion('national') || { van:2.73, reefer:3.15, flatbed:3.38 };
     document.getElementById('rate-van').value    = parseFloat(nat.van).toFixed(2);
@@ -6411,9 +6441,27 @@ function detectOriginState(){
 
 // Apply regional rates to inputs — called when origin changes or rates load
 function applyRegionalRates(){
-  if(!regionalRates || ratesManualOverride || rateMode === 'national') return;
+  if(ratesManualOverride || rateMode === 'national') return;
   const state  = detectOriginState();
   const region = getRegionForState(state);
+  const sheet  = rateMode === 'sheet' ? myRateSheet() : null;
+  if(sheet){
+    const mine = QFCRateSheet.ratesFor(sheet, regionalRates || {}, region);
+    const fallback = { van: 2.73, reefer: 3.15, flatbed: 3.38 };
+    ['van', 'reefer', 'flatbed'].forEach(t => {
+      document.getElementById('rate-' + t).value = parseFloat(mine.rates[t] || fallback[t]).toFixed(2);
+    });
+    const regionEl = document.getElementById('rate-region-label');
+    if(regionEl){
+      const blanks = ['van', 'reefer', 'flatbed'].filter(t => mine.from[t] === 'market').length;
+      regionEl.textContent = `⭐ Your rate sheet${state ? ` · ${REGION_LABELS[region] || 'National'} (${state})` : ''}` +
+        (blanks ? ' · market rate where your sheet is blank' : '');
+      regionEl.style.color = 'var(--accent)';
+    }
+    updateHeaderRates();
+    return;
+  }
+  if(!regionalRates) return;
   const rates  = getRatesForRegion(region);
   if(!rates) return;
 
@@ -8860,7 +8908,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
           <input type="radio" name="upg-plan" value="plus" onchange="updateUpgradeButton()" />
           <span class="upg-name">Pro Plus</span>
           <span class="upg-price"><strong>$19.99</strong>/month</span>
-          <span class="upg-detail">Automatic miles on 250 quotes per day, win/loss tracking, a customer list and emailed quotes</span>
+          <span class="upg-detail">Automatic miles on 250 quotes per day, win/loss tracking, a customer list, emailed quotes and your own rate sheet</span>
         </label>
         <label class="upg-option" id="upg-option-max">
           <input type="radio" name="upg-plan" value="max" onchange="updateUpgradeButton()" />
@@ -9202,5 +9250,6 @@ window.addEventListener('resize', () => {
 <script src="/customers.js" defer></script>
 <script src="/email-quote.js" defer></script>
 <script src="/lane.js" defer></script>
+<script src="/rate-sheet.js" defer></script>
 </body>
 </html>

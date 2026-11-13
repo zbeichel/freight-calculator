@@ -240,6 +240,37 @@ async function test(name, fn) {
     const own = await call({ ...LANE, miles: 166, baseRatePerMile: 2.5 });
     assert.strictEqual(own.body.breakdown.rateRegion, null); assert.strictEqual(own.body.breakdown.baseRatePerMile, 2.5);
   });
+  await test('your rate sheet: the default once saved — the region’s rate, then all regions, then market', async () => {
+    db.users['u-api'].rate_sheet = { all: { van: 3.1 }, northeast: { reefer: 3.9 } };
+    const van = await call({ ...LANE, miles: 166 });
+    assert.strictEqual(van.body.breakdown.rateSource, 'sheet'); assert.strictEqual(van.body.breakdown.baseRatePerMile, 3.1);
+    assert.strictEqual(van.body.breakdown.rateRegion, 'northeast');
+    const reefer = await call({ ...LANE, miles: 166, trailer: 'reefer' });
+    assert.strictEqual(reefer.body.breakdown.rateSource, 'sheet'); assert.strictEqual(reefer.body.breakdown.baseRatePerMile, 3.9);
+    const flat = await call({ ...LANE, miles: 166, trailer: 'flatbed' });
+    assert.strictEqual(flat.body.breakdown.rateSource, 'market');
+    assert.strictEqual(flat.body.breakdown.baseRatePerMile, engine.RATES.regions.northeast.flatbed);
+    const expect = engine.presentQuote(engine.computeQuote({ miles: 166, trailer: 'van', rateRegion: 'northeast', marginPercent: 15, rateSheet: db.users['u-api'].rate_sheet }));
+    assert.strictEqual(van.body.quote.total, expect.total);
+  });
+  await test('your rate sheet: rates "regional" or "national" ask for market rates; your own base rate still wins', async () => {
+    db.users['u-api'].rate_sheet = { all: { van: 3.1 } };
+    const regional = await call({ ...LANE, miles: 166, rates: 'regional' });
+    assert.strictEqual(regional.body.breakdown.rateSource, 'market');
+    assert.strictEqual(regional.body.breakdown.baseRatePerMile, engine.RATES.regions.northeast.van);
+    assert.strictEqual((await call({ ...LANE, miles: 166, rates: 'national' })).body.breakdown.rateSource, 'market');
+    const own = await call({ ...LANE, miles: 166, baseRatePerMile: 2.5 });
+    assert.strictEqual(own.body.breakdown.rateSource, 'provided'); assert.strictEqual(own.body.breakdown.baseRatePerMile, 2.5);
+    assert.strictEqual((await call({ ...LANE, miles: 166, rates: 'mine' })).status, 400);
+  });
+  await test('your rate sheet: without one, rates "sheet" quietly uses market rates; junk in a sheet is ignored', async () => {
+    delete db.users['u-api'].rate_sheet;
+    const r = await call({ ...LANE, miles: 166, rates: 'sheet' });
+    assert.strictEqual(r.status, 200); assert.strictEqual(r.body.breakdown.rateSource, 'market');
+    db.users['u-api'].rate_sheet = { all: { van: 'abc' }, northeast: { van: 99 }, mars: { van: 3 } };
+    assert.strictEqual((await call({ ...LANE, miles: 166 })).body.breakdown.rateSource, 'market');
+    delete db.users['u-api'].rate_sheet;
+  });
   await test('every Advanced setting reaches the engine', async () => {
     const body = { ...LANE, miles: 900, trailer: 'reefer', weight: 44001, commodity: 'hazmat', pickupDate: '2026-11-20',
       deliveryDate: '2026-11-26', margin: 18, dieselPrice: 3.85, capacity: true, season: 'ne_produce',

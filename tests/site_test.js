@@ -207,8 +207,8 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   const cols = await t.page.$$eval('.su-plan', (els) => els.map((e) => ({ plan: e.dataset.plan, price: e.querySelector('.su-price').innerText.replace(/\s+/g, ''),
     yes: e.querySelectorAll('li.yes').length, no: e.querySelectorAll('li.no').length })));
   check('four plans with their prices', cols.map((c) => `${c.plan} ${c.price}`).join(' | ') === 'pro $9.99/month | plus $19.99/month | max $49.99/month | api $199.99/month');
-  check('each lists every feature, checked or crossed (Pro 8 crossed, Plus 3, Max 1, API 0)',
-    cols.every((c) => c.yes + c.no === 19) && cols.map((c) => c.no).join() === '8,3,1,0', JSON.stringify(cols));
+  check('each lists every feature, checked or crossed (Pro 9 crossed, Plus 3, Max 1, API 0)',
+    cols.every((c) => c.yes + c.no === 20) && cols.map((c) => c.no).join() === '9,3,1,0', JSON.stringify(cols));
   const teamRow = await t.page.$$eval('.su-plan', (els) => els.map((e) => [...e.querySelectorAll('li')].find((li) => /Team/.test(li.innerText))).map((li) => li && `${li.className}:${li.innerText.replace(/\s+/g, ' ').replace(/ \((not )?included\)$/, '').trim()}`));
   check('team members are listed from Pro Max: 3 people, 6 on API', JSON.stringify(teamRow) === JSON.stringify([
     'no:Team members', 'no:Team members', 'yes:Team of 3: you and 2 more, each with their own login', 'yes:Team of 6: you and 5 more, each with their own login']), JSON.stringify(teamRow));

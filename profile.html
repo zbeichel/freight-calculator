@@ -127,6 +127,24 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 .api-foot a{color:var(--accent);text-decoration:none}
 #api-status{font-size:12px;margin-top:10px;line-height:1.5}
 
+/* ── Rate sheet ── */
+.rs-intro{font-size:13px;color:var(--text2);line-height:1.6;margin:0 0 14px}
+.rs-grid{display:grid;grid-template-columns:minmax(84px,1.3fr) repeat(3,minmax(56px,1fr));gap:6px 10px;align-items:center}
+.rs-head{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
+.rs-region{font-size:13px;font-weight:600;color:var(--text);line-height:1.25}
+.rs-region small{display:block;font-size:10px;font-weight:500;color:var(--text3);margin-top:2px;line-height:1.35}
+.rs-grid input{width:100%;min-width:0;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);
+  font-family:'Space Grotesk',sans-serif;font-size:13px;padding:8px 9px;outline:none;transition:border-color .15s}
+.rs-grid input:focus{border-color:var(--accent)}
+.rs-grid input.bad{border-color:var(--red)}
+.rs-grid .rs-sep{grid-column:1/-1;border-top:1px solid var(--border);margin:4px 0}
+.rs-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.rs-btn{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;
+  border:1px solid var(--border2);background:var(--card);color:var(--text2)}
+.rs-btn:hover{border-color:var(--accent);color:var(--accent)}
+.rs-btn:disabled{opacity:.6;cursor:default}
+.rs-status{font-size:12px;color:var(--text3);line-height:1.5}
+
 /* ── Team ── */
 .team-list{border:1px solid var(--border2);border-radius:10px;margin:0 0 14px;background:var(--card2)}
 .team-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--border)}
@@ -474,6 +492,28 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
             <label>Custom Footer Text <span style="font-weight:400;text-transform:none;font-size:10px">(optional)</span></label>
             <input type="text" id="footer-text" placeholder="e.g. Licensed & Bonded · FMCSA Registered" />
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Your rate sheet (Pro Plus and up; rate-sheet.js) ── -->
+    <div class="section-card" id="rate-sheet-card">
+      <div class="section-header">
+        <span class="section-icon">💲</span>
+        <span class="section-title">Your Rate Sheet</span>
+        <span class="section-sub">Pro Plus and up</span>
+      </div>
+      <div class="section-body">
+        <div class="wl-locked" id="rs-locked" style="display:none">
+          Your rate sheet comes with <strong>Pro Plus</strong> ($19.99/month) and up: save your own base rates, and every quote starts from them.
+          <a href="#subscription-paid">Change plan →</a>
+        </div>
+        <p class="rs-intro">Your own base rates, in dollars per mile. The calculator and the multi-stop builder start every quote from these (<strong>My rates</strong>) instead of the market averages: the pickup region’s rate, or your all-regions rate where a region is blank. Leave a box blank to use the rate shown in grey. You can still switch any quote to market rates, and API quotes use your sheet too.</p>
+        <div class="rs-grid" id="rs-grid"></div>
+        <div class="rs-actions">
+          <button type="button" class="rs-btn" id="rs-fill-btn" onclick="fillRateSheetFromMarket()">Fill blanks with this month’s market rates</button>
+          <button type="button" class="rs-btn" id="rs-clear-btn" onclick="clearRateSheet()">Clear</button>
+          <span class="rs-status" id="rs-status" role="status"></span>
         </div>
       </div>
     </div>
@@ -939,6 +979,7 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
 <div class="toast" id="toast">✓ Profile saved successfully</div>
 
 <script src="/pdf-quote.js"></script>
+<script src="/rate-sheet.js"></script>
 <script>
 // ── Color schemes ─────────────────────────────────────────────────────────
 // Each scheme defines a PDF header background + text colors. The text colors
@@ -1118,7 +1159,111 @@ function updatePreviewLogo(){
 // Pro Max, API and comp accounts (pdf-quote.js checks the same thing when it
 // builds a PDF). accountTier comes from the account row and plan changes.
 let accountTier = { plan: 'pro', comp: false };
+// ── Your rate sheet (Pro Plus and up; rate-sheet.js) ──────────────────────
+// Rows: all regions, then each market region; blank boxes show (in grey) the rate a quote
+// would use instead: the all-regions rate if set, otherwise this month's market rate.
+let rsMarket = null;   // rates.json regions
+function buildRateSheetGrid(){
+  const grid = document.getElementById('rs-grid');
+  if(!grid || !window.QFCRateSheet || grid.childElementCount) return;
+  const RS = QFCRateSheet;
+  let html = '<div class="rs-head">Pickup region</div>' + RS.TRAILERS.map(t => `<div class="rs-head">${RS.TRAILER_LABEL[t]}</div>`).join('');
+  RS.ROWS.forEach((r, i) => {
+    html += `<div class="rs-region">${RS.ROW_LABEL[r]}<small id="rs-states-${r}">${r === 'all' ? 'Any region left blank below' : ''}</small></div>` +
+      RS.TRAILERS.map(t => `<input id="rs-${r}-${t}" type="text" inputmode="decimal" maxlength="7" autocomplete="off"
+        aria-label="${RS.ROW_LABEL[r]} ${RS.TRAILER_LABEL[t].toLowerCase()} rate, dollars per mile" oninput="onRateSheetInput(this)" onchange="tidyRateSheetBox(this)" />`).join('');
+    if(i === 0) html += '<div class="rs-sep"></div>';
+  });
+  grid.innerHTML = html;
+}
+function rsInput(r, t){ return document.getElementById(`rs-${r}-${t}`); }
+// The grey hint in each blank box: what a quote uses when it's left blank.
+function updateRateSheetHints(){
+  if(!window.QFCRateSheet) return;
+  const RS = QFCRateSheet;
+  RS.TRAILERS.forEach(t => {
+    const all = RS.parseRate(rsInput('all', t) && rsInput('all', t).value);
+    const nat = rsMarket && rsMarket.national ? rsMarket.national[t] : null;
+    if(rsInput('all', t)) rsInput('all', t).placeholder = nat ? Number(nat).toFixed(2) : '';
+    RS.ROWS.slice(1).forEach(r => {
+      const el = rsInput(r, t);
+      if(!el) return;
+      const market = rsMarket && rsMarket[r] ? rsMarket[r][t] : null;
+      const hint = all != null && !Number.isNaN(all) ? all : market;
+      el.placeholder = hint ? Number(hint).toFixed(2) : '';
+    });
+  });
+  if(rsMarket) RS.ROWS.slice(1).forEach(r => {
+    const el = document.getElementById(`rs-states-${r}`);
+    if(el && rsMarket[r] && rsMarket[r].states) el.textContent = rsMarket[r].states.join(', ');
+  });
+}
+function onRateSheetInput(el){
+  el.classList.toggle('bad', Number.isNaN(QFCRateSheet.parseRate(el.value)));
+  updateRateSheetHints();
+  setRateSheetStatus('');
+}
+// "$4.25" → "4.25" when you leave the box (anything that isn't a rate stays as typed, marked)
+function tidyRateSheetBox(el){
+  const v = QFCRateSheet.parseRate(el.value);
+  if(v !== null && !Number.isNaN(v)) el.value = v.toFixed(2);
+}
+function setRateSheetStatus(text){ const el = document.getElementById('rs-status'); if(el) el.textContent = text || ''; }
+function fillRateSheet(sheet){
+  buildRateSheetGrid();
+  if(!window.QFCRateSheet) return;
+  const clean = QFCRateSheet.clean(sheet) || {};
+  QFCRateSheet.ROWS.forEach(r => QFCRateSheet.TRAILERS.forEach(t => {
+    const el = rsInput(r, t);
+    if(el){ const v = clean[r] && clean[r][t]; el.value = v != null ? Number(v).toFixed(2) : ''; el.classList.remove('bad'); }
+  }));
+  updateRateSheetHints();
+}
+// The sheet as typed: { sheet (cleaned, or null when empty), bad (the first box that isn't a rate) }
+function rateSheetFromForm(){
+  if(!window.QFCRateSheet) return { sheet: null, bad: null };
+  const raw = {};
+  let bad = null;
+  QFCRateSheet.ROWS.forEach(r => QFCRateSheet.TRAILERS.forEach(t => {
+    const el = rsInput(r, t);
+    if(!el) return;
+    const v = QFCRateSheet.parseRate(el.value);
+    if(Number.isNaN(v)){ el.classList.add('bad'); if(!bad) bad = el; return; }
+    if(v !== null) (raw[r] = raw[r] || {})[t] = v;
+  }));
+  return { sheet: QFCRateSheet.clean(raw), bad };
+}
+function fillRateSheetFromMarket(){
+  if(!rsMarket){ setRateSheetStatus('This month’s market rates haven’t loaded yet. Try again in a moment.'); return; }
+  let n = 0;
+  QFCRateSheet.ROWS.slice(1).forEach(r => QFCRateSheet.TRAILERS.forEach(t => {
+    const el = rsInput(r, t);
+    if(el && !el.value.trim() && rsMarket[r] && rsMarket[r][t]){ el.value = Number(rsMarket[r][t]).toFixed(2); n++; }
+  }));
+  updateRateSheetHints();
+  setRateSheetStatus(n ? `Filled ${n} blank box${n === 1 ? '' : 'es'} with this month’s market rates. Change any you like, then save.` : 'Every region already has a rate.');
+}
+function clearRateSheet(){
+  if(!confirm('Clear your whole rate sheet? Quotes go back to market rates once you save.')) return;
+  fillRateSheet(null);
+  setRateSheetStatus('Cleared. Save to go back to market rates.');
+}
+function applyRateSheetAccess(){
+  const allowed = !!window.QFCRateSheet && QFCRateSheet.allowed(accountTier.plan, accountTier.comp);
+  const locked = document.getElementById('rs-locked');
+  if(locked) locked.style.display = allowed ? 'none' : '';
+  if(document.body.classList.contains('pf-member')) return;   // the team owner's sheet, read-only
+  document.querySelectorAll('#rs-grid input, #rs-fill-btn, #rs-clear-btn').forEach(el => { el.disabled = !allowed; });
+  const grid = document.getElementById('rs-grid');
+  if(grid) grid.style.opacity = allowed ? '1' : '.55';
+}
+buildRateSheetGrid();
+fetch('/rates.json').then(r => r.ok ? r.json() : null).then(d => {
+  if(d && d.regions){ rsMarket = d.regions; updateRateSheetHints(); }
+}).catch(() => {});
+
 function applyWhiteLabelAccess(){
+  applyRateSheetAccess();
   const allowed = accountTier.comp || accountTier.plan === 'max' || accountTier.plan === 'api';
   const locked = document.getElementById('wl-locked');
   if(locked) locked.style.display = allowed ? 'none' : '';
@@ -1636,6 +1781,12 @@ async function checkAuth(){
 // ── Save to Supabase + localStorage ───────────────────────────────────────
 async function saveProfile(){
   if(teamMemberMode()) return saveMemberDetails();
+  const rs = rateSheetFromForm();
+  if(rs.bad){
+    showToast(`Check your rate sheet: rates are $${QFCRateSheet.MIN.toFixed(2)} to $${QFCRateSheet.MAX.toFixed(2)} a mile`);
+    rs.bad.focus();
+    return;
+  }
   const profile = {
     companyName:  document.getElementById('company-name').value.trim(),
     contactName:  document.getElementById('contact-name').value.trim(),
@@ -1655,6 +1806,7 @@ async function saveProfile(){
     pdfInk:       customColorValue('pdf-ink', '#1a1f2e'),
     pdfSections:  sectionsFromForm(),
     pdfAccessorials: accessorialsFromForm(),
+    rateSheet:    rs.sheet,
     ...whiteLabelFromForm(),
     savedAt:      new Date().toISOString(),
   };
@@ -1696,6 +1848,7 @@ async function saveProfile(){
           pdf_terms:     profile.pdfTerms || null,
           pdf_sections:  profile.pdfSections,
           pdf_accessorials: profile.pdfAccessorials,
+          rate_sheet:    profile.rateSheet,
           updated_at:    new Date().toISOString(),
         })
       });
@@ -1769,6 +1922,7 @@ async function loadProfile(){
           pdfTerms:    p.pdf_terms,
           pdfSections: p.pdf_sections,
           pdfAccessorials: p.pdf_accessorials,
+          rateSheet:   p.rate_sheet,
         });
         // Update header with user name
         updateHeaderUser(p.contact_name || p.company_name || session.user.email);
@@ -1830,7 +1984,7 @@ function applySubscriptionCardState(stripeCustomerId, plan, isActive){
 // 5,000 API quotes per month). Same names and limits as netlify/lib/plans.js.
 const PROFILE_PLANS = {
   pro:  { name: 'Pro',      price: '$9.99',   detail: 'Automatic miles on 100 quotes per day' },
-  plus: { name: 'Pro Plus', price: '$19.99',  detail: 'Automatic miles on 250 quotes per day, win/loss tracking, a customer list and emailed quotes' },
+  plus: { name: 'Pro Plus', price: '$19.99',  detail: 'Automatic miles on 250 quotes per day, win/loss tracking, a customer list, emailed quotes and your own rate sheet' },
   max:  { name: 'Pro Max',  price: '$49.99',  detail: 'Everything in Pro Plus, with automatic miles on 1,000 quotes per day, white-label PDFs and a team of 3 people' },
   api:  { name: 'API',      price: '$199.99', detail: 'Pro Max with a team of 6 people, plus 5,000 API quotes per month' },
 };
@@ -2596,6 +2750,7 @@ function populateForm(p){
   document.getElementById('pdf-valid-hours').value = [24, 48, 72, 168].includes(Number(p.pdfValidHours)) ? String(p.pdfValidHours) : '24';
   document.getElementById('pdf-terms').value = typeof p.pdfTerms === 'string' ? p.pdfTerms : '';
   fillSections(p.pdfSections, p.pdfAccessorials);
+  fillRateSheet(p.rateSheet);
   if(p.logoBase64){
     // Reuse applyLogo so the preview state (remove + adjust buttons) stays in
     // sync with the upload path — no duplicated show/hide logic.
