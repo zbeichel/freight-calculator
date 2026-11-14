@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carrier Check — QuickFreightCalc</title>
+<meta name="description" content="Check a trucking carrier by MC or USDOT number before you book: operating authority, insurance, safety record and out-of-service orders from FMCSA's records, with the warning signs spelled out.">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/tools.css">
+<script src="/site.js"></script>
+<script src="/plans-ui.js"></script>
+<style>
+/* The page title, cards and colors come from tools.css and site.css; the navigation and
+   the footer from site.js. */
+.page{max-width:1100px;margin:0 auto;padding:0 24px 64px}
+[hidden]{display:none!important}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow)}
+.btn{font-family:inherit;font-size:13px;font-weight:700;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:transparent;color:var(--text2);
+  cursor:pointer;transition:all .15s;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent-fill);border-color:var(--accent-fill);color:var(--accent-ink)}
+.btn.primary:hover{opacity:.9;color:var(--accent-ink)}
+.btn:disabled{opacity:.6;cursor:default}
+.btn.on{border-color:var(--green);color:var(--green)}
+.btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* Search */
+.cc-search{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:16px 18px}
+.cc-kind{display:inline-flex;padding:3px;border:1px solid var(--border2);border-radius:10px;background:var(--card2)}
+.cc-kind button{font:700 12px/1 var(--font);padding:9px 12px;border-radius:7px;border:0;background:none;color:var(--text2);cursor:pointer}
+.cc-kind button.on{background:var(--panel);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.cc-q{flex:1;min-width:180px;background:var(--card2);border:1px solid var(--border2);border-radius:10px;color:var(--text);font:500 16px/1.2 var(--font);padding:11px 14px;outline:none}
+.cc-q:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(240,165,0,.12)}
+.cc-usage{width:100%;font-size:12px;color:var(--text3)}
+.cc-status{font-size:13px;color:var(--text2);margin:14px 2px 0;min-height:18px}
+.cc-status.err{color:var(--red)}
+
+/* The report */
+.cc-report{margin-top:16px;overflow:hidden}
+.cc-verdict{display:flex;gap:14px;align-items:flex-start;padding:18px 20px;border-bottom:1px solid var(--border)}
+.cc-verdict .ico{flex-shrink:0;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center}
+.cc-verdict .ico svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.cc-verdict.ok{background:var(--greenbg)} .cc-verdict.ok .ico{background:var(--green)}
+.cc-verdict.warn{background:rgba(232,131,58,.12)} .cc-verdict.warn .ico{background:#e8833a}
+.cc-verdict.stop{background:var(--redbg)} .cc-verdict.stop .ico{background:var(--red)}
+.cc-verdict h2{font-size:19px;font-weight:700;margin:2px 0 6px;color:var(--text)}
+.cc-flags{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.cc-flags li{font-size:13.5px;line-height:1.5;color:var(--text2);padding-left:18px;position:relative}
+.cc-flags li::before{content:"";position:absolute;left:2px;top:7px;width:8px;height:8px;border-radius:50%;background:var(--text3)}
+.cc-flags li.stop::before{background:var(--red)} .cc-flags li.warn::before{background:#e8833a} .cc-flags li.stop{color:var(--text)}
+.cc-head{display:flex;gap:16px;justify-content:space-between;flex-wrap:wrap;padding:18px 20px;border-bottom:1px solid var(--border)}
+.cc-name{font-size:22px;font-weight:700;letter-spacing:-.02em;color:var(--text);overflow-wrap:anywhere}
+.cc-dba{font-size:13px;color:var(--text3);margin-top:2px}
+.cc-ids{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.cc-id{font:600 12px/1 var(--font);padding:6px 9px;border-radius:7px;background:var(--card2);border:1px solid var(--border);color:var(--text2)}
+.cc-contact{font-size:13px;color:var(--text2);line-height:1.7;margin-top:8px;overflow-wrap:anywhere}
+.cc-contact a{color:var(--accent);text-decoration:none}
+.cc-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}
+.cc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0}
+.cc-sec{padding:16px 20px;border-bottom:1px solid var(--border);min-width:0}
+.cc-sec:nth-child(odd){border-right:1px solid var(--border)}
+.cc-sec h3{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin:0 0 10px}
+.cc-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:5px 0;color:var(--text2)}
+.cc-row b{color:var(--text);font-weight:600;text-align:right}
+.chip{display:inline-block;font:700 11px/1 var(--font);padding:4px 8px;border-radius:999px;border:1px solid var(--border2);color:var(--text2);white-space:nowrap}
+.chip.ok{color:var(--green);border-color:var(--green);background:var(--greenbg)}
+.chip.warn{color:#c96d1d;border-color:#e8833a;background:rgba(232,131,58,.12)}
+.chip.stop{color:var(--red);border-color:var(--red);background:var(--redbg)}
+.cc-small{font-size:12px;color:var(--text3);line-height:1.6;margin-top:8px}
+.cc-list{list-style:none;margin:6px 0 0;padding:0;font-size:12.5px;color:var(--text2);line-height:1.55}
+.cc-list li{padding:5px 0;border-top:1px dashed var(--border)}
+.cc-list li:first-child{border-top:0}
+.cc-list b{color:var(--text)}
+.cc-bar{height:6px;border-radius:999px;background:var(--card2);border:1px solid var(--border);overflow:hidden;margin:4px 0 2px;position:relative}
+.cc-bar span{display:block;height:100%;background:var(--accent-fill)}
+.cc-bar i{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--text)}
+.cc-foot{padding:12px 20px;font-size:12px;color:var(--text3);line-height:1.6}
+.cc-foot a{color:var(--text2)}
+
+/* Watched carriers (Pro Max) */
+.cc-watch{margin-top:22px;overflow:hidden}
+.cc-watch-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)}
+.cc-watch-head h2{font-size:15px;font-weight:700;margin:0}
+.cc-watch-head p{font-size:12.5px;color:var(--text3);margin:2px 0 0}
+.cc-alerts{list-style:none;margin:0;padding:0}
+.cc-alerts li{display:flex;gap:10px;align-items:flex-start;padding:10px 20px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);line-height:1.5}
+.cc-alerts li.new{background:rgba(232,131,58,.08);color:var(--text)}
+.cc-alerts time{flex-shrink:0;font-size:11.5px;color:var(--text3);min-width:56px;padding-top:1px}
+table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
+.cc-saved th{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border)}
+.cc-saved td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+.cc-saved tr:last-child td{border-bottom:0}
+.cc-saved .nm{font-weight:700;color:var(--text);overflow-wrap:anywhere}
+.cc-saved .sub{font-size:11.5px;color:var(--text3);margin-top:2px}
+.cc-saved input{width:100%;min-width:120px;background:transparent;border:1px solid transparent;border-radius:7px;color:var(--text2);font:inherit;font-size:12.5px;padding:6px 8px}
+.cc-saved input:hover,.cc-saved input:focus{border-color:var(--border2);background:var(--card2);outline:none}
+.mini{font:600 11.5px/1 var(--font);padding:6px 10px;border-radius:7px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;white-space:nowrap}
+.mini:hover{border-color:var(--accent);color:var(--accent)}
+.cc-empty{padding:28px 20px;text-align:center;font-size:13px;color:var(--text3);line-height:1.7}
+.cc-source{font-size:12px;color:var(--text3);line-height:1.7;margin:22px 4px 0}
+.gate{margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:30px 28px;max-width:620px;box-shadow:var(--shadow)}
+.gate h2{font-size:17px;font-weight:700;margin-bottom:8px}
+.gate p{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px}
+.gate.gate-preview{max-width:1100px;padding:0;overflow:hidden}
+.preview-sample{padding:0}
+@media (max-width:760px){
+  .page{padding:0 12px 56px}
+  .cc-grid{grid-template-columns:1fr}
+  .cc-sec:nth-child(odd){border-right:0}
+  .cc-q{font-size:16px;min-width:0;width:100%;flex-basis:100%}
+  .cc-search .btn.primary{flex:1;justify-content:center}
+  .cc-saved .hide-sm{display:none}
+  .cc-name{font-size:19px}
+}
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <span class="qf-pill">Carrier check · Pro Plus</span>
+  <h1>Check a <em>carrier</em> before you book</h1>
+  <p class="hero-sub">Operating authority, insurance, safety record and out-of-service orders from FMCSA’s records, updated daily, with the warning signs spelled out.</p>
+</section>
+
+<main class="page">
+  <div id="gate" class="gate" hidden></div>
+
+  <div id="app" hidden>
+    <form id="cc-form" class="card cc-search" autocomplete="off">
+      <div class="cc-kind" role="group" aria-label="Number type">
+        <button type="button" data-kind="mc" class="on" aria-pressed="true">MC</button>
+        <button type="button" data-kind="dot" aria-pressed="false">USDOT</button>
+      </div>
+      <input id="cc-q" class="cc-q" inputmode="text" maxlength="20" placeholder="MC number, e.g. 135797" aria-label="MC or USDOT number">
+      <button id="cc-go" class="btn primary" type="submit">Check carrier</button>
+      <div id="cc-usage" class="cc-usage"></div>
+    </form>
+    <div id="cc-status" class="cc-status" role="status" aria-live="polite"></div>
+    <article id="cc-report" class="card cc-report" hidden></article>
+
+    <section id="cc-watch" class="card cc-watch" hidden>
+      <div class="cc-watch-head">
+        <div><h2>Carriers you’re watching</h2><p>Re-checked every morning. If one’s authority, insurance or safety status changes for the worse, it shows here and we email you.</p></div>
+        <button id="cc-seen" class="mini" type="button" hidden>Mark all read</button>
+      </div>
+      <ul id="cc-alerts" class="cc-alerts"></ul>
+      <div style="overflow-x:auto">
+        <table class="cc-saved">
+          <thead><tr><th>Carrier</th><th>Status</th><th class="hide-sm">Last checked</th><th class="hide-sm">Note</th><th></th></tr></thead>
+          <tbody id="cc-saved"></tbody>
+        </table>
+      </div>
+      <div id="cc-saved-empty" class="cc-empty" hidden>Check a carrier above, then click <strong>Watch this carrier</strong>. We’ll re-check it every morning and tell you if anything changes.</div>
+    </section>
+    <div id="cc-watch-preview" class="gate gate-preview" style="margin-top:22px" hidden></div>
+  </div>
+
+  <p class="cc-source">From FMCSA’s public records (Motus registration, Company Census, Safety Measurement System and out-of-service orders on data.transportation.gov), updated daily. Inspections and crashes cover the last two years. FMCSA’s records can lag behind what happened on the road: always confirm the carrier yourself before you tender a load. QuickFreightCalc isn’t responsible for decisions made using these checks.</p>
+</main>
+
+<footer data-qf-footer></footer>
+
+<script>
+(function () {
+  'use strict';
+  const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const usd = (n) => (n == null ? '—' : '$' + Math.round(n).toLocaleString('en-US'));
+  const pct = (x) => (x == null ? '—' : (Math.round(x * 1000) / 10).toLocaleString('en-US') + '%');
+  const day = (iso) => (iso ? new Date(iso.length === 10 ? iso + 'T12:00:00Z' : iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: iso.length === 10 ? 'UTC' : undefined }) : '—');
+  const ago = (iso) => {
+    if (!iso) return '—';
+    const mins = Math.round((Date.now() - Date.parse(iso)) / 60000);
+    if (mins < 60) return mins <= 1 ? 'just now' : `${mins} min ago`;
+    if (mins < 1440) return `${Math.round(mins / 60)} h ago`;
+    return day(iso);
+  };
+  const ICON = {
+    ok: '<svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></svg>',
+    warn: '<svg viewBox="0 0 24 24"><path d="M12 8v5M12 16.5h.01"/><path d="M10.3 3.9 2.6 17.4A2 2 0 0 0 4.3 20.4h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
+    stop: '<svg viewBox="0 0 24 24"><path d="M15 9l-6 6M9 9l6 6"/><circle cx="12" cy="12" r="9"/></svg>',
+    eye: '<svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+    copy: '<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
+    out: '<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+  };
+  const VERDICT = { ok: 'No problems found', warn: 'Check before booking', stop: 'Don’t book this carrier' };
+
+  let kind = 'mc';
+  let info = null;      // { plan, canLookup, canMonitor, usage, saved, alerts, savedLimit }
+  let current = null;   // the report on screen
+
+  // ── Sign-in ──
+  function sessionEntry() {
+    try {
+      for (const k of Object.keys(localStorage).filter((x) => x.indexOf('sb-') === 0)) {
+        const v = JSON.parse(localStorage.getItem(k) || '{}');
+        if (v && v.access_token) return { key: k, value: v };
+      }
+    } catch (e) {}
+    return null;
+  }
+  async function session() {
+    const e = sessionEntry();
+    if (!e) return null;
+    const v = e.value;
+    if (!v.expires_at || v.expires_at > Math.floor(Date.now() / 1000) + 60 || !v.refresh_token) return v;
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY }, body: JSON.stringify({ refresh_token: v.refresh_token }) });
+      const d = await resp.json();
+      if (!d || !d.access_token) return v;
+      const next = Object.assign({}, v, { access_token: d.access_token, refresh_token: d.refresh_token || v.refresh_token,
+        expires_in: d.expires_in || 3600, expires_at: Math.floor(Date.now() / 1000) + (d.expires_in || 3600), user: d.user || v.user });
+      localStorage.setItem(e.key, JSON.stringify(next));
+      return next;
+    } catch (err) { return v; }
+  }
+  async function call(action, payload) {
+    const s = await session();
+    if (!s) return { status: 401, data: { error: 'auth' } };
+    const resp = await fetch('/.netlify/functions/carrier-check', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + s.access_token },
+      body: JSON.stringify(Object.assign({ action }, payload || {})) });
+    let data = {};
+    try { data = await resp.json(); } catch (e) {}
+    return { status: resp.status, data };
+  }
+
+  // ── Plans: who sees what ──
+  const SAMPLE = {
+    name: 'Example Freight Lines LLC', dot: '1234567', dockets: ['MC765432'], address: '100 Example Rd · Springfield, IL · 62701', phone: '(555) 010-2020', email: 'dispatch@example.com',
+    verdict: 'warn', flags: [
+      { level: 'warn', text: 'Authority granted 41 days ago (Oct 3, 2026). New carriers are a common fraud risk: verify them before booking.' },
+      { level: 'warn', text: 'Liability insurance with Example Mutual is being cancelled on Dec 2, 2026. Unless they file new coverage, their authority will be suspended.' },
+      { level: 'info', text: 'Also licensed as a broker. Make sure they’ll haul the load on their own trucks.' } ],
+    authority: { carrier: [{ type: 'Motor Carrier of Property (Except Household Goods)', status: 'Active' }], broker: [{ type: 'Broker of Property (Except Household Goods)', status: 'Active' }], other: [], firstGranted: '2026-10-03', recentChanges: [], activeCarrier: true },
+    insurance: { required: 750000, onFile: 750000, policies: [{ kind: 'Liability (BIPD)', layer: 'Primary', insurer: 'Example Mutual Insurance', coverage: 750000, effective: '2026-09-28' }], ending: [{ kind: 'Liability (BIPD)', insurer: 'Example Mutual Insurance', cancels: '2026-12-02' }] },
+    inspections: { vehicle: { n: 6, oos: 2, rate: 0.333, national: 0.226 }, driver: { n: 9, oos: 0, rate: 0, national: 0.061 }, total: 9 },
+    crashes: { total: 0, fatal: 0, injury: 0, tow: 0 }, oosOrders: [], suspensionOrders: [], usdotStatus: 'Active', usdotAdded: '2026-08-20', mcs150: '2026-08-20',
+    operation: 'Interstate', classes: ['Authorized For Hire'], powerUnits: 3, drivers: 3, safetyRating: null, missing: [], checkedAt: new Date().toISOString(),
+  };
+  function showGate(kindOfGate) {
+    const gate = $('gate');
+    if (kindOfGate === 'signin' && !window.QFCPlans) {
+      gate.innerHTML = '<h2>Sign in to check carriers</h2><p>Carrier checks are part of your QuickFreightCalc account (Pro Plus and up).</p><a class="btn primary" href="/signup.html?login">Sign in</a>';
+      gate.hidden = false;
+      return;
+    }
+    gate.classList.add('gate-preview');
+    const subscriber = kindOfGate === 'upgrade';
+    QFCPlans.preview(gate, {
+      plan: 'plus',
+      title: 'Carrier check',
+      text: 'Look up any carrier by MC or USDOT number: authority, insurance, safety record and out-of-service orders, with the warning signs spelled out. Pro Plus checks 100 carriers a day; Pro Max also watches your carriers and emails you when something changes.',
+      sample: `<div class="preview-sample">${reportHTML(SAMPLE, { sample: true })}</div>`,
+      action: kindOfGate === 'signin' ? { label: 'Sign in', href: '/signup.html?login' }
+        : subscriber ? { label: 'Change plan', href: '/profile.html#subscription-paid' } : { label: 'Get Pro Plus', href: '/signup.html?plan=plus' },
+      trialAction: subscriber ? undefined : { plan: 'plus', href: '/signup.html?plan=plus' },
+    });
+    gate.hidden = false;
+  }
+
+  // ── The report ──
+  function statusChip(s) {
+    const cls = s === 'Active' ? 'ok' : s === 'Pending' ? 'warn' : 'stop';
+    return `<span class="chip ${cls}">${esc(s || 'None')}</span>`;
+  }
+  function authorityName(t) { return String(t || '').replace(/\s*\(Except Household Goods\)/i, '').replace(/^Motor Carrier of /i, 'Carrier of ').replace(/^Broker of /i, 'Broker of '); }
+  function oosRow(label, x) {
+    if (!x || !x.n) return `<div class="cc-row"><span>${label}</span><b>No inspections</b></div>`;
+    const width = Math.min(100, (x.rate || 0) * 100 / 0.6 * 1);   // the bar runs to 60%
+    const mark = x.national != null ? `<i style="left:${Math.min(100, x.national * 100 / 0.6)}%" title="U.S. average ${pct(x.national)}"></i>` : '';
+    return `<div class="cc-row"><span>${label}</span><b>${pct(x.rate)} of ${x.n.toLocaleString('en-US')}</b></div>` +
+      `<div class="cc-bar" aria-hidden="true"><span style="width:${width.toFixed(1)}%"></span>${mark}</div>` +
+      (x.national != null ? `<div class="cc-small" style="margin-top:0">U.S. average ${pct(x.national)}</div>` : '');
+  }
+  function reportHTML(r, opt = {}) {
+    const flags = (r.flags || []);
+    const auths = [...(r.authority.carrier || []), ...(r.authority.broker || []), ...(r.authority.other || [])];
+    const ins = r.insurance || {};
+    const policies = (ins.policies || []).slice(0, 8);
+    const watch = opt.sample ? '' : watchButton(r);
+    // A part of FMCSA's record that didn't load shows as that, never as "none".
+    const gone = (k) => (r.missing || []).includes(k);
+    const NL = '<span class="chip warn">Didn’t load</span>';
+    const nlRow = (label) => `<div class="cc-row"><span>${label}</span>${NL}</div>`;
+    const ids = [`USDOT ${r.dot}`].concat((r.dockets || []).map((d) => d.replace(/^(MC|MX|FF)/, '$1 ')));
+    return `
+      <div class="cc-verdict ${esc(r.verdict)}">
+        <div class="ico">${ICON[r.verdict] || ''}</div>
+        <div style="min-width:0">
+          <h2>${VERDICT[r.verdict] || ''}</h2>
+          ${flags.length ? `<ul class="cc-flags">${flags.map((f) => `<li class="${esc(f.level)}">${esc(f.text)}</li>`).join('')}</ul>`
+            : '<div class="cc-small" style="margin:0">Active authority, liability insurance on file and no out-of-service orders.</div>'}
+        </div>
+      </div>
+      <div class="cc-head">
+        <div style="min-width:0">
+          <div class="cc-name">${esc(r.name || 'Unnamed carrier')}</div>
+          ${r.dba && r.dba !== r.name ? `<div class="cc-dba">Doing business as ${esc(r.dba)}</div>` : ''}
+          <div class="cc-ids">${ids.map((x) => `<span class="cc-id">${esc(x)}</span>`).join('')}</div>
+          <div class="cc-contact">${esc(r.address || '')}${r.phone ? `<br><a href="tel:${esc(String(r.phone).replace(/\D/g, ''))}">${esc(r.phone)}</a>` : ''}${r.email ? ` · <a href="mailto:${esc(r.email)}">${esc(r.email)}</a>` : ''}</div>
+        </div>
+        <div class="cc-actions">
+          ${watch}
+          ${opt.sample ? '' : `<button type="button" class="btn" id="cc-copy">${ICON.copy}Copy summary</button>`}
+          <a class="btn" href="https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&amp;query_type=queryCarrierSnapshot&amp;query_param=USDOT&amp;query_string=${encodeURIComponent(r.dot)}" target="_blank" rel="noopener">${ICON.out}FMCSA record</a>
+        </div>
+      </div>
+      <div class="cc-grid">
+        <section class="cc-sec">
+          <h3>Operating authority</h3>
+          ${gone('authority') ? nlRow('Operating authority')
+            : auths.length ? auths.map((a) => `<div class="cc-row"><span>${esc(authorityName(a.type))}</span>${statusChip(a.status)}</div>`).join('') : '<div class="cc-row"><span>For-hire authority</span><span class="chip stop">None on file</span></div>'}
+          ${gone('authHistory') ? nlRow('First granted') : `<div class="cc-row"><span>First granted</span><b>${day(r.authority.firstGranted)}</b></div>`}
+          ${(r.authority.recentChanges || []).length ? `<ul class="cc-list">${r.authority.recentChanges.slice(0, 5).map((h) => `<li><b>${day(h.date)}</b> · ${esc(h.status)}: ${esc(h.reason)}</li>`).join('')}</ul>` : ''}
+        </section>
+        <section class="cc-sec">
+          <h3>Insurance</h3>
+          ${gone('authority') ? nlRow('Liability on file') : `<div class="cc-row"><span>Liability on file</span><b>${usd(ins.onFile)}</b></div>
+          <div class="cc-row"><span>Required</span><b>${ins.required ? usd(ins.required) : '—'}</b></div>`}
+          ${gone('insurance') ? '<div class="cc-small">Insurance filings didn’t load.</div>' : policies.length ? `<ul class="cc-list">${policies.map((p) => `<li><b>${esc(p.kind)}${p.layer === 'Excess' ? ' (excess)' : ''}</b> · ${esc(p.insurer || '—')}${p.coverage ? ` · ${usd(p.coverage)}` : ''}${p.effective ? ` · since ${day(p.effective)}` : ''}</li>`).join('')}</ul>` : '<div class="cc-small">No insurance filings on file.</div>'}
+          ${gone('insHistory') ? '<div class="cc-small">Cancellation notices didn’t load.</div>'
+            : (ins.ending || []).length ? `<ul class="cc-list">${ins.ending.map((e) => `<li><span class="chip warn">Cancels ${day(e.cancels)}</span> ${esc(e.kind)}${e.insurer ? ` · ${esc(e.insurer)}` : ''}</li>`).join('')}</ul>` : ''}
+        </section>
+        <section class="cc-sec">
+          <h3>Safety (last 2 years)</h3>
+          ${gone('census') ? nlRow('Safety rating') : `<div class="cc-row"><span>Safety rating</span><b>${esc(r.safetyRating || 'Not rated')}${r.safetyRatingDate ? ` · ${day(r.safetyRatingDate)}` : ''}</b></div>`}
+          ${r.inspections ? oosRow('Trucks put out of service', r.inspections.vehicle) + oosRow('Drivers put out of service', r.inspections.driver) : nlRow('Inspections')}
+          ${r.crashes ? `<div class="cc-row"><span>Crashes</span><b>${r.crashes.total.toLocaleString('en-US')}${r.crashes.total ? ` (${r.crashes.fatal} fatal, ${r.crashes.injury} injury, ${r.crashes.tow} tow-away)` : ''}</b></div>` : nlRow('Crashes')}
+          ${gone('oos') ? nlRow('Out-of-service orders') : (r.oosOrders || []).length ? `<ul class="cc-list">${r.oosOrders.slice(0, 4).map((o) => `<li><span class="chip ${o.rescinded ? '' : 'stop'}">${o.rescinded ? `Lifted ${day(o.rescinded)}` : 'In effect'}</span> Out-of-service order ${day(o.date)}: ${esc(o.reason)}</li>`).join('')}</ul>` : '<div class="cc-row"><span>Out-of-service orders</span><b>None</b></div>'}
+        </section>
+        <section class="cc-sec">
+          <h3>Registration</h3>
+          ${gone('census') ? nlRow('USDOT registration') : `
+          <div class="cc-row"><span>USDOT status</span>${statusChip(r.usdotStatus || 'Unknown')}</div>
+          <div class="cc-row"><span>USDOT registered</span><b>${day(r.usdotAdded)}</b></div>
+          <div class="cc-row"><span>Last MCS-150 update</span><b>${day(r.mcs150)}</b></div>
+          <div class="cc-row"><span>Operation</span><b>${esc([r.operation].concat(r.classes || []).filter(Boolean).join(' · ') || '—')}</b></div>
+          <div class="cc-row"><span>Fleet</span><b>${r.powerUnits != null ? `${r.powerUnits.toLocaleString('en-US')} truck${r.powerUnits === 1 ? '' : 's'}` : '—'}${r.drivers != null ? ` · ${r.drivers.toLocaleString('en-US')} driver${r.drivers === 1 ? '' : 's'}` : ''}</b></div>`}
+        </section>
+      </div>
+      <div class="cc-foot">Checked ${ago(r.checkedAt)} from FMCSA’s records.${(r.missing || []).length && !opt.sample
+        ? ` Part of it didn’t load: checking this carrier again today is free. <button type="button" class="mini" id="cc-again">Check again</button>` : ''}</div>`;
+  }
+  function watchButton(r) {
+    if (!info) return '';
+    if (!info.canMonitor) return `<a class="btn" href="/profile.html#subscription-paid" title="Watching carriers comes with Pro Max">${ICON.eye}Watch with Pro Max</a>`;
+    const saved = (info.saved || []).find((s) => s.dot_number === String(r.dot));
+    return saved ? `<button type="button" class="btn on" id="cc-watch-btn" data-saved="${esc(saved.id)}" title="Click to stop watching">${ICON.ok}Watching</button>`
+      : `<button type="button" class="btn" id="cc-watch-btn">${ICON.eye}Watch this carrier</button>`;
+  }
+  function summaryText(r) {
+    const lines = [`${r.name || 'Carrier'} (USDOT ${r.dot}${(r.dockets || []).length ? ', ' + r.dockets.join(', ') : ''}): ${VERDICT[r.verdict]}`];
+    for (const f of r.flags || []) lines.push(`- ${f.text}`);
+    const carrier = (r.authority.carrier || []).map((a) => `${authorityName(a.type)} ${a.status}`).join(', ') || 'no carrier authority';
+    if ((r.missing || []).includes('authority')) lines.push('Authority and liability on file: didn’t load from FMCSA.');
+    else lines.push(`Authority: ${carrier}. Liability on file ${usd(r.insurance.onFile)}${r.insurance.required ? ` (required ${usd(r.insurance.required)})` : ''}.`);
+    if (r.inspections) lines.push(`Out of service, last 2 years: trucks ${pct(r.inspections.vehicle.rate)}, drivers ${pct(r.inspections.driver.rate)}.`);
+    lines.push(`Checked ${new Date(r.checkedAt).toLocaleString('en-US')} with QuickFreightCalc from FMCSA's records.`);
+    return lines.join('\n');
+  }
+  // A failed check takes the last report (and its ?dot=) away, so it isn't read as this one.
+  function clearReport() {
+    current = null;
+    $('cc-report').hidden = true;
+    $('cc-report').innerHTML = '';
+    const u = new URL(window.location.href);
+    if (u.searchParams.has('dot')) { u.searchParams.delete('dot'); history.replaceState(null, '', u.toString()); }
+  }
+  function showReport(r) {
+    current = r;
+    const el = $('cc-report');
+    el.innerHTML = reportHTML(r);
+    el.hidden = false;
+    const copy = $('cc-copy');
+    if (copy) copy.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(summaryText(r)); copy.innerHTML = ICON.ok + 'Copied'; }
+      catch (e) { copy.textContent = 'Couldn’t copy'; }
+      setTimeout(() => { copy.innerHTML = ICON.copy + 'Copy summary'; }, 1800);
+    });
+    const w = $('cc-watch-btn');
+    if (w) w.addEventListener('click', () => (w.dataset.saved ? unwatch(w.dataset.saved) : watch(r)));
+    const again = $('cc-again');
+    if (again) again.addEventListener('click', () => { kind = 'dot'; syncKind(); $('cc-q').value = r.dot; lookup(); });
+  }
+
+  // ── Watching (Pro Max) ──
+  function renderWatch() {
+    if (!info || !info.canMonitor) return;
+    $('cc-watch').hidden = false;
+    const alerts = info.alerts || [];
+    const unseen = alerts.filter((a) => !a.seen_at);
+    $('cc-seen').hidden = !unseen.length;
+    $('cc-alerts').innerHTML = alerts.slice(0, 10).map((a) => `<li class="${a.seen_at ? '' : 'new'}"><time datetime="${esc(a.created_at)}">${esc(day(a.created_at.slice(0, 10)))}</time><span>${esc(a.message)}</span></li>`).join('');
+    const saved = info.saved || [];
+    $('cc-saved-empty').hidden = saved.length > 0;
+    const v = { ok: ['ok', 'No problems'], warn: ['warn', 'Check'], stop: ['stop', 'Don’t book'] };
+    $('cc-saved').innerHTML = saved.map((s) => {
+      const st = v[s.verdict] || ['', 'Not checked yet'];
+      return `<tr data-id="${esc(s.id)}">
+        <td><div class="nm">${esc(s.name || 'USDOT ' + s.dot_number)}</div><div class="sub">USDOT ${esc(s.dot_number)}${s.docket ? ' · ' + esc(s.docket.replace(/^(MC|MX|FF)/, '$1 ')) : ''}</div></td>
+        <td><span class="chip ${st[0]}">${st[1]}</span></td>
+        <td class="hide-sm">${esc(ago(s.checked_at))}</td>
+        <td class="hide-sm"><input type="text" maxlength="300" value="${esc(s.note || '')}" placeholder="Add a note" aria-label="Note for ${esc(s.name || s.dot_number)}"></td>
+        <td style="text-align:right;white-space:nowrap"><button type="button" class="mini" data-act="check">Check</button> <button type="button" class="mini" data-act="remove">Remove</button></td>
+      </tr>`;
+    }).join('');
+  }
+  async function watch(r) {
+    setStatus('Saving…');
+    const res = await call('save', { dot: r.dot, docket: (r.dockets || [])[0], name: r.name });
+    if (res.status !== 200 || !info) { setStatus(res.data.message || 'Couldn’t save the carrier.', true); return; }
+    info.saved = [res.data.saved].concat((info.saved || []).filter((s) => s.id !== res.data.saved.id));
+    setStatus(`Watching ${r.name || 'this carrier'}: we’ll re-check it every morning.`);
+    renderWatch();
+    showReport(current);
+  }
+  async function unwatch(id) {
+    const res = await call('remove', { id });
+    if (res.status !== 200 && res.status !== 404) { setStatus(res.data.message || 'Couldn’t remove the carrier.', true); return; }
+    info.saved = (info.saved || []).filter((s) => s.id !== id);
+    setStatus('Removed from your carriers.');
+    renderWatch();
+    if (current) showReport(current);
+  }
+  $('cc-saved').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-act]');
+    if (!b) return;
+    const row = b.closest('tr');
+    const s = (info.saved || []).find((x) => x.id === row.dataset.id);
+    if (!s) return;
+    if (b.dataset.act === 'remove') unwatch(s.id);
+    else { kind = 'dot'; syncKind(); $('cc-q').value = s.dot_number; lookup(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  });
+  $('cc-saved').addEventListener('change', async (e) => {
+    const input = e.target.closest('input');
+    if (!input) return;
+    const row = input.closest('tr');
+    const res = await call('note', { id: row.dataset.id, note: input.value });
+    if (res.status === 200) {
+      const s = (info.saved || []).find((x) => x.id === row.dataset.id);
+      if (s) s.note = res.data.saved.note;
+      setStatus('Note saved.');
+    } else setStatus(res.data.message || 'Couldn’t save the note.', true);
+  });
+  $('cc-seen').addEventListener('click', async () => {
+    await call('seen');
+    (info.alerts || []).forEach((a) => { if (!a.seen_at) a.seen_at = new Date().toISOString(); });
+    renderWatch();
+  });
+
+  // ── Looking a carrier up ──
+  function setStatus(text, err) { const el = $('cc-status'); el.textContent = text || ''; el.classList.toggle('err', !!err); }
+  function showUsage(u) {
+    if (!u) { $('cc-usage').textContent = ''; return; }
+    $('cc-usage').textContent = `${u.used.toLocaleString('en-US')} of ${u.limit.toLocaleString('en-US')} carrier checks used today · checking a carrier again the same day is free`;
+  }
+  function syncKind() {
+    document.querySelectorAll('.cc-kind button').forEach((b) => { b.classList.toggle('on', b.dataset.kind === kind); b.setAttribute('aria-pressed', String(b.dataset.kind === kind)); });
+    $('cc-q').placeholder = kind === 'dot' ? 'USDOT number, e.g. 80806' : 'MC number, e.g. 135797';
+  }
+  document.querySelector('.cc-kind').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-kind]');
+    if (!b) return;
+    kind = b.dataset.kind; syncKind(); $('cc-q').focus();
+  });
+  async function lookup() {
+    const q = $('cc-q').value.trim();
+    if (!q) { setStatus('Enter an MC or USDOT number.', true); return; }
+    $('cc-go').disabled = true;
+    setStatus('Checking FMCSA’s records…');
+    try {
+      const res = await call('lookup', { query: q, kind });
+      if (res.status === 200) {
+        setStatus('');
+        if (res.data.usage) { if (info) info.usage = res.data.usage; showUsage(res.data.usage); }
+        if (res.data.saved && !((info && info.saved) || []).some((s) => s.id === res.data.saved.id)) { /* saved elsewhere (a teammate) */ await refreshList(); }
+        showReport(res.data.report);
+        const u = new URL(window.location.href); u.searchParams.set('dot', res.data.report.dot); history.replaceState(null, '', u.toString());
+      } else if (res.status === 401) {
+        showGate('signin'); $('app').hidden = true;
+      } else {
+        if (res.data.usage) { if (info) info.usage = res.data.usage; showUsage(res.data.usage); }
+        clearReport();
+        setStatus(res.data.message || 'Couldn’t check that carrier. Try again.', true);
+      }
+    } catch (e) {
+      clearReport();
+      setStatus('Couldn’t reach the server. Try again.', true);
+    } finally {
+      $('cc-go').disabled = false;
+    }
+  }
+  $('cc-form').addEventListener('submit', (e) => { e.preventDefault(); lookup(); });
+
+  async function refreshList() {
+    const res = await call('list');
+    if (res.status === 200) { info = res.data; renderWatch(); }
+    return res;
+  }
+
+  async function init() {
+    if (!sessionEntry()) { showGate('signin'); return; }
+    const res = await refreshList();
+    if (res.status === 401) { showGate('signin'); return; }
+    if (res.status !== 200) { $('app').hidden = false; setStatus(res.data.message || 'Couldn’t load your account. Try again in a minute.', true); return; }
+    if (!info.canLookup) { showGate(info.plan ? 'upgrade' : 'join'); return; }
+    $('app').hidden = false;
+    showUsage(info.usage);
+    if (!info.canMonitor && window.QFCPlans) {
+      const pv = $('cc-watch-preview');
+      const row = (n, d, s, c) => `<tr><td><div class="nm">${n}</div><div class="sub">${d}</div></td><td><span class="chip ${s}">${c}</span></td><td>Today, 6:20 AM</td><td></td></tr>`;
+      QFCPlans.preview(pv, {
+        plan: 'max',
+        title: 'Watch your carriers',
+        text: 'Save the carriers you use and we re-check them every morning. If one’s authority is suspended, its insurance is being cancelled or it gets an out-of-service order, you get an email before you tender the next load.',
+        sample: `<table class="cc-saved"><thead><tr><th>Carrier</th><th>Status</th><th>Last checked</th><th></th></tr></thead><tbody>` +
+          row('Example Freight Lines LLC', 'USDOT 1234567 · MC 765432', 'warn', 'Check') + row('Sample Transport Inc', 'USDOT 2345678 · MC 876543', 'ok', 'No problems') +
+          row('Demo Carriers LLC', 'USDOT 3456789 · MC 987654', 'stop', 'Don’t book') + row('Placeholder Trucking', 'USDOT 4567890 · MC 198765', 'ok', 'No problems') + `</tbody></table>`,
+        action: { label: 'Change plan', href: '/profile.html#subscription-paid' },
+      });
+      pv.hidden = false;
+    }
+    const start = new URLSearchParams(window.location.search).get('dot');
+    if (/^\d{1,8}$/.test(start || '')) { kind = 'dot'; syncKind(); $('cc-q').value = start; lookup(); }
+    else $('cc-q').focus({ preventScroll: true });
+  }
+  init();
+})();
+</script>
+</body>
+</html>
