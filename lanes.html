@@ -836,7 +836,7 @@ function renderCapacityGrid(){
   if(!grid) return;
 
   const trailers = [
-    {key:'van',     label:'🚛 Van'},
+    {key:'van',     label:'<img src="/favicon.svg" alt="" width="14" height="14" style="vertical-align:-2px;border:0"> Van'},
     {key:'reefer',  label:'🧊 Reefer'},
     {key:'flatbed', label:'🏗 Flatbed'},
   ];
@@ -981,8 +981,8 @@ function onCapacityInput(trailer, value){
     const labelEl = cell.querySelector('.lt-cell-label');
     const pillEl  = cell.querySelector('.lt-pill');
     const multEl  = cell.querySelector('.lt-cell-mult');
-    const trailerLabel = {van:'🚛 Van',reefer:'🧊 Reefer',flatbed:'🏗 Flatbed'}[trailer] || trailer;
-    if(labelEl) labelEl.textContent = trailerLabel + (adjustments.capacity.overrides[trailer] !== null ? ' · custom' : '');
+    const trailerLabel = {van:'<img src="/favicon.svg" alt="" width="14" height="14" style="vertical-align:-2px;border:0"> Van',reefer:'🧊 Reefer',flatbed:'🏗 Flatbed'}[trailer] || trailer;
+    if(labelEl) labelEl.innerHTML = trailerLabel + (adjustments.capacity.overrides[trailer] !== null ? ' · custom' : '');
     if(pillEl){
       pillEl.className = 'lt-pill ' + tightness.tone;
       pillEl.textContent = tightness.label;

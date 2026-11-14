@@ -287,7 +287,7 @@ Manage your subscription anytime from your Profile: ${siteUrl}/profile.html
       <p>Here's what you just unlocked:</p>` : ''}
       <ul>
         <li><strong>♾️ ${lookupsText}</strong></li>
-        <li><strong>🚛 Multi-Stop Load Builder</strong> — quote multi-stop loads with per-leg mileage and PDF exports</li>
+        <li><strong><img src="${siteUrl}/email-logo.png" width="14" height="16" alt="" style="vertical-align:-2px;border:0"> Multi-Stop Load Builder</strong> — quote multi-stop loads with per-leg mileage and PDF exports</li>
         <li><strong>🥔 Bulk Load Calculator</strong> — per-cwt rate calculator with EIA fuel surcharge logic for bulk hauling</li>
         <li><strong>📈 Lane Rate Tracker</strong> — track how your regular lanes compare to regional market rates over time</li>
         <li><strong>🕐 Detention Tracker</strong> — see crowdsourced reports on shipper and receiver detention pay</li>

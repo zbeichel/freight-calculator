@@ -67,7 +67,7 @@ async function calculatorPDF(t, opts = {}) {
   await t.page.evaluate((o) => {
     const set = (id, v) => { document.getElementById(id).value = v; };
     set('origin', 'Hastings, FL'); set('dest', 'Lancaster, PA'); set('miles', 1042); set('weight', 42000);
-    set('trailer', 'reefer'); set('commodity', 'food'); set('margin', 15);
+    set('trailer', o.trailer || 'reefer'); set('commodity', 'food'); set('margin', 15);
     set('pickup', '2026-11-16'); set('delivery', '2026-11-18');
     set('load-notes', 'Keep at 34°F. <b>Appointment</b> required at delivery.');
     applyRegionalRates();
@@ -135,6 +135,10 @@ async function calculatorPDF(t, opts = {}) {
   text = (await tab.textContent('body')).replace(/\s+/g, ' ');
   check('Classic: the original "Rate Confirmation" template', text.includes('Rate Confirmation') && text.includes('Total Quote to Customer') && !text.includes('Freight Quote'));
   await tab.screenshot({ path: path.join(SHOTS, 'classic_screen.png'), fullPage: true });
+  // The QuickFreightCalc logo (site.js QFCNav.logoImg) where the old truck emoji was
+  const qfcLogos = (tb) => tb.evaluate(() => [...document.images].filter((i) => i.src.startsWith('data:image/svg+xml')).map((i) => i.complete && i.naturalWidth > 0));
+  let lg = await qfcLogos(tab);
+  check('Classic: the new logo at the top (no logo uploaded), drawn; no truck emoji', lg.length === 1 && lg[0] && !(await tab.content()).includes('\u{1F69B}'), JSON.stringify(lg));
 
   console.log('\n=== Quote log PDF ===');
   const logPDF = async (pg, ctx) => {
@@ -147,7 +151,7 @@ async function calculatorPDF(t, opts = {}) {
     return (await tb.textContent('body')).replace(/\s+/g, ' ');
   };
   text = await logPDF(t.page, t.context);
-  check('quote log, Classic chosen → Classic', text.includes('Rate Confirmation'));
+  check('quote log, Classic chosen → Classic (no truck emoji)', text.includes('Rate Confirmation') && !text.includes('\u{1F69B}'));
   await t.context.close();
   t = await setup(browser, base, {});
   await t.page.goto(base + '/index.html');
@@ -250,6 +254,8 @@ async function calculatorPDF(t, opts = {}) {
   t = await setup(browser, base, { pdfStyle: 'classic' }, { signedIn: true });
   tab = await multiStopPDF(t);
   check('Classic multi-stop: the original template', (await tab.textContent('body')).includes('Multi-Stop Rate Confirmation'));
+  lg = await qfcLogos(tab);
+  check('Classic multi-stop: the new logo at the top, drawn; no truck emoji', lg.length === 1 && lg[0] && !(await tab.content()).includes('\u{1F69B}'), JSON.stringify(lg));
   const cms = await tab.evaluate(() => {
     const cells = {};
     document.querySelectorAll('.charges-grid .detail-cell').forEach((c) => {
@@ -301,6 +307,29 @@ async function calculatorPDF(t, opts = {}) {
   tab = await bulkPDF(t);
   text = (await tab.textContent('body')).replace(/\s+/g, ' ');
   check('Classic bulk: the original template', text.includes('Total Load Revenue') && text.includes('Calculation Settings'));
+  await t.context.close();
+
+  console.log('\n=== Classic, no company name: the logo in the footer ===');
+  t = await setup(browser, base, { pdfStyle: 'classic', companyName: '' });
+  await t.page.goto(base + '/index.html');
+  await t.page.waitForFunction(() => typeof regionalRates !== 'undefined' && regionalRates !== null && window.QFCQuotePDF);
+  tab = await calculatorPDF(t, { trailer: 'van' });
+  lg = await qfcLogos(tab);
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  check('calculator: logo at the top, on the Dry Van badge and before "QuickFreightCalc · quickfreightcalc.com"', lg.length === 3 && lg.every(Boolean)
+    && (await tab.$eval('.trailer-badge', (e) => !!e.querySelector('img') && e.textContent.trim() === 'Dry Van'))
+    && text.includes('QuickFreightCalc · quickfreightcalc.com'), JSON.stringify(lg));
+  await tab.screenshot({ path: path.join(SHOTS, 'classic_no_company.png'), fullPage: true });
+  await t.context.close();
+  t = await setup(browser, base, { pdfStyle: 'classic', companyName: '' }, { signedIn: true });
+  tab = await multiStopPDF(t);
+  lg = await qfcLogos(tab);
+  check('multi-stop: logo at the top and before "QuickFreightCalc" in the footer', lg.length === 2 && lg.every(Boolean), JSON.stringify(lg));
+  await t.context.close();
+  t = await setup(browser, base, { pdfStyle: 'classic', companyName: '' }, { signedIn: true });
+  tab = await bulkPDF(t);
+  lg = await qfcLogos(tab);
+  check('bulk: logo before "QuickFreightCalc" in the footer', lg.length === 1 && lg[0], JSON.stringify(lg));
   await t.context.close();
 
   // ── Custom colors ───────────────────────────────────────────────────────
@@ -398,16 +427,19 @@ async function calculatorPDF(t, opts = {}) {
   await t.context.close();
 
   t = await freshCalc({ ...wl, plan: 'max', pdfStyle: 'classic' });
-  tab = await calculatorPDF(t, {});
+  tab = await calculatorPDF(t, { trailer: 'van' });
   text = (await tab.textContent('body')).replace(/\s+/g, ' ');
   check('Pro Max, Classic: no "Powered by QuickFreightCalc", your terms in the footer', !text.includes('QuickFreightCalc')
     && text.includes('Net 30') && !text.includes('valid for 24 hours'));
+  check('…and no QuickFreightCalc logo anywhere, not even on the dry van badge', (await qfcLogos(tab)).length === 0
+    && (await tab.$eval('.trailer-badge', (e) => !e.querySelector('img') && e.textContent.trim() === 'Dry Van')));
   await t.context.close();
 
   t = await setup(browser, base, { ...wl, plan: 'max', pdfStyle: 'classic' }, { signedIn: true });
   tab = await multiStopPDF(t);
   text = (await tab.textContent('body')).replace(/\s+/g, ' ');
   check('Pro Max, Classic multi-stop: white-label footer and terms', !text.includes('QuickFreightCalc') && text.includes('Net 30'));
+  check('…and no QuickFreightCalc logo at the top', (await qfcLogos(tab)).length === 0);
   await t.context.close();
   t = await setup(browser, base, { ...wl, plan: 'api', pdfStyle: 'classic' }, { signedIn: true });
   tab = await bulkPDF(t);

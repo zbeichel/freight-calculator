@@ -1107,6 +1107,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+// The QuickFreightCalc logo for the Classic PDFs (site.js: QFCNav.logoImg).
+function qfcLogoImg(px){ return (window.QFCNav && QFCNav.logoImg) ? QFCNav.logoImg(px) : ''; }
+
 function generateBulkPDF(){
   // ── Pull live data from the calculator state ─────────────────────────────
   const orig         = document.getElementById('origin').value.trim();
@@ -1250,7 +1253,7 @@ function generateBulkPDF(){
     ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName || '')}</div>`
     : profile.companyName
     ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName)} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
-    : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">🚛 <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
+    : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">${qfcLogoImg(14)} <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
   const footerRight = profile.footerText
     ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>${termsLine}</div>`
     : `<div style="font-size:10px;color:#aab8c8;text-align:right">${termsLine}</div>`;
