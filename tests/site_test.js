@@ -493,6 +493,23 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
     if (html.includes('font-size=\'90\'>🚛') || !html.includes('<link rel="icon" href="/favicon.svg" type="image/svg+xml">')) pagesWithEmoji.push(f);
   }
   check('every page uses the new tab icon', pagesWithEmoji.length === 0, pagesWithEmoji.join(', '));
+  // The old truck emoji was the logo before the drawn mark: it's gone from every page, script
+  // and email (the pop-ups, PDFs, previews and icons use the logo instead).
+  const truckLeft = [];
+  const scan = (dir) => {
+    for (const n of fs.readdirSync(dir)) {
+      if (n === 'tests' || n === 'node_modules' || n.startsWith('.')) continue;
+      const f = path.join(dir, n);
+      if (fs.statSync(f).isDirectory()) scan(f);
+      else if (/\.(html|js|css|json)$/.test(n) && /\u{1F69B}|\u{1F69A}|\u{1F954}/u.test(fs.readFileSync(f, 'utf8'))) truckLeft.push(path.relative(ROOT, f));
+    }
+  };
+  scan(ROOT);
+  check('no truck or potato emoji left anywhere on the site or in its emails (the logo is used instead)', truckLeft.length === 0, truckLeft.join(', '));
+  const welcome = require(path.join(ROOT, 'netlify/functions/stripe-webhook.js'))._internal.buildWelcomeEmail('https://quickfreightcalc.com', 'plus', {});
+  const welcomeHtml = typeof welcome === 'string' ? welcome : welcome.html;
+  check('the welcome email: the logo beside the name at the top, no emojis in the list', welcomeHtml.includes('<img src="https://quickfreightcalc.com/email-logo.png"')
+    && !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}]/u.test(welcomeHtml));
   await t.page.goto(base + '/profile.html');
   await t.page.waitForSelector('#qf-nav .qf-acct-btn');
   await t.page.click('#qf-nav .qf-theme');

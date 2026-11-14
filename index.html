@@ -2631,7 +2631,7 @@ html.light .hos-day-header{background:var(--card2)}
 
     <!-- Free user gate -->
     <div id="quote-log-gate" style="display:none;padding:32px 24px;text-align:center" data-preview="pending">
-      <div style="font-size:28px;margin-bottom:12px">📋</div>
+      <img src="/favicon.svg" alt="" width="36" height="36" style="display:block;margin:0 auto 12px">
       <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Quote Log is a Pro Feature</div>
       <div style="font-size:13px;color:var(--text3);margin-bottom:18px;line-height:1.6">Save quotes with notes, synced across all your devices.</div>
       <button onclick="showProModal('Upgrade to Pro to save and sync your quote history across all devices.')"
@@ -2759,7 +2759,7 @@ function toggleSeoBlock(){
     box-shadow:0 24px 60px rgba(0,0,0,.5);
   ">
     <div style="padding:24px 24px 8px">
-      <div style="font-size:22px;margin-bottom:12px;text-align:center">📋</div>
+      <img src="/favicon.svg" alt="" width="30" height="30" style="display:block;margin:0 auto 12px">
       <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px;text-align:center">Already Saved</div>
       <div id="dupe-modal-msg" style="font-size:13px;color:var(--text2);line-height:1.6;text-align:center;margin-bottom:4px"></div>
     </div>
@@ -3877,6 +3877,9 @@ function showToastMsg(msg){
 // ── End Saved Rate Profiles ───────────────────────────────────────────────
 // With { returnDoc: true } it returns the page instead of opening it — { html, number, validUntil } —
 // for emailing the quote (it uses up a quote number the same way).
+// The QuickFreightCalc logo for the Classic PDFs (site.js: QFCNav.logoImg).
+function qfcLogoImg(px){ return (window.QFCNav && QFCNav.logoImg) ? QFCNav.logoImg(px) : ''; }
+
 function generateQuotePDF(opts){
   const quote    = document.getElementById('r-quote').textContent;
   const miles    = document.getElementById('r-miles').textContent;
@@ -3922,7 +3925,8 @@ function generateQuotePDF(opts){
   // Trailer / commodity / weight
   const trailerLabels = { van:'Dry Van', reefer:'Refrigerated (Reefer)', flatbed:'Flatbed' };
   const trailerDisplay = trailerLabels[trailer] || trailer;
-  const trailerBadge = { van:'🚛 Dry Van', reefer:'🧊 Reefer', flatbed:'🏗 Flatbed' }[trailer] || trailer;
+  const vanIcon = (window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile)) ? '' : qfcLogoImg(13) + ' ';   // no QuickFreightCalc on white-label PDFs
+  const trailerBadge = { van: vanIcon + 'Dry Van', reefer:'🧊 Reefer', flatbed:'🏗 Flatbed' }[trailer] || trailer;
   const commLabels = { standard:'Standard Freight', food:'Food / Perishable', hazmat:'Hazmat', highval:'High Value', oversized:'Oversized' };
   const commDisplay = commLabels[commodity] || commodity;
   const weightDisplay = weight ? parseInt(weight).toLocaleString() + ' lbs' : '—';
@@ -3975,7 +3979,7 @@ function generateQuotePDF(opts){
   // Header branding — logo or emoji (unless hidden)
   const logoHTML = (!profile.hideLogo && profile.logoBase64)
     ? `<img src="${profile.logoBase64}" style="max-height:44px;max-width:140px;object-fit:contain" />`
-    : `<span style="font-size:32px;line-height:1">🚛</span>`;
+    : ((window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile)) ? '' : qfcLogoImg(36));   // white-label: no QuickFreightCalc logo
 
   // Company name — use profile or fallback to QFC
   const companyHTML = profile.companyName
@@ -4012,7 +4016,7 @@ function generateQuotePDF(opts){
     ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName || '')}</div>`
     : profile.companyName
     ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName)} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
-    : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">🚛 <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
+    : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">${qfcLogoImg(14)} <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
   const footerRight = profile.footerText
     ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>${termsLine}</div>`
     : `<div style="font-size:10px;color:#aab8c8;text-align:right">${termsLine}</div>`;
@@ -4263,7 +4267,8 @@ function generateQuotePDFFromLog(id, opts){
 
   const trailerLabels = { van:'Dry Van', reefer:'Refrigerated (Reefer)', flatbed:'Flatbed' };
   const trailerDisplay = trailerLabels[q.trailer] || q.trailer || '—';
-  const trailerBadge   = { van:'🚛 Dry Van', reefer:'🧊 Reefer', flatbed:'🏗 Flatbed' }[q.trailer] || q.trailer || '—';
+  const vanIcon = (window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile)) ? '' : qfcLogoImg(13) + ' ';   // no QuickFreightCalc on white-label PDFs
+  const trailerBadge   = { van: vanIcon + 'Dry Van', reefer:'🧊 Reefer', flatbed:'🏗 Flatbed' }[q.trailer] || q.trailer || '—';
 
   const now = new Date();
   const prefix   = (profile.quotePrefix || 'QFC').toUpperCase();
@@ -4279,7 +4284,7 @@ function generateQuotePDFFromLog(id, opts){
 
   const logoHTML = (!profile.hideLogo && profile.logoBase64)
     ? `<img src="${profile.logoBase64}" style="max-height:44px;max-width:140px;object-fit:contain" />`
-    : `<span style="font-size:32px;line-height:1">🚛</span>`;
+    : ((window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile)) ? '' : qfcLogoImg(36));   // white-label: no QuickFreightCalc logo
 
   const companyHTML = profile.companyName
     ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${escapeHTML(profile.companyName)}</div>
@@ -4311,7 +4316,7 @@ function generateQuotePDFFromLog(id, opts){
     ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName || '')}</div>`
     : profile.companyName
     ? `<div style="font-size:11px;color:#8fa3b8">${escapeHTML(profile.companyName)} &nbsp;·&nbsp; <span style="color:#4a6070">Powered by QuickFreightCalc</span></div>`
-    : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">🚛 <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
+    : `<div style="font-size:11px;color:#8fa3b8;display:flex;align-items:center;gap:6px">${qfcLogoImg(14)} <strong style="color:#4a6070">QuickFreightCalc</strong> &nbsp;·&nbsp; quickfreightcalc.com</div>`;
   const footerRight = profile.footerText
     ? `<div style="font-size:10px;color:#aab8c8;text-align:right">${escapeHTML(profile.footerText)}<br>${termsLine}</div>`
     : `<div style="font-size:10px;color:#aab8c8;text-align:right">${termsLine}</div>`;
@@ -8718,7 +8723,7 @@ function calcHOS(totalDriveSecs, googleDriveText, origin, dest){
 
   // Render day-by-day plan
   const container = document.getElementById('hos-days');
-  const eventIcons = {drive:'🚛', break:'☕', rest:'🛏'};
+  const eventIcons = {drive:'<img src="/favicon.svg" alt="" width="14" height="14" style="vertical-align:-2px;border:0">', break:'☕', rest:'🛏'};
   const barColors  = {drive:'var(--blue)', break:'var(--accent)', rest:'var(--green)'};
 
   container.innerHTML = days.map(({dayNum, events}) => {
@@ -8887,7 +8892,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
     onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">✕</button>
 
     <div style="background:linear-gradient(135deg,#1a1f2e 0%,#0f1318 100%);padding:28px 28px 24px;text-align:center;border-bottom:1px solid var(--border);-webkit-print-color-adjust:exact;print-color-adjust:exact">
-      <div style="font-size:32px;margin-bottom:8px">🚛</div>
+      <img src="/favicon.svg" alt="" width="44" height="44" style="display:block;margin:0 auto 8px">
       <div style="font-size:20px;font-weight:700;color:#f0f4f8;margin-bottom:6px">QuickFreightCalc <span style="color:#f0a500">Pro</span></div>
       <div style="font-size:13px;color:#8fa3b8;line-height:1.5" id="pro-modal-desc">This is a Pro feature. Upgrade to unlock the full toolkit.</div>
     </div>
@@ -8969,7 +8974,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
     onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">✕</button>
 
     <div style="background:linear-gradient(135deg,#1a1f2e 0%,#0f1318 100%);padding:28px 28px 24px;text-align:center;border-bottom:1px solid var(--border);-webkit-print-color-adjust:exact;print-color-adjust:exact">
-      <div style="font-size:32px;margin-bottom:8px">📈</div>
+      <img src="/favicon.svg" alt="" width="44" height="44" style="display:block;margin:0 auto 8px">
       <div style="font-size:20px;font-weight:700;color:#f0f4f8;margin-bottom:6px">More quotes with <span style="color:#f0a500">automatic miles</span></div>
       <div style="font-size:13px;color:#8fa3b8;line-height:1.5" id="upg-modal-desc">Pick the plan that fits how much you quote.</div>
     </div>

@@ -450,7 +450,7 @@ html:not(.light) .stop-date-input::-webkit-calendar-picker-indicator{filter:inve
 <div id="ms-dupe-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;max-width:400px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.5)">
     <div style="padding:24px 24px 8px;text-align:center">
-      <div style="font-size:22px;margin-bottom:12px">📋</div>
+      <img src="/favicon.svg" alt="" width="30" height="30" style="display:block;margin:0 auto 12px">
       <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px">Already Saved</div>
       <div id="ms-dupe-msg" style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:4px"></div>
     </div>
@@ -1644,6 +1644,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+// The QuickFreightCalc logo for the Classic PDFs (site.js: QFCNav.logoImg).
+function qfcLogoImg(px){ return (window.QFCNav && QFCNav.logoImg) ? QFCNav.logoImg(px) : ''; }
+
 function generateMultiStopPDF(){
   const total = document.getElementById('ms-quote').textContent;
   if(total === '—'){ alert('Complete the route before downloading.'); return; }
@@ -1729,7 +1732,7 @@ function generateMultiStopPDF(){
 
   const logoHTML = (!profile.hideLogo && profile.logoBase64)
     ? `<img src="${profile.logoBase64}" style="max-height:40px;max-width:130px;object-fit:contain">`
-    : `<span style="font-size:28px">🚛</span>`;
+    : ((window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile)) ? '' : qfcLogoImg(32));   // white-label: no QuickFreightCalc logo
   const companyHTML = profile.companyName
     ? `<div style="font-size:16px;font-weight:700;color:${scheme.headerText}">${escapeHTML(profile.companyName)}</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};text-transform:uppercase;letter-spacing:.06em;margin-top:2px">${escapeHTML(profile.footerText) || 'Licensed Freight Broker'}</div>`
@@ -1954,7 +1957,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
 
     </div>
     <div class="doc-footer">
-      <div style="font-size:11px;color:#b0c4d8">${msWhiteLabel ? escapeHTML(profile.companyName || '') : `${profile.companyName?escapeHTML(profile.companyName):'🚛 QuickFreightCalc'} · ${profile.companyName?'Powered by QuickFreightCalc':'quickfreightcalc.com'}`}</div>
+      <div style="font-size:11px;color:#b0c4d8">${msWhiteLabel ? escapeHTML(profile.companyName || '') : `${profile.companyName?escapeHTML(profile.companyName):qfcLogoImg(13) + ' QuickFreightCalc'} · ${profile.companyName?'Powered by QuickFreightCalc':'quickfreightcalc.com'}`}</div>
       <div style="font-size:10px;color:#aab8c8">${msTerms}</div>
     </div>
   </div>

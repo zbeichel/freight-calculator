@@ -375,6 +375,7 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
 .scheme-card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .scheme-preview-header{height:44px;display:flex;align-items:center;padding:0 12px;gap:8px}
 .scheme-preview-emoji{font-size:14px}
+.scheme-preview-logo{width:16px;height:16px;flex-shrink:0}
 .scheme-preview-text{font-size:10px;font-weight:700}
 .scheme-preview-bar{height:4px;width:100%}
 .scheme-preview-body{background:#ffffff;padding:8px 12px}
@@ -430,6 +431,7 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
 }
 .pdf-mini-brand{display:flex;align-items:center;gap:8px}
 .pdf-mini-brand-emoji{font-size:18px}
+.pdf-mini-brand-logo{width:22px;height:22px;display:block}
 .pdf-mini-brand-name{font-size:11px;font-weight:700;color:#b0c4d8}
 .pdf-mini-brand-name span{transition:color .3s}
 .pdf-mini-brand-sub{font-size:9px;margin-top:1px;transition:color .3s}
@@ -564,7 +566,7 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
       <div class="section-header">
         <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-8.5 8.5"/></svg></span>
         <span class="section-title">Company Logo</span>
-        <span class="section-sub">Replaces the 🚛 emoji on your PDF</span>
+        <span class="section-sub">Replaces the QuickFreightCalc logo on your PDF</span>
       </div>
       <div class="section-body">
         <div class="logo-upload-wrap">
@@ -733,7 +735,7 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
             <div class="pdf-mini-header" id="preview-header">
               <div class="pdf-mini-brand">
                 <div id="preview-logo-area">
-                  <span class="pdf-mini-brand-emoji" id="preview-emoji">🚛</span>
+                  <img class="pdf-mini-brand-logo" id="preview-emoji" src="/favicon.svg" alt="">
                 </div>
                 <div>
                   <div class="pdf-mini-brand-name" id="preview-brand-name">Quick<span id="preview-accent-text" style="color:#f0a500">Freight</span>Calc</div>
@@ -1114,7 +1116,7 @@ function renderSchemes(){
   const cardHTML = s => `
     <div class="scheme-card ${s.id===currentScheme?'active':''}" onclick="selectScheme('${s.id}')" id="scheme-${s.id}">
       <div class="scheme-preview-header" style="background:${s.header}">
-        <span class="scheme-preview-emoji">🚛</span>
+        <img class="scheme-preview-logo" src="/favicon.svg" alt="">
         <span class="scheme-preview-text" style="color:${s.headerTextSoft}">QuickFreightCalc</span>
       </div>
       <div class="scheme-preview-bar" style="background:${s.bar}"></div>
@@ -1137,7 +1139,7 @@ function renderSchemes(){
   const customCard = `
     <div class="scheme-card ${currentScheme==='custom'?'active':''}" onclick="selectScheme('custom')" id="scheme-custom">
       <div class="scheme-preview-header" style="background:${ink}">
-        <span class="scheme-preview-emoji">🎨</span>
+        <img class="scheme-preview-logo" src="/favicon.svg" alt="">
         <span class="scheme-preview-text" style="color:rgba(255,255,255,.7)">Your colors</span>
       </div>
       <div class="scheme-preview-bar" style="background:${accent}"></div>
@@ -1224,7 +1226,7 @@ function updatePreviewLogo(){
   if(logoBase64){
     logoArea.innerHTML = `<img src="${logoBase64}" style="height:28px;max-width:80px;object-fit:contain" />`;
   } else {
-    logoArea.innerHTML = `<span class="pdf-mini-brand-emoji" id="preview-emoji">🚛</span>`;
+    logoArea.innerHTML = `<img class="pdf-mini-brand-logo" id="preview-emoji" src="/favicon.svg" alt="">`;
   }
 }
 
