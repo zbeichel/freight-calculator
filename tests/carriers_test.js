@@ -429,8 +429,12 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   res = await callFn('t-max', { action: 'save', dot: '80806' });
   ok(res.status === 200 && res.body.saved.id === savedId && db.saved.length === 1, 'saving it again: the same row');
   res = await callFn('t-member', { action: 'list' });
-  ok(res.status === 200 && res.body.canMonitor && res.body.saved.length === 1 && res.body.saved[0].id === savedId && res.body.usage.limit === 500,
+  ok(res.status === 200 && res.body.canMonitor && res.body.saved.length === 1 && res.body.saved[0].id === savedId && res.body.usage.limit === 250,
      'a team member sees the owner’s saved carriers and limits');
+  user('t-api', 'u-api', 'api');
+  const limits = {};
+  for (const tok of ['t-plus', 't-max', 't-api', 't-comp']) limits[tok] = (await callFn(tok, { action: 'list' })).body.usage.limit;
+  ok(JSON.stringify(limits) === '{"t-plus":100,"t-max":250,"t-api":500,"t-comp":500}', 'checks a day: Pro Plus 100, Pro Max 250, API 500, comp 500', JSON.stringify(limits));
   res = await callFn('t-max', { action: 'lookup', query: 'MC135797' });
   ok(res.status === 200 && res.body.saved && res.body.saved.id === savedId && res.body.canMonitor, 'a saved carrier’s report says it’s saved');
   res = await callFn('t-max', { action: 'note', id: savedId, note: 'Good on reefer to the Northeast' });

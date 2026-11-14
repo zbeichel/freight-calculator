@@ -25,7 +25,7 @@ const { effectiveAccount } = require('../lib/account');
 const F = require('../lib/fmcsa');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://xgrmbhmgcsbnazupfybd.supabase.co';
-const LOOKUP_LIMIT = { plus: 100, max: 500, api: 500, comp: 500 };
+const LOOKUP_LIMIT = { plus: 100, max: 250, api: 500, comp: 500 };   // carrier checks a day
 const MONITOR_PLANS = ['max', 'api', 'comp'];
 const SAVED_LIMIT = 500;
 const CACHE_HOURS = 6;

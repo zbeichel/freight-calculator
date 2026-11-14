@@ -88,7 +88,7 @@ const report = (dot, missing = []) => {
 // ── The carrier-check function, faked with the server's own number reading ─
 function fakeFunction(acct) {
   const st = Object.assign({ plan: 'plus', used: 3, saved: [], alerts: [], calls: [], checkedToday: new Set(), nextId: 1 }, acct);
-  st.limit = { plus: 100, max: 500, api: 500, comp: 500 }[st.plan] || 0;
+  st.limit = { plus: 100, max: 250, api: 500, comp: 500 }[st.plan] || 0;
   const canLookup = () => st.limit > 0;
   const canMonitor = () => ['max', 'api', 'comp'].includes(st.plan);
   const usage = () => (canLookup() ? { used: st.used, limit: st.limit } : null);
@@ -386,7 +386,7 @@ async function lookup(v, q, kind) {
       { id: 'al-2', dot_number: '9900003', name: 'Rapid Lane Freight Inc', kind: 'insurance_cancelling', message: 'Rapid Lane Freight Inc: liability insurance with Lakeshore Casualty is being cancelled on Nov 1, 2026.', created_at: iso(330), seen_at: iso(300) }] } });
   v = await open(t, base, '/carriers.html');
   await v.p.waitForSelector('#cc-watch:not([hidden])');
-  check('the watch list instead of the preview; 500 checks a day', (await v.p.isHidden('#cc-watch-preview')) && /^12 of 500 /.test(await text(v.p, '#cc-usage')));
+  check('the watch list instead of the preview; 250 checks a day on Pro Max', (await v.p.isHidden('#cc-watch-preview')) && /^12 of 250 /.test(await text(v.p, '#cc-usage')), await text(v.p, '#cc-usage'));
   const savedRows = await v.p.$$eval('#cc-saved tr', (trs) => trs.map((tr) => ({ name: tr.querySelector('.nm').textContent, sub: tr.querySelector('.sub').textContent, chip: tr.querySelector('.chip').textContent,
     cls: tr.querySelector('.chip').className, note: tr.querySelector('input').value })));
   check('saved carriers with their status from this morning’s check', savedRows.length === 2 && savedRows[0].name === 'Rapid Lane Freight Inc' && savedRows[0].chip === 'Don’t book' && /stop/.test(savedRows[0].cls)
