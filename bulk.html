@@ -1220,7 +1220,7 @@ function generateBulkPDF(){
   // ── Header branding pieces ──────────────────────────────────────────────
   const logoHTML = (!profile.hideLogo && profile.logoBase64)
     ? `<img src="${profile.logoBase64}" style="max-height:44px;max-width:140px;object-fit:contain" />`
-    : `<span style="font-size:32px;line-height:1">🥔</span>`;
+    : ((window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile)) ? '' : qfcLogoImg(36));   // white-label: no QuickFreightCalc logo
   const companyHTML = profile.companyName
     ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${escapeHTML(profile.companyName)}</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${escapeHTML(profile.footerText) || 'Bulk Hauling Specialist'}</div>`
@@ -1365,7 +1365,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
           <div class="quote-amount">${fmt$(total)}</div>
           <div class="quote-sub">${cwt.toLocaleString()} cwt @ $${offeredRate.toFixed(2)}/cwt + FSC</div>
         </div>
-        <div class="bulk-badge">🥔 Bulk · ${cwt.toLocaleString()} cwt</div>
+        <div class="bulk-badge">${(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile)) ? '' : qfcLogoImg(13) + ' '}Bulk · ${cwt.toLocaleString()} cwt</div>
       </div>
 
       <div class="route-section">

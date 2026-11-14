@@ -277,7 +277,10 @@ Manage your subscription anytime from your Profile: ${siteUrl}/profile.html
 <body>
   <div class="wrap">
     <div class="header">
-      <p class="brand">Quick<span>Freight</span>Calc</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
+        <td style="padding-right:10px;vertical-align:middle"><img src="${siteUrl}/email-logo.png" width="28" height="32" alt="" style="display:block;width:28px;height:32px;border:0"></td>
+        <td style="vertical-align:middle"><p class="brand">Quick<span>Freight</span>Calc</p></td>
+      </tr></table>
     </div>
     <div class="accent-bar"></div>
     <div class="body">
@@ -286,11 +289,11 @@ Manage your subscription anytime from your Profile: ${siteUrl}/profile.html
       <p style="background:#fff7e6;border:1px solid #f0c060;border-radius:8px;padding:12px 14px;color:#1a2540;">${trial}</p>
       <p>Here's what you just unlocked:</p>` : ''}
       <ul>
-        <li><strong>♾️ ${lookupsText}</strong></li>
-        <li><strong><img src="${siteUrl}/email-logo.png" width="14" height="16" alt="" style="vertical-align:-2px;border:0"> Multi-Stop Load Builder</strong> — quote multi-stop loads with per-leg mileage and PDF exports</li>
-        <li><strong>🥔 Bulk Load Calculator</strong> — per-cwt rate calculator with EIA fuel surcharge logic for bulk hauling</li>
-        <li><strong>📈 Lane Rate Tracker</strong> — track how your regular lanes compare to regional market rates over time</li>
-        <li><strong>🕐 Detention Tracker</strong> — see crowdsourced reports on shipper and receiver detention pay</li>
+        <li><strong>${lookupsText}</strong></li>
+        <li><strong>Multi-Stop Load Builder</strong> — quote multi-stop loads with per-leg mileage and PDF exports</li>
+        <li><strong>Bulk Load Calculator</strong> — per-cwt rate calculator with EIA fuel surcharge logic for bulk hauling</li>
+        <li><strong>Lane Rate Tracker</strong> — track how your regular lanes compare to regional market rates over time</li>
+        <li><strong>Detention Tracker</strong> — see crowdsourced reports on shipper and receiver detention pay</li>
         <li><strong>PDF quote exports</strong> with your branding (set this up on your profile page)</li>
         <li><strong>Quote logging</strong> for your records</li>
       </ul>
@@ -497,3 +500,4 @@ exports.handler = async function(event){
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
+exports._internal = { buildWelcomeEmail };

@@ -307,6 +307,9 @@ async function calculatorPDF(t, opts = {}) {
   tab = await bulkPDF(t);
   text = (await tab.textContent('body')).replace(/\s+/g, ' ');
   check('Classic bulk: the original template', text.includes('Total Load Revenue') && text.includes('Calculation Settings'));
+  lg = await qfcLogos(tab);
+  check('Classic bulk: the new logo at the top and on the Bulk badge, drawn; no potato', lg.length === 2 && lg.every(Boolean)
+    && (await tab.$eval('.bulk-badge', (e) => !!e.querySelector('img') && /^Bulk · /.test(e.textContent.trim()))) && !(await tab.content()).includes('\u{1F954}'), JSON.stringify(lg));
   await t.context.close();
 
   console.log('\n=== Classic, no company name: the logo in the footer ===');
@@ -329,7 +332,7 @@ async function calculatorPDF(t, opts = {}) {
   t = await setup(browser, base, { pdfStyle: 'classic', companyName: '' }, { signedIn: true });
   tab = await bulkPDF(t);
   lg = await qfcLogos(tab);
-  check('bulk: logo before "QuickFreightCalc" in the footer', lg.length === 1 && lg[0], JSON.stringify(lg));
+  check('bulk: logo at the top, on the Bulk badge and before "QuickFreightCalc" in the footer', lg.length === 3 && lg.every(Boolean), JSON.stringify(lg));
   await t.context.close();
 
   // ── Custom colors ───────────────────────────────────────────────────────
@@ -445,6 +448,8 @@ async function calculatorPDF(t, opts = {}) {
   tab = await bulkPDF(t);
   text = (await tab.textContent('body')).replace(/\s+/g, ' ');
   check('API plan, Classic bulk: white-label footer and terms', !text.includes('QuickFreightCalc') && text.includes('Net 30'));
+  check('…and no QuickFreightCalc logo, not even on the Bulk badge', (await qfcLogos(tab)).length === 0
+    && (await tab.$eval('.bulk-badge', (e) => !e.querySelector('img') && /^Bulk · /.test(e.textContent.trim()))));
   await t.context.close();
   t = await setup(browser, base, { ...wl, plan: 'max' }, { signedIn: true });
   tab = await multiStopPDF(t);
