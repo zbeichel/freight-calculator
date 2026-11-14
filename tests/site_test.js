@@ -148,6 +148,33 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
 
+  // On a phone the calculator's two-across rows stack: every field the same distance from the next
+  console.log('\n=== The calculator on a phone: evenly spaced fields ===');
+  t = await setup(browser, base, { phone: true });
+  await t.page.goto(base + '/index.html');
+  await t.page.waitForSelector('#origin');
+  const fieldGaps = () => t.page.evaluate(() => {
+    const shown = [...document.querySelectorAll('.field')].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+    const out = [];
+    for (let i = 0; i < shown.length - 1; i++) {
+      const a = shown[i].getBoundingClientRect(), b = shown[i + 1].getBoundingClientRect();
+      const gap = Math.round(b.top - a.bottom);
+      if (b.top >= a.bottom - 1 && gap <= 40) out.push(gap);   // stacked fields (a bigger gap is a new section)
+    }
+    return out;
+  });
+  for (const [mode, min] of [['ftl', 8], ['ltl', 5], ['prof', 12]]) {
+    await t.page.evaluate((m) => setShipType(m), mode);
+    await t.page.waitForTimeout(250);
+    const gaps = await fieldGaps();
+    check(`${mode.toUpperCase()}: every field 16px from the next`, gaps.length >= min && gaps.every((g) => g === 16), JSON.stringify(gaps));
+  }
+  await t.page.evaluate(() => setShipType('ftl'));
+  const marginLabel = await t.page.evaluate(() => { const f = document.getElementById('margin-field'); return Math.round(f.querySelector('label').getBoundingClientRect().top - f.getBoundingClientRect().top) + ',' + getComputedStyle(f).display; });
+  check('Your Margin % is laid out like the other fields', marginLabel === '0,flex', marginLabel);
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
   // A phone can't hover: a tap shows a state's numbers, and they stay up until a tap elsewhere
   console.log('\n=== Market Rates on a phone: tapping the map and the chart ===');
   t = await setup(browser, base, { phone: true });

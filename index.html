@@ -1231,6 +1231,9 @@ html.light .hos-day-header{background:var(--card2)}
 .prof-section-label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text2);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
 .ltl-only{display:none}.ltl-only.show{display:block}
 .ftl-only{display:block}.ftl-only.hide{display:none}
+/* A field that's FTL-only (margin, customer, load notes) keeps the field layout: label
+   above, 7px to its input, like every other field. */
+.field.ftl-only:not(.hide){display:flex}
 .acc-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
 .acc-item{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:border-color .15s,background .15s;user-select:none}
 .acc-item.on{border-color:var(--accent);background:var(--accentbg)}
@@ -1469,6 +1472,17 @@ html.light .hos-day-header{background:var(--card2)}
 
   /* Single column grids */
   .grid2,.grid3,.adv-grid3,.dim-grid4,.dim-grid{grid-template-columns:1fr}
+  /* Stacked, every field is 16px from the next, as rows are on wider screens: no column
+     gap on top of a field's own 16px, and the last field in a row keeps its 16px (side by
+     side, the first field's margin sets the space below the row). */
+  .grid2,.grid3{row-gap:0}
+  .grid2>.field:last-child,.grid3>.field:last-child{margin-bottom:16px}
+  #margin-field{margin-top:0!important}
+  #p-route-grid{margin-bottom:0!important}
+  /* LTL: the dimension boxes and freight class, the same 16px apart */
+  .dim-grid4,.dim-grid{row-gap:0;margin-bottom:0}
+  .dim-grid4>.field:last-child,.dim-grid>.field:last-child{margin-bottom:16px}
+  #ltl-class-field{margin-bottom:16px!important}
   .pill-grid{grid-template-columns:1fr 1fr}
   .hos-stats{grid-template-columns:1fr 1fr}
 
@@ -1658,7 +1672,7 @@ html.light .hos-day-header{background:var(--card2)}
 
           <div class="prof-section-label" style="margin-top:4px">Route &amp; mileage</div>
           <!-- Origin / Destination first -->
-          <div class="grid2" style="margin-bottom:8px">
+          <div class="grid2" id="p-route-grid" style="margin-bottom:8px">
             <div class="field" id="p-origin-field">
               <label>Origin</label>
               <input type="text" id="p-origin" placeholder="e.g. Hastings, FL or 32145" autocomplete="off"
@@ -1964,7 +1978,7 @@ html.light .hos-day-header{background:var(--card2)}
           </div>
 
           <!-- Freight class dropdown -->
-          <div class="field" style="margin-bottom:12px">
+          <div class="field" id="ltl-class-field" style="margin-bottom:12px">
             <label>NMFC Freight Class <span class="class-auto-badge" id="class-auto-badge" style="display:none">auto</span></label>
             <select id="ltl-class" onchange="classManualOverride();syncCWTDefault();calc()">
               <option value="50">Class 50 — Bricks, cement, steel rods · very dense, easy to stow</option>
