@@ -212,6 +212,30 @@
       '</table><div class="sec-note">Charged only if they apply. Not part of the all-in rate.</div></section>\n';
   }
 
+  // The account keeps its quote counter at least as far along as this browser's (Supabase
+  // bump_quote_counter only moves it forward), so Profile and other devices continue from the
+  // latest number instead of reusing one. Fire-and-forget: a PDF never waits on it.
+  var SB_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
+  var SB_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
+  function syncCounter(next) {
+    try {
+      var token = null;
+      Object.keys(localStorage).forEach(function (k) {
+        if (token || k.indexOf('sb-') !== 0) return;
+        try {
+          var v = JSON.parse(localStorage.getItem(k) || 'null');
+          if (v && v.access_token) token = v.access_token;
+        } catch (e) {}   // another sb- entry that isn't a session
+      });
+      if (!token || !(next > 0)) return;
+      fetch(SB_URL + '/rest/v1/rpc/bump_quote_counter', {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ p_next: Math.floor(next) }),
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
   // Quote number and dates, numbered the same way as the Classic PDFs
   // (PREFIX-YYYYMMDD-counter, or PREFIX-TAG-YYYYMMDD-counter), advancing the
   // counter in the saved profile when `persist` is set.
@@ -225,6 +249,7 @@
         profile.quoteStart = num + 1;
         localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
       } catch (e) {}
+      syncCounter(num + 1);
     }
     var valid = new Date(now.getTime() + validHours(profile) * 60 * 60 * 1000);
     return {
@@ -316,11 +341,12 @@
       'footer{display:flex;justify-content:space-between;gap:16px;font-size:10px;color:#9ca3af;border-top:1px solid #f0f2f5;padding-top:12px;margin-top:auto}\n' +
       '.sign + footer{margin-top:0}\n' +
       '@media print{\n' +
-      '  @page{size:letter portrait;margin:0}\n' +
+      '  @page{size:letter portrait;margin:0.5in 0.6in 0.45in}\n' +
       '  body{background:#fff;padding:0}\n' +
       '  .controls{display:none!important}\n' +
-      '  .doc{box-shadow:none;border-radius:0;max-width:none;min-height:100vh;padding:0.55in 0.6in 0.45in}\n' +
-      '  .lane,.facts,.rate,.sign,.s-row,.transit,.acc{break-inside:avoid;page-break-inside:avoid}\n' +
+      '  .doc{box-shadow:none;border-radius:0;max-width:none;min-height:100vh;padding:0}\n' +
+      '  .lane,.facts,.rate,.sign,.s-row,.transit,.acc,.notes{break-inside:avoid;page-break-inside:avoid}\n' +
+      '  .k{break-after:avoid;page-break-after:avoid}\n' +
       '}\n';
   }
 
@@ -427,7 +453,7 @@
 
   function notesBlock(notes) {
     return notes
-      ? '<section class="section"><div class="k">Notes</div><div class="notes-text">' + esc(notes).replace(/\n/g, '<br>') + '</div></section>\n'
+      ? '<section class="section notes"><div class="k">Notes</div><div class="notes-text">' + esc(notes).replace(/\n/g, '<br>') + '</div></section>\n'
       : '';
   }
 
@@ -561,9 +587,8 @@
       rateBlock('Total load revenue', cents(d.total), lines,
         ['Per loaded mile', cents(d.rpmLoaded), d.deadhead > 0 ? cents(d.rpmAll) + ' per mile, all miles' : ''],
         d.cwt.toLocaleString('en-US') + ' cwt @ $' + d.ratePerCwt.toFixed(2) + '/cwt + fuel') +
-      '<section class="section"><div class="k">Target comparison</div>' +
-      '<div class="status ' + (d.meetsTarget ? 'good' : 'short') + '"><strong>' + (d.meetsTarget ? '▲ ' : '▼ ') + esc(d.statusText) + '</strong>' +
-      esc(d.statusDetail) + ' Target: ' + esc(d.targetText) + '.</div></section>\n' +
+      // No target comparison here: the PDF goes to the customer, and your minimum rate and
+      // margin over it are yours (they stay on the Bulk page).
       factsBlock([['Diesel reference', '$' + d.diesel.toFixed(2) + '/gal (EIA national)']]) +
       closing(profile, meta, '', false);
     return page('Bulk Load Quote ' + meta.number, s, body);
@@ -595,7 +620,7 @@
     schemes: SCHEMES, style: style, colorsFor: colorsFor, classicScheme: classicScheme, isHex: function (v) { return HEX.test(v || ''); },
     whiteLabelAllowed: whiteLabelAllowed, whiteLabel: whiteLabel, validHours: validHours, customTerms: customTerms, termsText: termsText,
     sectionOn: sectionOn, transitPlan: transitPlan, accessorialRows: accessorialRows,
-    nextQuoteNumber: nextQuoteNumber, preparedFor: preparedFor, classicPreparedFor: classicPreparedFor, modernHTML: modernHTML, multiStopHTML: multiStopHTML, bulkHTML: bulkHTML,
+    nextQuoteNumber: nextQuoteNumber, syncCounter: syncCounter, preparedFor: preparedFor, classicPreparedFor: classicPreparedFor, modernHTML: modernHTML, multiStopHTML: multiStopHTML, bulkHTML: bulkHTML,
     openHTML: openHTML, openModern: openModern, openMultiStop: openMultiStop, openBulk: openBulk,
   };
 })();

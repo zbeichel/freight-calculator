@@ -300,10 +300,19 @@ exports.handler = async function (event) {
       return fail(503, 'miles_unavailable', 'Automatic miles are unavailable right now. Send "miles" with the request, or try again shortly.');
     }
     for (const [k, r] of [['origin', from], ['destination', to]]) {
-      if (r.status !== 'ok' || !Number.isFinite(r.place.lat) || !Number.isFinite(r.place.lon)) {
+      // The calculator's rule: a match needs a city and state, and Google's "partial match" (its
+      // best guess at text it couldn't place, e.g. made-up names) is only taken for a ZIP code.
+      const typedZip = /^\s*\d{5}(-\d{4})?\s*$/.test(String(input[k] || ''));
+      const unclear = r.status === 'ok' && (!r.place.city || !r.place.state || (r.place.partialMatch && !typedZip));
+      if (r.status !== 'ok' || unclear || !Number.isFinite(r.place.lat) || !Number.isFinite(r.place.lon)) {
         return fail(422, 'location_not_found', `Couldn't find the ${k === 'origin' ? 'pickup' : 'delivery'} location "${input[k]}". ` +
           'Try a city and state ("Lancaster, PA"), a ZIP code or a street address.', { field: k, usage });
       }
+    }
+    // The same place at both ends (within about 200 m): no route to look up. (Google leaves a zero
+    // distance out of its answer, which would otherwise read as a failed lookup.)
+    if (Math.abs(from.place.lat - to.place.lat) < 0.002 && Math.abs(from.place.lon - to.place.lon) < 0.002) {
+      return fail(422, 'same_location', 'The pickup and delivery are the same place.', { usage });
     }
     const route = await computeRoute({ lat: from.place.lat, lng: from.place.lon }, { lat: to.place.lat, lng: to.place.lon }, mapsKey, 'api-quote');
     if (route.status === 'error') {

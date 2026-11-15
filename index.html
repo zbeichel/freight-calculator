@@ -2150,7 +2150,7 @@ html.light .hos-day-header{background:var(--card2)}
               <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-bottom:6px">
                 <div class="mini-input-group">
                   <div class="mini-label" style="color:var(--red)">Diesel Price ($/gal)</div>
-                  <input class="mini-input" type="number" id="diesel-price" value="3.85" step="0.01" min="1" style="color:var(--red);border-color:rgba(239,68,68,.3)" oninput="saveDiesel();calc()" />
+                  <input class="mini-input" type="number" id="diesel-price" value="3.85" step="0.01" min="1" style="color:var(--red);border-color:rgba(239,68,68,.3)" oninput="dieselSource='manual';saveDiesel();calc()" />
                 </div>
                 <button onclick="fetchEIADiesel()" id="eia-fetch-btn"
                   style="height:38px;padding:0 12px;background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--red);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s"
@@ -2614,8 +2614,8 @@ html.light .hos-day-header{background:var(--card2)}
           <span id="p-bar-profit-lbl">Profit: —</span>
         </div>
       </div>
-      <div style="padding:14px 20px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);line-height:1.6;text-align:center">
-        Defaults: $0.58 fuel · $0.55 driver · $0.30 fixed · Adjust to your actual costs
+      <div id="p-defaults-note" style="padding:14px 20px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);line-height:1.6;text-align:center">
+        Blank costs use the defaults: $0.58 fuel · $0.55 driver · $0.30 fixed per mile. Adjust to your actual costs.
       </div>
       </div>
     </div>
@@ -3118,7 +3118,7 @@ async function _verifyProAuthBackground(){
         try { prev = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
         localStorage.setItem('qfc_pro_profile', JSON.stringify({
           companyName: p.company_name, contactName: p.contact_name,
-          email: p.email, phone: p.phone, mcNumber: p.mc_number,
+          email: p.contact_email || p.email, phone: p.phone, mcNumber: p.mc_number,
           dotNumber: p.dot_number, footerText: p.footer_text,
           quotePrefix: p.quote_prefix,
           quoteStart: Math.max(Number(p.quote_counter) || 0, Number(prev.quoteStart) || 0) || undefined,
@@ -3550,6 +3550,7 @@ const ACC = {
 
 function setShipType(t){
   shipType=t;
+  if(t==='ltl'||t==='prof') ensureNationalDiesel();
   if(window.QFCLane) QFCLane.refresh();
   document.getElementById('btn-ftl').classList.toggle('active',t==='ftl');
   document.getElementById('btn-ltl').classList.toggle('active',t==='ltl');
@@ -3975,6 +3976,7 @@ function generateQuotePDF(opts){
     profile.quoteStart = startNum + 1;
     localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
   } catch(e){}
+  if(window.QFCQuotePDF && QFCQuotePDF.syncCounter) QFCQuotePDF.syncCounter(startNum + 1);   // the account's counter keeps up
 
   // Header branding — logo or emoji (unless hidden)
   const logoHTML = (!profile.hideLogo && profile.logoBase64)
@@ -3985,6 +3987,7 @@ function generateQuotePDF(opts){
   const companyHTML = profile.companyName
     ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${escapeHTML(profile.companyName)}</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${escapeHTML(profile.footerText) || 'Licensed Freight Broker'}</div>`
+    : (window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile)) ? ''   // white-label, no company name: no QuickFreightCalc
     : `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Freight Rate Calculator</div>`;
 
@@ -4105,7 +4108,9 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
   .notes-box{min-height:50px}
   .signature-line{height:24px}
   .signature-name-line{height:20px}
-  @page{size:letter portrait;margin:0}
+  @page{size:letter portrait;margin:0.45in 0}
+  @page :first{margin-top:0}
+  .signature-section,.signature-grid,.doc-footer{break-inside:avoid;page-break-inside:avoid}
 }
 </style>
 </head>
@@ -4281,6 +4286,7 @@ function generateQuotePDFFromLog(id, opts){
     profile.quoteStart = startNum + 1;
     localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
   } catch(e){}
+  if(window.QFCQuotePDF && QFCQuotePDF.syncCounter) QFCQuotePDF.syncCounter(startNum + 1);   // the account's counter keeps up
 
   const logoHTML = (!profile.hideLogo && profile.logoBase64)
     ? `<img src="${profile.logoBase64}" style="max-height:44px;max-width:140px;object-fit:contain" />`
@@ -4289,6 +4295,7 @@ function generateQuotePDFFromLog(id, opts){
   const companyHTML = profile.companyName
     ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${escapeHTML(profile.companyName)}</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${escapeHTML(profile.footerText) || 'Licensed Freight Broker'}</div>`
+    : (window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile)) ? ''   // white-label, no company name: no QuickFreightCalc
     : `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Freight Rate Calculator</div>`;
 
@@ -4382,7 +4389,9 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
   html,body{background:white;padding:0;margin:0}
   .screen-controls{display:none!important}
   .doc{box-shadow:none;border-radius:0;min-height:100vh}
-  @page{size:letter portrait;margin:0}
+  @page{size:letter portrait;margin:0.45in 0}
+  @page :first{margin-top:0}
+  .signature-section,.signature-grid,.doc-footer{break-inside:avoid;page-break-inside:avoid}
 }
 </style>
 </head>
@@ -5000,7 +5009,7 @@ function calcFuelCPM(){
 
   // Priority: 1) live price fetched on prof tab, 2) FTL live price, 3) FTL manual input, 4) fallback
   let dieselPrice = profDieselPrice ||
-                    ltlDieselPrice ||
+                    ltlDieselLive ||
                     parseFloat(document.getElementById('diesel-price')?.value) ||
                     3.85;
 
@@ -5166,6 +5175,27 @@ async function tryProfLookup(){
   }
 }
 
+// Profitability's default costs per mile, used when a box is left blank. Fuel follows the live
+// diesel price at 6.5 MPG once it's known, otherwise $0.58.
+const PROF_DRIVER_DEFAULT = 0.55, PROF_FIXED_DEFAULT = 0.30;
+function profFuelDefault(){
+  const diesel = profDieselPrice || ltlDieselLive || 0;
+  return diesel ? Math.round(diesel / 6.5 * 100) / 100 : 0.58;
+}
+function profCostOr(id, def){
+  const v = parseFloat(document.getElementById(id).value);
+  return Number.isFinite(v) ? v : def;
+}
+function showProfDefaults(fuelDefault){
+  const note = document.getElementById('p-defaults-note');
+  if(note) note.textContent = 'Blank costs use the defaults: $' + fuelDefault.toFixed(2) + ' fuel · $' + PROF_DRIVER_DEFAULT.toFixed(2) +
+    ' driver · $' + PROF_FIXED_DEFAULT.toFixed(2) + ' fixed per mile. Adjust to your actual costs.';
+  [['p-fuel', fuelDefault], ['p-driver', PROF_DRIVER_DEFAULT], ['p-fixed', PROF_FIXED_DEFAULT]].forEach(([id, v]) => {
+    const el = document.getElementById(id);
+    if(el) el.placeholder = v.toFixed(2) + ' (default)';
+  });
+}
+
 function calcProfit(){
   const rate        = parseFloat(document.getElementById('p-rate').value)||0;
   const miles       = parseFloat(document.getElementById('p-miles').value)||0;
@@ -5174,9 +5204,13 @@ function calcProfit(){
   const waitPickup  = parseFloat(document.getElementById('p-wait-pickup').value)||0;
   const waitDelivery= parseFloat(document.getElementById('p-wait-delivery').value)||0;
   const hours       = driveHours + waitPickup + waitDelivery;
-  const fuel        = parseFloat(document.getElementById('p-fuel').value)||0;
-  const driver      = parseFloat(document.getElementById('p-driver').value)||0;
-  const fixed       = parseFloat(document.getElementById('p-fixed').value)||0;
+  // A blank cost box uses the default shown under the result (not $0, which would make
+  // any load look profitable and dead-head miles free).
+  const fuelDefault = profFuelDefault();
+  showProfDefaults(fuelDefault);
+  const fuel        = profCostOr('p-fuel', fuelDefault);
+  const driver      = profCostOr('p-driver', PROF_DRIVER_DEFAULT);
+  const fixed       = profCostOr('p-fixed', PROF_FIXED_DEFAULT);
   const other       = parseFloat(document.getElementById('p-other').value)||0;
 
   if(!rate || !miles){ return; }
@@ -6550,8 +6584,25 @@ function updateDieselFSCDisplay(){
   if(on && fsc > 0) el.style.color = 'var(--accent)';
 }
 
+// The diesel price behind fuel surcharges comes from this week's EIA price, not an old saved
+// number: turning the surcharge on (or opening the page with it on) refreshes the FTL price
+// unless you typed your own, and LTL and Profitability load the national price once.
+let dieselSource = 'default';   // 'live' (EIA), 'manual' (typed) or 'default'
+let ftlDieselRefreshed = false, nationalDieselLoaded = false;
+function ensureFtlDiesel(){
+  if(ftlDieselRefreshed || dieselSource === 'manual') return;
+  ftlDieselRefreshed = true;
+  fetchEIADiesel();
+}
+function ensureNationalDiesel(){
+  if(nationalDieselLoaded) return;
+  nationalDieselLoaded = true;
+  fetchLTLDiesel();
+}
+
 function toggleDiesel(){
   const on=document.getElementById('diesel-enabled').checked;
+  if(on) ensureFtlDiesel();
   document.getElementById('diesel-controls').style.display=on?'block':'none';
   document.getElementById('diesel-warn').classList.toggle('show',on);
   document.getElementById('diesel-tog-lbl').textContent=on?'On':'Off';
@@ -6561,6 +6612,7 @@ function toggleDiesel(){
 function saveDiesel(){
   try{localStorage.setItem('frc_diesel',JSON.stringify({
     price:document.getElementById('diesel-price').value,
+    source:dieselSource,
     region:document.getElementById('diesel-region').value,
     enabled:document.getElementById('diesel-enabled').checked
   }));}catch(e){}
@@ -6608,6 +6660,7 @@ async function fetchEIADiesel(){
     const dateStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 
     document.getElementById('diesel-price').value = price.toFixed(2);
+    dieselSource = 'live';
     status.textContent = `✓ $${price.toFixed(2)}/gal · ${regionName} · Week of ${dateStr}`;
     status.style.color = 'var(--green)';
     // Cache NUS fetches so LTL and profitability tabs can reuse without a cold start
@@ -6627,6 +6680,7 @@ async function fetchEIADiesel(){
 // ── LTL FSC live diesel fetch ─────────────────────────────────────────────
 // Uses the same Netlify proxy as FTL but updates the FSC label directly
 let ltlDieselPrice = 3.85; // default, updated when user fetches live price
+let ltlDieselLive = 0;     // this week's national price once it has loaded (0 until then)
 
 async function fetchLTLDiesel(){
   const btn = document.getElementById('ltl-eia-btn');
@@ -6655,6 +6709,7 @@ async function fetchLTLDiesel(){
     }
 
     ltlDieselPrice = price;
+    ltlDieselLive = price;
     const clean = (period||'').replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
     const d = new Date(clean + 'T12:00:00');
     const dateStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
@@ -6662,6 +6717,7 @@ async function fetchLTLDiesel(){
     status.style.color = 'var(--green)';
     updateFSCLabel();
     calc();
+    if(shipType === 'prof') calcProfit();   // a blank fuel box follows the live price
 
   } catch(e) {
     status.textContent = '⚠ Could not fetch — enter diesel price manually';
@@ -8252,6 +8308,7 @@ function loadAll(){
   try{
     const d=JSON.parse(localStorage.getItem('frc_diesel')||'{}');
     if(d.price) document.getElementById('diesel-price').value=d.price;
+    dieselSource = d.source === 'manual' ? 'manual' : 'default';
     if(d.region) document.getElementById('diesel-region').value=d.region;
     if(d.enabled){document.getElementById('diesel-enabled').checked=true;toggleDiesel();}
 

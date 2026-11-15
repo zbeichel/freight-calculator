@@ -89,6 +89,22 @@ function stripeRequest(path, method, data){
   });
 }
 
+// The status of the account's earlier subscription while it's still open in Stripe
+// ('past_due', 'unpaid', …), or null once it has ended. A lookup that fails never blocks a
+// checkout. Team seats store 'team' here, not a Stripe id.
+const OPEN_STATUSES = ['active', 'trialing', 'past_due', 'unpaid', 'incomplete', 'paused'];
+async function openSubscription(id){
+  if(!/^sub_/.test(String(id || ''))) return null;
+  try {
+    const resp = await stripeRequest('/v1/subscriptions/' + encodeURIComponent(id), 'GET', {});
+    const status = resp.status === 200 && resp.body ? resp.body.status : null;
+    return OPEN_STATUSES.includes(status) ? status : null;
+  } catch(e){
+    console.error('create-checkout: subscription lookup failed:', e.message);
+    return null;
+  }
+}
+
 exports.handler = async function(event){
   if(event.httpMethod !== 'POST'){
     return { statusCode: 405, body: 'Method not allowed' };
@@ -117,6 +133,23 @@ exports.handler = async function(event){
         error: 'already_subscribed',
         plan: normalizePlan(proRow.plan),
         message: 'You already have Pro — switch plans from your Profile page.'
+      })
+    };
+  }
+
+  // Not active here, but the earlier subscription is still open in Stripe (a payment that didn't
+  // go through, for example): that one is fixed in the billing portal. A new checkout would bill twice.
+  const openStatus = proRow ? await openSubscription(proRow.stripe_subscription_id) : null;
+  if(openStatus){
+    const live = openStatus === 'active' || openStatus === 'trialing';
+    return {
+      statusCode: 409,
+      body: JSON.stringify({
+        error: live ? 'already_subscribed' : 'payment_issue',
+        status: openStatus,
+        message: live
+          ? 'You already have a subscription. Manage it from your Profile page.'
+          : 'Your subscription is still open, but its last payment didn’t go through. Update your card under Manage billing on your Profile page to keep it.'
       })
     };
   }

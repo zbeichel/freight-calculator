@@ -411,7 +411,10 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
   let offers = { yearly: [], trial: null, prices: null };
   let interval = new URLSearchParams(window.location.search).get('interval') === 'year' ? 'year' : 'month';
   const yearlyFor = (id) => interval === 'year' && offers.yearly.includes(id);
-  const trialFor = (id) => !!(offers.trial && offers.trial.plans.includes(id) && !document.body.classList.contains('su-signed-in'));
+  let signedInTrial = false;   // signed in with no plan, and still eligible for a free trial (verify-pro)
+  const noPlan = () => document.body.classList.contains('su-no-plan');
+  const trialFor = (id) => !!(offers.trial && offers.trial.plans.includes(id)
+    && (!document.body.classList.contains('su-signed-in') || (noPlan() && signedInTrial)));
   window.getSelectedInterval = () => (yearlyFor(current()) ? 'year' : 'month');
   const priceOf = (id) => {
     const pr = offers.prices && offers.prices[id];
@@ -437,7 +440,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       badge.hidden = !trial;
       if (trial) badge.textContent = `${offers.trial.days}-day free trial`;
       const start = el.querySelector('.su-start');
-      if (!document.body.classList.contains('su-signed-in')) start.textContent = trial ? 'Start free trial' : 'Start now';
+      if (!document.body.classList.contains('su-signed-in') || noPlan()) start.textContent = trial ? 'Start free trial' : 'Start now';
       el.querySelector('input[name="su-plan"]').setAttribute('aria-label', `${p.name}, ${amount} a ${per}${trial ? `, ${offers.trial.days}-day free trial` : ''}`);
     });
     document.querySelectorAll('#su-interval .su-int').forEach((b) => {
@@ -454,8 +457,10 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     document.getElementById('su-selected-name').innerHTML = `${p.name} <span>${esc(amount)}/${per}${trial ? ` · ${offers.trial.days}-day free trial` : ''}</span>`;
     const note = document.getElementById('su-side-note');
     if (note) note.textContent = trial
-      ? `Set up your login, then add your card securely with Stripe. Your ${offers.trial.days}-day free trial starts right away, and you're charged ${amount}/${per} when it ends unless you cancel before then.`
-      : 'Set up your login, then finish payment securely with Stripe. Your plan starts as soon as payment goes through.';
+      ? `${noPlan() ? 'Add' : 'Set up your login, then add'} your card securely with Stripe. Your ${offers.trial.days}-day free trial starts right away, and you're charged ${amount}/${per} when it ends unless you cancel before then.`
+      : `${noPlan() ? 'Finish' : 'Set up your login, then finish'} payment securely with Stripe. Your plan starts as soon as payment goes through.`;
+    const go = document.getElementById('su-checkout');
+    if (go && !go.disabled) go.textContent = trial ? `Start my ${offers.trial.days}-day free trial →` : `Continue to checkout for ${p.name} →`;
     const btn = document.getElementById('su-btn');
     if (btn && /^(Sign up for |Start my )/i.test(btn.textContent.trim())) btn.textContent = window.signupButtonLabel();
   }
@@ -478,6 +483,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     if (input) input.checked = true;
     sync();
     if (!go) return;
+    if (noPlan()) { startSignedInCheckout(); return; }
     if (document.body.classList.contains('su-signed-in')) { window.location.href = '/profile.html#subscription-paid'; return; }
     if (typeof switchTab === 'function' && document.getElementById('tab-signup') && !document.getElementById('tab-signup').classList.contains('active')) switchTab('signup');
     document.getElementById('su-account').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -493,7 +499,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       more.textContent = col.classList.contains('open') ? 'Hide features' : "See what's included";
       return;
     }
-    if (document.body.classList.contains('su-signed-in')) {
+    if (document.body.classList.contains('su-signed-in') && !noPlan()) {
       if (e.target.closest('.su-start')) window.location.href = '/profile.html#subscription-paid';
       return;
     }
@@ -507,9 +513,86 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
   const q = window.location.search + window.location.hash;
   if (/login|reason=|checkout=|google=return|access_token|type=recovery|team_invite=/.test(q)) document.body.classList.add('su-auth-only');
 
-  // Already signed in: the plans stay, plan changes happen on Profile.
+  // Already signed in. With a plan: the plans stay and changes happen on Profile. With no plan
+  // (sign-up started but never paid for, or a subscription that ended): pick one and go straight
+  // to checkout. This browser's memory decides first; verify-pro confirms.
+  let signedSession = null, chipText = null;
   window.showSignedIn = function (session) {
+    signedSession = session;
     document.body.classList.add('su-signed-in');
+    if (!chipText) chipText = [...host.querySelectorAll('.su-chip')].map((c) => c.textContent);
+    let prof = {}, st = {};
+    try { prof = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch (e) {}
+    try { st = JSON.parse(localStorage.getItem('qfc_pro_status') || '{}') || {}; } catch (e) {}
+    const mine = st.isActive && ORDER.includes(prof.plan) ? prof.plan : null;
+    if (mine) showSubscriber(session, mine); else showNoPlan(session);
+    confirmPlan(session);
+  };
+  async function confirmPlan(session) {
+    try {
+      const resp = await fetch('/.netlify/functions/verify-pro', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: session.user && session.user.id, accessToken: session.access_token }),
+      });
+      if (!resp.ok) return;
+      const d = await resp.json();
+      if (d.active === true) { if (noPlan()) showSubscriber(session, ORDER.includes(d.plan) ? d.plan : null); return; }
+      signedInTrial = d.trialEligible === true;
+      if (!noPlan()) showNoPlan(session); else { paint(); sync(); }
+    } catch (e) {}
+  }
+  const reasonLine = () => /reason=pro-required/.test(window.location.search) ? 'That page comes with a paid plan. '
+    : /checkout=cancelled/.test(window.location.search) ? 'Checkout was cancelled, and nothing was charged. ' : '';
+  function showNoPlan(session) {
+    document.body.classList.add('su-no-plan');
+    document.body.classList.remove('su-auth-only');   // the plans are what's needed here
+    const email = (session && session.user && session.user.email) || '';
+    const side = document.querySelector('.su-side');
+    side.querySelector('h2').textContent = 'Finish signing up';
+    side.querySelector('.su-selected').style.display = '';
+    document.getElementById('su-card').innerHTML = '<div class="su-signed"><b>Pick a plan to finish signing up</b>' +
+      `<p>${esc(reasonLine())}${email ? `You're signed in as ${esc(email)}. ` : ''}Your account is set up; it just doesn't have a plan yet.</p>` +
+      '<button type="button" id="su-checkout" class="qf-btn qf-btn-primary qf-btn-lg">Continue to checkout →</button>' +
+      '<p id="su-checkout-msg" role="status" style="margin:12px 0 0;font-size:13px"></p></div>';
+    document.getElementById('su-checkout').addEventListener('click', startSignedInCheckout);
+    if (chipText) host.querySelectorAll('.su-chip').forEach((c, i) => { c.textContent = chipText[i]; });
+    paint(); sync();
+  }
+  async function startSignedInCheckout() {
+    const s = signedSession;
+    const btn = document.getElementById('su-checkout');
+    const msg = document.getElementById('su-checkout-msg');
+    if (!s || (btn && btn.disabled)) return;
+    if (btn) btn.disabled = true;
+    if (msg) msg.textContent = 'Opening secure checkout…';
+    try {
+      const resp = await fetch('/.netlify/functions/create-checkout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: s.user && s.user.id, email: s.user && s.user.email, accessToken: s.access_token,
+          plan: current(), interval: window.getSelectedInterval() }),
+      });
+      const d = await resp.json().catch(() => ({}));
+      if (d.url) {
+        try { localStorage.setItem('qfc_pending_checkout', JSON.stringify({ userId: s.user.id, email: s.user.email, ts: Date.now() })); } catch (e) {}
+        window.location.href = d.url;
+        return;
+      }
+      if (resp.status === 409 && d.error === 'payment_issue') {
+        if (msg) msg.innerHTML = esc(d.message) + ' <a href="/profile.html#subscription-none">Go to Profile</a>';
+        if (btn) btn.disabled = false;
+        return;
+      }
+      if (resp.status === 409) { window.location.href = '/profile.html#subscription-paid'; return; }
+      if (msg) msg.innerHTML = resp.status === 401
+        ? 'Your sign-in has expired. <a href="/signup.html?login">Sign in again</a> to continue.'
+        : esc(d.message || 'Checkout couldn’t open. Try again in a moment.');
+    } catch (e) {
+      if (msg) msg.textContent = 'Checkout couldn’t open. Try again in a moment.';
+    }
+    if (btn) btn.disabled = false;
+  }
+  function showSubscriber(session, mine) {
+    document.body.classList.remove('su-no-plan');
     const email = (session && session.user && session.user.email) || '';
     const side = document.querySelector('.su-side');
     side.querySelector('h2').textContent = "You're signed in";
@@ -518,17 +601,14 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     document.getElementById('su-card').innerHTML = '<div class="su-signed"><b>Manage your plan</b><p>Your plan, billing and cancellation live on your Profile page.</p>' +
       '<a class="qf-btn qf-btn-primary qf-btn-lg" href="/profile.html#subscription-paid">Go to your Profile</a></div>';
     // Mark the plan this account is on.
-    let prof = {}, st = {};
-    try { prof = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch (e) {}
-    try { st = JSON.parse(localStorage.getItem('qfc_pro_status') || '{}') || {}; } catch (e) {}
-    const mine = st.isActive && ORDER.includes(prof.plan) ? prof.plan : null;
     host.querySelectorAll('.su-chip').forEach((c) => { c.textContent = 'Your plan'; });
     if (mine) choose(mine, false);
     host.querySelectorAll('.su-plan').forEach((el) => {
       if (!mine) el.classList.remove('sel');
       el.querySelector('.su-start').textContent = el.dataset.plan === mine ? 'Manage on Profile' : 'Switch on Profile';
     });
-  };
+    paint(); sync();
+  }
 })();
 </script>
 
@@ -644,7 +724,6 @@ async function onTeamPlan(userId, accessToken){
 // ── Check if already logged in ─────────────────────────────────────────────
 async function checkSession(){
   if(window.location.search.includes('reason=checkout-complete')) return;
-  if(window.location.search.includes('reason=pro-required')) return;
   if(window.location.search.includes('google=return')) return;
   if(window.location.hash.includes('access_token')) return;
   const session = getSession();
@@ -1094,8 +1173,16 @@ async function handleLogin(){
       const proRows = await proResp.json();
       const proRow = proRows?.[0];
       // If they have a pro_users row but never paid (no subscription ID and not active)
+      if(proRow && !proRow.is_active && !proRow.stripe_subscription_id && !(await onTeamPlan(userId, data.access_token))
+         && !new URLSearchParams(window.location.search).has('plan') && window.showSignedIn){
+        window.showSignedIn(data);
+        document.getElementById('su-plans').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+        return;
+      }
       if(proRow && !proRow.is_active && !proRow.stripe_subscription_id && !(await onTeamPlan(userId, data.access_token))){
-        showSuccess('Welcome back! Completing your Pro signup...');
+        showSuccess('Welcome back! Completing your signup...');
         const checkoutResp = await fetch('/.netlify/functions/create-checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1186,12 +1273,12 @@ if(detectRecoveryFlow()){
   if(window.location.search.includes('login')){ switchTab('login'); }
   if(window.location.search.includes('checkout=cancelled')){
     try { localStorage.removeItem('qfc_pending_checkout'); } catch(e){}
-    showError('Checkout cancelled. You can complete your Pro signup anytime.');
     switchTab('login');
+    showError('Checkout cancelled, and nothing was charged. Sign in to pick a plan when you’re ready.');
   }
   if(window.location.search.includes('reason=pro-required')){
-    showError('That page requires a Pro subscription. Sign up or log in to continue.');
     switchTab('login');
+    showError('That page comes with a paid plan. Sign in, or see plans & pricing below to sign up.');
   }
   const isPostCheckout = window.location.search.includes('reason=checkout-complete');
   if(isPostCheckout){

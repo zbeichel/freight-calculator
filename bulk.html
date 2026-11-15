@@ -1216,6 +1216,7 @@ function generateBulkPDF(){
     profile.quoteStart = startNum + 1;
     localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
   } catch(e){}
+  if(window.QFCQuotePDF && QFCQuotePDF.syncCounter) QFCQuotePDF.syncCounter(startNum + 1);   // the account's counter keeps up
 
   // ── Header branding pieces ──────────────────────────────────────────────
   const logoHTML = (!profile.hideLogo && profile.logoBase64)
@@ -1224,6 +1225,7 @@ function generateBulkPDF(){
   const companyHTML = profile.companyName
     ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${escapeHTML(profile.companyName)}</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${escapeHTML(profile.footerText) || 'Bulk Hauling Specialist'}</div>`
+    : (window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile)) ? ''   // white-label, no company name: no QuickFreightCalc
     : `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Bulk Load Calculator</div>`;
 
@@ -1333,6 +1335,9 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
   .screen-controls{display:none!important}
   .page-wrap{max-width:100%;margin:0;padding:0}
   .doc{box-shadow:none;border-radius:0;margin:0;display:flex;flex-direction:column;min-height:100vh}
+  @page{size:letter portrait;margin:0.45in 0}
+  @page :first{margin-top:0}
+  .signature-section,.signature-grid,.doc-footer{break-inside:avoid;page-break-inside:avoid}
 }
 </style>
 </head>
@@ -1415,13 +1420,8 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
         </div>
       </div>
 
-      <div class="target-section">
-        <div class="section-header">Target Comparison</div>
-        <div class="target-banner">
-          <div class="target-banner-headline">${statusIcon} ${statusText}</div>
-          <div class="target-banner-detail">${statusDetail}<br>Target: ${escapeHTML(targetModeLabel)}.</div>
-        </div>
-      </div>
+      <!-- No target comparison on the PDF: it goes to the customer, and your minimum rate and
+           margin over it stay on the Bulk page. -->
 
       <div class="config-section">
         <div class="section-header">Calculation Settings</div>

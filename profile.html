@@ -457,6 +457,9 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
   background:var(--accent-fill);color:#000;cursor:pointer;transition:all .15s;
 }
 .save-btn:hover{opacity:.88}
+/* "Choose a plan" on the no-plan card (its own class: page code finds the Save button by .save-btn) */
+.plan-cta{display:inline-block;padding:10px 22px;border-radius:8px;border:1px solid var(--accent);background:var(--accent-fill);color:#000;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;text-decoration:none}
+.plan-cta:hover{opacity:.88}
 
 /* ── Toast ── */
 .toast{
@@ -514,8 +517,8 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
         </div>
         <div class="field-grid" style="margin-bottom:16px">
           <div class="field">
-            <label>Email</label>
-            <input type="email" id="contact-email" placeholder="john@acmefreight.com" />
+            <label for="contact-email">Email on quotes</label>
+            <input type="email" id="contact-email" placeholder="john@acmefreight.com" maxlength="200" />
           </div>
           <div class="field">
             <label>Phone</label>
@@ -955,6 +958,27 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
               Your account has Pro access without a paid subscription. Contact us if you have questions about your account.
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card" id="subscription-none" style="display:none">
+      <div class="section-header">
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.5 2.6 5.3 5.9.8-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z"/></svg></span>
+        <span class="section-title">Your Plan</span>
+        <span class="section-sub">No active plan</span>
+      </div>
+      <div class="section-body">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">You don't have an active plan</div>
+        <div style="font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:14px">
+          Pick a plan to get automatic miles, PDF quotes, the quote log and the rest of your plan's tools.
+          Pro Plus and Pro Max start with a 7-day free trial if you haven't had one.
+        </div>
+        <a class="plan-cta" href="/signup.html">Choose a plan →</a>
+        <div id="subscription-none-billing" style="display:none;font-size:12px;color:var(--text3);line-height:1.6;margin-top:14px">
+          Had a plan? If a payment didn’t go through, update your card in
+          <a href="#" onclick="event.preventDefault();handleManageBilling()" style="color:var(--accent)">Manage billing</a>
+          to keep it. Your past invoices are there too.
         </div>
       </div>
     </div>
@@ -1905,6 +1929,7 @@ async function saveProfile(){
         body: JSON.stringify({
           company_name:  profile.companyName,
           contact_name:  profile.contactName,
+          contact_email: (profile.email || '').trim().slice(0, 200) || null,   // printed on quotes
           phone:         profile.phone,
           mc_number:     profile.mcNumber,
           dot_number:    profile.dotNumber,
@@ -1975,16 +2000,19 @@ async function loadProfile(){
       }
       if(acct && acct.row){
         const p = acct.row;
+        // PDFs advance the quote counter in this browser first: keep the higher of the two.
+        let localStart = 0;
+        try { localStart = Number(JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}').quoteStart) || 0; } catch(e){}
         populateForm({
           companyName: p.company_name,
           contactName: p.contact_name,
-          email:       p.email,
+          email:       p.contact_email || p.email,   // the quote email you set, else your sign-in email
           phone:       p.phone,
           mcNumber:    p.mc_number,
           dotNumber:   p.dot_number,
           footerText:  p.footer_text,
           quotePrefix: p.quote_prefix,
-          quoteStart:  p.quote_counter,
+          quoteStart:  Math.max(Number(p.quote_counter) || 0, localStart) || undefined,
           colorScheme: p.color_scheme,
           logoBase64:  p.logo_base64,
           hideLogo:    p.hide_logo === true,
@@ -2046,8 +2074,17 @@ function applySubscriptionCardState(stripeCustomerId, plan, isActive){
   const hasStripe = !!(stripeCustomerId && String(stripeCustomerId).trim().length > 0);
   const paidCard = document.getElementById('subscription-paid');
   const compCard = document.getElementById('subscription-comp');
-  if(paidCard) paidCard.style.display = hasStripe ? '' : 'none';
-  if(compCard) compCard.style.display = hasStripe ? 'none' : '';
+  const noneCard = document.getElementById('subscription-none');
+  // No active plan (sign-up never paid for, or a subscription that ended): the "choose a plan"
+  // card. Otherwise the paid card for Stripe subscribers and the comp card for comp accounts.
+  const noPlan = isActive !== true;
+  if(paidCard) paidCard.style.display = hasStripe && !noPlan ? '' : 'none';
+  if(compCard) compCard.style.display = !hasStripe && !noPlan ? '' : 'none';
+  if(noneCard) noneCard.style.display = noPlan ? '' : 'none';
+  const noneBilling = document.getElementById('subscription-none-billing');
+  if(noneBilling) noneBilling.style.display = noPlan && hasStripe ? '' : 'none';   // an earlier Stripe subscription
+  // Links to the plan section ("Change plan", "Get Pro Max"…) land on that card.
+  if(noPlan && noneCard && /^#subscription/.test(window.location.hash)) setTimeout(() => noneCard.scrollIntoView({ block: 'start' }), 50);
   applyPlanState(normalizeProfilePlan(plan), isActive === true, false, null);
   // Ask the server whether this subscriber still has unlimited quotes until
   // they renew (the rule lives in netlify/lib/plans.js) and when they renew.
