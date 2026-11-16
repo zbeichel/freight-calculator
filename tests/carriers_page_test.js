@@ -77,8 +77,12 @@ const CARRIERS = {
     oos: [{ oos_date: new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10), oos_reason: 'Imminent Hazard' }],
     inspections: [{ insp_level_id: '1', v_oos: true, d_oos: false, n: '14' }, { insp_level_id: '1', v_oos: false, d_oos: true, n: '5' }, { insp_level_id: '1', v_oos: false, d_oos: false, n: '11' }],
     crashes: [{ fatal: true, inj: false, tow_away: 'true', n: '1' }, { fatal: false, inj: false, tow_away: 'true', n: '3' }] }),
+  '9900004': rows(9900004, 'MC9900104', {
+    census: { legal_name: 'YY TEST LOGISTICS INC', status_code: 'I' },
+    orders: [{ docket_number: 'MC9900104', usdot_number: '9900004', op_auth_type: PROPERTY, order1_serve_date: ymd(-3), order1_type_desc: 'Operating Authority Involuntary Suspension Notice', order1_effective_date: ymd(27) },
+      { docket_number: 'MC9900104', usdot_number: '9900004', op_auth_type: PROPERTY, order1_serve_date: ymd(-400), order1_type_desc: 'Operating Authority Involuntary Suspension Notice', order1_effective_date: ymd(-370) }] }),
 };
-const DOCKETS = { MC9900101: '9900001', MC9900102: '9900002', MC9900103: '9900003' };
+const DOCKETS = { MC9900101: '9900001', MC9900102: '9900002', MC9900103: '9900003', MC9900104: '9900004' };
 const report = (dot, missing = []) => {
   const raw = Object.assign({}, CARRIERS[dot]);
   for (const k of missing) raw[k] = null;   // a part FMCSA didn't answer for
@@ -322,6 +326,27 @@ async function lookup(v, q, kind) {
   check('no page errors (Pro Plus)', v.errors.length === 0, v.errors.join(' | '));
   await t.context.close();
 
+  console.log('\n=== FMCSA records that disagree, and suspension notices ===');
+  t = await setup(browser, base, { plan: 'plus' });
+  v = await open(t, base, '/carriers.html?dot=9900004');
+  await v.p.waitForSelector('#cc-report:not([hidden])', { timeout: 8000 }).catch(() => {});
+  await v.p.waitForTimeout(200);
+  const authSec = (await v.p.$$eval('.cc-sec', (els) => els.map((e) => e.innerText.replace(/\s+/g, ' '))))[0] || '';
+  check('an inactive USDOT number with the authority still listed Active: the chip says so, not a plain green “Active”',
+    /Active, but USDOT inactive/.test(authSec) && (await v.p.$eval('.cc-sec .chip.stop', (e) => /Active, but USDOT inactive/.test(e.textContent)).catch(() => false)), authSec);
+  check('suspension notices are listed: the pending one first, then the past one', /Takes effect .+ Suspension notice served .+Took effect .+ Suspension notice served/.test(authSec), authSec);
+  await v.p.screenshot({ path: path.join(SHOTS, 'carrier-records-disagree.png'), fullPage: true });
+  const flagsText = await text(v.p, '.cc-flags');
+  check('…and the pending one is a warning in the verdict', /FMCSA served notice on .+ that their operating authority will be suspended on .+ unless they resolve it\./.test(flagsText)
+    && /Their USDOT number is inactive\./.test(flagsText) && (await text(v.p, '.cc-verdict h2')) === 'Don’t book this carrier', flagsText);
+  v = await open(t, base, '/carriers.html?dot=9900003');
+  await v.p.waitForSelector('#cc-report:not([hidden])', { timeout: 8000 }).catch(() => {});
+  await v.p.waitForTimeout(200);
+  const regSec = (await v.p.$$eval('.cc-sec', (els) => els.map((e) => e.innerText.replace(/\s+/g, ' '))))[3] || '';
+  check('an out-of-service order in effect: USDOT status “Out of service”, as FMCSA’s SAFER shows it', /USDOT status Out of service/.test(regSec), regSec);
+  check('no page errors', v.errors.length === 0, v.errors.join(' | '));
+  await t.context.close();
+
   t = await setup(browser, base, { plan: 'plus', fn: { rename: { '9900001': '<img src=x onerror="window.__xss=1">Keystone' } } });
   v = await open(t, base, '/carriers.html?dot=9900001');
   await v.p.waitForSelector('#cc-report:not([hidden])', { timeout: 8000 }).catch(() => {});
@@ -413,8 +438,8 @@ async function lookup(v, q, kind) {
   await v.p.waitForFunction(() => /Watch this carrier/.test((document.getElementById('cc-watch-btn') || {}).textContent || ''), null, { timeout: 4000 }).catch(() => {});
   check('clicking Watching again stops watching it', (await texts(v.p, '#cc-saved .nm')).length === 2 && (await text(v.p, '#cc-status')) === 'Removed from your carriers.');
 
-  await v.p.fill('#cc-saved tr:nth-child(1) input', 'Called 11/12, new insurer pending');
-  await v.p.press('#cc-saved tr:nth-child(1) input', 'Tab');
+  await v.p.fill('#cc-saved tr:nth-child(1) td.hide-sm input', 'Called 11/12, new insurer pending');
+  await v.p.press('#cc-saved tr:nth-child(1) td.hide-sm input', 'Tab');
   await until(() => t.st.calls.some((c) => c.action === 'note'));
   await v.p.waitForTimeout(150);
   const noteReq = t.st.calls.find((c) => c.action === 'note');
@@ -448,7 +473,18 @@ async function lookup(v, q, kind) {
   }));
   check('no sideways scrolling', ph.sideways <= 1, `${ph.sideways}px`);
   check('the four sections stack in one column', ph.lefts.length === 4 && new Set(ph.lefts).size === 1, JSON.stringify(ph.lefts));
-  check('the watch list drops the last-checked and note columns', ph.hidden);
+  check('the watch list drops the last-checked and note columns…', ph.hidden);
+  const phNote = await v.p.evaluate(() => {
+    const el = document.querySelector('.cc-saved .cc-note-sm');
+    const sub = [...document.querySelectorAll('.cc-saved .show-sm')].map((e) => getComputedStyle(e).display);
+    return { shown: !!el && el.getBoundingClientRect().width > 200, subs: sub, checked: (document.querySelector('.cc-saved .sub.show-sm') || {}).textContent || '' };
+  });
+  check('…and shows the note box and when it was checked under the carrier’s name', phNote.shown && phNote.subs.every((d) => d !== 'none') && /^Checked /.test(phNote.checked), JSON.stringify(phNote));
+  await v.p.fill('.cc-saved .cc-note-sm', 'Reefer only, call Dana');
+  await v.p.$eval('.cc-saved .cc-note-sm', (e) => e.dispatchEvent(new Event('change', { bubbles: true })));
+  await v.p.waitForTimeout(400);
+  const noteCall = t.st.calls.filter((c) => c.action === 'note').pop();
+  check('a note typed on a phone is saved', noteCall && noteCall.note === 'Reefer only, call Dana' && /Note saved/.test(await text(v.p, '#cc-status')), JSON.stringify(noteCall));
   check('a 16px search box (no zoom on iPhone); the buttons fit', ph.input === '16px' && ph.buttons, JSON.stringify(ph));
   await v.p.screenshot({ path: path.join(SHOTS, 'carrier-phone.png'), fullPage: true });
   check('no page errors (phone)', v.errors.length === 0, v.errors.join(' | '));

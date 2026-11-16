@@ -101,6 +101,8 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
 .mini:hover{border-color:var(--accent);color:var(--accent)}
 .cc-empty{padding:28px 20px;text-align:center;font-size:13px;color:var(--text3);line-height:1.7}
 .cc-source{font-size:12px;color:var(--text3);line-height:1.7;margin:22px 4px 0}
+.cc-saved .show-sm{display:none}
+.cc-saved .cc-note-sm{width:100%;margin-top:6px}
 .gate{margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:30px 28px;max-width:620px;box-shadow:var(--shadow)}
 .gate h2{font-size:17px;font-weight:700;margin-bottom:8px}
 .gate p{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px}
@@ -113,6 +115,14 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
   .cc-q{font-size:16px;min-width:0;width:100%;flex-basis:100%}
   .cc-search .btn.primary{flex:1;justify-content:center}
   .cc-saved .hide-sm{display:none}
+  .cc-saved .show-sm{display:block}
+  /* One block per carrier: name, details and the note across, then status and buttons */
+  table.cc-saved thead{display:none}
+  table.cc-saved tr{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px 12px;padding:12px 14px;border-bottom:1px solid var(--border)}
+  table.cc-saved tr:last-child{border-bottom:0}
+  table.cc-saved td{display:block;padding:0;border:0}
+  table.cc-saved td:first-child{grid-column:1 / -1}
+  table.cc-saved td.hide-sm{display:none}
   .cc-name{font-size:19px}
 }
 </style>
@@ -266,6 +276,23 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
   }
 
   // ── The report ──
+  // An authority's status. FMCSA can list it Active while the USDOT number is inactive or out
+  // of service; then it can't be relied on, and the chip says why.
+  function authorityChip(status, usdot) {
+    if (status === 'Active' && usdot && usdot !== 'Active') return `<span class="chip stop">Active, but USDOT ${esc(String(usdot).toLowerCase())}</span>`;
+    return statusChip(status);
+  }
+  // FMCSA's suspension notices from the last two years: still to take effect, or past
+  function suspensionList(list) {
+    const since = new Date(Date.now() - 730 * 86400000).toISOString().slice(0, 10), today = new Date().toISOString().slice(0, 10);
+    const shown = (list || []).filter((o) => o.date >= since).slice(0, 4);
+    if (!shown.length) return '';
+    return `<ul class="cc-list">${shown.map((o) => {
+      const pending = o.effective && o.effective >= today;
+      const what = o.voluntary ? 'Voluntary suspension asked for' : 'Suspension notice served';
+      return `<li><span class="chip ${pending ? 'warn' : ''}">${o.effective ? `${pending ? 'Takes effect' : 'Took effect'} ${day(o.effective)}` : 'Suspension'}</span> ${what} ${day(o.date)}</li>`;
+    }).join('')}</ul>`;
+  }
   function statusChip(s) {
     const cls = s === 'Active' ? 'ok' : s === 'Pending' ? 'warn' : 'stop';
     return `<span class="chip ${cls}">${esc(s || 'None')}</span>`;
@@ -316,7 +343,8 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
         <section class="cc-sec">
           <h3>Operating authority</h3>
           ${gone('authority') ? nlRow('Operating authority')
-            : auths.length ? auths.map((a) => `<div class="cc-row"><span>${esc(authorityName(a.type))}</span>${statusChip(a.status)}</div>`).join('') : '<div class="cc-row"><span>For-hire authority</span><span class="chip stop">None on file</span></div>'}
+            : auths.length ? auths.map((a) => `<div class="cc-row"><span>${esc(authorityName(a.type))}</span>${authorityChip(a.status, r.usdotStatus)}</div>`).join('') : '<div class="cc-row"><span>For-hire authority</span><span class="chip stop">None on file</span></div>'}
+          ${suspensionList(r.suspensionOrders)}
           ${gone('authHistory') ? nlRow('First granted') : `<div class="cc-row"><span>First granted</span><b>${day(r.authority.firstGranted)}</b></div>`}
           ${(r.authority.recentChanges || []).length ? `<ul class="cc-list">${r.authority.recentChanges.slice(0, 5).map((h) => `<li><b>${day(h.date)}</b> · ${esc(h.status)}: ${esc(h.reason)}</li>`).join('')}</ul>` : ''}
         </section>
@@ -404,7 +432,9 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
     $('cc-saved').innerHTML = saved.map((s) => {
       const st = v[s.verdict] || ['', 'Not checked yet'];
       return `<tr data-id="${esc(s.id)}">
-        <td><div class="nm">${esc(s.name || 'USDOT ' + s.dot_number)}</div><div class="sub">USDOT ${esc(s.dot_number)}${s.docket ? ' · ' + esc(s.docket.replace(/^(MC|MX|FF)/, '$1 ')) : ''}</div></td>
+        <td><div class="nm">${esc(s.name || 'USDOT ' + s.dot_number)}</div><div class="sub">USDOT ${esc(s.dot_number)}${s.docket ? ' · ' + esc(s.docket.replace(/^(MC|MX|FF)/, '$1 ')) : ''}</div>
+          <div class="sub show-sm">Checked ${esc(ago(s.checked_at))}</div>
+          <input type="text" class="show-sm cc-note-sm" maxlength="300" value="${esc(s.note || '')}" placeholder="Add a note" aria-label="Note for ${esc(s.name || s.dot_number)}"></td>
         <td><span class="chip ${st[0]}">${st[1]}</span></td>
         <td class="hide-sm">${esc(ago(s.checked_at))}</td>
         <td class="hide-sm"><input type="text" maxlength="300" value="${esc(s.note || '')}" placeholder="Add a note" aria-label="Note for ${esc(s.name || s.dot_number)}"></td>
@@ -446,6 +476,7 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
     if (res.status === 200) {
       const s = (info.saved || []).find((x) => x.id === row.dataset.id);
       if (s) s.note = res.data.saved.note;
+      row.querySelectorAll('input').forEach((el) => { if (el !== input) el.value = res.data.saved.note || ''; });   // the phone and desktop boxes agree
       setStatus('Note saved.');
     } else setStatus(res.data.message || 'Couldn’t save the note.', true);
   });

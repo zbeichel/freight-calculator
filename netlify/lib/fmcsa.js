@@ -257,7 +257,15 @@ function buildReport(raw, { national = null, now = Date.now() } = {}) {
   const onFile = Math.max(0, ...authorities.map((a) => a.bipdOnFile || 0));
 
   const oosOrders = (raw.oos || []).map((o) => ({ date: isoDate(o.oos_date), reason: o.oos_reason || '', rescinded: isoDate(o.rescind_date) }));
-  const suspensionOrders = (raw.orders || []).map((o) => ({ date: isoDate(o.order1_serve_date), type: o.order1_type_desc || '' })).filter((o) => o.date);
+  const openOos = oosOrders.filter((o) => !o.rescinded);
+  // FMCSA's suspension orders: a notice served on one date that takes effect on another
+  // (usually 30 days on), either involuntary (FMCSA's, e.g. insurance that lapsed) or asked
+  // for by the carrier. Newest first.
+  const suspensionOrders = (raw.orders || []).map((o) => {
+    const type = o.order1_type_desc || '';
+    return { date: isoDate(o.order1_serve_date), effective: isoDate(o.order1_effective_date), type, docket: o.docket_number || null,
+      voluntary: /voluntary/i.test(type) && !/involuntary/i.test(type) };
+  }).filter((o) => o.date).sort((a, b) => b.date.localeCompare(a.date));
 
   const inspections = inspectionTotals(raw.inspections);
   if (inspections && national) {
@@ -274,7 +282,9 @@ function buildReport(raw, { national = null, now = Date.now() } = {}) {
     address: c ? [titleCase(c.phy_street), [titleCase(c.phy_city), c.phy_state].filter(Boolean).join(', '), c.phy_zip].filter(Boolean).join(' · ') : null,
     phone: phone((c && c.phone) || (auth[0] && auth[0].bus_telno)),
     email: c && c.email_address ? String(c.email_address).toLowerCase() : null,
-    usdotStatus: c ? ({ A: 'Active', I: 'Inactive', P: 'Pending' }[c.status_code] || c.status_code || null) : null,
+    // As FMCSA's SAFER shows it: "Out of service" while an out-of-service order is in effect,
+    // whatever the registration says.
+    usdotStatus: c ? (openOos.length ? 'Out of service' : ({ A: 'Active', I: 'Inactive', P: 'Pending' }[c.status_code] || c.status_code || null)) : null,
     usdotAdded: c ? isoDate(c.add_date) : null,
     mcs150: c ? isoDate(c.mcs150_date) : null,
     operation: c ? (OPERATION[c.carrier_operation] || null) : null,
@@ -338,7 +348,8 @@ function assess(r, now = Date.now()) {
     else if (A.carrier.length) add('stop', 'authority_inactive', `No active operating authority${last ? `: ${last.reason.replace(/\s*\(.*?\)\s*$/, '')} (${fmtDate(last.date)})` : ''}.`);
     else add('stop', 'no_authority', 'No for-hire operating authority on file: they can’t haul for hire across state lines.');
   }
-  if (r.usdotStatus && r.usdotStatus !== 'Active') add('stop', 'usdot_inactive', `Their USDOT number is ${r.usdotStatus.toLowerCase()}.`);
+  // (Out of service: the out-of-service order below says so, with its reason.)
+  if (r.usdotStatus && r.usdotStatus !== 'Active' && r.usdotStatus !== 'Out of service') add('stop', 'usdot_inactive', `Their USDOT number is ${r.usdotStatus.toLowerCase()}.`);
   const openOos = r.oosOrders.filter((o) => !o.rescinded);
   for (const o of openOos.slice(0, 2)) add('stop', 'oos_order', `Out-of-service order since ${fmtDate(o.date)}: ${o.reason}.`);
   if (r.safetyRating === 'Unsatisfactory') add('stop', 'safety_unsatisfactory', `Unsatisfactory safety rating (${fmtDate(r.safetyRatingDate)}).`);
@@ -347,6 +358,19 @@ function assess(r, now = Date.now()) {
     add('stop', 'insurance_short', r.insurance.onFile
       ? `Liability insurance on file is ${usd(r.insurance.onFile)}, below the ${usd(r.insurance.required)} required.`
       : `No liability insurance on file (${usd(r.insurance.required)} required).`);
+  }
+  // Active, but no liability insurance on file and no minimum listed for the authority (some
+  // Mexico-domiciled authorities): nothing on file to rely on.
+  const liabilityFiled = (r.insurance.policies || []).some((p) => /^Liability/.test(p.kind));
+  if (A.activeCarrier && !gone('authority') && !gone('insurance') && !r.insurance.required && !(r.insurance.onFile > 0) && !liabilityFiled) {
+    add('warn', 'insurance_none', 'No liability insurance on file with FMCSA, and no minimum is listed for their authority. Get their certificate of insurance before booking.');
+  }
+  // A suspension notice that hasn't taken effect yet
+  const today = new Date(now).toISOString().slice(0, 10);
+  for (const o of (r.suspensionOrders || []).filter((x) => x.effective && x.effective >= today).slice(0, 2)) {
+    add('warn', 'suspension_notice', o.voluntary
+      ? `They’ve asked FMCSA to suspend their operating authority on ${fmtDate(o.effective)}.`
+      : `FMCSA served notice on ${fmtDate(o.date)} that their operating authority will be suspended on ${fmtDate(o.effective)} unless they resolve it.`);
   }
   // A part that didn't load could hide any of the above: never "No problems found" then.
   const missing = (r.missing || []).filter((k) => PARTS[k]);
@@ -395,19 +419,21 @@ async function monitorFacts(dots, opt = {}) {
   const twice = (ds, params, o) => soql(ds, params, o).catch(() => sleep(o.retryDelayMs != null ? o.retryDelayMs : 1000).then(() => soql(ds, params, o)));
   const list = [...new Set(dots.map(digits).filter(Boolean))];
   const out = {};
-  for (const d of list) out[d] = { carrierStatus: [], onFile: 0, required: 0, cancels: [], oos: [], usdotStatus: null, safetyRating: null };
+  for (const d of list) out[d] = { carrierStatus: [], onFile: 0, required: 0, cancels: [], oos: [], suspensions: [], usdotStatus: null, safetyRating: null };
   const today = ymd(new Date(Date.now()));
   for (let i = 0; i < list.length; i += 100) {
     const batch = list.slice(i, i + 100);
     const inList = batch.map((d) => `'${d}'`).join(',');
-    let auth, ins, oos, census;
+    let auth, ins, oos, census, orders;
     try {
-      [auth, ins, oos, census] = await Promise.all([
+      [auth, ins, oos, census, orders] = await Promise.all([
         twice(DS.authority, { $select: 'usdot_number, docket_number, op_auth_type, op_auth_status, min_cov_amount, bipd_file', $where: `usdot_number in (${inList})`, $limit: 5000 }, opt),
         twice(DS.insHistory, { $select: 'usdot_number, ins_type_code, ins_type_desc, insurance_company_name, policy_no, cancl_effective_date, filing_status_reason',
           $where: `usdot_number in (${inList}) AND cancl_effective_date >= '${today}'`, $limit: 5000 }, opt),
         twice(DS.oos, { $select: 'dot_number, oos_date, oos_reason, rescind_date', $where: `dot_number in (${inList}) AND rescind_date IS NULL`, $limit: 5000 }, opt),
         twice(DS.census, { $select: 'dot_number, status_code, safety_rating', $where: `dot_number in (${inList})`, $limit: 5000 }, opt),
+        twice(DS.orders, { $select: 'usdot_number, order1_serve_date, order1_type_desc, order1_effective_date',
+          $where: `usdot_number in (${inList}) AND order1_effective_date >= '${today}'`, $limit: 5000 }, opt),
       ]);
     } catch (e) {
       console.warn(`[fmcsa] monitor batch of ${batch.length} not checked: ${e.message}`);
@@ -438,11 +464,19 @@ async function monitorFacts(dots, opt = {}) {
       const f = out[digits(r.dot_number)];
       if (f) { f.usdotStatus = { A: 'Active', I: 'Inactive', P: 'Pending' }[r.status_code] || r.status_code || null; f.safetyRating = SAFETY[r.safety_rating] || null; }
     }
+    for (const r of orders) {
+      const f = out[digits(r.usdot_number)];
+      const type = r.order1_type_desc || '';
+      const s = { served: isoDate(r.order1_serve_date), effective: isoDate(r.order1_effective_date), voluntary: /voluntary/i.test(type) && !/involuntary/i.test(type) };
+      if (f && s.effective && !f.suspensions.some((x) => x.served === s.served && x.effective === s.effective)) f.suspensions.push(s);
+    }
   }
   for (const d of Object.keys(out)) {
     const f = out[d];
     f.authority = f.carrierStatus.includes('Active') ? 'Active' : f.carrierStatus.includes('Pending') ? 'Pending' : f.carrierStatus.length ? 'Inactive' : 'None';
     f.insuranceShort = f.authority === 'Active' && f.required > 0 && f.onFile < f.required;
+    f.noInsurance = f.authority === 'Active' && !(f.required > 0) && !(f.onFile > 0);
+    f.suspensions.sort((a, b) => String(a.effective).localeCompare(String(b.effective)) || String(a.served).localeCompare(String(b.served)));
     f.cancels.sort((a, b) => a.cancels.localeCompare(b.cancels) || a.policy.localeCompare(b.policy));
     f.oos.sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.reason.localeCompare(b.reason));
     delete f.carrierStatus;
@@ -468,6 +502,14 @@ function diffFacts(prev, cur, name) {
   for (const o of cur.oos || []) {
     if (!(prev.oos || []).some((p) => p.date === o.date && p.reason === o.reason)) alerts.push({ kind: 'oos', text: `${who}: out-of-service order (${fmtDate(o.date)}): ${o.reason}.` });
   }
+  if (prev.onFile > 0 && cur.noInsurance) alerts.push({ kind: 'insurance', text: `${who}: no liability insurance on file anymore.` });
+  for (const s of cur.suspensions || []) {
+    if (!(prev.suspensions || []).some((p) => p.served === s.served && p.effective === s.effective)) {
+      alerts.push({ kind: 'authority', text: s.voluntary
+        ? `${who}: asked FMCSA to suspend their operating authority on ${fmtDate(s.effective)}.`
+        : `${who}: FMCSA served notice that their operating authority will be suspended on ${fmtDate(s.effective)} unless they resolve it.` });
+    }
+  }
   if (prev.usdotStatus === 'Active' && cur.usdotStatus && cur.usdotStatus !== 'Active') alerts.push({ kind: 'usdot', text: `${who}: USDOT number is now ${cur.usdotStatus.toLowerCase()}.` });
   const bad = { Conditional: 1, Unsatisfactory: 2 };
   if ((bad[cur.safetyRating] || 0) > (bad[prev.safetyRating] || 0)) alerts.push({ kind: 'safety', text: `${who}: safety rating is now ${cur.safetyRating}.` });
@@ -485,7 +527,8 @@ function factsVerdict(f, now = Date.now()) {
   const age = (iso) => (iso ? Math.floor((now - Date.parse(iso + 'T00:00:00Z')) / DAY) : null);
   const authAge = age(f.granted), dotAge = age(f.usdotAdded);
   const isNew = (authAge != null && authAge < NEW_AUTHORITY_DAYS) || (dotAge != null && dotAge < NEW_USDOT_DAYS);
-  if ((f.cancels && f.cancels.length) || f.safetyRating === 'Conditional' || isNew) return 'warn';
+  const pendingSuspension = (f.suspensions || []).some((s) => s.effective && s.effective >= new Date(now).toISOString().slice(0, 10));
+  if ((f.cancels && f.cancels.length) || f.safetyRating === 'Conditional' || isNew || f.noInsurance || pendingSuspension) return 'warn';
   return 'ok';
 }
 

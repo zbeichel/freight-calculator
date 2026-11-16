@@ -96,6 +96,23 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   r = F.buildReport(raw(4444444, { oos: [{ oos_date: '2026-11-10', oos_reason: 'Unsatisfactory = Unfit', status: 'ACTIVE' }, { oos_date: '2023-01-02', oos_reason: 'Imminent Hazard', rescind_date: '2023-02-01' }] }), { national: NATIONAL, now: NOW });
   ok(r.verdict === 'stop' && r.flags.filter((f) => f.code === 'oos_order').length === 1 && /since Nov 10, 2026: Unsatisfactory = Unfit/.test(flag(r, 'oos_order').text),
      'an out-of-service order in effect: don’t book (a lifted one isn’t flagged)');
+  ok(r.usdotStatus === 'Out of service' && !flag(r, 'usdot_inactive'), 'with an out-of-service order in effect the USDOT status reads “Out of service”, as on SAFER (said once, by the order)', r.usdotStatus);
+  r = F.buildReport(raw(4444450, { authority: [{ docket_number: 'MX1000469', usdot_number: '4444450', op_auth_type: 'Mexico Domiciled Motor Carrier of Property (Except Household Goods)',
+    op_auth_status: 'Active', min_cov_amount: '0', bipd_file: '0' }], insurance: [] }), { national: NATIONAL, now: NOW });
+  ok(r.verdict === 'warn' && flag(r, 'insurance_none') && /No liability insurance on file with FMCSA, and no minimum is listed/.test(flag(r, 'insurance_none').text) && !flag(r, 'insurance_short'),
+     'active, $0 liability on file and no minimum listed (MX 1000469): check before booking', JSON.stringify(r.flags));
+  r = F.buildReport(raw(4444451, { authority: [{ docket_number: 'MX1000470', usdot_number: '4444451', op_auth_type: 'Mexico Domiciled Motor Carrier of Property (Except Household Goods)',
+    op_auth_status: 'Active', min_cov_amount: '0', bipd_file: '0' }] }), { national: NATIONAL, now: NOW });
+  ok(!flag(r, 'insurance_none'), '…but a liability filing on file counts, even with $0 on the authority record');
+  r = F.buildReport(raw(4444452, { orders: [
+    { docket_number: 'MC444445', usdot_number: '4444452', op_auth_type: PROPERTY, order1_serve_date: ymdFrom(-2), order1_type_desc: 'Operating Authority Involuntary Suspension Notice', order1_effective_date: ymdFrom(28) },
+    { docket_number: 'MC444445', usdot_number: '4444452', op_auth_type: PROPERTY, order1_serve_date: '20250102', order1_type_desc: 'Operating Authority Involuntary Suspension Notice', order1_effective_date: '20250201' }] }), { national: NATIONAL, now: NOW });
+  ok(r.verdict === 'warn' && flag(r, 'suspension_notice') && flag(r, 'suspension_notice').text === 'FMCSA served notice on Nov 11, 2026 that their operating authority will be suspended on Dec 11, 2026 unless they resolve it.'
+     && r.flags.filter((f) => f.code === 'suspension_notice').length === 1,
+     'a suspension notice still to take effect: check before booking (one already past isn’t flagged)', JSON.stringify(r.flags));
+  ok(r.suspensionOrders.length === 2 && r.suspensionOrders[0].effective === '2026-12-11' && !r.suspensionOrders[0].voluntary, '…and both notices are in the report, newest first');
+  r = F.buildReport(raw(4444453, { orders: [{ usdot_number: '4444453', order1_serve_date: ymdFrom(-1), order1_type_desc: 'Notice Of Operating Authority Voluntary Suspension', order1_effective_date: ymdFrom(30) }] }), { national: NATIONAL, now: NOW });
+  ok(flag(r, 'suspension_notice') && flag(r, 'suspension_notice').text === 'They’ve asked FMCSA to suspend their operating authority on Dec 13, 2026.', 'a voluntary suspension asked for: said so');
   r = F.buildReport(raw(4444445, { authority: [{ docket_number: 'MC45', usdot_number: '4444445', op_auth_type: PROPERTY, op_auth_status: 'Active', min_cov_amount: '750000', bipd_file: '300000' }] }), { national: NATIONAL, now: NOW });
   ok(r.verdict === 'stop' && /\$300,000, below the \$750,000 required/.test(flag(r, 'insurance_short').text), 'liability on file below what’s required: don’t book');
   r = F.buildReport(raw(4444446, { insHistory: [{ ins_type_code: '1', ins_type_desc: 'BIPD', filing_status_reason: 'CANCEL', cancl_effective_date: ymdFrom(20), policy_no: 'P-1', insurance_company_name: 'Good Mutual' }] }), { national: NATIONAL, now: NOW });
@@ -213,10 +230,14 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
       { usdot_number: '1', ins_type_code: '1', filing_status_reason: 'TERM/REPL', cancl_effective_date: ymdFrom(12), policy_no: 'P0' }];
     if (d === F.DS.oos) return [{ dot_number: '3', oos_date: '2026-11-12', oos_reason: 'Imminent Hazard' }];
     if (d === F.DS.census) return [{ dot_number: '1', status_code: 'A', safety_rating: 'S' }, { dot_number: '2', status_code: 'A' }, { dot_number: '3', status_code: 'A', safety_rating: 'C' }];
+    if (d === F.DS.orders) return [{ usdot_number: '1', order1_serve_date: ymdFrom(-2), order1_type_desc: 'Operating Authority Involuntary Suspension Notice', order1_effective_date: ymdFrom(28) }];
     return [];
   };
   const facts = await F.monitorFacts(['1', '2', '3', '3'], { fetchImpl: fakeFetch });
-  ok(calls.length === 4 && calls.every((c) => /in \('1','2','3'\)/.test(param(c.url, '$where'))), 'one batch: four queries for all the carriers (each once)');
+  const ordersCall = calls.find((c) => ds(c.url) === F.DS.orders);
+  ok(ordersCall && /order1_effective_date >= '20261113'/.test(param(ordersCall.url, '$where')) && facts['1'].suspensions.length === 1 && facts['1'].suspensions[0].effective === '2026-12-11'
+     && facts['2'].suspensions.length === 0, 'the daily check reads suspension notices still to take effect', ordersCall && param(ordersCall.url, '$where'));
+  ok(calls.length === 5 && calls.every((c) => /in \('1','2','3'\)/.test(param(c.url, '$where'))), 'one batch: five queries for all the carriers (each once)');
   ok(facts['1'].authority === 'Active' && facts['1'].cancels.length === 1 && facts['1'].cancels[0].cancels === '2026-11-23' && !facts['1'].insuranceShort,
      'carrier 1: active, a real cancellation in 10 days (the replaced filing is ignored)');
   ok(facts['2'].authority === 'Inactive' && facts['3'].insuranceShort && facts['3'].oos.length === 1 && facts['3'].safetyRating === 'Conditional', 'carriers 2 and 3: inactive; short on insurance with an out-of-service order');
@@ -227,7 +248,7 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
     return fakeFetch(url, opts);
   };
   let facts2 = await F.monitorFacts(['1', '2', '3'], { fetchImpl: flakyBatch, retryDelayMs: 0 });
-  ok(calls.length === 5 && facts2['1'] && facts2['1'].authority === 'Active' && facts2['2'].authority === 'Inactive', 'a batch query that fails once is asked again');
+  ok(calls.length === 6 && facts2['1'] && facts2['1'].authority === 'Active' && facts2['2'].authority === 'Inactive', 'a batch query that fails once is asked again');
   batchFails = 2;
   facts2 = await F.monitorFacts(['1', '2', '3'], { fetchImpl: flakyBatch, retryDelayMs: 0 });
   ok(Object.keys(facts2).length === 0, '…a batch FMCSA can’t answer twice: its carriers are left out, never reported as “authority gone”');
@@ -241,11 +262,19 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
      && F.factsVerdict(Object.assign({}, fine, { granted: isoAgo(100), usdotAdded: isoAgo(400) })) === 'ok', 'a new carrier is “check” on the saved list too, until it’s past 90 days (180 for the USDOT number)');
   ok(F.factsVerdict(facts['1']) === 'warn' && F.factsVerdict(facts['2']) === 'stop' && F.factsVerdict(facts['3']) === 'stop' && F.factsVerdict({ authority: 'Active', cancels: [], oos: [], usdotStatus: 'Active' }) === 'ok',
      'saved-list status from the facts');
-  const before = { authority: 'Active', insuranceShort: false, cancels: [], oos: [], usdotStatus: 'Active', safetyRating: 'Satisfactory', onFile: 1000000, required: 750000 };
+  const before = { authority: 'Active', insuranceShort: false, cancels: [], oos: [], usdotStatus: 'Active', safetyRating: 'Satisfactory', onFile: 1000000, required: 750000,
+    suspensions: facts['1'].suspensions };   // known already: only the cancellation is new for carrier 1
   let alerts = F.diffFacts(before, facts['1'], 'Clean Haul LLC');
   ok(alerts.length === 1 && alerts[0].kind === 'insurance_cancelling' && alerts[0].text === 'Clean Haul LLC: liability insurance with Good Mutual is being cancelled on Nov 23, 2026.',
      'a new cancellation → an alert in plain words', JSON.stringify(alerts));
   ok(F.diffFacts(facts['1'], facts['1'], 'Clean Haul LLC').length === 0, 'nothing new → no alert (each change is reported once)');
+  alerts = F.diffFacts(Object.assign({}, facts['1'], { suspensions: [] }), facts['1'], 'Clean Haul LLC');
+  ok(alerts.length === 1 && alerts[0].kind === 'authority' && alerts[0].text === 'Clean Haul LLC: FMCSA served notice that their operating authority will be suspended on Dec 11, 2026 unless they resolve it.',
+     'a new suspension notice → an alert (kind “authority”, which the alerts table allows)', JSON.stringify(alerts));
+  ok(F.factsVerdict(Object.assign({}, facts['1'], { cancels: [] })) === 'warn', '…and “check” on the saved list while it’s pending');
+  const noIns = { authority: 'Active', required: 0, onFile: 0, noInsurance: true, insuranceShort: false, cancels: [], oos: [], suspensions: [], usdotStatus: 'Active' };
+  ok(F.factsVerdict(noIns) === 'warn' && F.diffFacts(Object.assign({}, noIns, { onFile: 750000, noInsurance: false }), noIns, 'MX Haul')[0].text === 'MX Haul: no liability insurance on file anymore.'
+     && F.diffFacts(noIns, noIns, 'MX Haul').length === 0, 'no liability on file and no minimum: “check”, with an alert only when it drops to $0 (not for a carrier that never had any)');
   alerts = F.diffFacts(before, facts['2'], 'Two LLC');
   ok(alerts.length === 1 && alerts[0].kind === 'authority' && /operating authority is now inactive\. Don’t tender them loads/.test(alerts[0].text), 'authority no longer active → alert');
   alerts = F.diffFacts(before, facts['3'], 'Three Inc');
