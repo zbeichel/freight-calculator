@@ -199,6 +199,53 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   calls = []; checkoutRow = { is_active: true, plan: 'pro', stripe_subscription_id: 'sub_1' };
   let res = await startCheckout('plus');
   ok(res.statusCode === 409 && !calls.some((c) => c.path === '/v1/checkout/sessions'), 'already subscribed: 409, no second subscription');
+  // Not active here, but the earlier subscription is still open in Stripe (a failed payment):
+  // it's fixed in the billing portal, never replaced by a second subscription.
+  let subStatus = 'past_due';
+  const respondCheckout = respond;
+  respond = (c) => c.path === '/v1/subscriptions/sub_old' && c.method === 'GET'
+    ? { status: 200, body: { id: 'sub_old', status: subStatus } } : respondCheckout(c);
+  checkoutRow = { is_active: false, plan: 'plus', stripe_customer_id: 'cus_old', stripe_subscription_id: 'sub_old' };
+  for (const st of ['past_due', 'unpaid', 'incomplete']) {
+    calls = []; subStatus = st;
+    res = await startCheckout('plus');
+    ok(res.statusCode === 409 && JSON.parse(res.body).error === 'payment_issue' && /Manage billing/.test(JSON.parse(res.body).message)
+       && !calls.some((c) => c.path === '/v1/checkout/sessions'), `earlier subscription ${st}: 409 payment_issue, no second subscription`);
+  }
+  calls = []; subStatus = 'active';
+  res = await startCheckout('plus');
+  ok(res.statusCode === 409 && JSON.parse(res.body).error === 'already_subscribed' && !calls.some((c) => c.path === '/v1/checkout/sessions'),
+     'Stripe says active though the account doesn’t: 409, no second subscription');
+  for (const st of ['canceled', 'incomplete_expired']) {
+    calls = []; subStatus = st;
+    res = await startCheckout('plus');
+    ok(res.statusCode === 200 && calls.some((c) => c.path === '/v1/checkout/sessions'), `earlier subscription ${st}: a new checkout`);
+  }
+  respond = (c) => c.path.startsWith('/v1/subscriptions/') ? { status: 500, body: { error: { message: 'Stripe down' } } } : respondCheckout(c);
+  calls = [];
+  res = await startCheckout('plus');
+  ok(res.statusCode === 200, 'the subscription lookup fails: checkout still opens');
+  respond = respondCheckout;
+  // Back to the site checkout was opened on: the dev deploy returns to dev, the live site to
+  // the live site, and a host that isn't ours never gets a link.
+  const fromHost = (host) => checkout.handler({ httpMethod: 'POST', headers: host ? { host } : {},
+    body: JSON.stringify({ userId: 'user-1', email: 'a@b.co', accessToken: 'tok', plan: 'pro' }) });
+  checkoutRow = { is_active: false };
+  for (const [host, want] of [['dev--quickfreightcalculator.netlify.app', 'https://dev--quickfreightcalculator.netlify.app'],
+    ['quickfreightcalc.com', 'https://quickfreightcalc.com'], ['evil.example.com', 'https://quickfreightcalc.com'], [null, 'https://quickfreightcalc.com']]) {
+    calls = [];
+    await fromHost(host);
+    ok(sessionParams().get('success_url') === want + '/?checkout=success' && sessionParams().get('cancel_url') === want + '/signup.html?checkout=cancelled&plan=pro',
+       `checkout opened from ${host || 'no host'}: Stripe's Back and success links go to ${want}`, sessionParams().get('success_url') + ' ' + sessionParams().get('cancel_url'));
+  }
+  calls = [];
+  await checkout.handler({ httpMethod: 'POST', headers: { host: 'quickfreightcalc.com' },
+    body: JSON.stringify({ userId: 'user-1', email: 'a@b.co', accessToken: 'tok', plan: 'max', interval: 'year' }) });
+  ok(sessionParams().get('cancel_url') === 'https://quickfreightcalc.com/signup.html?checkout=cancelled&plan=max&interval=year',
+     'Back from Stripe returns to Pricing with the plan and billing that were chosen (Pro Max, yearly), not Pro', sessionParams().get('cancel_url'));
+  calls = []; checkoutRow = { is_active: false, stripe_subscription_id: 'team' };
+  res = await startCheckout('plus');
+  ok(res.statusCode === 200 && !calls.some((c) => c.path.startsWith('/v1/subscriptions/')), 'a team seat’s marker isn’t a Stripe subscription: no lookup');
   calls = []; checkoutRow = null; delete process.env.STRIPE_PRICE_ID_PLUS;
   res = await startCheckout('plus');
   ok(res.statusCode === 503 && /Pro Plus isn't available yet/.test(JSON.parse(res.body).error), 'Pro Plus price not set up: friendly 503');

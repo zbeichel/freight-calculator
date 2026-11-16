@@ -457,6 +457,9 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
   background:var(--accent-fill);color:#000;cursor:pointer;transition:all .15s;
 }
 .save-btn:hover{opacity:.88}
+/* "Choose a plan" on the no-plan card (its own class: page code finds the Save button by .save-btn) */
+.plan-cta{display:inline-block;padding:10px 22px;border-radius:8px;border:1px solid var(--accent);background:var(--accent-fill);color:#000;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;text-decoration:none}
+.plan-cta:hover{opacity:.88}
 
 /* ── Toast ── */
 .toast{
@@ -505,7 +508,7 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
         <div class="field-grid" style="margin-bottom:16px">
           <div class="field">
             <label>Company / Brokerage Name</label>
-            <input type="text" id="company-name" placeholder="e.g. Acme Freight Brokers LLC" />
+            <input type="text" id="company-name" placeholder="e.g. Acme Freight Brokers LLC" oninput="updatePreview()" />
           </div>
           <div class="field">
             <label>Your Name</label>
@@ -514,8 +517,8 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
         </div>
         <div class="field-grid" style="margin-bottom:16px">
           <div class="field">
-            <label>Email</label>
-            <input type="email" id="contact-email" placeholder="john@acmefreight.com" />
+            <label for="contact-email">Email on quotes</label>
+            <input type="email" id="contact-email" placeholder="john@acmefreight.com" maxlength="200" />
           </div>
           <div class="field">
             <label>Phone</label>
@@ -525,15 +528,15 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
         <div class="field-grid-3">
           <div class="field">
             <label>MC Number</label>
-            <input type="text" id="mc-number" placeholder="MC-123456" />
+            <input type="text" id="mc-number" placeholder="123456" inputmode="numeric" />
           </div>
           <div class="field">
             <label>DOT Number</label>
-            <input type="text" id="dot-number" placeholder="DOT-1234567" />
+            <input type="text" id="dot-number" placeholder="1234567" inputmode="numeric" />
           </div>
           <div class="field">
             <label>Custom Footer Text <span style="font-weight:400;text-transform:none;font-size:10px">(optional)</span></label>
-            <input type="text" id="footer-text" placeholder="e.g. Licensed & Bonded · FMCSA Registered" />
+            <input type="text" id="footer-text" maxlength="150" placeholder="e.g. Licensed & Bonded · FMCSA Registered" oninput="updatePreview()" />
           </div>
         </div>
       </div>
@@ -778,7 +781,7 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
           </div>
           <div class="field">
             <label>Starting Number</label>
-            <input type="number" id="quote-start" placeholder="1001" min="1" oninput="updateQuotePreview()" />
+            <input type="number" id="quote-start" placeholder="1001" min="1" max="99999999" step="1" oninput="updateQuotePreview()" />
             <div class="field-note">Your next quote will use this number</div>
           </div>
         </div>
@@ -955,6 +958,27 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
               Your account has Pro access without a paid subscription. Contact us if you have questions about your account.
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card" id="subscription-none" style="display:none">
+      <div class="section-header">
+        <span class="section-icon"><svg class="qf-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.5 2.6 5.3 5.9.8-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z"/></svg></span>
+        <span class="section-title">Your Plan</span>
+        <span class="section-sub">No active plan</span>
+      </div>
+      <div class="section-body">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">You don't have an active plan</div>
+        <div style="font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:14px">
+          Pick a plan to get automatic miles, PDF quotes, the quote log and the rest of your plan's tools.
+          Pro Plus and Pro Max start with a 7-day free trial if you haven't had one.
+        </div>
+        <a class="plan-cta" href="/signup.html">Choose a plan →</a>
+        <div id="subscription-none-billing" style="display:none;font-size:12px;color:var(--text3);line-height:1.6;margin-top:14px">
+          Had a plan? If a payment didn’t go through, update your card in
+          <a href="#" onclick="event.preventDefault();handleManageBilling()" style="color:var(--accent)">Manage billing</a>
+          to keep it. Your past invoices are there too.
         </div>
       </div>
     </div>
@@ -1184,7 +1208,28 @@ function selectScheme(id){
   updatePreview();
 }
 
+// The preview's header text as the PDFs print it: your company and footer line (with no company
+// name, QuickFreightCalc, or nothing at all on a white-label PDF) and your next quote number.
+function updatePreviewText(){
+  const p = profileFromForm();
+  if(currentPdfStyle === 'modern') setTimeout(updatePreviewLogo, 0);   // the letter mark follows the company name
+  const wl = !!(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(p));
+  const nameEl = document.getElementById('preview-brand-name');
+  const subEl = document.getElementById('preview-brand-sub');
+  if(nameEl && subEl){
+    if(p.companyName){ nameEl.textContent = p.companyName; subEl.textContent = p.footerText || 'Licensed Freight Broker'; }
+    else if(wl){ nameEl.textContent = ''; subEl.textContent = ''; }
+    else { nameEl.innerHTML = 'Quick<span id="preview-accent-text">Freight</span>Calc'; subEl.textContent = 'Freight Rate Calculator'; }
+  }
+  const numEl = document.getElementById('preview-quote-num');
+  if(numEl){
+    const t = new Date();
+    const ymd = t.getFullYear() + String(t.getMonth() + 1).padStart(2, '0') + String(t.getDate()).padStart(2, '0');
+    numEl.textContent = `Quote #${(p.quotePrefix || 'QFC').toUpperCase()}-${ymd}-${quoteStartValue().value || 1001}`;
+  }
+}
 function updatePreview(){
+  updatePreviewText();
   const s = (currentScheme === 'custom' && window.QFCQuotePDF && QFCQuotePDF.classicScheme(profileFromForm()))
     || SCHEMES.find(x => x.id === currentScheme) || SCHEMES[0];
   // Modern: white letterhead with the scheme's ink and accent (pdf-quote.js).
@@ -1192,7 +1237,8 @@ function updatePreview(){
   if(m){
     document.getElementById('preview-header').style.background = '#ffffff';
     document.getElementById('preview-bar').style.background = m.accent;
-    document.getElementById('preview-accent-text').style.color = m.accent;
+    const accText = document.getElementById('preview-accent-text');
+    if(accText) accText.style.color = m.accent;
     const set = (id, color, text) => { const el = document.getElementById(id); if(el){ el.style.color = color; if(text) el.textContent = text; } };
     set('preview-brand-name', m.ink);
     set('preview-brand-sub', '#6b7280');
@@ -1205,7 +1251,8 @@ function updatePreview(){
   if(titleEl) titleEl.textContent = 'Rate Confirmation';
   document.getElementById('preview-header').style.background = s.header;
   document.getElementById('preview-bar').style.background = s.bar;
-  document.getElementById('preview-accent-text').style.color = s.accent;
+  const accText = document.getElementById('preview-accent-text');
+  if(accText) accText.style.color = s.accent;
 
   // Header text colors — driven by the scheme so light-header schemes stay legible.
   // These mirror the three tones used in the final PDF generators.
@@ -1221,10 +1268,20 @@ function updatePreview(){
 }
 
 function updatePreviewLogo(){
-  // Logo in preview
+  // Logo in preview, as the PDFs pick it: your logo unless hidden; otherwise ours, except on a
+  // white-label PDF
   const logoArea = document.getElementById('preview-logo-area');
-  if(logoBase64){
+  const hide = document.getElementById('hide-logo').checked;
+  const wl = !!(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profileFromForm()));
+  const company = (document.getElementById('company-name') || {}).value || '';
+  const m = currentPdfStyle === 'modern' && window.QFCQuotePDF ? QFCQuotePDF.colorsFor(profileFromForm()) : null;
+  if(logoBase64 && !hide){
     logoArea.innerHTML = `<img src="${logoBase64}" style="height:28px;max-width:80px;object-fit:contain" />`;
+  } else if(m && (company.trim() || !wl)){
+    // Modern without a logo: the letter mark the PDF prints (the company's first letter)
+    logoArea.innerHTML = `<span id="preview-mark" style="width:24px;height:24px;border-radius:6px;background:${m.ink};color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center">${(company.trim() || 'Q').charAt(0).toUpperCase().replace(/[&<>"']/g, (c) => '&#' + c.charCodeAt(0) + ';')}</span>`;
+  } else if(wl){
+    logoArea.innerHTML = '';
   } else {
     logoArea.innerHTML = `<img class="pdf-mini-brand-logo" id="preview-emoji" src="/favicon.svg" alt="">`;
   }
@@ -1346,6 +1403,9 @@ function applyWhiteLabelAccess(){
     const el = document.getElementById(id);
     if(el) el.disabled = !allowed;
   });
+  const wlBox = document.getElementById('pdf-white-label');
+  if(wlBox && !wlBox.dataset.previewHooked){ wlBox.dataset.previewHooked = '1'; wlBox.addEventListener('change', updatePreview); }
+  updatePreview();   // white-label depends on the plan, now known
   const fields = document.getElementById('wl-fields');
   if(fields) fields.style.opacity = allowed ? '1' : '.55';
 }
@@ -1423,7 +1483,7 @@ function profileFromForm(){
     dotNumber:   document.getElementById('dot-number').value.trim(),
     footerText:  document.getElementById('footer-text').value.trim(),
     quotePrefix: document.getElementById('quote-prefix').value.trim() || 'QFC',
-    quoteStart:  parseInt(document.getElementById('quote-start').value) || 1001,
+    quoteStart:  quoteStartValue().value || 1001,
     colorScheme: currentScheme,
     logoBase64:  logoBase64,
     hideLogo:    document.getElementById('hide-logo').checked,
@@ -1762,9 +1822,44 @@ const LogoCropper = (() => {
 })();
 
 // ── Quote number preview ───────────────────────────────────────────────────
+// The starting quote number as typed: a whole number from 1 to 99,999,999 (blank: 1001)
+// The next quote number as the account has it (PDFs made in another tab or on another device
+// move it on): shown here unless you're changing it.
+async function catchUpQuoteNumber(){
+  if(!window.QFCNav || !QFCNav.syncProfile) return;
+  const el = document.getElementById('quote-start');
+  const before = el ? el.value : '';
+  const p = await QFCNav.syncProfile({ counterOnly: true });
+  if(!p || !el || !(Number(p.quoteStart) > 0)) return;
+  accountQuoteCounter = Math.max(accountQuoteCounter, Number(p.accountQuoteCounter) || 0);
+  const editing = el.value !== before || (Number(before) || 0) !== loadedQuoteStart;
+  if(!editing && Number(p.quoteStart) > loadedQuoteStart){
+    el.value = p.quoteStart;
+    loadedQuoteStart = Number(p.quoteStart);
+    updateQuotePreview();
+  }
+}
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') catchUpQuoteNumber(); });
+
+function quoteStartValue(){
+  const raw = document.getElementById('quote-start').value.trim();
+  if(raw === '') return { ok: true, value: 1001 };
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 && n <= 99999999 ? { ok: true, value: n } : { ok: false, value: null };
+}
+const QUOTE_START_MSG = 'The starting number has to be a whole number from 1 to 99,999,999.';
+// The next quote number when the page loaded (or last caught up with the account), and the
+// account's own counter. Saving sends the counter only to move it forward: a tab opened before
+// some PDFs were made can't send it back to a number that's been used.
+let loadedQuoteStart = 0, accountQuoteCounter = 0;
 function updateQuotePreview(){
   const prefix  = document.getElementById('quote-prefix').value.trim() || 'QFC';
-  const startNum = parseInt(document.getElementById('quote-start').value) || 1001;
+  const qs = quoteStartValue();
+  const startEl = document.getElementById('quote-start');
+  if(qs.ok) startEl.removeAttribute('aria-invalid'); else startEl.setAttribute('aria-invalid', 'true');
+  updatePreviewText();
+  if(!qs.ok){ document.getElementById('quote-num-preview').innerHTML = `<b style="color:var(--red)">${QUOTE_START_MSG}</b>`; return; }
+  const startNum = qs.value;
   const today = new Date();
   const dateStr = today.getFullYear() +
     String(today.getMonth()+1).padStart(2,'0') +
@@ -1862,6 +1957,14 @@ async function saveProfile(){
     rs.bad.focus();
     return;
   }
+  const qs = quoteStartValue();
+  if(!qs.ok){ showToast(QUOTE_START_MSG); document.getElementById('quote-start').focus(); return; }
+  // Quote numbers only go up, so none is used twice
+  if(loadedQuoteStart && qs.value < loadedQuoteStart){
+    showToast(`Quote numbers only go up, so none is used twice. The next one is already ${loadedQuoteStart.toLocaleString()}.`);
+    document.getElementById('quote-start').focus();
+    return;
+  }
   const profile = {
     companyName:  document.getElementById('company-name').value.trim(),
     contactName:  document.getElementById('contact-name').value.trim(),
@@ -1869,9 +1972,9 @@ async function saveProfile(){
     phone:        document.getElementById('contact-phone').value.trim(),
     mcNumber:     document.getElementById('mc-number').value.trim(),
     dotNumber:    document.getElementById('dot-number').value.trim(),
-    footerText:   document.getElementById('footer-text').value.trim(),
+    footerText:   document.getElementById('footer-text').value.trim().slice(0, 150),
     quotePrefix:  document.getElementById('quote-prefix').value.trim() || 'QFC',
-    quoteStart:   parseInt(document.getElementById('quote-start').value) || 1001,
+    quoteStart:   qs.value,
     colorScheme:  currentScheme,
     logoBase64:   logoBase64,
     hideLogo:     document.getElementById('hide-logo').checked,
@@ -1886,8 +1989,15 @@ async function saveProfile(){
     savedAt:      new Date().toISOString(),
   };
 
-  // Always save to localStorage as immediate fallback
-  try { localStorage.setItem('qfc_pro_profile', JSON.stringify(profile)); } catch(e){}
+  // Always save to localStorage as immediate fallback, keeping what only the account knows
+  // (the plan, the team) and the furthest quote number this browser has reached
+  try {
+    let prevCache = {};
+    try { prevCache = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
+    const cached = Object.assign({}, prevCache, profile);
+    cached.quoteStart = Math.max(Number(profile.quoteStart) || 0, Number(prevCache.quoteStart) || 0) || undefined;
+    localStorage.setItem('qfc_pro_profile', JSON.stringify(cached));
+  } catch(e){}
 
   // Also save to Supabase if logged in
   const session = await getSessionRefreshed();
@@ -1905,12 +2015,14 @@ async function saveProfile(){
         body: JSON.stringify({
           company_name:  profile.companyName,
           contact_name:  profile.contactName,
+          contact_email: (profile.email || '').trim().slice(0, 200) || null,   // printed on quotes
           phone:         profile.phone,
           mc_number:     profile.mcNumber,
           dot_number:    profile.dotNumber,
           footer_text:   profile.footerText,
           quote_prefix:  profile.quotePrefix,
-          quote_counter: profile.quoteStart,
+          // only forward (the account keeps it from going back, too)
+          ...(profile.quoteStart > accountQuoteCounter ? { quote_counter: profile.quoteStart } : {}),
           color_scheme:  profile.colorScheme,
           logo_base64:   profile.logoBase64,
           hide_logo:     profile.hideLogo,
@@ -1928,6 +2040,9 @@ async function saveProfile(){
         })
       });
       showToast('✓ Profile saved to your account');
+      if(profile.quoteStart > accountQuoteCounter) accountQuoteCounter = profile.quoteStart;
+      loadedQuoteStart = Math.max(loadedQuoteStart, Number(profile.quoteStart) || 0);
+      catchUpQuoteNumber();   // the account's counter may be further along than this page knew
     } catch(e){
       showToast('✓ Saved locally — will sync when online');
     }
@@ -1953,6 +2068,10 @@ async function loadProfile(){
 
   const session = await getSessionRefreshed();
   const userId = session?.user?.id || session?.user?.sub;
+  // Signed out (no session kept at all, or one Supabase turned down): this page is your
+  // account's, so sign in first. A session that couldn't be refreshed because of the network
+  // stays, and the page works from this browser until it can sync.
+  if(!session && !getSessionRaw()){ window.location.replace('/signup.html?login'); return; }
 
   // Try Supabase first
   if(session && userId){
@@ -1975,16 +2094,26 @@ async function loadProfile(){
       }
       if(acct && acct.row){
         const p = acct.row;
+        accountQuoteCounter = Number(p.quote_counter) || 0;
+        // The PDF pages' copy of these settings, so they're right on this device from now on
+        if(window.QFCNav && QFCNav.accountProfile){
+          let prevCache = {};
+          try { prevCache = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
+          try { localStorage.setItem('qfc_pro_profile', JSON.stringify(QFCNav.accountProfile(p, QFCNav.teamOf(acct.team), prevCache))); } catch(e){}
+        }
+        // PDFs advance the quote counter in this browser first: keep the higher of the two.
+        let localStart = 0;
+        try { localStart = Number(JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}').quoteStart) || 0; } catch(e){}
         populateForm({
           companyName: p.company_name,
           contactName: p.contact_name,
-          email:       p.email,
+          email:       p.contact_email || p.email,   // the quote email you set, else your sign-in email
           phone:       p.phone,
           mcNumber:    p.mc_number,
           dotNumber:   p.dot_number,
           footerText:  p.footer_text,
           quotePrefix: p.quote_prefix,
-          quoteStart:  p.quote_counter,
+          quoteStart:  Math.max(Number(p.quote_counter) || 0, localStart) || undefined,
           colorScheme: p.color_scheme,
           logoBase64:  p.logo_base64,
           hideLogo:    p.hide_logo === true,
@@ -2046,8 +2175,25 @@ function applySubscriptionCardState(stripeCustomerId, plan, isActive){
   const hasStripe = !!(stripeCustomerId && String(stripeCustomerId).trim().length > 0);
   const paidCard = document.getElementById('subscription-paid');
   const compCard = document.getElementById('subscription-comp');
-  if(paidCard) paidCard.style.display = hasStripe ? '' : 'none';
-  if(compCard) compCard.style.display = hasStripe ? 'none' : '';
+  const noneCard = document.getElementById('subscription-none');
+  // No active plan (sign-up never paid for, or a subscription that ended): the "choose a plan"
+  // card. Otherwise the paid card for Stripe subscribers and the comp card for comp accounts.
+  const noPlan = isActive !== true;
+  if(paidCard) paidCard.style.display = hasStripe && !noPlan ? '' : 'none';
+  if(compCard) compCard.style.display = !hasStripe && !noPlan ? '' : 'none';
+  if(noneCard) noneCard.style.display = noPlan ? '' : 'none';
+  const noneBilling = document.getElementById('subscription-none-billing');
+  if(noneBilling) noneBilling.style.display = noPlan && hasStripe ? '' : 'none';   // an earlier Stripe subscription
+  // Links to the plan section ("Change plan" on locked features) lead to the card that's showing;
+  // without a plan, they say "Choose a plan".
+  const planCardId = noPlan ? 'subscription-none' : hasStripe ? 'subscription-paid' : 'subscription-comp';
+  document.querySelectorAll('a[data-plan-link], a[href="#subscription-paid"]').forEach((a) => {
+    a.setAttribute('data-plan-link', '');
+    a.setAttribute('href', '#' + planCardId);
+    a.textContent = noPlan ? 'Choose a plan →' : 'Change plan →';
+  });
+  // Links to the plan section ("Change plan", "Get Pro Max"…) land on that card.
+  if(noPlan && noneCard && /^#subscription/.test(window.location.hash)) setTimeout(() => noneCard.scrollIntoView({ block: 'start' }), 50);
   applyPlanState(normalizeProfilePlan(plan), isActive === true, false, null);
   // Ask the server whether this subscriber still has unlimited quotes until
   // they renew (the rule lives in netlify/lib/plans.js) and when they renew.
@@ -2299,7 +2445,10 @@ const TEAM_SIZES = { pro: 1, plus: 1, max: 3, api: 6 };
 const teamEsc = (v) => String(v === null || v === undefined ? '' : v)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const teamDate = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
-const teamPlanName = (plan) => plan === 'comp' ? 'your plan' : (PROFILE_PLANS[plan] ? PROFILE_PLANS[plan].name : 'your plan');
+// The plan's name ("Pro Max"), or '' when there's no name to show (comp accounts)
+const teamPlanName = (plan) => (plan !== 'comp' && PROFILE_PLANS[plan]) ? PROFILE_PLANS[plan].name : '';
+// "your Pro Max plan", or just "your plan"
+const teamPlanPhrase = (plan, whose) => { const n = teamPlanName(plan); return whose + (n ? ' ' + n : '') + ' plan'; };
 // With a seat on someone else's team (not one waiting for a seat)
 function teamMemberMode(){ return !!profileTeam && profileTeam.role === 'member' && profileTeam.seated !== false; }
 
@@ -2343,9 +2492,9 @@ function renderTeam(){
     const teamName = team.company || `${team.ownerName}’s team`;
     sub.textContent = `On ${teamName}`;
     body.innerHTML = `
-      <p class="api-copy">You’re on <strong>${teamEsc(teamName)}</strong>, run by ${teamEsc(team.ownerName)}, on its ${teamEsc(teamPlanName(team.plan))} plan. You share the team’s quote log, customers and company settings. Quotes you send are signed with your own name and phone (Company Information above)${t.me && t.me.tag ? `, and your quote numbers carry your initials, <strong>${teamEsc(t.me.tag)}</strong>` : ''}.</p>
+      <p class="api-copy">You’re on <strong>${teamEsc(teamName)}</strong>, run by ${teamEsc(team.ownerName)}, on ${teamEsc(teamPlanPhrase(team.plan, 'its'))}. You share the team’s quote log, customers and company settings. Quotes you send are signed with your own name and phone (Company Information above)${t.me && t.me.tag ? `, and your quote numbers carry your initials, <strong>${teamEsc(t.me.tag)}</strong>` : ''}.</p>
       ${t.seated === false ? `<div class="team-warn">The team’s plan has room for ${team.size > 1 ? `${team.size} people` : 'no team members'} right now, so you’re waiting for a seat. Ask ${teamEsc(team.ownerName)} to make room, or leave the team.</div>` : ''}
-      ${t.ownPlan ? `<div class="team-warn">You still pay for your own ${teamEsc(teamPlanName(t.ownPlan))} plan. You don’t need it while you’re on this team. <a href="#" onclick="event.preventDefault();handleManageBilling()" style="color:var(--accent)">Manage billing</a></div>` : ''}
+      ${t.ownPlan ? `<div class="team-warn">You still pay for ${teamEsc(teamPlanPhrase(t.ownPlan, 'your own'))}. You don’t need it while you’re on this team. <a href="#" onclick="event.preventDefault();handleManageBilling()" style="color:var(--accent)">Manage billing</a></div>` : ''}
       <div class="team-list">${(t.people || []).map(p => `
         <div class="team-row"><div class="team-main">
           <div class="team-name">${teamEsc(p.name)}${p.owner ? '<span class="team-tag">Owner</span>' : ''}${p.you ? '<span class="team-tag">You</span>' : ''}</div>
@@ -2375,8 +2524,8 @@ function renderTeam(){
   sub.textContent = `${t.used} of ${t.size} people`;
   const full = t.used >= t.size;
   body.innerHTML = `
-    <p class="api-copy">Everyone you add signs in with their own login and quotes on your ${teamEsc(plan)} plan. They share your quote log, customers, company settings and daily limits, and send quotes signed with their own name. Only you change company settings and billing. A quote or customer can be deleted by you or by whoever saved it.</p>
-    ${seatless.length ? `<div class="team-warn">${teamEsc(plan.charAt(0).toUpperCase() + plan.slice(1))} has room for ${t.size} people, so ${teamEsc(names(seatless))} can’t use your account right now. Remove someone, or move to a plan with more room.</div>` : ''}
+    <p class="api-copy">Everyone you add signs in with their own login and quotes on ${teamEsc(teamPlanPhrase(t.plan, 'your'))}. They share your quote log, customers, company settings and daily limits, and send quotes signed with their own name. Only you change company settings and billing. A quote or customer can be deleted by you or by whoever saved it.</p>
+    ${seatless.length ? `<div class="team-warn">${teamEsc(plan || 'Your plan')} has room for ${t.size} people, so ${teamEsc(names(seatless))} can’t use your account right now. Remove someone, or move to a plan with more room.</div>` : ''}
     ${t.onOtherTeam ? `<div class="team-warn">You’re on someone else’s team, so you can’t add your own team members. Leave that team first.</div>` : ''}
     <div class="team-list">
       <div class="team-row"><div class="team-main">
@@ -2948,6 +3097,7 @@ function populateForm(p){
   if(p.footerText)  document.getElementById('footer-text').value = p.footerText;
   if(p.quotePrefix) document.getElementById('quote-prefix').value = p.quotePrefix;
   if(p.quoteStart)  document.getElementById('quote-start').value = p.quoteStart;
+  loadedQuoteStart = Number(p.quoteStart) || 0;
   if(p.colorScheme) currentScheme = p.colorScheme;
   document.getElementById('hide-logo').checked = p.hideLogo === true;
   document.getElementById('pdf-breakdown').checked = p.pdfBreakdown !== false;
@@ -2959,6 +3109,7 @@ function populateForm(p){
   renderSchemes();
   selectPdfStyle(p.pdfStyle);
   document.getElementById('pdf-white-label').checked = p.pdfWhiteLabel === true;
+  setTimeout(() => { updatePreview(); updateQuotePreview(); }, 0);   // the preview shows what was loaded
   document.getElementById('pdf-valid-hours').value = [24, 48, 72, 168].includes(Number(p.pdfValidHours)) ? String(p.pdfValidHours) : '24';
   document.getElementById('pdf-terms').value = typeof p.pdfTerms === 'string' ? p.pdfTerms : '';
   fillSections(p.pdfSections, p.pdfAccessorials);

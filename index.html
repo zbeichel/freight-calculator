@@ -384,6 +384,20 @@ html.light .hero h1 em{-webkit-text-fill-color:#d48200;color:#d48200}
   border-color:var(--red);
   box-shadow:0 0 0 3px rgba(239,68,68,.08);
 }
+/* A box the quote can't be priced from (calcInputProblem) */
+#weight[aria-invalid="true"],#margin[aria-invalid="true"],#pickup[aria-invalid="true"],#delivery[aria-invalid="true"],
+.mini-input[aria-invalid="true"]{border-color:var(--red)!important;box-shadow:0 0 0 3px rgba(239,68,68,.12)!important}
+.r-problem{margin:10px 4px 0;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:600;line-height:1.45;color:var(--red);
+  background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);text-align:left}
+#undo-toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);z-index:10000;display:flex;align-items:center;gap:14px;
+  background:#1f2937;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;padding:10px 12px 10px 18px;
+  border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+#undo-toast.show{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+#undo-toast .undo-btn{background:transparent;border:1px solid rgba(255,255,255,.35);color:#fbbf24;font:inherit;font-weight:700;
+  padding:5px 12px;border-radius:8px;cursor:pointer}
+#undo-toast .undo-btn:hover{border-color:#fbbf24}
+.r-saved-note{margin:10px 4px 0;padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.45;color:var(--text2);
+  background:var(--card2);border:1px solid var(--border);text-align:left}
 .field-error{
   display:none;
   margin-top:6px;
@@ -2143,14 +2157,14 @@ html.light .hos-day-header{background:var(--card2)}
                   <option value="R30">Gulf Coast</option>
                   <option value="R40">Rocky Mountain</option>
                   <option value="R50">West Coast</option>
-                  <option value="NUS">National Average</option>
+                  <option value="NUS" selected>National Average</option>
                 </select>
               </div>
               <!-- Price input + fetch button -->
               <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-bottom:6px">
                 <div class="mini-input-group">
                   <div class="mini-label" style="color:var(--red)">Diesel Price ($/gal)</div>
-                  <input class="mini-input" type="number" id="diesel-price" value="3.85" step="0.01" min="1" style="color:var(--red);border-color:rgba(239,68,68,.3)" oninput="saveDiesel();calc()" />
+                  <input class="mini-input" type="number" id="diesel-price" value="3.85" step="0.01" min="1" style="color:var(--red);border-color:rgba(239,68,68,.3)" oninput="dieselSource='manual';saveDiesel();calc()" />
                 </div>
                 <button onclick="fetchEIADiesel()" id="eia-fetch-btn"
                   style="height:38px;padding:0 12px;background:var(--card2);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--red);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s"
@@ -2262,7 +2276,7 @@ html.light .hos-day-header{background:var(--card2)}
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
             <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)">Base Rates ($/mi)</div>
             <div style="display:flex;align-items:center;gap:8px">
-              <input type="text" id="rate-date" placeholder="Loading rates..." style="background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-family:'Space Grotesk',sans-serif;font-size:10px;padding:3px 8px;outline:none;width:min(160px,100%)" readonly />
+              <span id="rate-date" style="display:inline-block;max-width:100%;background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:10px;line-height:1.4;padding:3px 8px">Loading rates…</span>
             </div>
           </div>
           <!-- My rates (your rate sheet) / Regional / National toggle -->
@@ -2361,7 +2375,7 @@ html.light .hos-day-header{background:var(--card2)}
                 <span style="font-size:11px;color:var(--text3)">$</span>
                 <input type="number" inputmode="decimal" id="extra-day-rate" value="200" min="0" step="25"
                   style="width:70px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:4px 8px;outline:none;text-align:center"
-                  oninput="calcTransit()" />
+                  oninput="calcTransit();calc()" />
                 <span style="font-size:11px;color:var(--text3)">/day</span>
               </div>
               <div id="transit-extra-total" style="font-size:12px;font-weight:700;color:var(--accent)"></div>
@@ -2495,6 +2509,8 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="result-hero-label">Quote to Customer</div>
         <div class="result-hero-val" id="r-quote">—</div>
         <div class="result-hero-rpm" id="r-rpm">— per mile</div>
+        <div class="r-problem" id="r-problem" role="alert" hidden></div>
+        <div class="r-saved-note" id="r-saved-note" hidden></div>
         <a href="#lane-view" class="lane-jump" id="lane-jump" hidden>Lane details: map and rate history ↓</a>
         <div id="rate-disclaimer" style="font-size:10px;color:var(--text3);line-height:1.5;margin-top:8px;padding:0 4px">
           This quote is based on current <strong style="color:var(--text2)">US AVERAGE</strong> market rates and can be inflated. If you know the current rate per mile for your region/lane, please adjust it in the <strong style="color:var(--text2)">Base Rates ($/mi)</strong> box accordingly.
@@ -2508,6 +2524,7 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="rrow"><span class="rrow-label">Pickup</span><span class="rrow-val" id="r-pickup">—</span></div>
         <div class="rrow"><span class="rrow-label">Delivery</span><span class="rrow-val" id="r-delivery">—</span></div>
         <div class="rrow"><span class="rrow-label">Linehaul cost</span><span class="rrow-val" id="r-cost">—</span></div>
+        <div class="rrow" id="r-extra-row" style="display:none"><span class="rrow-label">Extra transit days</span><span class="rrow-val" id="r-extra">—</span></div>
         <div class="rrow" id="r-acc-row" style="display:none"><span class="rrow-label">Accessorials</span><span class="rrow-val" style="color:var(--accent)" id="r-acc">—</span></div>
         <div class="rrow"><span class="rrow-label">Margin</span><span class="rrow-val" id="r-margin">—</span></div>
         <div class="rrow"><span class="rrow-label" id="r-base-label">Base rate/mi</span><span class="rrow-val" style="color:var(--accent)" id="r-baserate">—</span></div>
@@ -2614,8 +2631,8 @@ html.light .hos-day-header{background:var(--card2)}
           <span id="p-bar-profit-lbl">Profit: —</span>
         </div>
       </div>
-      <div style="padding:14px 20px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);line-height:1.6;text-align:center">
-        Defaults: $0.58 fuel · $0.55 driver · $0.30 fixed · Adjust to your actual costs
+      <div id="p-defaults-note" style="padding:14px 20px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);line-height:1.6;text-align:center">
+        Blank costs use the defaults: $0.58 fuel · $0.55 driver · $0.30 fixed per mile. Adjust to your actual costs.
       </div>
       </div>
     </div>
@@ -2899,7 +2916,7 @@ function escapeHTML(s){
 const TLABEL={van:'Dry Van',reefer:'Reefer',flatbed:'Flatbed'};
 const TTAG={van:'tag-van',reefer:'tag-reefer',flatbed:'tag-flat'};
 const CMULT={standard:1.0,food:1.08,hazmat:1.20,highval:1.12,oversized:1.25};
-const CLABEL={standard:'Standard',food:'Food/Perishable',hazmat:'Hazmat',highval:'High Value',oversized:'Oversized'};
+const CLABEL={standard:'Standard',food:'Food / Perishable',hazmat:'Hazmat',highval:'High Value',oversized:'Oversized'};
 const WTIERS=[{max:9999,m:0.95,l:'0.95×'},{max:29999,m:0.97,l:'0.97×'},{max:44000,m:1.00,l:'1.00×'},{max:999999,m:1.08,l:'1.08×'}];
 // Distance multiplier curves — per trailer type, calibrated to real
 // freight market data (lotwizard.us, Dec 12 2025). Each curve is a list
@@ -3116,23 +3133,8 @@ async function _verifyProAuthBackground(){
         // higher of the two counters so a number is never reused here.
         let prev = {};
         try { prev = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
-        localStorage.setItem('qfc_pro_profile', JSON.stringify({
-          companyName: p.company_name, contactName: p.contact_name,
-          email: p.email, phone: p.phone, mcNumber: p.mc_number,
-          dotNumber: p.dot_number, footerText: p.footer_text,
-          quotePrefix: p.quote_prefix,
-          quoteStart: Math.max(Number(p.quote_counter) || 0, Number(prev.quoteStart) || 0) || undefined,
-          colorScheme: p.color_scheme, logoBase64: p.logo_base64,
-          hideLogo: p.hide_logo === true,
-          pdfStyle: p.pdf_style === 'classic' ? 'classic' : 'modern',
-          pdfBreakdown: p.pdf_breakdown !== false,
-          pdfAccent: p.pdf_accent || '', pdfInk: p.pdf_ink || '',
-          pdfWhiteLabel: p.pdf_white_label === true, pdfValidHours: p.pdf_valid_hours || 24, pdfTerms: p.pdf_terms || '',
-          pdfSections: p.pdf_sections || null, pdfAccessorials: p.pdf_accessorials || null,
-          rateSheet: p.rate_sheet || null,
-          plan: p.plan, comp: p.is_active === true && !p.stripe_subscription_id,
-          team,
-        }));
+        localStorage.setItem('qfc_pro_profile', JSON.stringify(QFCNav.accountProfile(p, team, prev)));
+        QFCNav.keepProfileFresh();   // looked at again later: the account's latest quote number
         if(p.rate_profiles && Array.isArray(p.rate_profiles)){
           // Key matches PROFILES_KEY in lanes.html — keep them in sync.
           localStorage.setItem('qfc_rate_profiles', JSON.stringify(p.rate_profiles));
@@ -3293,8 +3295,7 @@ function handleCustomersClick(e){
   e.preventDefault();
   if(winLossAllowed()){ window.location.href = '/customers.html'; return; }
   const why = 'The customer list comes with Pro Plus: save customers once, and their contact details fill into your quotes and PDFs.';
-  if(isProUser) showUpgradeModal(why, ['plus', 'max']);
-  else showProModal(why);
+  showUpgradeModal(why, ['plus', 'max']);   // a Pro Plus feature: offer Pro Plus, not Pro
 }
 
 function handleBulkClick(e){
@@ -3550,6 +3551,7 @@ const ACC = {
 
 function setShipType(t){
   shipType=t;
+  if(t==='ltl'||t==='prof') ensureNationalDiesel();
   if(window.QFCLane) QFCLane.refresh();
   document.getElementById('btn-ftl').classList.toggle('active',t==='ftl');
   document.getElementById('btn-ltl').classList.toggle('active',t==='ltl');
@@ -3751,6 +3753,7 @@ let origCoords = null;
 let destCoords = null;
 
 let ratesManualOverride = false;
+let ratesFromSavedQuote = false;   // the base rate came back with a quote loaded from the log
 
 async function geocodeWithGoogle(address){
   // Use our Netlify proxy — avoids key exposure and referrer restriction issues
@@ -3761,8 +3764,12 @@ async function geocodeWithGoogle(address){
 }
 
 async function geocodeOpenMeteo(address){
-  // Clean up shorthand like "bunnell fl" → "Bunnell, FL"
-  const clean = address.trim().replace(/\s+([A-Za-z]{2})$/i, (m,s)=>', '+s.toUpperCase());
+  // Clean up shorthand like "bunnell fl" → "Bunnell, FL", without a ZIP code: the place search
+  // finds "Hastings, FL" but not "Hastings, FL 32145"
+  let clean = address.trim();
+  const zip = clean.match(/^(.*[A-Za-z].*?)[\s,]+\d{5}(?:-\d{4})?$/);   // a ZIP after a place name (a ZIP alone stays)
+  if(zip) clean = zip[1];
+  clean = clean.replace(/,?\s+([A-Za-z]{2})$/i, (m,s)=>', '+s.toUpperCase());
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(clean)}&count=1&language=en&format=json`;
   const r = await fetch(url);
   const d = await r.json();
@@ -3788,8 +3795,8 @@ async function fetchWeather(){
   today.setHours(0,0,0,0);
   const maxDate   = new Date(today);
   maxDate.setDate(maxDate.getDate() + 15);
-  const todayStr  = today.toISOString().slice(0,10);
-  const maxStr    = maxDate.toISOString().slice(0,10);
+  const todayStr  = localISODate(today);
+  const maxStr    = localISODate(maxDate);
 
   // Clamp pickup date to valid forecast range — use today if no date entered or date is past
   let pickupDate = pickup || todayStr;
@@ -3892,9 +3899,10 @@ function generateQuotePDF(opts){
   const trailer  = document.getElementById('trailer').value;
   const commodity= document.getElementById('commodity').value;
 
-  if(quote === '—' || !orig || !dest){
+  const problem = calcInputProblem();
+  if(problem || quote === '—' || !orig || !dest){
     if(opts && opts.returnDoc) return null;
-    alert('Please complete the quote before downloading.');
+    alert(problem ? problem.msg : 'Please complete the quote before downloading.');
     return;
   }
 
@@ -3951,11 +3959,11 @@ function generateQuotePDF(opts){
       // so the lines add up to the total without showing the margin itself.
       breakdown: {
         fuel: getDieselFSC() * milesNum * markup,
-        extra: (transitChargeAdded ? transitChargeAmount : 0) * markup,
+        extra: transitChargeNow() * markup,
       },
       // For the transit estimate: the route's driving time when the miles came
       // from Google (typed-in miles are estimated), and the dates as entered.
-      driveSecs: /google/i.test(document.getElementById('miles-source')?.textContent || '') ? lastDriveSecs : 0,
+      driveSecs: /google/i.test(document.getElementById('miles-source')?.textContent || '') ? lastDriveSecs : savedDriveSecs,
       pickupISO: document.getElementById('pickup').value || '',
       deliveryISO: document.getElementById('delivery').value || '',
     };
@@ -3975,6 +3983,7 @@ function generateQuotePDF(opts){
     profile.quoteStart = startNum + 1;
     localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
   } catch(e){}
+  if(window.QFCQuotePDF && QFCQuotePDF.syncCounter) QFCQuotePDF.syncCounter(startNum + 1);   // the account's counter keeps up
 
   // Header branding — logo or emoji (unless hidden)
   const logoHTML = (!profile.hideLogo && profile.logoBase64)
@@ -3985,6 +3994,7 @@ function generateQuotePDF(opts){
   const companyHTML = profile.companyName
     ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${escapeHTML(profile.companyName)}</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${escapeHTML(profile.footerText) || 'Licensed Freight Broker'}</div>`
+    : (window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile)) ? ''   // white-label, no company name: no QuickFreightCalc
     : `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Freight Rate Calculator</div>`;
 
@@ -3994,8 +4004,8 @@ function generateQuotePDF(opts){
     profile.contactName,
     profile.phone,
     profile.email,
-    profile.mcNumber ? `MC# ${profile.mcNumber}` : '',
-    profile.dotNumber ? `DOT# ${profile.dotNumber}` : '',
+    profile.mcNumber ? (window.QFCQuotePDF ? QFCQuotePDF.mcText(profile.mcNumber) : `MC# ${profile.mcNumber}`) : '',
+    profile.dotNumber ? (window.QFCQuotePDF ? QFCQuotePDF.dotText(profile.dotNumber) : `DOT# ${profile.dotNumber}`) : '',
   ].filter(Boolean);
   const customerPF = window.QFCQuotePDF ? QFCQuotePDF.classicPreparedFor(pdfCustomer(calcCustomer().name, calcCustomer().id)) : '';
   const contactStripHTML = hasContact ? `
@@ -4047,6 +4057,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 .doc-date{font-size:11px;color:${scheme.headerTextFaint}}
 .accent-bar{height:4px;background:${scheme.bar};-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-body{padding:36px 40px;flex:1}
+.doc-sign{flex:none;padding-top:0}
 .quote-hero{background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .quote-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
 .quote-amount{font-size:42px;font-weight:700;color:#1a1f2e;letter-spacing:-.03em;line-height:1}
@@ -4105,7 +4116,20 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
   .notes-box{min-height:50px}
   .signature-line{height:24px}
   .signature-name-line{height:20px}
-  @page{size:letter portrait;margin:0}
+  @page{size:letter portrait;margin:0.45in 0}
+  @page :first{margin-top:0}
+  .signature-section,.signature-grid,.doc-footer{break-inside:avoid;page-break-inside:avoid}
+  /* Printed, the document is as tall as what's on it: a page-tall box with the footer pinned
+     to its bottom spilled the footer onto a page of its own. Headings stay with what follows
+     them, and the footer with the signatures. */
+  .doc{display:block!important;min-height:0!important}
+  .doc-footer{margin-top:0!important;break-before:avoid;page-break-before:avoid}
+  .doc-end{break-inside:avoid;page-break-inside:avoid}
+  .doc-sign{padding-top:0!important}
+  .doc-body:not(.doc-sign){padding-bottom:0!important}
+  .doc-sign .signature-section{margin-bottom:12px}
+  .section-header{break-after:avoid;page-break-after:avoid}
+  .config-section{break-inside:avoid;page-break-inside:avoid}
 }
 </style>
 </head>
@@ -4125,6 +4149,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
         <div class="doc-title">Rate Confirmation</div>
         <div class="doc-number">Quote #${qNum}</div>
         <div class="doc-date">Issued: ${issuedDate}</div>
+        <div class="doc-date">Valid until: ${escapeHTML(classicValidText(profile, now))}</div>
       </div>
     </div>
     <div class="accent-bar"></div>
@@ -4173,6 +4198,10 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
         <div class="section-header">Load Notes &amp; Requirements</div>
         <div class="notes-box">${notesHTML}</div>
       </div>
+    </div>
+    <!-- The signatures and the footer, kept on one page when printed -->
+    <div class="doc-end">
+    <div class="doc-body doc-sign">
       <div class="signature-section">
         <div class="section-header">Acceptance &amp; Authorization</div>
         <div class="signature-grid">
@@ -4196,6 +4225,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
     <div class="doc-footer">
       ${footerLeft}
       ${footerRight}
+    </div>
     </div>
   </div>
 </div>
@@ -4231,16 +4261,22 @@ function generateQuotePDFFromLog(id, opts){
 
   // Modern design (pdf-quote.js) unless the Profile chose Classic.
   if(window.QFCQuotePDF && QFCQuotePDF.style(profile) === 'modern'){
+    // Saved quotes carry how they were priced (details): fuel and extra-day lines as the
+    // customer pays them, and the route's driving time. Older ones have the total only.
+    const d = q.details || null;
+    const markup = 1 + (parseFloat(q.margin) || 0) / 100;
+    const milesNum = Number(q.miles) || 0;
     const modernQ = {
       total: Number(q.quote) || 0,
       ratePerMile: parseFloat(String(q.rpm || '').replace(/[^0-9.]/g, '')) || null,
-      miles: Number(q.miles) || null,
+      miles: milesNum || null,
       origin: q.orig || '—', destination: q.dest || '—',
       pickup: calcDateText(q.pickup), delivery: calcDateText(q.delivery),
       trailer: q.trailer, commodity: q.commodity, weight: q.weight ? parseInt(q.weight) : null,
-      transit: '', notes: q.notes || '', breakdown: null,
+      transit: transitDaysText(q.pickup, q.delivery), notes: q.notes || '',
+      breakdown: d ? { fuel: (Number(d.fsc) || 0) * milesNum * markup, extra: (Number(d.extra) || 0) * markup } : null,
       customer: pdfCustomer(q.customer, q.customerId),
-      driveSecs: 0, pickupISO: q.pickup || '', deliveryISO: q.delivery || '',
+      driveSecs: d && Number(d.driveSecs) > 0 ? Number(d.driveSecs) : 0, pickupISO: q.pickup || '', deliveryISO: q.delivery || '',
     };
     return finishModernQuote(modernQ, profile, opts);
   }
@@ -4281,6 +4317,7 @@ function generateQuotePDFFromLog(id, opts){
     profile.quoteStart = startNum + 1;
     localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
   } catch(e){}
+  if(window.QFCQuotePDF && QFCQuotePDF.syncCounter) QFCQuotePDF.syncCounter(startNum + 1);   // the account's counter keeps up
 
   const logoHTML = (!profile.hideLogo && profile.logoBase64)
     ? `<img src="${profile.logoBase64}" style="max-height:44px;max-width:140px;object-fit:contain" />`
@@ -4289,14 +4326,15 @@ function generateQuotePDFFromLog(id, opts){
   const companyHTML = profile.companyName
     ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${escapeHTML(profile.companyName)}</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${escapeHTML(profile.footerText) || 'Licensed Freight Broker'}</div>`
+    : (window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile)) ? ''   // white-label, no company name: no QuickFreightCalc
     : `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Freight Rate Calculator</div>`;
 
   const hasContact = profile.contactName || profile.phone || profile.email || profile.mcNumber || profile.dotNumber;
   const contactItems = [
     profile.contactName, profile.phone, profile.email,
-    profile.mcNumber ? `MC# ${profile.mcNumber}` : '',
-    profile.dotNumber ? `DOT# ${profile.dotNumber}` : '',
+    profile.mcNumber ? (window.QFCQuotePDF ? QFCQuotePDF.mcText(profile.mcNumber) : `MC# ${profile.mcNumber}`) : '',
+    profile.dotNumber ? (window.QFCQuotePDF ? QFCQuotePDF.dotText(profile.dotNumber) : `DOT# ${profile.dotNumber}`) : '',
   ].filter(Boolean);
   const customerPF = window.QFCQuotePDF ? QFCQuotePDF.classicPreparedFor(pdfCustomer(q.customer, q.customerId)) : '';
   const contactStripHTML = hasContact ? `
@@ -4349,6 +4387,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 .doc-date{font-size:11px;color:${scheme.headerTextFaint}}
 .accent-bar{height:4px;background:${scheme.bar};-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-body{padding:36px 40px;flex:1}
+.doc-sign{flex:none;padding-top:0}
 .quote-hero{background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:20px}
 .quote-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
 .quote-amount{font-size:42px;font-weight:700;color:#1a1f2e;letter-spacing:-.03em;line-height:1}
@@ -4382,7 +4421,30 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
   html,body{background:white;padding:0;margin:0}
   .screen-controls{display:none!important}
   .doc{box-shadow:none;border-radius:0;min-height:100vh}
-  @page{size:letter portrait;margin:0}
+  /* The same printed spacing as the calculator's Classic PDF, so the same quote fits the same pages */
+  .doc-header{padding:20px 30px}
+  .doc-body{padding:20px 30px}
+  .doc-footer{padding:10px 30px}
+  .route-section,.details-section,.notes-section,.signature-section{margin-bottom:16px}
+  .quote-hero{padding:16px 20px;margin-bottom:18px}
+  .quote-amount{font-size:32px}
+  .notes-box{min-height:50px}
+  .signature-line{height:24px}
+  .signature-name-line{height:20px}
+  @page{size:letter portrait;margin:0.45in 0}
+  @page :first{margin-top:0}
+  .signature-section,.signature-grid,.doc-footer{break-inside:avoid;page-break-inside:avoid}
+  /* Printed, the document is as tall as what's on it: a page-tall box with the footer pinned
+     to its bottom spilled the footer onto a page of its own. Headings stay with what follows
+     them, and the footer with the signatures. */
+  .doc{display:block!important;min-height:0!important}
+  .doc-footer{margin-top:0!important;break-before:avoid;page-break-before:avoid}
+  .doc-end{break-inside:avoid;page-break-inside:avoid}
+  .doc-sign{padding-top:0!important}
+  .doc-body:not(.doc-sign){padding-bottom:0!important}
+  .doc-sign .signature-section{margin-bottom:12px}
+  .section-header{break-after:avoid;page-break-after:avoid}
+  .config-section{break-inside:avoid;page-break-inside:avoid}
 }
 </style>
 </head>
@@ -4402,6 +4464,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
         <div class="doc-title">Rate Confirmation</div>
         <div class="doc-number">Quote #${qNum}</div>
         <div class="doc-date">Issued: ${issuedDate}</div>
+        <div class="doc-date">Valid until: ${escapeHTML(classicValidText(profile, now))}</div>
       </div>
     </div>
     <div class="accent-bar"></div>
@@ -4439,8 +4502,8 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
           <div class="detail-cell"><div class="detail-cell-label">Trailer Type</div><div class="detail-cell-value">${trailerDisplay}</div></div>
           <div class="detail-cell"><div class="detail-cell-label">Commodity</div><div class="detail-cell-value">${escapeHTML(q.commodity)||'—'}</div></div>
           <div class="detail-cell"><div class="detail-cell-label">Weight</div><div class="detail-cell-value">${q.weight ? parseInt(q.weight).toLocaleString()+' lbs' : '—'}</div></div>
-          <div class="detail-cell"><div class="detail-cell-label">Pickup Date</div><div class="detail-cell-value">${escapeHTML(q.pickup)||'—'}</div></div>
-          <div class="detail-cell"><div class="detail-cell-label">Delivery Date</div><div class="detail-cell-value">${escapeHTML(q.delivery)||'—'}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Pickup Date</div><div class="detail-cell-value">${escapeHTML(calcDateText(q.pickup))||'—'}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Delivery Date</div><div class="detail-cell-value">${escapeHTML(calcDateText(q.delivery))||'—'}</div></div>
           <div class="detail-cell"><div class="detail-cell-label">Quote RPM</div><div class="detail-cell-value">$${escapeHTML(q.rpm)||'—'}</div></div>
         </div>
       </div>
@@ -4448,6 +4511,10 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
         <div class="section-header">Load Notes &amp; Requirements</div>
         <div class="notes-box">${notesHTML}</div>
       </div>
+    </div>
+    <!-- The signatures and the footer, kept on one page when printed -->
+    <div class="doc-end">
+    <div class="doc-body doc-sign">
       <div class="signature-section">
         <div class="section-header">Acceptance &amp; Authorization</div>
         <div class="signature-grid">
@@ -4472,6 +4539,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
       ${footerLeft}
       ${footerRight}
     </div>
+    </div>
   </div>
 </div>
 </body>
@@ -4489,6 +4557,12 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
   }
 }
 // A saved date ("2026-11-20") the way the calculator shows it ("Fri, Nov 20"), for PDFs made from the quote log.
+// "3 days" from pickup to delivery ("YYYY-MM-DD"), as the calculator's transit badge says; '' otherwise
+function transitDaysText(pickup, delivery){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(pickup || '') || !/^\d{4}-\d{2}-\d{2}$/.test(delivery || '')) return '';
+  const days = Math.round((new Date(delivery + 'T12:00:00') - new Date(pickup + 'T12:00:00')) / 86400000);
+  return days > 0 ? days + (days === 1 ? ' day' : ' days') : '';
+}
 function calcDateText(s){
   if(!s) return '';
   if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return String(s);
@@ -4509,6 +4583,15 @@ function finishModernQuote(q, profile, opts){
   QFCQuotePDF.openHTML(html);
 }
 
+// "EST": the time zone's short name, so a customer elsewhere reads the time right
+function zoneName(d){
+  try { return d.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() || ''; } catch(e){ return ''; }
+}
+// The "Valid until" printed on a Classic quote, with the time zone
+function classicValidText(profile, now){
+  const hours = (window.QFCQuotePDF && QFCQuotePDF.validHours(profile)) || 24;
+  return (classicValidUntil(profile, now) + ' ' + zoneName(new Date(now.getTime() + hours * 3600000))).trim();
+}
 // When a Classic quote stops being good: the same hours the Modern design prints (Profile → PDF quotes).
 function classicValidUntil(profile, now){
   const hours = (window.QFCQuotePDF && QFCQuotePDF.validHours(profile)) || 24;
@@ -4523,8 +4606,7 @@ let lastSavedCalc = null;  // { sig, entry }: the quote "Save Quote to Log" save
 
 function canEmailQuotes(){
   if(winLossAllowed() && window.QFCEmailQuote) return true;
-  if(isProUser) showUpgradeModal(EMAIL_WHY, ['plus', 'max']);
-  else showProModal(EMAIL_WHY);
+  showUpgradeModal(EMAIL_WHY, ['plus', 'max']);   // a Pro Plus feature: offer Pro Plus, not Pro
   return false;
 }
 function emailProfileOptions(){
@@ -4833,18 +4915,17 @@ function calcTransit(){
   const miles    = parseFloat(document.getElementById('miles').value)||0;
   const callout  = document.getElementById('transit-callout');
 
-  if(!pickup || !delivery){ callout.style.display='none'; return; }
+  // No dates, or delivery not after pickup: no transit window, so no extra-day charge either.
+  if(!pickup || !delivery){ callout.style.display='none'; resetTransitCharge(); return; }
 
   const pDate = new Date(pickup   + 'T12:00:00');
   const dDate = new Date(delivery + 'T12:00:00');
   const actualDays = Math.round((dDate - pDate) / 86400000);
 
-  if(actualDays <= 0){ callout.style.display='none'; return; }
+  if(actualDays <= 0){ callout.style.display='none'; resetTransitCharge(); return; }
 
   const standardDays = miles > 0 ? Math.ceil(miles / 500) : 1;
-  const extraDays    = Math.max(0, actualDays - standardDays);
-  const extraRate    = parseFloat(document.getElementById('extra-day-rate').value)||200;
-  const extraCharge  = extraDays * extraRate;
+  const { days: extraDays, amount: extraCharge } = transitExtra();
 
   callout.style.display = 'block';
   document.getElementById('transit-days-badge').textContent = actualDays + (actualDays===1?' day':' days');
@@ -4867,23 +4948,43 @@ function calcTransit(){
     }
   } else {
     extraWrap.style.display = 'none';
-    transitChargeAdded = false;
-    transitChargeAmount = 0;
+    resetTransitCharge();
   }
 }
 
+// The extra-day rate: blank uses $200, and $0 means $0.
+function extraDayRate(){
+  const v = parseFloat(document.getElementById('extra-day-rate').value);
+  return Number.isFinite(v) && v >= 0 ? v : 200;
+}
+// Extra transit days for the dates, miles and rate as they are now: the days past the
+// standard ~500 miles a day.
+function transitExtra(){
+  const pickup   = document.getElementById('pickup').value;
+  const delivery = document.getElementById('delivery').value;
+  const miles    = parseFloat(document.getElementById('miles').value)||0;
+  const rate     = extraDayRate();
+  if(!pickup || !delivery) return { days: 0, rate, amount: 0 };
+  const actualDays   = Math.round((new Date(delivery+'T12:00:00') - new Date(pickup+'T12:00:00')) / 86400000);
+  const standardDays = miles > 0 ? Math.ceil(miles/500) : 1;
+  const days = Math.max(0, actualDays - standardDays);
+  return { days, rate, amount: days * rate };
+}
+// What the extra days add to the quote once "Add to quote" is on, always for the current
+// dates: a changed rate or miles updates it; cleared dates take it off.
+function transitChargeNow(){
+  return transitChargeAdded ? transitExtra().amount : 0;
+}
+function resetTransitCharge(){
+  transitChargeAdded  = false;
+  transitChargeAmount = 0;
+  const add = document.getElementById('transit-add-btn'), added = document.getElementById('transit-added-badge');
+  if(add) add.style.display = '';
+  if(added) added.style.display = 'none';
+}
+
 function addTransitCharge(){
-  const extraDays = (() => {
-    const pickup   = document.getElementById('pickup').value;
-    const delivery = document.getElementById('delivery').value;
-    const miles    = parseFloat(document.getElementById('miles').value)||0;
-    if(!pickup||!delivery) return 0;
-    const actualDays  = Math.round((new Date(delivery+'T12:00:00') - new Date(pickup+'T12:00:00')) / 86400000);
-    const standardDays = miles > 0 ? Math.ceil(miles/500) : 1;
-    return Math.max(0, actualDays - standardDays);
-  })();
-  const extraRate   = parseFloat(document.getElementById('extra-day-rate').value)||200;
-  transitChargeAmount = extraDays * extraRate;
+  transitChargeAmount = transitExtra().amount;
   transitChargeAdded  = true;
   document.getElementById('transit-add-btn').style.display = 'none';
   document.getElementById('transit-added-badge').style.display = 'flex';
@@ -5000,7 +5101,7 @@ function calcFuelCPM(){
 
   // Priority: 1) live price fetched on prof tab, 2) FTL live price, 3) FTL manual input, 4) fallback
   let dieselPrice = profDieselPrice ||
-                    ltlDieselPrice ||
+                    ltlDieselLive ||
                     parseFloat(document.getElementById('diesel-price')?.value) ||
                     3.85;
 
@@ -5166,6 +5267,27 @@ async function tryProfLookup(){
   }
 }
 
+// Profitability's default costs per mile, used when a box is left blank. Fuel follows the live
+// diesel price at 6.5 MPG once it's known, otherwise $0.58.
+const PROF_DRIVER_DEFAULT = 0.55, PROF_FIXED_DEFAULT = 0.30;
+function profFuelDefault(){
+  const diesel = profDieselPrice || ltlDieselLive || 0;
+  return diesel ? Math.round(diesel / 6.5 * 100) / 100 : 0.58;
+}
+function profCostOr(id, def){
+  const v = parseFloat(document.getElementById(id).value);
+  return Number.isFinite(v) ? v : def;
+}
+function showProfDefaults(fuelDefault){
+  const note = document.getElementById('p-defaults-note');
+  if(note) note.textContent = 'Blank costs use the defaults: $' + fuelDefault.toFixed(2) + ' fuel · $' + PROF_DRIVER_DEFAULT.toFixed(2) +
+    ' driver · $' + PROF_FIXED_DEFAULT.toFixed(2) + ' fixed per mile. Adjust to your actual costs.';
+  [['p-fuel', fuelDefault], ['p-driver', PROF_DRIVER_DEFAULT], ['p-fixed', PROF_FIXED_DEFAULT]].forEach(([id, v]) => {
+    const el = document.getElementById(id);
+    if(el) el.placeholder = v.toFixed(2) + ' (default)';
+  });
+}
+
 function calcProfit(){
   const rate        = parseFloat(document.getElementById('p-rate').value)||0;
   const miles       = parseFloat(document.getElementById('p-miles').value)||0;
@@ -5174,9 +5296,13 @@ function calcProfit(){
   const waitPickup  = parseFloat(document.getElementById('p-wait-pickup').value)||0;
   const waitDelivery= parseFloat(document.getElementById('p-wait-delivery').value)||0;
   const hours       = driveHours + waitPickup + waitDelivery;
-  const fuel        = parseFloat(document.getElementById('p-fuel').value)||0;
-  const driver      = parseFloat(document.getElementById('p-driver').value)||0;
-  const fixed       = parseFloat(document.getElementById('p-fixed').value)||0;
+  // A blank cost box uses the default shown under the result (not $0, which would make
+  // any load look profitable and dead-head miles free).
+  const fuelDefault = profFuelDefault();
+  showProfDefaults(fuelDefault);
+  const fuel        = profCostOr('p-fuel', fuelDefault);
+  const driver      = profCostOr('p-driver', PROF_DRIVER_DEFAULT);
+  const fixed       = profCostOr('p-fixed', PROF_FIXED_DEFAULT);
   const other       = parseFloat(document.getElementById('p-other').value)||0;
 
   if(!rate || !miles){ return; }
@@ -5397,8 +5523,9 @@ function calcLTL(){
   const orig   =document.getElementById('origin').value.trim();
   const dest   =document.getElementById('dest').value.trim();
 
-  // Clamp weight to LTL range
-  const w=Math.min(15000,Math.max(150,weight||0));
+  // Below 150 lbs is priced at 150 (the minimum charge applies anyway); over the maximum is
+  // flagged by calcInputProblem rather than quietly priced at it.
+  const w=Math.min(LTL_MAX_WEIGHT,Math.max(150,weight||0));
   const cwt=getCWT();
   const dm=miles?dMult(miles):{m:1.0,l:'—'};
 
@@ -5446,7 +5573,10 @@ function calcLTL(){
   document.getElementById('m-cap').style.color='var(--text3)';
   document.getElementById('m-seas').textContent='n/a';
   document.getElementById('m-seas').style.color='var(--text3)';
+  document.getElementById('r-extra-row').style.display='none';
+  showInputProblem(calcInputProblem());
 }
+const LTL_MAX_WEIGHT = 15000;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function fmt(n){return'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
@@ -5711,7 +5841,7 @@ function clearShipmentForm(){
   document.getElementById('dest').value   = '';
   document.getElementById('miles').value  = '';
   document.getElementById('weight').value = '';
-  document.getElementById('pickup').valueAsDate = new Date();
+  document.getElementById('pickup').value = localISODate();
   document.getElementById('delivery').value = '';
 
   // Clear any inline location validation errors
@@ -5723,7 +5853,7 @@ function clearShipmentForm(){
   origCoords = null; destCoords = null;
   manualMiles = false;
   ratesManualOverride = false;
-  transitChargeAdded = false;
+  resetTransitCharge();
   rateModeChosen = false;
   rateMode = myRateSheet() ? 'sheet' : 'auto';
   styleRateButtons(rateMode === 'sheet' ? 'sheet' : 'regional');
@@ -6353,16 +6483,23 @@ function updateRateDisclaimer(){
   const el = document.getElementById('rate-disclaimer');
   if(!el) return;
   if(ratesManualOverride){
-    el.innerHTML = 'This quote is based on a base rate, per mile, that was entered manually.';
+    el.innerHTML = ratesFromSavedQuote
+      ? 'This quote uses the base rate, per mile, it was saved with.'
+      : 'This quote is based on a base rate, per mile, that was entered manually.';
   } else if(rateMode === 'sheet' && myRateSheet()){
     el.innerHTML = 'This quote starts from <strong style="color:var(--text2)">your rate sheet</strong> (set on your Profile page), with the market rate wherever your sheet is blank. Pick <strong style="color:var(--text2)">Regional</strong> or <strong style="color:var(--text2)">National Avg</strong> in the Base Rates box for market rates.';
   } else {
-    el.innerHTML = 'This quote is based on current <strong style="color:var(--text2)">US AVERAGE</strong> market rates and can be inflated. If you know the current rate per mile for your region/lane, please adjust it in the <strong style="color:var(--text2)">Base Rates ($/mi)</strong> box accordingly.';
+    // The region whose market rates are in the Base Rates box (applyRegionalRates), or the US average.
+    const region = appliedRateRegion && appliedRateRegion !== 'national' ? REGION_LABELS[appliedRateRegion] : '';
+    const which = region ? `${region.toUpperCase()} REGION` : 'US AVERAGE';
+    el.innerHTML = `This quote is based on current <strong style="color:var(--text2)">${which}</strong> market rates and can be inflated. If you know the current rate per mile for your region/lane, please adjust it in the <strong style="color:var(--text2)">Base Rates ($/mi)</strong> box accordingly.`;
   }
 }
+let appliedRateRegion = 'national';   // whose market rates the Base Rates box holds
 
 function saveRates(){
   ratesManualOverride = true;
+  ratesFromSavedQuote = false;
   rateMode = 'manual';
   styleRateButtons(null);   // none of My rates / Regional / National is on
   const regionEl = document.getElementById('rate-region-label');
@@ -6423,6 +6560,7 @@ function setRateMode(mode, fromUser){
     document.getElementById('rate-flatbed').value= parseFloat(nat.flatbed).toFixed(2);
     const regionEl = document.getElementById('rate-region-label');
     if(regionEl){ regionEl.textContent='Using national US average rates'; regionEl.style.color='var(--blue)'; }
+    appliedRateRegion = 'national';
   } else {
     // Re-apply regional rates based on current origin
     // If no origin state detected, fall back to national
@@ -6502,6 +6640,8 @@ function applyRegionalRates(){
   document.getElementById('rate-van').value     = parseFloat(rates.van).toFixed(2);
   document.getElementById('rate-reefer').value  = parseFloat(rates.reefer).toFixed(2);
   document.getElementById('rate-flatbed').value = parseFloat(rates.flatbed).toFixed(2);
+  appliedRateRegion = state ? region : 'national';
+  updateRateDisclaimer();
 
   // Show which region is active
   const label = REGION_LABELS[region] || 'National';
@@ -6529,8 +6669,6 @@ function getBase(){return{
   flatbed:parseFloat(document.getElementById('rate-flatbed').value)||3.38
 };}
 
-const rateDateEl = document.getElementById('rate-date');
-if(rateDateEl) rateDateEl.addEventListener('input',saveRates);
 
 // ── Diesel ────────────────────────────────────────────────────────────────
 function updateDieselFSCDisplay(){
@@ -6550,8 +6688,25 @@ function updateDieselFSCDisplay(){
   if(on && fsc > 0) el.style.color = 'var(--accent)';
 }
 
+// The diesel price behind fuel surcharges comes from this week's EIA price, not an old saved
+// number: turning the surcharge on (or opening the page with it on) refreshes the FTL price
+// unless you typed your own, and LTL and Profitability load the national price once.
+let dieselSource = 'default';   // 'live' (EIA), 'manual' (typed) or 'default'
+let ftlDieselRefreshed = false, nationalDieselLoaded = false;
+function ensureFtlDiesel(){
+  if(ftlDieselRefreshed || dieselSource === 'manual') return;
+  ftlDieselRefreshed = true;
+  fetchEIADiesel();
+}
+function ensureNationalDiesel(){
+  if(nationalDieselLoaded) return;
+  nationalDieselLoaded = true;
+  fetchLTLDiesel();
+}
+
 function toggleDiesel(){
   const on=document.getElementById('diesel-enabled').checked;
+  if(on) ensureFtlDiesel();
   document.getElementById('diesel-controls').style.display=on?'block':'none';
   document.getElementById('diesel-warn').classList.toggle('show',on);
   document.getElementById('diesel-tog-lbl').textContent=on?'On':'Off';
@@ -6561,6 +6716,7 @@ function toggleDiesel(){
 function saveDiesel(){
   try{localStorage.setItem('frc_diesel',JSON.stringify({
     price:document.getElementById('diesel-price').value,
+    source:dieselSource,
     region:document.getElementById('diesel-region').value,
     enabled:document.getElementById('diesel-enabled').checked
   }));}catch(e){}
@@ -6608,6 +6764,7 @@ async function fetchEIADiesel(){
     const dateStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 
     document.getElementById('diesel-price').value = price.toFixed(2);
+    dieselSource = 'live';
     status.textContent = `✓ $${price.toFixed(2)}/gal · ${regionName} · Week of ${dateStr}`;
     status.style.color = 'var(--green)';
     // Cache NUS fetches so LTL and profitability tabs can reuse without a cold start
@@ -6627,6 +6784,7 @@ async function fetchEIADiesel(){
 // ── LTL FSC live diesel fetch ─────────────────────────────────────────────
 // Uses the same Netlify proxy as FTL but updates the FSC label directly
 let ltlDieselPrice = 3.85; // default, updated when user fetches live price
+let ltlDieselLive = 0;     // this week's national price once it has loaded (0 until then)
 
 async function fetchLTLDiesel(){
   const btn = document.getElementById('ltl-eia-btn');
@@ -6655,6 +6813,7 @@ async function fetchLTLDiesel(){
     }
 
     ltlDieselPrice = price;
+    ltlDieselLive = price;
     const clean = (period||'').replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
     const d = new Date(clean + 'T12:00:00');
     const dateStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
@@ -6662,6 +6821,7 @@ async function fetchLTLDiesel(){
     status.style.color = 'var(--green)';
     updateFSCLabel();
     calc();
+    if(shipType === 'prof') calcProfit();   // a blank fuel box follows the live price
 
   } catch(e) {
     status.textContent = '⚠ Could not fetch — enter diesel price manually';
@@ -7044,7 +7204,6 @@ function calc(){
   let dayL='—';
   if(pickup){const d=new Date(pickup+'T12:00:00').getDay();dayL=DAYS[d];}
   const cm=CMULT[commodity];
-  const dieselM=getDieselMult();
   const capM=getCapacityMult(trailer);
   const seasM=getSeasonMult(trailer,pickup);
   const holM=getHolidayMult();
@@ -7060,11 +7219,14 @@ function calc(){
   const adjRpm = base*wt.m*dm.m*cm*capM*seasM*holM*mpM;
   const fscPerMile = getDieselFSC();
   const cost = miles ? (adjRpm + fscPerMile) * miles : 0;
-  const marginAmt=cost*marginPct;
-  const transitAdj = transitChargeAdded ? transitChargeAmount : 0;
+  // Extra transit days (when added) are part of the cost the margin applies to, and get their
+  // own line, so the lines in the quote box add up to the quote.
+  const transitAdj = miles ? transitChargeNow() : 0;
+  const marginAmt=(cost+transitAdj)*marginPct;
   const quote=(cost+transitAdj)*(1+marginPct);
   const qRpm=miles>0?quote/miles:0;
   lastFtlQuote = { quote, rpm: qRpm };
+  renderSavedNote();
 
   // Hero
   document.getElementById('r-quote').textContent=miles?fmtInt(quote):'—';
@@ -7078,6 +7240,8 @@ function calc(){
   const delivery2=document.getElementById('delivery').value;
   document.getElementById('r-delivery').textContent=delivery2?new Date(delivery2+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'—';
   document.getElementById('r-cost').textContent=miles?fmtInt(cost):'—';
+  document.getElementById('r-extra-row').style.display=transitAdj>0?'':'none';
+  document.getElementById('r-extra').textContent=transitAdj>0?fmtInt(transitAdj):'—';
   document.getElementById('r-margin').textContent=miles?(marginPct*100).toFixed(0)+'%  ('+fmtInt(marginAmt)+')':'—';
   document.getElementById('r-baserate').textContent=fmt(base);
   document.getElementById('r-adj').textContent=miles?fmt(adjRpm):'—';
@@ -7088,8 +7252,9 @@ function calc(){
   document.getElementById('m-comm').textContent=cm.toFixed(2)+'×';
   document.getElementById('m-wt').textContent=weight?wt.l:'—';
   document.getElementById('m-day').textContent=pickup?dayL:'—';
-  document.getElementById('m-diesel').textContent=dieselOn?dieselM.toFixed(3)+'×':'off';
-  document.getElementById('m-diesel').style.color=dieselOn?'#f87171':'var(--text3)';
+  // The surcharge is added per mile, not multiplied, so the pill shows what it adds.
+  document.getElementById('m-diesel').textContent=dieselOn?'+$'+fscPerMile.toFixed(2)+'/mi':'off';
+  document.getElementById('m-diesel').style.color=dieselOn&&fscPerMile>0?'#f87171':'var(--text3)';
   document.getElementById('m-cap').textContent=capOn?capM.toFixed(3)+'×':'off';
   document.getElementById('m-cap').style.color=capOn?(capM>1?'#f87171':capM<1?'#4ade80':'var(--text2)'):'var(--text3)';
   document.getElementById('m-seas').textContent=seasOn?seasM.toFixed(3)+'×':'off';
@@ -7110,8 +7275,57 @@ function calc(){
     mHol.title       = '';
   }
 
+  // A box the quote can't be priced from: no quote, and the box and the reason are shown.
+  if(!showInputProblem(calcInputProblem())){ lastFtlQuote = { quote: 0, rpm: 0 }; return; }
+
   // Schedule anonymous lane data capture if quote is complete
   if(miles && orig && dest) scheduleLaneCapture();
+}
+
+// ── Checks on what's typed in ────────────────────────────────────────────
+// The first box the quote can't be priced from, as { id, msg }, or null. Blank boxes are fine
+// (they're optional or have defaults); a blank or $0 base rate isn't: the quote can't guess it.
+function calcInputProblem(){
+  const num = id => { const el = document.getElementById(id); const v = el ? el.value.trim() : ''; return v === '' ? null : parseFloat(v); };
+  const weight = num('weight');
+  if(weight !== null && !(weight > 0)) return { id: 'weight', msg: 'Weight has to be more than 0 lbs.' };
+  if(shipType === 'ltl' && weight > LTL_MAX_WEIGHT)
+    return { id: 'weight', msg: `LTL is priced up to ${LTL_MAX_WEIGHT.toLocaleString()} lbs. Heavier freight goes full truckload: switch to FTL.` };
+  const margin = num('margin');
+  if(margin !== null && !(margin >= 0 && margin <= 100)) return { id: 'margin', msg: 'Margin has to be between 0% and 100%.' };
+  const pickup = document.getElementById('pickup').value, delivery = document.getElementById('delivery').value;
+  if(pickup && delivery && delivery < pickup) return { id: 'delivery', msg: 'The delivery date is before the pickup date.' };
+  if(shipType !== 'ltl'){
+    const trailer = document.getElementById('trailer').value;
+    const base = num('rate-' + trailer);
+    if(!(base > 0)) return { id: 'rate-' + trailer, msg: `Enter a base rate per mile for ${TLABEL[trailer] || trailer} in the Base Rates box.` };
+  }
+  return null;
+}
+const PROBLEM_BOXES = ['weight', 'margin', 'pickup', 'delivery', 'rate-van', 'rate-reefer', 'rate-flatbed'];
+// Marks the box and says why in the quote box; with a problem, the quote shows "—".
+// Returns true when there's nothing to fix.
+function showInputProblem(problem){
+  PROBLEM_BOXES.forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(problem && problem.id === id) el.setAttribute('aria-invalid', 'true');
+    else el.removeAttribute('aria-invalid');
+  });
+  const box = document.getElementById('r-problem');
+  if(box){ box.textContent = problem ? problem.msg : ''; box.hidden = !problem; }
+  if(!problem) return true;
+  document.getElementById('r-quote').textContent = '—';
+  document.getElementById('r-rpm').textContent = '— per mile';
+  ['r-cost', 'r-margin', 'r-acc', 'r-extra'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = '—'; });
+  document.getElementById('r-extra-row').style.display = 'none';
+  return false;
+}
+// A dated "YYYY-MM-DD" for the local day (valueAsDate and toISOString give the UTC day,
+// which in the US evening is already tomorrow).
+function localISODate(d){
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 // ── Lane details (lane.js) ────────────────────────────────────────────────
@@ -7127,7 +7341,7 @@ function laneForView(){
   const google = /google/i.test(document.getElementById('miles-source')?.textContent || '');
   return {
     orig, dest, mapOrig: lanePlaceForMap(origEl), mapDest: lanePlaceForMap(destEl),
-    trailer, miles, milesSource: google ? 'google' : 'manual', driveSecs: google ? lastDriveSecs : 0,
+    trailer, miles, milesSource: google ? 'google' : 'manual', driveSecs: google ? lastDriveSecs : (savedDriveSecs || 0),
     distMult: dMult(miles, trailer).m,
     quoteTotal: lastFtlQuote.quote, quoteRpm: lastFtlQuote.rpm,
     quotes: isProUser ? quoteLog : [],
@@ -7235,8 +7449,26 @@ async function handleHeaderSignOut(){
   window.location.href = '/';
 }
 
+// How the calculator priced this quote, saved with it: fuel surcharge per mile, the extra
+// transit days added (before margin) and the route's driving time. Loading the quote and its
+// PDF from the log use them, so they show what the calculator showed.
+function quoteDetails(extraCharge){
+  const extra = transitExtra();
+  const added = extraCharge > 0;
+  return {
+    v: 1,
+    fsc: Math.round(getDieselFSC() * 100) / 100,
+    extra: added ? Math.round(extraCharge * 100) / 100 : 0,
+    extraDays: added ? extra.days : 0,
+    extraRate: added ? extra.rate : 0,
+    driveSecs: /google/i.test(document.getElementById('miles-source')?.textContent || '') ? (lastDriveSecs || 0) : (savedDriveSecs || 0),
+  };
+}
+
 async function saveQuote(){
   if(!isProUser){ showProModal('Save Quote is a Pro feature. Upgrade to save and sync your quote history.'); return; }
+  const problem = calcInputProblem();
+  if(problem){ showToast('⚠ ' + problem.msg); document.getElementById(problem.id)?.focus(); return; }
   const limit = savedQuoteLimit();
   if(quoteLog.length >= limit){ showQuoteLogFull(limit); return; }
   const miles=parseFloat(document.getElementById('miles').value)||0;
@@ -7269,7 +7501,7 @@ async function saveQuote(){
   const adjRpm=base*wt.m*dm.m*CMULT[commodity]*getCapacityMult(trailer)*getSeasonMult(trailer,pickup)*getHolidayMult()*getMarketPanicMult();
   const cost=(adjRpm + getDieselFSC())*miles;
   // The same total the calculator shows: extra transit days (when added) are part of the quote
-  const transitAdj = transitChargeAdded ? transitChargeAmount : 0;
+  const transitAdj = transitChargeNow();
   const quote=(cost+transitAdj)*(1+marginPct);
   const qRpm=quote/miles;
   const dateStr=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
@@ -7292,6 +7524,7 @@ async function saveQuote(){
     tracked: true,
     customer: calcCustomer().name,
     customerId: calcCustomer().id,
+    details: quoteDetails(transitAdj),
     outcome: 'open', finalRate: null, lostReason: null, outcomeAt: null,
     createdAt: new Date().toISOString(),
     pending: true
@@ -7340,7 +7573,8 @@ async function saveQuote(){
         notes: entry.notes,
         tracked: entry.tracked,
         customer: entry.customer || null,
-        customer_id: entry.customerId || null
+        customer_id: entry.customerId || null,
+        details: entry.details
       })
     });
     const body = await resp.json().catch(() => null);
@@ -7462,6 +7696,7 @@ function loadQuoteIntoCalc(id){
   if(q.miles){
     document.getElementById('miles').value = q.miles;
     setMilesSource('manual');
+    savedDriveSecs = Number((q.details || {}).driveSecs) > 0 ? Number(q.details.driveSecs) : 0;
     showMilesStatus('✅', `${parseInt(q.miles).toLocaleString()} miles (from quote log)`, 'var(--green)');
     lastLookedUpOrig = (q.orig || '').toLowerCase();
     lastLookedUpDest = (q.dest || '').toLowerCase();
@@ -7487,16 +7722,60 @@ function loadQuoteIntoCalc(id){
     const rateId = q.trailer === 'van' ? 'rate-van' : q.trailer === 'reefer' ? 'rate-reefer' : 'rate-flatbed';
     document.getElementById(rateId).value = parseFloat(q.baseRpm).toFixed(2);
     ratesManualOverride = true;
+    ratesFromSavedQuote = true;
     rateMode = 'manual';
+    styleRateButtons(null);
+    const regionEl = document.getElementById('rate-region-label');
+    if(regionEl){ regionEl.textContent = '📋 Base rate from the saved quote'; regionEl.style.color = 'var(--accent)'; }
+  } else if(!ratesManualOverride){
+    applyRegionalRates();   // the loaded lane's own region (typing a place does this; loading didn't)
   }
+  updateRateDisclaimer();
 
   // Load notes
   if(q.notes && document.getElementById('load-notes'))
     document.getElementById('load-notes').value = q.notes;
 
+  // The extra transit days it was saved with (the dates are back, so the days follow them)
+  resetTransitCharge();
+  const d = q.details || {};
+  if(Number(d.extra) > 0){
+    document.getElementById('extra-day-rate').value = Number(d.extraRate) >= 0 ? d.extraRate : 200;
+    transitChargeAdded = true;
+    document.getElementById('transit-add-btn').style.display = 'none';
+    document.getElementById('transit-added-badge').style.display = 'flex';
+  }
+
+  calcTransit();
   calc();
   document.getElementById('origin').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  showToast('✓ Quote loaded into calculator');
+  // Loading prices the lane with today's rates and settings (diesel, adjustments): when that
+  // comes out different from the saved quote, say so under the quote until something's changed.
+  const now = Math.round(lastFtlQuote.quote || 0), saved = Math.round(Number(q.quote) || 0);
+  showSavedNote(saved > 0 ? { saved, date: q.date || '' } : null);
+  showToast(now > 0 && saved > 0 && now !== saved ? '✓ Quote loaded · today’s price differs' : '✓ Quote loaded into calculator');
+}
+// While a loaded quote prices differently today, a note under the quote says so. It
+// follows the quote box (calc() calls renderSavedNote) and goes once the form is edited.
+let savedNote = null;   // { saved, date }
+function renderSavedNote(){
+  const el = document.getElementById('r-saved-note');
+  if(!el) return;
+  const now = Math.round((lastFtlQuote && lastFtlQuote.quote) || 0);
+  const show = !!savedNote && now > 0 && now !== savedNote.saved;
+  el.innerHTML = show ? `Saved at ${fmtInt(savedNote.saved)}${savedNote.date ? ' on ' + escapeHTML(savedNote.date) : ''}. Today’s rates and settings price it at ${fmtInt(now)}.` : '';
+  el.hidden = !show;
+}
+function showSavedNote(note){
+  savedNote = note || null;
+  renderSavedNote();
+  const el = document.getElementById('r-saved-note');
+  if(el && savedNote){
+    // Goes away once the quote is changed
+    const clear = (e) => { if(e.target && e.target.closest && e.target.closest('.calc-col')){ savedNote = null; el.hidden = true; document.removeEventListener('input', clear, true); document.removeEventListener('change', clear, true); } };
+    document.addEventListener('input', clear, true);
+    document.addEventListener('change', clear, true);
+  }
 }
 
 // ── Sync tracked quotes → rate_profiles in Supabase (feeds lanes.html) ────
@@ -7592,20 +7871,71 @@ function showToast(msg){
   setTimeout(()=>{t.style.display='none';},3000);
 }
 
-async function deleteQuote(id){
+// Deleting a quote takes it off the log at once and offers Undo for a few seconds; the
+// database delete goes out when that time is up, when another quote is deleted, or when
+// the page is closed.
+const DELETE_UNDO_MS = 6000;
+let pendingDelete = null;   // { entry, index, timer }
+function deleteQuote(id){
   const q = quoteReady(id);
   if(!q) return;
   if(!canDeleteQuote(q)){ showToast('Only the team owner or whoever saved a quote can delete it'); return; }
-  quoteLog = quoteLog.filter(x => x.id != id);
+  flushPendingDelete();
+  const index = quoteLog.indexOf(q);
+  quoteLog = quoteLog.filter(x => x !== q);
   renderLog();
+  pendingDelete = { entry: q, index, timer: setTimeout(flushPendingDelete, DELETE_UNDO_MS) };
+  showUndoToast('Quote deleted', undoDelete);
+}
+function undoDelete(){
+  if(!pendingDelete) return;
+  clearTimeout(pendingDelete.timer);
+  const { entry, index } = pendingDelete;
+  pendingDelete = null;
+  quoteLog.splice(Math.min(index, quoteLog.length), 0, entry);
+  renderLog();
+  hideUndoToast();
+  showToast('↩ Quote restored');
+}
+function flushPendingDelete(){
+  if(!pendingDelete) return;
+  clearTimeout(pendingDelete.timer);
+  const entry = pendingDelete.entry;
+  pendingDelete = null;
+  hideUndoToast();
+  commitDelete(entry.id);
+}
+window.addEventListener('pagehide', flushPendingDelete);
+let undoToastTimer = null;
+function showUndoToast(text, onUndo){
+  let t = document.getElementById('undo-toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'undo-toast';
+    t.setAttribute('role', 'status');
+    t.innerHTML = '<span class="undo-text"></span><button type="button" class="undo-btn">Undo</button>';
+    document.body.appendChild(t);
+  }
+  t.querySelector('.undo-text').textContent = text;
+  t.querySelector('.undo-btn').onclick = onUndo;
+  t.classList.add('show');
+  clearTimeout(undoToastTimer);
+  undoToastTimer = setTimeout(hideUndoToast, DELETE_UNDO_MS);
+}
+function hideUndoToast(){
+  const t = document.getElementById('undo-toast');
+  if(t) t.classList.remove('show');
+}
+async function commitDelete(id){
   const session = getProSession();
   if(!session) return;
   try {
     const resp = await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
-      method: 'DELETE',
+      method: 'DELETE', keepalive: true,
       headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}`, 'Prefer': 'return=representation' }
     });
-    const gone = resp.ok ? await resp.json().catch(() => null) : null;
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const gone = await resp.json().catch(() => null);
     if(Array.isArray(gone) && !gone.length){
       // The database kept it (someone else's quote): show the log as it is
       showToast('Only the team owner or whoever saved a quote can delete it');
@@ -7613,10 +7943,15 @@ async function deleteQuote(id){
       return;
     }
     syncTrackedToProfiles();
-  } catch(e){}
+  } catch(e){
+    // It wasn't deleted: say so, and show the log as it's saved
+    showToast('⚠ Couldn’t delete the quote. Check your connection and try again.');
+    loadQuoteLogFromSupabase();
+  }
 }
 
 async function clearLog(){
+  flushPendingDelete();   // a delete still in its Undo window goes first
   if(!quoteLog.length) return;
   const session = getProSession();
   const userId = session ? (session.user?.id || session.user?.sub) : null;
@@ -7636,13 +7971,17 @@ async function clearLog(){
     : teamMember() ? `created_by=eq.${userId}`
     : `or=(created_by.eq.${userId},created_by.is.null)`;
   try {
-    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?${which}`, {
+    const resp = await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?${which}`, {
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` }
     });
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
     setQuoteLogStatus('Cleared');
     syncTrackedToProfiles();
-  } catch(e){}
+  } catch(e){
+    showToast('⚠ Couldn’t clear the quote log. Check your connection and try again.');
+    loadQuoteLogFromSupabase();
+  }
 }
 
 // ── Customers (customers.js; the saved list is Pro Plus and up) ──────────
@@ -7779,6 +8118,7 @@ function quoteFromRow(r){
     createdAt: r.created_at || null,
     createdBy: r.created_by || null,
     createdByName: r.created_by_name || '',
+    details: r.details && typeof r.details === 'object' ? r.details : null,
   };
 }
 
@@ -8124,7 +8464,7 @@ function exportCSV(){
   ].map(csvCell).join(','));
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(hdr.join(',') + '\n' + rows.join('\n'));
-  a.download = 'freight_quotes_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.download = 'freight_quotes_' + localISODate() + '.csv';
   a.click();
 }
 
@@ -8252,6 +8592,7 @@ function loadAll(){
   try{
     const d=JSON.parse(localStorage.getItem('frc_diesel')||'{}');
     if(d.price) document.getElementById('diesel-price').value=d.price;
+    dieselSource = d.source === 'manual' ? 'manual' : 'default';
     if(d.region) document.getElementById('diesel-region').value=d.region;
     if(d.enabled){document.getElementById('diesel-enabled').checked=true;toggleDiesel();}
 
@@ -8341,7 +8682,7 @@ function loadRates(){
       }
 
       const dateStr=data.updated?(data.updated+(data.source?' — '+data.source:'')):'';
-      if(dateStr) document.getElementById('rate-date').value=dateStr;
+      if(dateStr) document.getElementById('rate-date').textContent=dateStr;
       updateHeaderRates();
       updateRateDisclaimer();
       try{ calc(); } catch(e){ console.error('calc error after loadRates:', e); }
@@ -8356,6 +8697,7 @@ let manualMiles = false;
 let lastLookedUpOrig = '';
 let lastLookedUpDest = '';
 let lastDriveSecs    = 0;
+let savedDriveSecs   = 0;   // the driving time a quote loaded from the log was saved with (until the miles change)
 let lastDriveText    = '';
 
 // Fire `fn` only once focus has left BOTH fields of a lane pair. This is what
@@ -8399,6 +8741,7 @@ function milesManualEdit(){
 }
 
 function setMilesSource(type){
+  savedDriveSecs = 0;   // new miles: a loaded quote's driving time no longer applies
   const el = document.getElementById('miles-source');
   if(!el) return;
   if(type === 'google') { el.textContent = '· via Google Routes'; el.style.color = 'var(--green)'; }
@@ -8530,7 +8873,12 @@ async function tryLookupMiles(){
           destination: destAddr,
           originLatLng: origLatLng,
           destinationLatLng: destLatLng,
-          includeLegs: true
+          // Both places checked: route between their coordinates, the same request Bulk,
+          // multi-stop, Profitability and the API make, so a lane gets the same miles
+          // everywhere. (Asking Google for the legs changes the route it picks: 882 vs 877 mi
+          // on Hastings, FL → Lancaster, PA.) A box that wasn't checked gets its point back
+          // from the legs, for the weather.
+          ...(origLatLng && destLatLng ? {} : { includeLegs: true })
         })
       }
     );
@@ -8565,11 +8913,14 @@ async function tryLookupMiles(){
     if(leg?.startLocation?.latLng && leg?.endLocation?.latLng){
       origCoords = { lat: leg.startLocation.latLng.latitude, lon: leg.startLocation.latLng.longitude, name: orig };
       destCoords = { lat: leg.endLocation.latLng.latitude,   lon: leg.endLocation.latLng.longitude,   name: dest };
+    } else if(origLatLng && destLatLng){
+      origCoords = { lat: origLatLng.lat, lon: origLatLng.lng, name: orig };
+      destCoords = { lat: destLatLng.lat, lon: destLatLng.lng, name: dest };
     }
 
     document.getElementById('miles').value = miles;
     setMilesSource('google');
-    showMilesStatus('✅', `${miles.toLocaleString()} miles · ${driveText} drive (Google Routes)`, 'var(--green)');
+    showMilesStatus('✅', `${miles.toLocaleString()} miles · ${driveText} drive (Google Maps)`, 'var(--green)');
     // Cache so repeat cursor movements don't re-fire the API call
     lastLookedUpOrig = origAddr.toLowerCase();
     lastLookedUpDest = destAddr.toLowerCase();
@@ -8771,7 +9122,7 @@ async function startup(){
   loadRates();
   initDistanceCurve();
   initMarketPanic();
-  document.getElementById('pickup').valueAsDate=new Date();
+  document.getElementById('pickup').value=localISODate();
   updateFSCLabel();
   updateAdvCount();
   renderLog();
@@ -8880,7 +9231,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
     max-width:420px;width:100%;overflow:hidden;position:relative;
     box-shadow:0 24px 60px rgba(0,0,0,.5);
   ">
-    <button onclick="closeProModal()" style="
+    <button onclick="closeProModal()" aria-label="Close" style="
       position:absolute;top:14px;right:14px;
       font-family:'Space Grotesk',sans-serif;font-size:18px;line-height:1;
       background:var(--card2);border:1px solid var(--border2);border-radius:8px;
@@ -8912,6 +9263,10 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
     </div>
 
     <div style="padding:20px 28px">
+      <div class="upg-billing" id="pro-billing" role="group" aria-label="Billing" hidden style="margin:0 auto 12px;max-width:280px">
+        <button type="button" class="upg-int on" data-int="month" onclick="setProInterval('month')">Monthly</button>
+        <button type="button" class="upg-int" data-int="year" onclick="setProInterval('year')">Yearly<span>2 months free</span></button>
+      </div>
       <div id="pro-modal-price" style="text-align:center;font-size:13px;color:var(--text3);margin-bottom:14px">
         <strong style="color:#f0a500;font-size:18px">$9.99</strong>/month &nbsp;·&nbsp; Cancel anytime
       </div>
@@ -8936,7 +9291,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
       <div style="text-align:center;margin-top:6px;font-size:12px">
         <a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--text3)">What counts as a quote?</a>
       </div>
-      <div style="text-align:center;margin-top:6px">
+      <div id="pro-modal-signin" style="text-align:center;margin-top:6px">
         <button onclick="closeProModal();window.location.href='/signup.html?login'" style="
           font-family:'Space Grotesk',sans-serif;font-size:12px;
           background:none;border:none;cursor:pointer;
@@ -8975,7 +9330,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
 
     <div style="background:linear-gradient(135deg,#1a1f2e 0%,#0f1318 100%);padding:28px 28px 24px;text-align:center;border-bottom:1px solid var(--border);-webkit-print-color-adjust:exact;print-color-adjust:exact">
       <img src="/favicon.svg" alt="" width="44" height="44" style="display:block;margin:0 auto 8px">
-      <div style="font-size:20px;font-weight:700;color:#f0f4f8;margin-bottom:6px">More quotes with <span style="color:#f0a500">automatic miles</span></div>
+      <div id="upg-modal-title" style="font-size:20px;font-weight:700;color:#f0f4f8;margin-bottom:6px">More quotes with <span style="color:#f0a500">automatic miles</span></div>
       <div style="font-size:13px;color:#8fa3b8;line-height:1.5" id="upg-modal-desc">Pick the plan that fits how much you quote.</div>
     </div>
 
@@ -9017,7 +9372,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
       </button>
       <div id="upg-modal-status" role="status" style="display:none;text-align:center;font-size:12px;line-height:1.5;margin-top:10px"></div>
       <div style="text-align:center;margin-top:10px">
-        <button onclick="closeUpgradeModal()" style="
+        <button id="upg-modal-skip" onclick="closeUpgradeModal()" style="
           font-family:'Space Grotesk',sans-serif;font-size:12px;
           background:none;border:none;cursor:pointer;
           color:var(--text3);text-decoration:underline;
@@ -9063,6 +9418,12 @@ function showUpgradeModal(desc, plans){
   });
   document.getElementById('upg-modal-desc').textContent =
     desc || 'Pick the plan that fits how much you quote.';
+  // The heading and the way out fit why it opened: more automatic miles, or a feature of a higher plan
+  const forMiles = !desc || /automatic miles|quotes a day/i.test(desc);
+  document.getElementById('upg-modal-title').innerHTML = forMiles
+    ? 'More quotes with <span style="color:#f0a500">automatic miles</span>'
+    : `Get more with <span style="color:#f0a500">${offer[0] === 'max' ? 'Pro Max' : 'Pro Plus'}</span>`;
+  document.getElementById('upg-modal-skip').textContent = forMiles ? 'Not now — I’ll enter the miles myself' : 'Not now';
   setUpgradeStatus('');
   updateUpgradeButton();
   refreshUpgradeOffers();
@@ -9119,7 +9480,7 @@ function updateUpgradeButton(){
   document.getElementById('upg-modal-billing').textContent = isProUser
     ? "You're charged the prorated difference today · Cancel anytime"
     : trial
-      ? `Free for ${opt.trial.days} days, then ${price}. Cancel before then and you won't be charged.`
+      ? `Free for ${opt.trial.days} days, then ${price}. Cancel before then and you won't be charged. During the trial, automatic miles cover up to ${opt.trial.dailyLimit || 100} quotes a day.`
       : (price ? price + ' · ' : '') + 'Cancel anytime';
 }
 function setUpgradeStatus(text, isError){
@@ -9202,7 +9563,7 @@ async function handleProModalUpgrade(){
       const resp = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, email, accessToken: session.access_token, plan: 'pro' })
+        body: JSON.stringify({ userId, email, accessToken: session.access_token, plan: 'pro', interval: proInterval })
       });
       const data = await resp.json();
       if(data.error === 'already_subscribed'){
@@ -9220,23 +9581,41 @@ async function handleProModalUpgrade(){
       }
     } catch(e){}
   }
-  window.location.href = '/signup.html';
+  window.location.href = '/signup.html?plan=pro' + (proInterval === 'year' ? '&interval=year' : '');
 }
 function showProModal(desc){
   const overlay = document.getElementById('pro-modal-overlay');
   if(desc) document.getElementById('pro-modal-desc').textContent = desc;
+  // Signed in already: no "Already have an account? Sign in"
+  document.getElementById('pro-modal-signin').style.display = getProSession() ? 'none' : '';
   overlay.style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  paintProPrice();
   refreshProModalOffers();
+}
+// Monthly or yearly Pro (once a yearly price is set): the price shown is the one checkout starts.
+let proInterval = 'month';
+function setProInterval(interval){
+  proInterval = interval === 'year' ? 'year' : 'month';
+  paintProPrice();
+}
+function paintProPrice(){
+  const opt = window.QFCPlans ? QFCPlans.current() : null;
+  const yearly = !!(opt && opt.yearly.includes('pro'));
+  if(!yearly) proInterval = 'month';
+  document.getElementById('pro-billing').hidden = !yearly;
+  document.querySelectorAll('#pro-billing .upg-int').forEach(b => {
+    b.classList.toggle('on', b.dataset.int === proInterval);
+    b.setAttribute('aria-pressed', String(b.dataset.int === proInterval));
+  });
+  const [amount, per] = (opt ? QFCPlans.price('pro', proInterval) : '$9.99/month').split('/');
+  document.getElementById('pro-modal-price').innerHTML =
+    `<strong style="color:#f0a500;font-size:18px">${amount}</strong>/${per} &nbsp;·&nbsp; Cancel anytime`;
 }
 async function refreshProModalOffers(){
   if(!window.QFCPlans) return;
   const [opt, eligible] = await Promise.all([QFCPlans.options(), QFCPlans.trialEligible()]);
-  if(opt.yearly.includes('pro')){
-    const [y] = QFCPlans.price('pro', 'year').split('/');
-    document.getElementById('pro-modal-price').innerHTML =
-      `<strong style="color:#f0a500;font-size:18px">$9.99</strong>/month or <strong style="color:#f0a500;font-size:18px">${y}</strong>/year &nbsp;·&nbsp; Cancel anytime`;
-  }
+  paintProPrice();
   if(eligible && opt.trial && opt.trial.plans.includes('plus')){
     document.getElementById('pro-modal-more').textContent = `Or try Pro Plus free for ${opt.trial.days} days →`;
   }

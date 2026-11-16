@@ -42,6 +42,8 @@ const PLACES = {
   'new york, ny': { city: 'New York', state: 'NY', county: 'New York County', lat: 40.71, lng: -74.01 },
   'chicago, il': { city: 'Chicago', state: 'IL', county: 'Cook County', lat: 41.88, lng: -87.63 },
   'honolulu, hi': { city: 'Honolulu', state: 'HI', county: 'Honolulu County', lat: 21.31, lng: -157.86 },
+  'qwxzvbnm plrtk, zz': { city: '', state: '', county: '', lat: 38.79, lng: -106.53, partial: true },
+  '17601': { city: 'Lancaster', state: 'PA', county: 'Lancaster County', lat: 40.07, lng: -76.31, partial: true },
 };
 const json = (status, body) => ({ ok: status < 300, status, json: async () => body, text: async () => JSON.stringify(body) });
 const q = (url, k) => new URL(url).searchParams.get(k);
@@ -59,8 +61,9 @@ global.fetch = async (url, opts = {}) => {
     return json(200, { status: 'OK', results: [{ address_components: [
       { long_name: p.city, short_name: p.city, types: ['locality'] },
       { long_name: p.county, short_name: p.county, types: ['administrative_area_level_2'] },
-      { long_name: p.state, short_name: p.state, types: ['administrative_area_level_1'] }],
-      geometry: { location: { lat: p.lat, lng: p.lng } }, types: ['locality'], formatted_address: `${p.city}, ${p.state}, USA` }] });
+      { long_name: p.state, short_name: p.state, types: ['administrative_area_level_1'] }].filter((c) => c.long_name),
+      geometry: { location: { lat: p.lat, lng: p.lng } }, types: ['locality'], formatted_address: `${p.city}, ${p.state}, USA`,
+      ...(p.partial ? { partial_match: true } : {}) }] });
   }
   if (u.hostname === 'routes.googleapis.com') {
     google.routes++;
@@ -286,6 +289,20 @@ async function test(name, fn) {
     const r = await call({ origin: 'Nowhereville, ZZ', destination: 'New York, NY' });
     assert.strictEqual(r.status, 422); assert.strictEqual(r.body.error.code, 'location_not_found'); assert.strictEqual(r.body.error.field, 'origin');
     assert.strictEqual(db.usage.filter((u) => u.auto).length, 1);
+  });
+  await test('made-up text Google only half-matches → 422 location_not_found, no quote from a guessed point', async () => {
+    const r = await call({ origin: 'Qwxzvbnm Plrtk, ZZ', destination: 'New York, NY' });
+    assert.strictEqual(r.status, 422); assert.strictEqual(r.body.error.code, 'location_not_found'); assert.strictEqual(r.body.error.field, 'origin');
+    assert.strictEqual(google.routes, 0, 'no route looked up');
+  });
+  await test('a ZIP code Google flags as a partial match is still taken (as on the website)', async () => {
+    const r = await call({ origin: '17601', destination: 'New York, NY' });
+    assert.strictEqual(r.status, 200); assert.strictEqual(r.body.lane.origin.city, 'Lancaster');
+  });
+  await test('the same place at both ends → 422 same_location, without a route lookup', async () => {
+    const r = await call({ origin: 'Lancaster, PA', destination: 'Lancaster, PA' });
+    assert.strictEqual(r.status, 422); assert.strictEqual(r.body.error.code, 'same_location');
+    assert.strictEqual(google.routes, 0);
   });
   await test('no driving route → 422, counted', async () => {
     const r = await call({ origin: 'Honolulu, HI', destination: 'New York, NY' });

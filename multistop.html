@@ -112,6 +112,7 @@ html:not(.light) .stop-date-input::-webkit-calendar-picker-indicator{filter:inve
 .cell-btn.on{background:var(--accentbg);color:var(--accent)}
 .cell-btn+.cell-btn,.cell-btn+.ms-del-btn{margin-left:4px}
 .log-by{display:block;font-size:10px;color:var(--text3);margin-top:2px;font-style:italic}
+.log-cust{display:block;font-size:11px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ms-del-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px;transition:color .15s}
 .ms-del-btn:hover{color:var(--red)}
 
@@ -281,7 +282,7 @@ html:not(.light) .stop-date-input::-webkit-calendar-picker-indicator{filter:inve
               <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-bottom:6px">
                 <div class="mini-input-group">
                   <label class="mini-label" for="ms-diesel-price" style="color:var(--red)">Diesel price ($/gal)</label>
-                  <input class="mini-input" type="number" id="ms-diesel-price" value="3.85" step="0.01" min="1" style="color:var(--red);border-color:rgba(239,68,68,.3)" oninput="calcTotal()" />
+                  <input class="mini-input" type="number" id="ms-diesel-price" value="3.85" step="0.01" min="1" style="color:var(--red);border-color:rgba(239,68,68,.3)" oninput="msDieselTyped=true;calcTotal()" />
                 </div>
                 <button type="button" onclick="msFetchDiesel()" id="ms-eia-btn" class="btn btn-danger" style="height:42px">⚡ Live</button>
               </div>
@@ -863,18 +864,58 @@ function onTrailerChange(){
 let stops = [];
 let stopIdCounter = 0;
 let legMiles = {}; // legMiles[stopId] = miles from this stop to next
+// Miles over the current stops, in order: a leg runs from a stop to the next one, so the last
+// stop has none, and a leg left from a removed or moved stop never counts.
+function msTotalMiles(){
+  return stops.slice(0, -1).reduce((a, s) => a + (Number(legMiles[s.id]) || 0), 0);
+}
+// A number from a box: blank uses the default, and 0 means 0 (not "use the default").
+function msNum(id, def){
+  const el = document.getElementById(id);
+  const v = el ? parseFloat(el.value) : NaN;
+  return Number.isFinite(v) ? v : def;
+}
 let extraDays = 0;
+let dateExtraDays = 0;   // the extra days the stop dates called for last time (syncDateExtraDays)
+
+// The extra days the stop dates call for: calendar days from the first pickup to the last
+// delivery beyond the ~500 miles a day driving estimate. None without both dates.
+function dateExtraDaysNow(){
+  const firstPickup  = stops.find(s => s.type === 'pickup' && s.date);
+  const lastDelivery = [...stops].reverse().find(s => s.type === 'delivery' && s.date);
+  if(!firstPickup || !lastDelivery) return 0;
+  const calDays = Math.round((new Date(lastDelivery.date + 'T12:00:00') - new Date(firstPickup.date + 'T12:00:00')) / 86400000);
+  const totalMiles = msTotalMiles();
+  const estDays = totalMiles > 0 ? Math.ceil(totalMiles / 500) : 0;
+  return estDays > 0 && calDays > estDays ? calDays - estDays : 0;
+}
+// When the dates or miles call for a different number of extra days, the count follows them
+// (clearing a date takes them off); − and + in between are kept.
+function syncDateExtraDays(){
+  const want = dateExtraDaysNow();
+  if(want === dateExtraDays) return;
+  dateExtraDays = want;
+  extraDays = want;
+  document.getElementById('ms-extra-days-count').textContent = extraDays;
+}
 
 function adjustExtraDays(delta){
   extraDays = Math.max(0, extraDays + delta);
   document.getElementById('ms-extra-days-count').textContent = extraDays;
-  const dayCharge = parseFloat(document.getElementById('ms-day-charge').value) || 200;
+  const dayCharge = msNum('ms-day-charge', 200);
   const total = extraDays * dayCharge;
   document.getElementById('ms-day-charge-total').textContent = '$' + total.toLocaleString();
   calcTotal();
 }
 let legTimers = {};
 let stopChargeOverrides = {}; // stopId → { amount, type } where type is 'flat' or 'permile'
+// The fees, extra days and per-stop charges a quote is priced with (saved with it, so Load
+// brings back the same total)
+function msChargeSettings(){
+  const charges = stops.map(s => stopChargeOverrides[s.id] || null);
+  return Object.assign({ stopFee: msNum('ms-stop-fee', 150), dayCharge: msNum('ms-day-charge', 200), extraDays },
+    charges.some(Boolean) ? { charges } : {});
+}
 let msLastCalc = null; // calcTotal()'s numbers, for the Modern PDF (pdf-quote.js)
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
@@ -930,8 +971,11 @@ function removeStop(id){
     alert('A multi-stop load needs at least 2 stops.');
     return;
   }
+  const at = stops.findIndex(s => s.id === id);
+  const before = at > 0 ? stops[at - 1] : null;
   stops = stops.filter(s => s.id !== id);
   delete legMiles[id];
+  if(before) delete legMiles[before.id];   // its leg led to the removed stop; recalcAllLegs looks it up again
   delete stopChargeOverrides[id];
   renderStops();
   recalcAllLegs();
@@ -1097,9 +1141,7 @@ function updateStopDate(id, val){
   const s = stops.find(s => s.id === id);
   if(s){
     s.date = val;
-    // Run transit summary first — it sets extraDays based on the new date.
-    // Then calcTotal so the totals pick up the updated extraDays value.
-    calcTransitSummary();
+    // calcTotal brings the extra days in line with the dates, then shows the summary.
     calcTotal();
   }
 }
@@ -1111,7 +1153,7 @@ function calcTransitSummary(){
   const lastDelivery  = [...stops].reverse().find(s => s.type==='delivery' && s.date);
 
   // Estimated drive time from total miles
-  const totalMiles = Object.values(legMiles).reduce((a,b)=>a+b,0);
+  const totalMiles = msTotalMiles();
   const transitRow = document.getElementById('ms-transit-row');
   const datesRow   = document.getElementById('ms-dates-row');
   const calDaysRow = document.getElementById('ms-calendar-days-row');
@@ -1145,25 +1187,15 @@ function calcTransitSummary(){
     document.getElementById('ms-calendar-days').textContent = `${calDays} day${calDays!==1?'s':''}`;
     calDaysRow.style.display = '';
 
-    // Compare calendar days to estimated drive days
-    const estDays = totalMiles > 0 ? Math.ceil(totalMiles / 500) : 0;
-    if(estDays > 0 && calDays > estDays){
-      const extraCalDays = calDays - estDays;
+    // Compare calendar days to estimated drive days (the extra days themselves follow the
+    // dates in syncDateExtraDays, at the start of calcTotal)
+    const extraCalDays = dateExtraDaysNow();
+    if(extraCalDays > 0){
       document.getElementById('ms-extra-days-warning-text').textContent =
         `⚠ ${extraCalDays} extra day${extraCalDays>1?'s':''} beyond estimated drive time — consider adding extra day charges`;
       warningRow.style.display = '';
-      // Sync extra days to match the date-calculated value. The caller is
-      // responsible for triggering calcTotal — calling it here would create
-      // an infinite recursion (calcTotal → calcTransitSummary → calcTotal).
-      extraDays = extraCalDays;
-      document.getElementById('ms-extra-days-count').textContent = extraCalDays;
     } else {
       warningRow.style.display = 'none';
-      // Reset extra days if dates no longer warrant them.
-      if(extraDays > 0){
-        extraDays = 0;
-        document.getElementById('ms-extra-days-count').textContent = '0';
-      }
     }
   } else {
     datesRow.style.display = 'none';
@@ -1202,7 +1234,17 @@ async function lookupLegMiles(id){
 
   // Skip if either end of this leg failed location validation — prevents the
   // Routes API from silently returning miles for garbage input like "alan".
-  if(!isStopValid(stops[idx].id) || !isStopValid(stops[idx+1].id)) return;
+  if(!isStopValid(stops[idx].id) || !isStopValid(stops[idx+1].id)){
+    if(legMiles[id]){
+      delete legMiles[id];
+      const b = document.getElementById(`leg-badge-${id}`);
+      if(b){ b.className = 'leg-miles-badge'; b.textContent = '— mi'; }
+      const st = document.getElementById(`leg-status-${id}`);
+      if(st){ st.className = 'miles-status'; st.textContent = ''; }
+      calcTotal();
+    }
+    return;
+  }
   // An end still being typed in: leaving it runs its check, which looks the leg up.
   if(stopAwaitingCheck(stops[idx]) || stopAwaitingCheck(stops[idx+1])) return;
 
@@ -1345,8 +1387,12 @@ function msUpdateAdvCount(){
 }
 
 // ── Diesel ────────────────────────────────────────────────────────────────
+// Turning the surcharge on fills in this week's EIA price (once), unless you typed your own:
+// the $3.85 in the box is only a placeholder.
+let msDieselTyped = false, msDieselRefreshed = false;
 function msToggleDiesel(){
   const on = document.getElementById('ms-diesel-enabled').checked;
+  if(on && !msDieselTyped && !msDieselRefreshed){ msDieselRefreshed = true; msFetchDiesel(); }
   document.getElementById('ms-diesel-controls').style.display = on ? 'block' : 'none';
   document.getElementById('ms-diesel-warn').classList.toggle('show', on);
   document.getElementById('ms-diesel-lbl').textContent = on ? 'On' : 'Off';
@@ -1468,14 +1514,15 @@ function msUpdateSeasonCalendar(){
 
 // ── Calculation ────────────────────────────────────────────────────────────
 function calcTotal(){
+  syncDateExtraDays();
   const baseRate   = parseFloat(document.getElementById('ms-rate').value) || 3.15;
   const marginPct  = (document.getElementById('ms-margin').value !== '' ? parseFloat(document.getElementById('ms-margin').value) : 15) / 100;
-  const stopFee    = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
+  const stopFee    = msNum('ms-stop-fee', 150);
   const commodity  = document.getElementById('ms-commodity').value;
   const cm         = CMULT[commodity] || 1.0;
 
   // Total miles
-  const totalMiles = Object.values(legMiles).reduce((a,b) => a+b, 0);
+  const totalMiles = msTotalMiles();
 
   // Total weight (sum of all pickup weights)
   const totalWeight = stops
@@ -1518,7 +1565,7 @@ function calcTotal(){
     : 0;
 
   // Extra day charges
-  const dayCharge     = parseFloat(document.getElementById('ms-day-charge').value) || 200;
+  const dayCharge     = msNum('ms-day-charge', 200);
   const extraDayTotal = extraDays * dayCharge;
   // Update day charge total display
   document.getElementById('ms-day-charge-total').textContent = '$' + extraDayTotal.toLocaleString();
@@ -1537,7 +1584,7 @@ function calcTotal(){
   document.getElementById('ms-rpm-sub').textContent        = totalMiles > 0 ? `${fmtD(rpm)} per loaded mile` : 'Fill in stops to calculate';
   document.getElementById('ms-total-miles').textContent    = totalMiles > 0 ? totalMiles.toLocaleString() + ' mi' : '—';
   document.getElementById('ms-total-weight').textContent   = totalWeight > 0 ? totalWeight.toLocaleString() + ' lbs' : '—';
-  document.getElementById('ms-stops-count').textContent    = `${stops.length} stops (${stops.filter(s=>s.type==='pickup').length} pickups, ${stops.filter(s=>s.type==='delivery').length} deliveries${addlStops > 0 ? ' · '+addlStops+' extra' : ''})`;
+  document.getElementById('ms-stops-count').textContent    = `${msCount(stops.length,'stop','stops')} (${msCount(stops.filter(s=>s.type==='pickup').length,'pickup','pickups')}, ${msCount(stops.filter(s=>s.type==='delivery').length,'delivery','deliveries')}${addlStops > 0 ? ' · '+addlStops+' extra' : ''})`;
   document.getElementById('ms-linehaul').textContent       = totalMiles > 0 ? fmt(linehaul) : '—';
   document.getElementById('ms-stop-charges-total').textContent = addlStops > 0 ? fmt(stopChargesTotal) : '$0';
   document.getElementById('ms-day-charges-row').style.display = extraDays > 0 ? '' : 'none';
@@ -1549,7 +1596,7 @@ function calcTotal(){
 }
 
 function renderCharges(){
-  const stopFee  = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
+  const stopFee  = msNum('ms-stop-fee', 150);
   const rows = document.getElementById('charges-rows');
   if(!rows) return;
 
@@ -1606,7 +1653,7 @@ function setStopChargeOverride(id, val){
 
 function setStopChargeType(id, type){
   if(!stopChargeOverrides[id]){
-    const stopFee = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
+    const stopFee = msNum('ms-stop-fee', 150);
     stopChargeOverrides[id] = { type, amount: type === 'permile' ? 0 : stopFee };
   } else {
     stopChargeOverrides[id].type = type;
@@ -1622,6 +1669,14 @@ function setStopChargeType(id, type){
 // ── PDF Generation ─────────────────────────────────────────────────────────
 // ── Customer: "Prepared for" on the PDF. With the customer list (Pro Plus
 // and up) the box searches saved customers and their details print too.
+// The customer box for the quote log: the name as typed and, when picked from the
+// customer list, its id.
+function msCustomerForLog(){
+  const el = document.getElementById('ms-customer');
+  const name = el ? el.value.trim().slice(0, 120) : '';
+  const id = el && el.dataset.customerId ? Number(el.dataset.customerId) : null;
+  return { name, id: Number.isFinite(id) && id > 0 ? id : null };
+}
 function msCustomer(){
   const el = document.getElementById('ms-customer');
   const name = el ? el.value : '';
@@ -1703,7 +1758,7 @@ function generateMultiStopPDF(){
     arctic:   {header:'#eef3f8', accent:'#0f3d4c', headerText:'#0b2d38', headerTextSoft:'rgba(11,45,56,.6)',  headerTextFaint:'rgba(11,45,56,.48)', bar:'linear-gradient(to right,#0f3d4c,#2a6b7f,#0f3d4c)'},
   };
   const scheme = (window.QFCQuotePDF && QFCQuotePDF.classicScheme(profile)) || SCHEMES[profile.colorScheme] || SCHEMES.midnight;
-  const stopFee = parseFloat(document.getElementById('ms-stop-fee').value) || 150;
+  const stopFee = msNum('ms-stop-fee', 150);
   // Amounts on the PDF are as the customer pays them: your margin is spread
   // across the charges so they add up to the total. (The page's own linehaul
   // and stop-charge figures are before margin, so they're not used here.)
@@ -1736,12 +1791,14 @@ function generateMultiStopPDF(){
   const companyHTML = profile.companyName
     ? `<div style="font-size:16px;font-weight:700;color:${scheme.headerText}">${escapeHTML(profile.companyName)}</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};text-transform:uppercase;letter-spacing:.06em;margin-top:2px">${escapeHTML(profile.footerText) || 'Licensed Freight Broker'}</div>`
+    : (window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile)) ? ''   // white-label, no company name: no QuickFreightCalc
     : `<div style="font-size:16px;font-weight:700;color:${scheme.headerText}">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Freight Rate Calculator</div>`;
 
   const hasContact = profile.contactName || profile.phone || profile.email || profile.mcNumber;
   const contactItems = [profile.contactName, profile.phone, profile.email,
-    profile.mcNumber?`MC# ${profile.mcNumber}`:'', profile.dotNumber?`DOT# ${profile.dotNumber}`:''].filter(Boolean);
+    profile.mcNumber?(window.QFCQuotePDF?QFCQuotePDF.mcText(profile.mcNumber):`MC# ${profile.mcNumber}`):'',
+    profile.dotNumber?(window.QFCQuotePDF?QFCQuotePDF.dotText(profile.dotNumber):`DOT# ${profile.dotNumber}`):''].filter(Boolean);
   // Escape each contact item before joining, since profile fields are user-typed
   const msCustomerPF = window.QFCQuotePDF ? QFCQuotePDF.classicPreparedFor(msCustomer()) : '';
   const contactStrip = hasContact
@@ -1750,6 +1807,12 @@ function generateMultiStopPDF(){
        </div>` : '';
 
   const now = new Date();
+  // When the quote stops being good (Profile → PDF quotes; 24 hours unless Pro Max sets it), with the time zone
+  const validHrs = (window.QFCQuotePDF && QFCQuotePDF.validHours(profile)) || 24;
+  const validAt = new Date(now.getTime() + validHrs * 3600000);
+  let validZone = '';
+  try { validZone = validAt.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() || ''; } catch(e){}
+  const validText = (validAt.toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }) + ' ' + validZone).trim();
   const prefix = (profile.quotePrefix||'QFC').toUpperCase();
   const qNum = `${prefix}-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-MS${Math.floor(Math.random()*9000)+1000}`;
   const issuedDate = now.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
@@ -1794,7 +1857,7 @@ function generateMultiStopPDF(){
     </div>${legLine}`;
   }).join('');
 
-  const totalMiles = Object.values(legMiles).reduce((a,b)=>a+b,0);
+  const totalMiles = msTotalMiles();
   const totalWeight = stops.filter(s=>s.type==='pickup').reduce((sum,s)=>sum+(parseFloat(s.weight)||0),0);
 
   // Gather load detail values for the PDF
@@ -1833,6 +1896,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
 .doc-header{background:${scheme.header};padding:24px 36px;display:flex;align-items:center;justify-content:space-between;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .accent-bar{height:4px;background:${scheme.bar};-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-body{padding:28px 36px}
+.doc-sign{padding-top:0}
 .doc-footer{background:#f8f9fc;border-top:1px solid #e4e8ef;padding:14px 36px;display:flex;align-items:center;justify-content:space-between;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .section-header{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #e4e8ef}
 .route-section,.details-section,.notes-section,.signature-section,.stops-section{margin-bottom:24px}
@@ -1857,7 +1921,20 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
   body{background:white;padding:0}.screen-controls{display:none!important}
   .page-wrap{max-width:100%}.doc{box-shadow:none;border-radius:0}
   .route-section,.details-section,.notes-section,.stops-section,.signature-section{page-break-inside:avoid;break-inside:avoid}
-  @page{size:letter portrait;margin:0}
+  @page{size:letter portrait;margin:0.45in 0}
+  @page :first{margin-top:0}
+  .signature-section,.signature-grid,.doc-footer{break-inside:avoid;page-break-inside:avoid}
+  /* Printed, the document is as tall as what's on it: a page-tall box with the footer pinned
+     to its bottom spilled the footer onto a page of its own. Headings stay with what follows
+     them, and the footer with the signatures. */
+  .doc{display:block!important;min-height:0!important}
+  .doc-footer{margin-top:0!important;break-before:avoid;page-break-before:avoid}
+  .doc-end{break-inside:avoid;page-break-inside:avoid}
+  .doc-sign{padding-top:0!important}
+  .doc-body:not(.doc-sign){padding-bottom:0!important}
+  .doc-sign .signature-section{margin-bottom:12px}
+  .section-header{break-after:avoid;page-break-after:avoid}
+  .config-section{break-inside:avoid;page-break-inside:avoid}
 }
 </style></head><body>
 <div class="page-wrap">
@@ -1872,6 +1949,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
         <div style="font-size:20px;font-weight:700;color:${scheme.headerText}">Multi-Stop Rate Confirmation</div>
         <div style="font-family:'DM Mono',monospace;font-size:11px;color:${scheme.headerTextFaint};margin-top:3px">Quote #${qNum}</div>
         <div style="font-size:11px;color:${scheme.headerTextFaint}">Issued: ${issuedDate}</div>
+        <div style="font-size:11px;color:${scheme.headerTextFaint}">Valid until: ${escapeHTML(validText)}</div>
       </div>
     </div>
     <div class="accent-bar"></div>
@@ -1908,7 +1986,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
             </div>
           </div>
           <div style="background:#f0f3f8;border-top:1px solid #e4e8ef;padding:8px 20px;font-size:11px;color:#8fa3b8">
-            ${stops.length} stops &nbsp;·&nbsp; ${stops.filter(s=>s.type==='pickup').length} pickups &nbsp;·&nbsp; ${stops.filter(s=>s.type==='delivery').length} deliveries &nbsp;·&nbsp; ${totalMiles.toLocaleString()} mi total
+            ${msCount(stops.length,'stop','stops')} &nbsp;·&nbsp; ${msCount(stops.filter(s=>s.type==='pickup').length,'pickup','pickups')} &nbsp;·&nbsp; ${msCount(stops.filter(s=>s.type==='delivery').length,'delivery','deliveries')} &nbsp;·&nbsp; ${totalMiles.toLocaleString()} mi total
           </div>
         </div>
       </div>
@@ -1939,6 +2017,10 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
         </div>
       </div>
 
+    </div>
+    <!-- The signatures and the footer, kept on one page when printed -->
+    <div class="doc-end">
+    <div class="doc-body doc-sign">
       <div class="signature-section">
         <div class="section-header">Acceptance &amp; Authorization</div>
         <div class="signature-grid">
@@ -1959,6 +2041,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
     <div class="doc-footer">
       <div style="font-size:11px;color:#b0c4d8">${msWhiteLabel ? escapeHTML(profile.companyName || '') : `${profile.companyName?escapeHTML(profile.companyName):qfcLogoImg(13) + ' QuickFreightCalc'} · ${profile.companyName?'Powered by QuickFreightCalc':'quickfreightcalc.com'}`}</div>
       <div style="font-size:10px;color:#aab8c8">${msTerms}</div>
+    </div>
     </div>
   </div>
 </div></body></html>`;
@@ -2036,6 +2119,17 @@ async function initWithProCheck(){
   // User is verified Pro — load the page. With a rate sheet (rate-sheet.js loads with
   // the page), the base rate starts from it.
   if(document.readyState === 'loading') await new Promise(r => document.addEventListener('DOMContentLoaded', r, { once: true }));
+  // The account's settings for this browser (company, quote numbers, rate sheet): a new device or
+  // a fresh sign-in has none until something loads them. Up to 4 seconds; then what's cached.
+  if(window.QFCNav && QFCNav.syncProfile){
+    await Promise.race([QFCNav.syncProfile(), new Promise(r => setTimeout(r, 4000))]);
+    QFCNav.keepProfileFresh();
+  }
+  // rate-sheet.js loads deferred and can arrive after this point. With a sheet saved, wait for it
+  // (up to 3 seconds) so the quote starts from your rates; without one, don't wait.
+  let hasSheet = false;
+  try { hasSheet = !!(JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}).rateSheet; } catch(e){}
+  for(let i = 0; hasSheet && i < 60 && !window.QFCRateSheet; i++) await new Promise(r => setTimeout(r, 50));
   if(msRateSheet()){
     document.getElementById('ms-btn-sheet').style.display = '';
     setMsRateMode('sheet');
@@ -2050,7 +2144,9 @@ async function initWithProCheck(){
 const MS_LOG_KEY = 'qfc_ms_quote_log';
 const MS_MAX = 50;
 const CMULT_MS  = {standard:1.0,food:1.08,hazmat:1.20,highval:1.12,oversized:1.25};
-const CLABEL_MS = {standard:'Standard',food:'Food/Perishable',hazmat:'Hazmat',highval:'High Value',oversized:'Oversized'};
+// "1 stop", "2 stops"
+function msCount(n, one, many){ return n + ' ' + (n === 1 ? one : many); }
+const CLABEL_MS = {standard:'Standard',food:'Food / Perishable',hazmat:'Hazmat',highval:'High Value',oversized:'Oversized'};
 
 function getMsLog(){ try{ return JSON.parse(localStorage.getItem(MS_LOG_KEY)||'[]'); }catch(e){ return []; } }
 function saveMsLog(log){ try{ localStorage.setItem(MS_LOG_KEY, JSON.stringify(log)); }catch(e){} }
@@ -2098,10 +2194,13 @@ async function loadMsLogFromSupabase(){
         stopData:    r.stop_data || [],
         trailer:     r.trailer || '',
         commodityKey:r.commodity_key || '',
-        marginVal:   r.margin_val || 15,
+        marginVal:   r.margin_val ?? 15,   // 0% stays 0%
         baseRate:    r.base_rate || 3.15,
         createdBy:   r.created_by || null,
-        createdByName: r.created_by_name || ''
+        createdByName: r.created_by_name || '',
+        customer:    r.customer || '',
+        customerId:  r.customer_id || null,
+        details:     r.details || null
       }));
       saveMsLog(log);
       renderMsLog();
@@ -2128,7 +2227,8 @@ function renderMsLog(){
   }
   tbody.innerHTML = log.map(q => `<tr>
     <td class="dim">${escapeHTML(q.date)}</td>
-    <td style="min-width:180px;max-width:260px;white-space:normal;color:var(--text)">${escapeHTML(q.route)||'—'}${msTeam
+    <td style="min-width:180px;max-width:260px;white-space:normal;color:var(--text)">${escapeHTML(q.route)||'—'}${q.customer
+      ? `<span class="log-cust" title="${escapeHTML(q.customer)}">${escapeHTML(q.customer)}</span>` : ''}${msTeam
       ? `<span class="log-by">by ${escapeHTML(msSavedBy(q))}</span>` : ''}</td>
     <td>${Number(q.miles||0).toLocaleString()}</td>
     <td class="dim">${escapeHTML(q.stopsCount)||'—'}</td>
@@ -2175,8 +2275,8 @@ async function saveMsQuote(){
   const pickups    = stops.filter(s => s.type==='pickup').map(s => s.location).filter(Boolean);
   const deliveries = stops.filter(s => s.type==='delivery').map(s => s.location).filter(Boolean);
   const route = pickups.length && deliveries.length
-    ? `${pickups[0]} → ${deliveries[deliveries.length-1]}${stops.length>2?' ('+(stops.length-2)+' stops)':''}`
-    : `${stops.length} stops`;
+    ? `${pickups[0]} → ${deliveries[deliveries.length-1]}${stops.length>2?' ('+msCount(stops.length-2,'stop','stops')+')':''}`
+    : msCount(stops.length,'stop','stops');
 
   const rpm        = parseFloat((document.getElementById('ms-rpm-sub')?.textContent||'').replace(/[^0-9.]/g,''))||0;
   const marginPct  = document.getElementById('ms-margin')?.value !== '' ? parseFloat(document.getElementById('ms-margin')?.value) : 15;
@@ -2197,11 +2297,18 @@ async function saveMsQuote(){
     quote: quoteVal,
     rpm: rpm.toFixed(2),
     notes: document.getElementById('ms-load-notes')?.value.trim() || '',
-    stopData: stops.map(s => ({ type: s.type, location: s.location, weight: s.weight || '' })),
+    // Each leg's miles go with the stop it starts from, so "Load" brings the quote back as priced.
+    stopData: stops.map((s, i) => Object.assign({ type: s.type, location: s.location, weight: s.weight || '' },
+      s.date ? { date: s.date } : {},
+      i < stops.length - 1 && Number(legMiles[s.id]) > 0 ? { legMiles: Number(legMiles[s.id]) } : {})),
+    // The fees, extra days and per-stop charges it was priced with
+    details: msChargeSettings(),
     trailer: document.getElementById('ms-trailer')?.value || '',
     commodityKey: commodity,
     marginVal: marginPct,
     baseRate: parseFloat(document.getElementById('ms-rate')?.value) || 3.15,
+    customer: msCustomerForLog().name,
+    customerId: msCustomerForLog().id,
     createdBy: msUserId()
   };
 
@@ -2238,7 +2345,10 @@ async function saveMsQuote(){
           trailer:      entry.trailer,
           commodity_key: entry.commodityKey,
           margin_val:   entry.marginVal,
-          base_rate:    entry.baseRate
+          base_rate:    entry.baseRate,
+          customer:     entry.customer || null,
+          customer_id:  entry.customerId || null,
+          details:      entry.details || null
         })
       });
       setMsLogStatus(`✓ Synced`);
@@ -2260,9 +2370,13 @@ async function deleteMsQuote(id){
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}`, 'Prefer': 'return=representation' }
     });
-    const gone = resp.ok ? await resp.json().catch(() => null) : null;
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const gone = await resp.json().catch(() => null);
     if(msTeam && Array.isArray(gone) && !gone.length) loadMsLogFromSupabase();   // the database kept it
-  } catch(e){}
+  } catch(e){
+    showMsToast('⚠ Couldn’t delete the quote. Check your connection and try again.');
+    loadMsLogFromSupabase();
+  }
 }
 
 // ── Clear All ─────────────────────────────────────────────────────────────
@@ -2284,10 +2398,11 @@ async function clearMsLog(){
     : msTeamMember() ? `created_by=eq.${userId}`
     : `or=(created_by.eq.${userId},created_by.is.null)`;
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log?${which}`, {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log?${which}`, {
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` }
     });
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
     setMsLogStatus('Cleared');
   } catch(e){}
 }
@@ -2305,27 +2420,39 @@ function loadMsQuote(id){
     legMiles = {};
     stopChargeOverrides = {};
     extraDays = 0;
+    dateExtraDays = 0;
     document.getElementById('ms-extra-days-count').textContent = '0';
     document.getElementById('stops-list').innerHTML = '';
 
     // Add each stop then populate location/weight
     q.stopData.forEach(s => {
       const id = ++stopIdCounter;
-      stops.push({ id, type: s.type, location: s.location || '', miles: 0, weight: s.weight || '' });
+      stops.push({ id, type: s.type, location: s.location || '', miles: 0, weight: s.weight || '', date: s.date || '' });
+      if(Number(s.legMiles) > 0) legMiles[id] = Number(s.legMiles);   // the miles this quote was priced on
     });
+    // The charges it was priced with: fees, each stop's own charge, and the extra days
+    // (which may have been set with − and + beyond what the dates call for)
+    const det = q.details || {};
+    const num = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+    if(num(det.stopFee)) document.getElementById('ms-stop-fee').value = Number(det.stopFee);
+    if(num(det.dayCharge)) document.getElementById('ms-day-charge').value = Number(det.dayCharge);
+    if(Array.isArray(det.charges)) stops.forEach((s, i) => { if(det.charges[i]) stopChargeOverrides[s.id] = det.charges[i]; });
+    dateExtraDays = dateExtraDaysNow();
+    extraDays = num(det.extraDays) ? Math.max(0, Number(det.extraDays)) : dateExtraDays;
+    document.getElementById('ms-extra-days-count').textContent = extraDays;
     renderStops();
 
-    // Fill in location inputs after render
-    stops.forEach((s, i) => {
+    // Fill in the boxes and check each place, as leaving the box does, so the stops are ready
+    // to edit. Legs the saved quote didn't record are looked up once the checks are done.
+    stops.forEach(s => {
       const card = document.getElementById(`stop-card-${s.id}`);
       if(!card) return;
       const locInput = card.querySelector('input[type="text"]');
-      if(locInput && s.location){ locInput.value = s.location; locInput.dispatchEvent(new Event('input')); }
+      if(locInput && s.location){ locInput.value = s.location; validateLocation(locInput, s.id); }
       const wtInput = card.querySelector('input[type="number"]');
       if(wtInput && s.weight){ wtInput.value = s.weight; }
     });
-
-    recalcAllLegs();
+    stops.forEach((s, i) => { if(i < stops.length - 1 && !legMiles[s.id]) lookupLegMiles(s.id); });
   }
 
   // Restore settings
@@ -2334,8 +2461,15 @@ function loadMsQuote(id){
   if(q.marginVal !== undefined){ const el = document.getElementById('ms-margin'); if(el) el.value = q.marginVal; }
   if(q.baseRate){ const el = document.getElementById('ms-rate'); if(el) el.value = q.baseRate.toFixed(2); }
   if(q.notes){ const el = document.getElementById('ms-load-notes'); if(el) el.value = q.notes; }
+  // The customer it was for (a saved customer's details come back with it)
+  const custEl = document.getElementById('ms-customer');
+  if(custEl){
+    if(custEl.__qfccPicker) custEl.__qfccPicker.set(q.customer || '', q.customerId);
+    else custEl.value = q.customer || '';
+  }
 
   calcTotal();
+  renderCharges();
   document.getElementById('stops-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
   showMsToast('✓ Quote loaded into calculator');
 }
@@ -2390,15 +2524,14 @@ document.getElementById('ms-dupe-modal').addEventListener('click', function(e){ 
 function exportMsCSV(){
   const log = getMsLog();
   if(!log.length){ showMsToast('⚠ No quotes to export'); return; }
-  const hdr = 'Date,Route,Miles,Stops,Commodity,Margin,Quote,RPM,Notes\n';
-  const rows = log.map(q => [
-    q.date, `"${q.route}"`, q.miles, q.stopsCount,
-    q.commodity, q.margin, q.quote, q.rpm,
-    `"${(q.notes||'').replace(/"/g,'""')}"`
-  ].join(',')).join('\n');
+  // Each cell quoted when it needs to be: the date ("Nov 15, 26") has a comma
+  const cell = (v) => { const s = v === null || v === undefined ? '' : String(v); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const hdr = ['Date', 'Customer', 'Route', 'Miles', 'Stops', 'Commodity', 'Margin', 'Quote', 'RPM', 'Notes'];
+  const rows = log.map(q => [q.date, q.customer || '', q.route, q.miles, q.stopsCount, q.commodity, q.margin, q.quote, q.rpm, q.notes || ''].map(cell).join(','));
   const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(hdr + rows);
-  a.download = 'ms_quotes_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(hdr.join(',') + '\n' + rows.join('\n'));
+  const d = new Date();   // the local day, not UTC's
+  a.download = 'ms_quotes_' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + '.csv';
   a.click();
 }
 

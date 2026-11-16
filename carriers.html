@@ -101,6 +101,8 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
 .mini:hover{border-color:var(--accent);color:var(--accent)}
 .cc-empty{padding:28px 20px;text-align:center;font-size:13px;color:var(--text3);line-height:1.7}
 .cc-source{font-size:12px;color:var(--text3);line-height:1.7;margin:22px 4px 0}
+.cc-saved .show-sm{display:none}
+.cc-saved .cc-note-sm{width:100%;margin-top:6px}
 .gate{margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:30px 28px;max-width:620px;box-shadow:var(--shadow)}
 .gate h2{font-size:17px;font-weight:700;margin-bottom:8px}
 .gate p{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px}
@@ -113,6 +115,14 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
   .cc-q{font-size:16px;min-width:0;width:100%;flex-basis:100%}
   .cc-search .btn.primary{flex:1;justify-content:center}
   .cc-saved .hide-sm{display:none}
+  .cc-saved .show-sm{display:block}
+  /* One block per carrier: name, details and the note across, then status and buttons */
+  table.cc-saved thead{display:none}
+  table.cc-saved tr{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px 12px;padding:12px 14px;border-bottom:1px solid var(--border)}
+  table.cc-saved tr:last-child{border-bottom:0}
+  table.cc-saved td{display:block;padding:0;border:0}
+  table.cc-saved td:first-child{grid-column:1 / -1}
+  table.cc-saved td.hide-sm{display:none}
   .cc-name{font-size:19px}
 }
 </style>
@@ -266,6 +276,23 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
   }
 
   // ── The report ──
+  // An authority's status. FMCSA can list it Active while the USDOT number is inactive or out
+  // of service; then it can't be relied on, and the chip says why.
+  function authorityChip(status, usdot) {
+    if (status === 'Active' && usdot && usdot !== 'Active') return `<span class="chip stop">Active, but USDOT ${esc(String(usdot).toLowerCase())}</span>`;
+    return statusChip(status);
+  }
+  // FMCSA's suspension notices from the last two years: still to take effect, or past
+  function suspensionList(list) {
+    const since = new Date(Date.now() - 730 * 86400000).toISOString().slice(0, 10), today = new Date().toISOString().slice(0, 10);
+    const shown = (list || []).filter((o) => o.date >= since).slice(0, 4);
+    if (!shown.length) return '';
+    return `<ul class="cc-list">${shown.map((o) => {
+      const pending = o.effective && o.effective >= today;
+      const what = o.voluntary ? 'Voluntary suspension asked for' : 'Suspension notice served';
+      return `<li><span class="chip ${pending ? 'warn' : ''}">${o.effective ? `${pending ? 'Takes effect' : 'Took effect'} ${day(o.effective)}` : 'Suspension'}</span> ${what} ${day(o.date)}</li>`;
+    }).join('')}</ul>`;
+  }
   function statusChip(s) {
     const cls = s === 'Active' ? 'ok' : s === 'Pending' ? 'warn' : 'stop';
     return `<span class="chip ${cls}">${esc(s || 'None')}</span>`;
@@ -316,7 +343,13 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
         <section class="cc-sec">
           <h3>Operating authority</h3>
           ${gone('authority') ? nlRow('Operating authority')
-            : auths.length ? auths.map((a) => `<div class="cc-row"><span>${esc(authorityName(a.type))}</span>${statusChip(a.status)}</div>`).join('') : '<div class="cc-row"><span>For-hire authority</span><span class="chip stop">None on file</span></div>'}
+            : auths.length ? auths.map((a) => `<div class="cc-row"><span>${esc(authorityName(a.type))}</span>${authorityChip(a.status, r.usdotStatus)}</div>`).join('') : (() => {
+                // FMCSA's authority list can drop a carrier whose authority was just suspended or revoked;
+                // its history still says what happened
+                const last = (r.authority.recentChanges || []).find((h) => h.status === 'Inactive');
+                return `<div class="cc-row"><span>For-hire authority</span><span class="chip stop">${last ? `Inactive since ${esc(day(last.date))}` : 'None on file'}</span></div>`;
+              })()}
+          ${suspensionList(r.suspensionOrders)}
           ${gone('authHistory') ? nlRow('First granted') : `<div class="cc-row"><span>First granted</span><b>${day(r.authority.firstGranted)}</b></div>`}
           ${(r.authority.recentChanges || []).length ? `<ul class="cc-list">${r.authority.recentChanges.slice(0, 5).map((h) => `<li><b>${day(h.date)}</b> · ${esc(h.status)}: ${esc(h.reason)}</li>`).join('')}</ul>` : ''}
         </section>
@@ -358,7 +391,8 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
   function summaryText(r) {
     const lines = [`${r.name || 'Carrier'} (USDOT ${r.dot}${(r.dockets || []).length ? ', ' + r.dockets.join(', ') : ''}): ${VERDICT[r.verdict]}`];
     for (const f of r.flags || []) lines.push(`- ${f.text}`);
-    const carrier = (r.authority.carrier || []).map((a) => `${authorityName(a.type)} ${a.status}`).join(', ') || 'no carrier authority';
+    const usdotNote = r.usdotStatus && r.usdotStatus !== 'Active' ? `, but USDOT ${String(r.usdotStatus).toLowerCase()}` : '';
+    const carrier = (r.authority.carrier || []).map((a) => `${authorityName(a.type)} ${a.status}${a.status === 'Active' ? usdotNote : ''}`).join(', ') || 'no carrier authority';
     if ((r.missing || []).includes('authority')) lines.push('Authority and liability on file: didn’t load from FMCSA.');
     else lines.push(`Authority: ${carrier}. Liability on file ${usd(r.insurance.onFile)}${r.insurance.required ? ` (required ${usd(r.insurance.required)})` : ''}.`);
     if (r.inspections) lines.push(`Out of service, last 2 years: trucks ${pct(r.inspections.vehicle.rate)}, drivers ${pct(r.inspections.driver.rate)}.`);
@@ -400,15 +434,17 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
     $('cc-alerts').innerHTML = alerts.slice(0, 10).map((a) => `<li class="${a.seen_at ? '' : 'new'}"><time datetime="${esc(a.created_at)}">${esc(day(a.created_at.slice(0, 10)))}</time><span>${esc(a.message)}</span></li>`).join('');
     const saved = info.saved || [];
     $('cc-saved-empty').hidden = saved.length > 0;
-    const v = { ok: ['ok', 'No problems'], warn: ['warn', 'Check'], stop: ['stop', 'Don’t book'] };
+    const v = { ok: ['ok', 'No problems'], warn: ['warn', 'Check first'], stop: ['stop', 'Don’t book'] };
     $('cc-saved').innerHTML = saved.map((s) => {
       const st = v[s.verdict] || ['', 'Not checked yet'];
       return `<tr data-id="${esc(s.id)}">
-        <td><div class="nm">${esc(s.name || 'USDOT ' + s.dot_number)}</div><div class="sub">USDOT ${esc(s.dot_number)}${s.docket ? ' · ' + esc(s.docket.replace(/^(MC|MX|FF)/, '$1 ')) : ''}</div></td>
+        <td><div class="nm">${esc(s.name || 'USDOT ' + s.dot_number)}</div><div class="sub">USDOT ${esc(s.dot_number)}${s.docket ? ' · ' + esc(s.docket.replace(/^(MC|MX|FF)/, '$1 ')) : ''}</div>
+          <div class="sub show-sm">Checked ${esc(ago(s.checked_at))}</div>
+          <input type="text" class="show-sm cc-note-sm" maxlength="300" value="${esc(s.note || '')}" placeholder="Add a note" aria-label="Note for ${esc(s.name || s.dot_number)}"></td>
         <td><span class="chip ${st[0]}">${st[1]}</span></td>
         <td class="hide-sm">${esc(ago(s.checked_at))}</td>
         <td class="hide-sm"><input type="text" maxlength="300" value="${esc(s.note || '')}" placeholder="Add a note" aria-label="Note for ${esc(s.name || s.dot_number)}"></td>
-        <td style="text-align:right;white-space:nowrap"><button type="button" class="mini" data-act="check">Check</button> <button type="button" class="mini" data-act="remove">Remove</button></td>
+        <td style="text-align:right;white-space:nowrap"><button type="button" class="mini" data-act="check">Recheck</button> <button type="button" class="mini" data-act="remove">Remove</button></td>
       </tr>`;
     }).join('');
   }
@@ -446,6 +482,7 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
     if (res.status === 200) {
       const s = (info.saved || []).find((x) => x.id === row.dataset.id);
       if (s) s.note = res.data.saved.note;
+      row.querySelectorAll('input').forEach((el) => { if (el !== input) el.value = res.data.saved.note || ''; });   // the phone and desktop boxes agree
       setStatus('Note saved.');
     } else setStatus(res.data.message || 'Couldn’t save the note.', true);
   });
@@ -521,7 +558,7 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
         title: 'Watch your carriers',
         text: 'Save the carriers you use and we re-check them every morning. If one’s authority is suspended, its insurance is being cancelled or it gets an out-of-service order, you get an email before you tender the next load.',
         sample: `<table class="cc-saved"><thead><tr><th>Carrier</th><th>Status</th><th>Last checked</th><th></th></tr></thead><tbody>` +
-          row('Example Freight Lines LLC', 'USDOT 1234567 · MC 765432', 'warn', 'Check') + row('Sample Transport Inc', 'USDOT 2345678 · MC 876543', 'ok', 'No problems') +
+          row('Example Freight Lines LLC', 'USDOT 1234567 · MC 765432', 'warn', 'Check first') + row('Sample Transport Inc', 'USDOT 2345678 · MC 876543', 'ok', 'No problems') +
           row('Demo Carriers LLC', 'USDOT 3456789 · MC 987654', 'stop', 'Don’t book') + row('Placeholder Trucking', 'USDOT 4567890 · MC 198765', 'ok', 'No problems') + `</tbody></table>`,
         action: { label: 'Change plan', href: '/profile.html#subscription-paid' },
       });

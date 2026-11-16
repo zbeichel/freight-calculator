@@ -101,6 +101,7 @@ footer-note{display:block;font-size:12px;color:var(--text3);text-align:center;ma
       <li>Going back to Lancaster, PA → New York, NY later the same day does not count again.</li>
       <li>Changing the weight, trailer, rate, margin or dates on a lane does not count.</li>
       <li>On a multi-stop load, each leg (one stop to the next) counts as one quote.</li>
+      <li>A place entered without its state (just “Lancaster”) is looked up on our best match, which may be in another state (Lancaster, CA), and counts like any other quote. Include the state or a ZIP code to get the place you mean.</li>
       <li>Entering the miles yourself never counts.</li>
     </ul>
     <p>Quote counts reset every day at midnight UTC (7 p.m. Eastern Standard Time, 8 p.m. Eastern Daylight Time). Free accounts include automatic miles on 5 quotes per day. Quotes through the API are counted separately, by billing month — see <a href="#api" style="color:var(--accent)">API Access</a>.</p>
@@ -110,7 +111,7 @@ footer-note{display:block;font-size:12px;color:var(--text3);text-align:center;ma
     <div class="section-title">6. API Access</div>
     <p>The API plan lets you request quotes from your own website or systems with an API key. These terms apply in addition to the rest of these Terms.</p>
     <ul>
-      <li><strong>Monthly allowance:</strong> Each API request that looks up automatic miles counts as one API quote, including repeat requests for the same lane and requests where a location or route can't be found. A request isn't counted if the lookup fails on our or our provider's side. The API plan includes 5,000 API quotes per billing month. Requests where you send the miles yourself don't count toward the allowance. When the allowance is used up, requests for automatic miles are declined until your next billing month begins; requests with your own miles still work.</li>
+      <li><strong>Monthly allowance:</strong> Each API request that looks up automatic miles counts as one API quote, including repeat requests for the same lane, requests where a location or route can't be found, and requests for a place sent without its state, which we look up on our best match (see Section 5). A request isn't counted if the lookup fails on our or our provider's side. The API plan includes 5,000 API quotes per billing month. Requests where you send the miles yourself don't count toward the allowance. When the allowance is used up, requests for automatic miles are declined until your next billing month begins; requests with your own miles still work.</li>
       <li><strong>Rate limit:</strong> Each account may send up to 60 API requests per minute.</li>
       <li><strong>Keys:</strong> Keep your API keys secret and use them only from your own server, never in a web page or app that others can download. You are responsible for all use of your keys. You can create up to 5 keys and revoke a key at any time from your Profile page.</li>
       <li><strong>Permitted use:</strong> You may show quotes from the API to your own staff and customers. You may not resell or share access to the API, offer it as part of a service for others to build on, or use it to collect, store or resell driving distances, drive times or locations on their own.</li>

@@ -143,8 +143,8 @@ html.light .comp-result.bad{border-color:rgba(185,28,28,.3)}
               </div>
               <div class="field">
                 <label for="mpg">MPG assumption</label>
-                <input type="number" step="0.1" value="6.0" oninput="calc()" id="mpg" />
-                <div class="field-help">Loaded truck average: 6.0</div>
+                <input type="number" step="0.1" value="6.5" oninput="calc()" id="mpg" />
+                <div class="field-help">Loaded truck average: 6.5</div>
               </div>
             </div>
           </div>
@@ -752,7 +752,7 @@ async function tryLookupMiles(){
 
     document.getElementById('loaded-miles').value = miles;
     setMilesSource('google');
-    showMilesStatus('✅', `${miles.toLocaleString()} miles · ${driveText} drive (Google Routes)`, 'var(--green)');
+    showMilesStatus('✅', `${miles.toLocaleString()} miles · ${driveText} drive (Google Maps)`, 'var(--green)');
 
     lastLookedUpOrig = origAddr.toLowerCase();
     lastLookedUpDest = destAddr.toLowerCase();
@@ -798,6 +798,9 @@ function computeAutoFscPct(){
 
 // Returns the percentage to actually use in the math — either the live
 // auto-calc, or the user's manual override if they've typed one in.
+// "$1,495.99"
+function usd2(n){ return '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
 function getEffectiveFscPct(){
   if(fscPctManual){
     return +document.getElementById('fsc-pct').value || 0;
@@ -846,6 +849,22 @@ function calc(){
   const targetRpm    = +document.getElementById('target-rpm').value || 0;
   const offeredRate  = +document.getElementById('offered-rate').value || 0;
 
+  // A negative number: say which, and show no result (as the calculator does)
+  const NONNEG = [['loaded-miles', loadedMiles, 'Loaded miles'], ['deadhead-miles', deadhead, 'Deadhead miles'], ['cwt', cwt, 'Weight (cwt)'],
+    ['target-rpm', targetRpm, 'Your minimum rate'], ['offered-rate', offeredRate, 'The offered rate']];
+  NONNEG.forEach(([id]) => document.getElementById(id).removeAttribute('aria-invalid'));
+  const negative = NONNEG.find(([, v]) => v < 0);
+  if(negative){
+    document.getElementById(negative[0]).setAttribute('aria-invalid', 'true');
+    document.getElementById('required-rate').textContent = '—';
+    document.getElementById('required-rate-sub').textContent = `${negative[2]} can’t be negative.`;
+    document.getElementById('market-strip').style.display = 'none';
+    document.getElementById('empty-state').style.display = 'block';
+    document.getElementById('compare-output').style.display = 'none';
+    setPdfButtonEnabled(false);
+    return;
+  }
+
   // Smart-default the mile mode while user hasn't manually picked
   if(mileModeAuto){
     const newMode = (deadhead > 0) ? 'all' : 'loaded';
@@ -881,12 +900,12 @@ function calc(){
     const autoPct  = computeAutoFscPct();
     const baseDsl  = +pctBaseEl.value || 0;
     if(!fscPctManual){
-      pctInput.placeholder = autoPct.toFixed(0);
+      pctInput.placeholder = String(autoPct);
       pctHelp.textContent =
-        `= ($${DIESEL_PRICE.toFixed(2)} − $${baseDsl.toFixed(2)}) ÷ $0.05 = ${autoPct.toFixed(0)}%`;
+        `= ($${DIESEL_PRICE.toFixed(2)} − $${baseDsl.toFixed(2)}) ÷ $0.05 = ${autoPct}%`;
     } else {
       pctHelp.textContent =
-        `Manual override · auto would be ${autoPct.toFixed(0)}% at current diesel`;
+        `Manual override · auto would be ${autoPct}% at current diesel`;
     }
   }
 
@@ -894,7 +913,7 @@ function calc(){
   let fscPerMile = 0;
   if(fscMethod === 'permile'){
     const baseline = +document.getElementById('baseline').value || 0;
-    const mpg      = +document.getElementById('mpg').value || 6;
+    const mpg      = +document.getElementById('mpg').value || 6.5;
     fscPerMile = Math.max(0, (DIESEL_PRICE - baseline) / mpg);
   }
 
@@ -1002,16 +1021,19 @@ function calc(){
     compResult.className   = 'comp-result good';
     compHeadline.className = 'comp-headline good';
     compIcon.textContent = '▲';
-    compHText.textContent = `$${dollarDelta.toFixed(2)} profit margin over target`;
-    compDetail.innerHTML =
-      `Offered rate of <strong>$${offeredRate.toFixed(2)}/cwt</strong> beats your minimum of ` +
-      `$${requiredCwtRate.toFixed(2)}/cwt by $${rateDelta.toFixed(2)}/cwt. ` +
-      `Effective $/mi loaded: $${rpmLoaded.toFixed(2)}.`;
+    compHText.textContent = `${usd2(dollarDelta)} profit margin over target`;
+    // When the fuel surcharge alone covers the target, the minimum is $0, not a negative rate
+    compDetail.innerHTML = requiredCwtRate <= 0
+      ? `The fuel surcharge alone covers your target, so any rate beats it. Offered rate: <strong>$${offeredRate.toFixed(2)}/cwt</strong>. ` +
+        `Effective $/mi loaded: $${rpmLoaded.toFixed(2)}.`
+      : `Offered rate of <strong>$${offeredRate.toFixed(2)}/cwt</strong> beats your minimum of ` +
+        `$${requiredCwtRate.toFixed(2)}/cwt by $${rateDelta.toFixed(2)}/cwt. ` +
+        `Effective $/mi loaded: $${rpmLoaded.toFixed(2)}.`;
   } else {
     compResult.className   = 'comp-result bad';
     compHeadline.className = 'comp-headline bad';
     compIcon.textContent = '▼';
-    compHText.textContent = `$${Math.abs(dollarDelta).toFixed(2)} short of target`;
+    compHText.textContent = `${usd2(Math.abs(dollarDelta))} short of target`;
     compDetail.innerHTML =
       `Offered rate of <strong>$${offeredRate.toFixed(2)}/cwt</strong> falls ` +
       `$${Math.abs(rateDelta).toFixed(2)}/cwt below your minimum of $${requiredCwtRate.toFixed(2)}/cwt. ` +
@@ -1130,7 +1152,7 @@ function generateBulkPDF(){
   let fscPerMile = 0, fscTotal = 0, fscLine = '';
   if(fscMethod === 'permile'){
     const baseline = +document.getElementById('baseline').value || 0;
-    const mpg      = +document.getElementById('mpg').value || 6;
+    const mpg      = +document.getElementById('mpg').value || 6.5;
     fscPerMile = Math.max(0, (DIESEL_PRICE - baseline) / mpg);
     fscTotal   = fscPerMile * loadedMiles;
     fscLine    = `$${fscPerMile.toFixed(2)}/mi × ${loadedMiles.toLocaleString()} loaded mi`;
@@ -1216,6 +1238,7 @@ function generateBulkPDF(){
     profile.quoteStart = startNum + 1;
     localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
   } catch(e){}
+  if(window.QFCQuotePDF && QFCQuotePDF.syncCounter) QFCQuotePDF.syncCounter(startNum + 1);   // the account's counter keeps up
 
   // ── Header branding pieces ──────────────────────────────────────────────
   const logoHTML = (!profile.hideLogo && profile.logoBase64)
@@ -1224,6 +1247,7 @@ function generateBulkPDF(){
   const companyHTML = profile.companyName
     ? `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">${escapeHTML(profile.companyName)}</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${escapeHTML(profile.footerText) || 'Bulk Hauling Specialist'}</div>`
+    : (window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profile)) ? ''   // white-label, no company name: no QuickFreightCalc
     : `<div style="font-size:18px;font-weight:700;color:${scheme.headerText};letter-spacing:-.02em">Quick<span style="color:${scheme.accent}">Freight</span>Calc</div>
        <div style="font-size:10px;color:${scheme.headerTextSoft};font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">Bulk Load Calculator</div>`;
 
@@ -1232,8 +1256,8 @@ function generateBulkPDF(){
     profile.contactName,
     profile.phone,
     profile.email,
-    profile.mcNumber ? `MC# ${profile.mcNumber}` : '',
-    profile.dotNumber ? `DOT# ${profile.dotNumber}` : '',
+    profile.mcNumber ? (window.QFCQuotePDF ? QFCQuotePDF.mcText(profile.mcNumber) : `MC# ${profile.mcNumber}`) : '',
+    profile.dotNumber ? (window.QFCQuotePDF ? QFCQuotePDF.dotText(profile.dotNumber) : `DOT# ${profile.dotNumber}`) : '',
   ].filter(Boolean);
   const bulkCustomerPF = window.QFCQuotePDF ? QFCQuotePDF.classicPreparedFor(bulkCustomer()) : '';
   const contactStripHTML = hasContact ? `
@@ -1333,6 +1357,22 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
   .screen-controls{display:none!important}
   .page-wrap{max-width:100%;margin:0;padding:0}
   .doc{box-shadow:none;border-radius:0;margin:0;display:flex;flex-direction:column;min-height:100vh}
+  /* The calculator's printed spacing, so a bulk quote with a customer fits on one page */
+  .doc-header{padding:20px 30px}
+  .doc-body{padding:20px 30px}
+  .doc-footer{padding:10px 30px}
+  .quote-hero{padding:16px 20px;margin-bottom:18px}
+  @page{size:letter portrait;margin:0.45in 0}
+  @page :first{margin-top:0}
+  .signature-section,.signature-grid,.doc-footer{break-inside:avoid;page-break-inside:avoid}
+  /* Printed, the document is as tall as what's on it: a page-tall box with the footer pinned
+     to its bottom spilled the footer onto a page of its own. Headings stay with what follows
+     them, and the footer with the signatures. */
+  .doc{display:block!important;min-height:0!important}
+  .doc-footer{margin-top:0!important;break-before:avoid;page-break-before:avoid}
+  .doc-end{break-inside:avoid;page-break-inside:avoid}
+  .section-header{break-after:avoid;page-break-after:avoid}
+  .config-section{break-inside:avoid;page-break-inside:avoid}
 }
 </style>
 </head>
@@ -1415,13 +1455,8 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
         </div>
       </div>
 
-      <div class="target-section">
-        <div class="section-header">Target Comparison</div>
-        <div class="target-banner">
-          <div class="target-banner-headline">${statusIcon} ${statusText}</div>
-          <div class="target-banner-detail">${statusDetail}<br>Target: ${escapeHTML(targetModeLabel)}.</div>
-        </div>
-      </div>
+      <!-- No target comparison on the PDF: it goes to the customer, and your minimum rate and
+           margin over it stay on the Bulk page. -->
 
       <div class="config-section">
         <div class="section-header">Calculation Settings</div>
@@ -1459,7 +1494,9 @@ async function init(){
     window.location.href = '/signup.html?reason=pro-required';
     return;
   }
-  // Pro confirmed — load rates, diesel, and Maps key in parallel
+  // Pro confirmed — load rates, diesel, and Maps key in parallel, and the account's settings
+  // for the PDF (company, quote numbers): a new device or a fresh sign-in has none cached.
+  if(window.QFCNav && QFCNav.syncProfile){ QFCNav.syncProfile(); QFCNav.keepProfileFresh(); }
   loadRates();
   loadDieselPrice();
   calc();

@@ -16,7 +16,7 @@
 //
 // FMCSA moved authority and insurance to its new registration system (Motus) in 2026;
 // the older licensing datasets stopped updating in May 2026, so they aren't used.
-// Optional SOCRATA_APP_TOKEN raises the open-data rate limits.
+// Optional SOCRATA_APP_TOKEN raises the open-data rate limits; if it's refused, checks go on without it.
 
 const BASE = 'https://data.transportation.gov/resource/';
 const DS = {
@@ -46,11 +46,32 @@ function parseQuery(input, kind) {
 }
 
 // ── Open data ──────────────────────────────────────────────────────────────
+// The app token only raises the rate limits, so a bad one mustn't stop the checks.
+// data.transportation.gov refuses every request carrying a token it doesn't accept
+// (403 "Invalid app_token specified": mistyped or revoked), and fetch throws on a character
+// no header can carry (a zero-width space picked up in a copy). A refused request is asked
+// again without the token, and once that works the token isn't sent again until the next
+// deploy. Either way, the function log says to check SOCRATA_APP_TOKEN in Netlify; when the
+// token works, the log says so once (so a missing token and a working one can be told apart).
+let tokenRefused = false;
+const said = new Set();
+const sayOnce = (key, msg, warn) => { if (!said.has(key)) { said.add(key); (warn ? console.warn : console.log)('[fmcsa] ' + msg); } };
+function appToken(opt) {
+  const fromEnv = opt.token == null;
+  if (fromEnv && tokenRefused) return '';
+  const t = String((fromEnv ? process.env.SOCRATA_APP_TOKEN : opt.token) || '').trim();
+  if (t && !/^[\x21-\x7e]+$/.test(t)) {   // tokens are letters and digits: no spaces, nothing unusual
+    sayOnce('chars', 'SOCRATA_APP_TOKEN has spaces or characters a token doesn\'t have, so it isn\'t sent. Check it in Netlify.', true);
+    return '';
+  }
+  return t;
+}
+
 async function soql(ds, params, opt = {}) {
   const url = new URL(BASE + ds + '.json');
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
   const headers = { Accept: 'application/json' };
-  const token = opt.token != null ? opt.token : process.env.SOCRATA_APP_TOKEN;
+  const token = appToken(opt);
   if (token) headers['X-App-Token'] = token;
   // opt.timeoutMs bounds this request; opt.deadline (a Date.now() time) bounds the whole
   // check, so a slow day at data.transportation.gov can't run past the function's limit.
@@ -60,8 +81,22 @@ async function soql(ds, params, opt = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), wait);
   try {
-    const resp = await (opt.fetchImpl || fetch)(url.toString(), { headers, signal: ctrl.signal });
+    const get = (h) => (opt.fetchImpl || fetch)(url.toString(), { headers: h, signal: ctrl.signal });
+    let resp = await get(headers);
+    let sent = !!token;
+    if (resp.status === 403 && token) {
+      if (resp.body && typeof resp.body.cancel === 'function') resp.body.cancel().catch(() => {});
+      const plain = Object.assign({}, headers);
+      delete plain['X-App-Token'];
+      resp = await get(plain);
+      sent = false;
+      if (resp.ok && opt.token == null) {
+        tokenRefused = true;
+        sayOnce('refused', 'data.transportation.gov refused SOCRATA_APP_TOKEN, so checks go on without it (at lower rate limits). Check the token in Netlify.', true);
+      }
+    }
     if (!resp.ok) throw new Error(`${ds} answered ${resp.status}`);
+    if (sent && opt.token == null) sayOnce('accepted', 'data.transportation.gov accepted SOCRATA_APP_TOKEN.');
     const data = await resp.json();
     return Array.isArray(data) ? data : [];
   } finally {
@@ -72,6 +107,9 @@ const digits = (s) => /^\d{1,8}$/.test(String(s)) ? String(Number(s)) : null;   
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // New carriers are the usual fraud risk: authority under 90 days, or a USDOT number under 180.
 const NEW_AUTHORITY_DAYS = 90, NEW_USDOT_DAYS = 180;
+// The report's format: carrier-check.js reuses a cached report only if it was built with this one
+// (2: USDOT "Out of service", suspension orders, history without FMCSA's bookkeeping).
+const REPORT_VERSION = 2;
 const docketSafe = (s) => /^(MC|MX|FF)\d{1,8}$/.test(String(s)) ? String(s) : null;
 
 // An MC/MX/FF number → its USDOT number (authority records first, then the census).
@@ -169,8 +207,23 @@ const BROKER_AUTH = /^Broker of /i;
 const INS_KIND = { 1: 'Liability (BIPD)', 2: 'Cargo', 3: 'Surety bond', 4: 'Trust fund' };
 const OPERATION = { A: 'Interstate', B: 'Intrastate (hazmat)', C: 'Intrastate (non-hazmat)' };
 const SAFETY = { S: 'Satisfactory', C: 'Conditional', U: 'Unsatisfactory' };
-const titleCase = (s) => String(s || '').toLowerCase().replace(/\b([a-z])/g, (c) => c.toUpperCase())
-  .replace(/\b(Llc|Lp|Llp|Usa|Us|Po)\b/g, (w) => w.toUpperCase());
+// FMCSA sends names in capitals. Title-case them, but:
+//  • no capital after an apostrophe ("Hickman's"), except after a one-letter prefix ("O'Neil");
+//  • company suffixes and Roman numerals stay in capitals (LLC, USA, DBA, III);
+//  • in carrier names (names = true), initials that aren't words stay in capitals: letters
+//    with no vowel (JB, CRST) or one letter repeated (YY, AAA), but not words like ST or HWY.
+const UPPER_WORDS = /^(llc|lp|llp|usa|us|po|dba|ii|iii|iv|vi|vii|viii)$/;
+const NOT_INITIALS = /^(st|mt|ft|dr|jr|sr|mr|mrs|ms|rd|hwy|ln|blvd|pkwy|ct|pl|frt|trk|trkg|svc|svcs|mgmt|whse|bldg)$/;
+const titleCase = (s, names) => {
+  const str = String(s || '').toLowerCase();
+  return str.replace(/[a-z0-9]+/g, (w, at) => {
+    const before = str.slice(0, at);
+    if (/['’]$/.test(before) && !/(^|[^a-z0-9])[a-z]['’]$/.test(before)) return w;
+    if (UPPER_WORDS.test(w)) return w.toUpperCase();
+    if (names && /^[a-z]{2,4}$/.test(w) && !NOT_INITIALS.test(w) && (!/[aeiouy]/.test(w) || /^([a-z])\1+$/.test(w))) return w.toUpperCase();
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  });
+};
 const phone = (s) => { const d = String(s || '').replace(/\D/g, ''); return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : (d || null); };
 
 function inspectionTotals(rows) {
@@ -225,7 +278,9 @@ function buildReport(raw, { national = null, now = Date.now() } = {}) {
   const carrierHist = hist.filter((h) => CARRIER_AUTH.test(h.type));
   const granted = carrierHist.filter((h) => /^(granted|reinstated)/i.test(h.reason) && h.status === 'Active').map((h) => h.date).sort();
   const firstGranted = carrierHist.filter((h) => /^granted/i.test(h.reason)).map((h) => h.date).sort()[0] || granted[0] || null;
-  const recentChanges = carrierHist.filter((h) => daysSince(h.date, now) <= 365 && !/^(initial status|published)/i.test(h.reason)).slice(0, 8);
+  // Not the carrier's doing: the first record, publication, and FMCSA's own bookkeeping (on Jun 9,
+  // 2026 it marked thousands of authorities "Inactive: Administrative status adjustment").
+  const recentChanges = carrierHist.filter((h) => daysSince(h.date, now) <= 365 && !/^(initial status|published|administrative status adjustment)/i.test(h.reason)).slice(0, 8);
 
   // Insurance on file (each filing appears once per authority type: show it once).
   const policies = [];
@@ -257,7 +312,15 @@ function buildReport(raw, { national = null, now = Date.now() } = {}) {
   const onFile = Math.max(0, ...authorities.map((a) => a.bipdOnFile || 0));
 
   const oosOrders = (raw.oos || []).map((o) => ({ date: isoDate(o.oos_date), reason: o.oos_reason || '', rescinded: isoDate(o.rescind_date) }));
-  const suspensionOrders = (raw.orders || []).map((o) => ({ date: isoDate(o.order1_serve_date), type: o.order1_type_desc || '' })).filter((o) => o.date);
+  const openOos = oosOrders.filter((o) => !o.rescinded);
+  // FMCSA's suspension orders: a notice served on one date that takes effect on another
+  // (usually 30 days on), either involuntary (FMCSA's, e.g. insurance that lapsed) or asked
+  // for by the carrier. Newest first.
+  const suspensionOrders = (raw.orders || []).map((o) => {
+    const type = o.order1_type_desc || '';
+    return { date: isoDate(o.order1_serve_date), effective: isoDate(o.order1_effective_date), type, docket: o.docket_number || null,
+      voluntary: /voluntary/i.test(type) && !/involuntary/i.test(type) };
+  }).filter((o) => o.date).sort((a, b) => b.date.localeCompare(a.date));
 
   const inspections = inspectionTotals(raw.inspections);
   if (inspections && national) {
@@ -266,15 +329,18 @@ function buildReport(raw, { national = null, now = Date.now() } = {}) {
   }
   const legalName = (c && c.legal_name) || (auth[0] && auth[0].legal_name) || null;
   const report = {
+    v: REPORT_VERSION,
     dot: raw.dot,
     dockets,
     found: !!(c || authorities.length),
-    name: legalName ? titleCase(legalName) : null,
-    dba: c && c.dba_name ? titleCase(c.dba_name) : null,
+    name: legalName ? titleCase(legalName, true) : null,
+    dba: c && c.dba_name ? titleCase(c.dba_name, true) : null,
     address: c ? [titleCase(c.phy_street), [titleCase(c.phy_city), c.phy_state].filter(Boolean).join(', '), c.phy_zip].filter(Boolean).join(' · ') : null,
     phone: phone((c && c.phone) || (auth[0] && auth[0].bus_telno)),
     email: c && c.email_address ? String(c.email_address).toLowerCase() : null,
-    usdotStatus: c ? ({ A: 'Active', I: 'Inactive', P: 'Pending' }[c.status_code] || c.status_code || null) : null,
+    // As FMCSA's SAFER shows it: "Out of service" while an out-of-service order is in effect,
+    // whatever the registration says.
+    usdotStatus: c ? (openOos.length && c.status_code === 'A' ? 'Out of service' : ({ A: 'Active', I: 'Inactive', P: 'Pending' }[c.status_code] || c.status_code || null)) : null,
     usdotAdded: c ? isoDate(c.add_date) : null,
     mcs150: c ? isoDate(c.mcs150_date) : null,
     operation: c ? (OPERATION[c.carrier_operation] || null) : null,
@@ -335,10 +401,11 @@ function assess(r, now = Date.now()) {
     const last = A.recentChanges.find((h) => h.status === 'Inactive');
     if (A.activeBroker) add('stop', 'broker_only', 'Licensed as a broker only, with no active carrier authority: they can’t haul the load themselves.');
     else if (A.pendingCarrier) add('stop', 'authority_pending', 'Their operating authority isn’t active yet (still pending with FMCSA).');
-    else if (A.carrier.length) add('stop', 'authority_inactive', `No active operating authority${last ? `: ${last.reason.replace(/\s*\(.*?\)\s*$/, '')} (${fmtDate(last.date)})` : ''}.`);
+    else if (A.carrier.length || last) add('stop', 'authority_inactive', `No active operating authority${last ? `: ${last.reason.replace(/\s*\(.*?\)\s*$/, '')} (${fmtDate(last.date)})` : ''}.`);
     else add('stop', 'no_authority', 'No for-hire operating authority on file: they can’t haul for hire across state lines.');
   }
-  if (r.usdotStatus && r.usdotStatus !== 'Active') add('stop', 'usdot_inactive', `Their USDOT number is ${r.usdotStatus.toLowerCase()}.`);
+  // (Out of service: the out-of-service order below says so, with its reason.)
+  if (r.usdotStatus && r.usdotStatus !== 'Active' && r.usdotStatus !== 'Out of service') add('stop', 'usdot_inactive', `Their USDOT number is ${r.usdotStatus.toLowerCase()}.`);
   const openOos = r.oosOrders.filter((o) => !o.rescinded);
   for (const o of openOos.slice(0, 2)) add('stop', 'oos_order', `Out-of-service order since ${fmtDate(o.date)}: ${o.reason}.`);
   if (r.safetyRating === 'Unsatisfactory') add('stop', 'safety_unsatisfactory', `Unsatisfactory safety rating (${fmtDate(r.safetyRatingDate)}).`);
@@ -347,6 +414,19 @@ function assess(r, now = Date.now()) {
     add('stop', 'insurance_short', r.insurance.onFile
       ? `Liability insurance on file is ${usd(r.insurance.onFile)}, below the ${usd(r.insurance.required)} required.`
       : `No liability insurance on file (${usd(r.insurance.required)} required).`);
+  }
+  // Active, but no liability insurance on file and no minimum listed for the authority (some
+  // Mexico-domiciled authorities): nothing on file to rely on.
+  const liabilityFiled = (r.insurance.policies || []).some((p) => /^Liability/.test(p.kind));
+  if (A.activeCarrier && !gone('authority') && !gone('insurance') && !r.insurance.required && !(r.insurance.onFile > 0) && !liabilityFiled) {
+    add('warn', 'insurance_none', 'No liability insurance on file with FMCSA, and no minimum is listed for their authority. Get their certificate of insurance before booking.');
+  }
+  // A suspension notice that hasn't taken effect yet
+  const today = new Date(now).toISOString().slice(0, 10);
+  for (const o of (r.suspensionOrders || []).filter((x) => x.effective && x.effective >= today).slice(0, 2)) {
+    add('warn', 'suspension_notice', o.voluntary
+      ? `They’ve asked FMCSA to suspend their operating authority on ${fmtDate(o.effective)}.`
+      : `FMCSA served notice on ${fmtDate(o.date)} that their operating authority will be suspended on ${fmtDate(o.effective)} unless they resolve it.`);
   }
   // A part that didn't load could hide any of the above: never "No problems found" then.
   const missing = (r.missing || []).filter((k) => PARTS[k]);
@@ -367,7 +447,11 @@ function assess(r, now = Date.now()) {
   const suspended = A.recentChanges.filter((h) => h.status === 'Inactive');
   if (A.activeCarrier && suspended.length) {
     const s = suspended[0];
-    add('warn', 'recent_suspension', `Authority was suspended in the last year (${fmtDate(s.date)}: ${s.reason.replace(/\s*\(.*?\)\s*$/, '')}) and is active again.`);
+    const why = s.reason.replace(/\s*\(.*?\)\s*$/, '').trim();
+    // Say what happened: "revoked" for a revocation, otherwise "suspended"
+    const what = /revo[ck]/i.test(why) ? 'revoked' : 'suspended';
+    const detail = why && why.toLowerCase() !== what ? `: ${why}` : '';
+    add('warn', 'recent_suspension', `Authority was ${what} in the last year (${fmtDate(s.date)}${detail}) and is active again.`);
   }
   if (r.safetyRating === 'Conditional') add('warn', 'safety_conditional', `Conditional safety rating (${fmtDate(r.safetyRatingDate)}).`);
   const i = r.inspections;
@@ -395,19 +479,21 @@ async function monitorFacts(dots, opt = {}) {
   const twice = (ds, params, o) => soql(ds, params, o).catch(() => sleep(o.retryDelayMs != null ? o.retryDelayMs : 1000).then(() => soql(ds, params, o)));
   const list = [...new Set(dots.map(digits).filter(Boolean))];
   const out = {};
-  for (const d of list) out[d] = { carrierStatus: [], onFile: 0, required: 0, cancels: [], oos: [], usdotStatus: null, safetyRating: null };
+  for (const d of list) out[d] = { carrierStatus: [], onFile: 0, required: 0, cancels: [], oos: [], suspensions: [], usdotStatus: null, safetyRating: null };
   const today = ymd(new Date(Date.now()));
   for (let i = 0; i < list.length; i += 100) {
     const batch = list.slice(i, i + 100);
     const inList = batch.map((d) => `'${d}'`).join(',');
-    let auth, ins, oos, census;
+    let auth, ins, oos, census, orders;
     try {
-      [auth, ins, oos, census] = await Promise.all([
+      [auth, ins, oos, census, orders] = await Promise.all([
         twice(DS.authority, { $select: 'usdot_number, docket_number, op_auth_type, op_auth_status, min_cov_amount, bipd_file', $where: `usdot_number in (${inList})`, $limit: 5000 }, opt),
         twice(DS.insHistory, { $select: 'usdot_number, ins_type_code, ins_type_desc, insurance_company_name, policy_no, cancl_effective_date, filing_status_reason',
           $where: `usdot_number in (${inList}) AND cancl_effective_date >= '${today}'`, $limit: 5000 }, opt),
         twice(DS.oos, { $select: 'dot_number, oos_date, oos_reason, rescind_date', $where: `dot_number in (${inList}) AND rescind_date IS NULL`, $limit: 5000 }, opt),
         twice(DS.census, { $select: 'dot_number, status_code, safety_rating', $where: `dot_number in (${inList})`, $limit: 5000 }, opt),
+        twice(DS.orders, { $select: 'usdot_number, order1_serve_date, order1_type_desc, order1_effective_date',
+          $where: `usdot_number in (${inList}) AND order1_effective_date >= '${today}'`, $limit: 5000 }, opt),
       ]);
     } catch (e) {
       console.warn(`[fmcsa] monitor batch of ${batch.length} not checked: ${e.message}`);
@@ -438,11 +524,19 @@ async function monitorFacts(dots, opt = {}) {
       const f = out[digits(r.dot_number)];
       if (f) { f.usdotStatus = { A: 'Active', I: 'Inactive', P: 'Pending' }[r.status_code] || r.status_code || null; f.safetyRating = SAFETY[r.safety_rating] || null; }
     }
+    for (const r of orders) {
+      const f = out[digits(r.usdot_number)];
+      const type = r.order1_type_desc || '';
+      const s = { served: isoDate(r.order1_serve_date), effective: isoDate(r.order1_effective_date), voluntary: /voluntary/i.test(type) && !/involuntary/i.test(type) };
+      if (f && s.effective && !f.suspensions.some((x) => x.served === s.served && x.effective === s.effective)) f.suspensions.push(s);
+    }
   }
   for (const d of Object.keys(out)) {
     const f = out[d];
     f.authority = f.carrierStatus.includes('Active') ? 'Active' : f.carrierStatus.includes('Pending') ? 'Pending' : f.carrierStatus.length ? 'Inactive' : 'None';
     f.insuranceShort = f.authority === 'Active' && f.required > 0 && f.onFile < f.required;
+    f.noInsurance = f.authority === 'Active' && !(f.required > 0) && !(f.onFile > 0);
+    f.suspensions.sort((a, b) => String(a.effective).localeCompare(String(b.effective)) || String(a.served).localeCompare(String(b.served)));
     f.cancels.sort((a, b) => a.cancels.localeCompare(b.cancels) || a.policy.localeCompare(b.policy));
     f.oos.sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.reason.localeCompare(b.reason));
     delete f.carrierStatus;
@@ -468,6 +562,14 @@ function diffFacts(prev, cur, name) {
   for (const o of cur.oos || []) {
     if (!(prev.oos || []).some((p) => p.date === o.date && p.reason === o.reason)) alerts.push({ kind: 'oos', text: `${who}: out-of-service order (${fmtDate(o.date)}): ${o.reason}.` });
   }
+  if (prev.onFile > 0 && cur.noInsurance) alerts.push({ kind: 'insurance', text: `${who}: no liability insurance on file anymore.` });
+  for (const s of cur.suspensions || []) {
+    if (!(prev.suspensions || []).some((p) => p.served === s.served && p.effective === s.effective)) {
+      alerts.push({ kind: 'authority', text: s.voluntary
+        ? `${who}: asked FMCSA to suspend their operating authority on ${fmtDate(s.effective)}.`
+        : `${who}: FMCSA served notice that their operating authority will be suspended on ${fmtDate(s.effective)} unless they resolve it.` });
+    }
+  }
   if (prev.usdotStatus === 'Active' && cur.usdotStatus && cur.usdotStatus !== 'Active') alerts.push({ kind: 'usdot', text: `${who}: USDOT number is now ${cur.usdotStatus.toLowerCase()}.` });
   const bad = { Conditional: 1, Unsatisfactory: 2 };
   if ((bad[cur.safetyRating] || 0) > (bad[prev.safetyRating] || 0)) alerts.push({ kind: 'safety', text: `${who}: safety rating is now ${cur.safetyRating}.` });
@@ -485,8 +587,9 @@ function factsVerdict(f, now = Date.now()) {
   const age = (iso) => (iso ? Math.floor((now - Date.parse(iso + 'T00:00:00Z')) / DAY) : null);
   const authAge = age(f.granted), dotAge = age(f.usdotAdded);
   const isNew = (authAge != null && authAge < NEW_AUTHORITY_DAYS) || (dotAge != null && dotAge < NEW_USDOT_DAYS);
-  if ((f.cancels && f.cancels.length) || f.safetyRating === 'Conditional' || isNew) return 'warn';
+  const pendingSuspension = (f.suspensions || []).some((s) => s.effective && s.effective >= new Date(now).toISOString().slice(0, 10));
+  if ((f.cancels && f.cancels.length) || f.safetyRating === 'Conditional' || isNew || f.noInsurance || pendingSuspension) return 'warn';
   return 'ok';
 }
 
-module.exports = { DS, PARTS, parseQuery, soql, resolveDot, fetchCarrier, nationalAverages, buildReport, assess, monitorFacts, diffFacts, factsVerdict, isoDate, _internal: { inspectionTotals, crashTotals, titleCase } };
+module.exports = { REPORT_VERSION, DS, PARTS, parseQuery, soql, resolveDot, fetchCarrier, nationalAverages, buildReport, assess, monitorFacts, diffFacts, factsVerdict, isoDate, _internal: { inspectionTotals, crashTotals, titleCase, resetToken: () => { tokenRefused = false; said.clear(); } } };

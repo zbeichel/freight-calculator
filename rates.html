@@ -306,7 +306,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       }).join('');
       const labels = h.map((x) => `<span>${esc(monthName(x.date, { month: 'short' }))}</span>`).join('');
       return `<div class="mr-tile">
-        <div class="mr-tile-label">National ${EQ_NAME[e].toLowerCase()} rate</div>
+        <div class="mr-tile-label">National ${EQ_NAME[e].toLowerCase()} rate · monthly average</div>
         <div class="mr-tile-value">${money(cur)}<small>/mi</small></div>
         <div class="mr-delta">${ARROW[t.dir]}<span>${t.text}${t.dir !== 'flat' && prevLabel ? ' vs ' + prevLabel : ''}</span></div>
         <div class="mr-spark" role="img" aria-label="${EQ_NAME[e]} national rate, last ${h.length} months: ${h.map((x) => esc(x.label) + ' ' + money(x.regions.national[e])).join(', ')}">${bars}</div>

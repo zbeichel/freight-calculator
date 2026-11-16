@@ -58,6 +58,17 @@
   status = 404
   force = true
 
+# "Pricing" in the nav is /signup.html; a typed /pricing goes there too.
+[[redirects]]
+  from = "/pricing"
+  to = "/signup.html"
+  status = 301
+
+[[redirects]]
+  from = "/pricing.html"
+  to = "/signup.html"
+  status = 301
+
 # Public API (API plan): POST https://quickfreightcalc.com/api/v1/quote.
 # Docs for customers are at /api.html.
 [[redirects]]
@@ -116,7 +127,7 @@
     # Keep this list in sync with the actual features the site uses; if
     # we ever add e.g. geolocation for a "near me" feature, remove it
     # from the disabled list.
-    Permissions-Policy = "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=()"
+    Permissions-Policy = "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), sync-xhr=(), usb=(), xr-spatial-tracking=()"
 
 # ── Build plugins ─────────────────────────────────────────────────────────
 # Local plugin (lives in netlify/plugins/sync-rate-history/) that runs after

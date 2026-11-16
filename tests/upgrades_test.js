@@ -189,7 +189,7 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   await v.p.waitForSelector('#upg-billing:not([hidden])');
   await v.p.waitForFunction(() => /free trial/.test(document.getElementById('upg-modal-btn').textContent));
   check('a free account that never subscribed: "Start my 7-day free trial", then $19.99/month', (await text(v.p, '#upg-modal-btn')) === 'Start my 7-day free trial →'
-    && (await text(v.p, '#upg-modal-billing')) === "Free for 7 days, then $19.99/month. Cancel before then and you won't be charged.", await text(v.p, '#upg-modal-billing'));
+    && (await text(v.p, '#upg-modal-billing')) === "Free for 7 days, then $19.99/month. Cancel before then and you won't be charged. During the trial, automatic miles cover up to 100 quotes a day.", await text(v.p, '#upg-modal-billing'));
   await v.p.click('#upg-billing .upg-int[data-int="year"]');
   check('yearly in the upgrade window: $199/year and $499/year', (await text(v.p, '#upg-option-plus .upg-price')) === '$199/year' && (await text(v.p, '#upg-option-max .upg-price')) === '$499/year'
     && /then \$199\/year/.test(await text(v.p, '#upg-modal-billing')));
@@ -204,9 +204,32 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   await v.p.waitForFunction(() => typeof showProModal === 'function' && window.QFCPlans);
   await v.p.evaluate(() => showProModal());
   await v.p.waitForFunction(() => /Pro Plus free/.test(document.getElementById('pro-modal-more').textContent));
-  check('the Pro window: $9.99/month or $99/year, and "Or try Pro Plus free for 7 days"', /\$9\.99\/month or \$99\/year/.test(await text(v.p, '#pro-modal-price'))
-    && (await text(v.p, '#pro-modal-more')) === 'Or try Pro Plus free for 7 days →', await text(v.p, '#pro-modal-price'));
-  await v.p.evaluate(() => closeProModal());
+  check('the Pro window: $9.99/month with a Monthly/Yearly switch, and "Or try Pro Plus free for 7 days"', /^\$9\.99\/month/.test(await text(v.p, '#pro-modal-price'))
+    && !(await v.p.isHidden('#pro-billing')) && (await text(v.p, '#pro-modal-more')) === 'Or try Pro Plus free for 7 days →', await text(v.p, '#pro-modal-price'));
+  check('…signed in, so no “Already have an account? Sign in”', await v.p.isHidden('#pro-modal-signin'));
+  await v.p.click('#pro-billing .upg-int[data-int="year"]');
+  check('Yearly: $99/year', /^\$99\/year/.test(await text(v.p, '#pro-modal-price')), await text(v.p, '#pro-modal-price'));
+  const proBefore = t.db.checkouts.length;
+  await v.p.evaluate(() => handleProModalUpgrade());
+  await until(() => t.db.checkouts.length > proBefore);
+  check('…and Sign Up starts Pro checkout billed yearly (it only ever started monthly)', t.db.checkouts[proBefore] && t.db.checkouts[proBefore].plan === 'pro'
+    && t.db.checkouts[proBefore].interval === 'year', JSON.stringify(t.db.checkouts[proBefore]));
+  await t.context.close();
+  t = await setup(browser, base, { row: FREE_ROW, verify: VERIFY({ active: false, paid: false, trialEligible: true, interval: null }) });
+  v = await open(t, base, '/index.html');
+  await v.p.waitForFunction(() => typeof showProModal === 'function' && window.QFCPlans);
+  await v.p.waitForTimeout(500);
+  await v.p.evaluate(() => handleCustomersClick(new Event('click')));
+  await v.p.waitForTimeout(300);
+  check('…headed for the feature, with a plain “Not now” (not “More quotes with automatic miles” / “I’ll enter the miles myself”)',
+    (await text(v.p, '#upg-modal-title')) === 'Get more with Pro Plus' && (await text(v.p, '#upg-modal-skip')) === 'Not now', await text(v.p, '#upg-modal-title'));
+  check('the Customers button (a Pro Plus feature) offers Pro Plus and Pro Max, not Pro', await v.p.isVisible('#upg-modal-overlay') && await v.p.isHidden('#pro-modal-overlay')
+    && /customer list comes with Pro Plus/.test(await text(v.p, '#upg-modal-desc')));
+  await v.p.evaluate(() => closeUpgradeModal());
+  await v.p.evaluate(() => canEmailQuotes());
+  await v.p.waitForTimeout(200);
+  check('…and so does emailing a quote', await v.p.isVisible('#upg-modal-overlay') && await v.p.isHidden('#pro-modal-overlay') && /Emailing quotes comes with Pro Plus/.test(await text(v.p, '#upg-modal-desc')));
+  await v.p.evaluate(() => closeUpgradeModal());
 
   console.log('\n=== Grayed-out previews ===');
   await v.p.waitForSelector('#quote-log-gate .qf-lp-card');

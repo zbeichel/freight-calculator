@@ -90,7 +90,23 @@
       name: p.contactName || p.companyName || email || 'Account',
       email: email,
       pro: !!(st.isActive && (!st.userId || st.userId === uid)),
+      // whether this browser knows the plan of whoever's signed in (until verify-pro answers,
+      // "Get Pro" waits, so a paying account doesn't see it flash)
+      known: !!st.cachedAt && (!st.userId || st.userId === uid),
+      // which plan, from the account settings the pages keep (a team member's is the team's)
+      plan: p.plan || null,
+      comp: p.comp === true,
     };
+  }
+  // A tool the signed-in account's plan already includes shows no plan tag in Tools: the Pro
+  // tools with any plan; the Pro Plus ones with Pro Plus, Pro Max, API or comp; the API with the
+  // API plan (comp accounts too only on the API plan, as api-keys.js has it).
+  function unlocked(tag, a) {
+    if (!a || !a.pro) return false;
+    if (tag === 'Pro') return true;
+    if (tag === 'Plus') return a.comp || a.plan === 'plus' || a.plan === 'max' || a.plan === 'api';
+    if (tag === 'API') return a.plan === 'api';
+    return false;
   }
 
   var TOOLS = [
@@ -111,12 +127,12 @@
     var toolsActive = here(TOOLS.map(function (x) { return x[0]; }));
     var tools = TOOLS.map(function (x) {
       return '<a href="' + x[0] + '"><span class="qf-dd-ico">' + icon(x[1]) + '</span><span><b>' + esc(x[2]) +
-        ' <em class="qf-tag">' + x[4] + '</em></b><small>' + esc(x[3]) + '</small></span></a>';
+        (unlocked(x[4], a) ? '' : ' <em class="qf-tag">' + x[4] + '</em>') + '</b><small>' + esc(x[3]) + '</small></span></a>';
     }).join('');
     var themeBtn = '<button type="button" class="qf-icon-btn qf-theme" aria-label="' + (isLight() ? 'Switch to dark mode' : 'Switch to light mode') +
       '" title="' + (isLight() ? 'Dark mode' : 'Light mode') + '">' + icon(isLight() ? 'moon' : 'sun') + '</button>';
     var acct = a
-      ? (a.pro ? '' : '<a class="qf-btn qf-btn-primary qf-getpro" href="/signup.html">Get Pro</a>') +
+      ? (a.pro || !a.known ? '' : '<a class="qf-btn qf-btn-primary qf-getpro" href="/signup.html">Get Pro</a>') +
         '<div class="qf-acct"><button type="button" class="qf-acct-btn" aria-haspopup="true" aria-expanded="false">' +
         '<span class="qf-avatar">' + esc(a.name.trim().charAt(0).toUpperCase() || '?') + '</span>' +
         '<span class="qf-acct-name">' + esc(a.name.split(/[\s@]/)[0]) + '</span>' + icon('chevron') + '</button>' +
@@ -151,7 +167,8 @@
       '<a href="/signup.html">' + icon('tag') + 'Pricing</a>' +
       '<div class="qf-mobile-label">Tools</div>' + mobileTools +
       (a ? '<div class="qf-mobile-label">Account</div><a href="/profile.html">' + icon('user') + 'Profile &amp; settings</a>' +
-        '<a href="#" class="qf-signout-m">' + icon('logout') + 'Sign out</a>'
+        '<a href="#" class="qf-signout-m">' + icon('logout') + 'Sign out</a>' +
+        (a.pro || !a.known ? '' : '<div class="qf-mobile-cta"><a class="qf-btn qf-btn-primary" href="/signup.html">Get Pro</a></div>')
         : '<div class="qf-mobile-cta"><a class="qf-btn qf-btn-ghost" href="/signup.html?login">Sign in</a>' +
           '<a class="qf-btn qf-btn-primary" href="/signup.html">Get Pro</a></div>') +
       '</div>';
@@ -255,7 +272,124 @@
     });
   }
 
-  function start() { render(); footer(); }
+  // verify-pro, asked at most once per page for a given sign-in: the nav and pro-notice.js
+  // share the answer (QFCNav.verify). A real answer (not "Invalid session") also records
+  // whether the account has a plan, for the "Get Pro" button.
+  var verifying = {};
+  function verify(userId, accessToken) {
+    var key = userId + '|' + accessToken;
+    if (!verifying[key]) {
+      verifying[key] = fetch('/.netlify/functions/verify-pro', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId, accessToken: accessToken }) })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (d && 'unlimitedUntilRenewal' in d) {
+            try { localStorage.setItem('qfc_pro_status', JSON.stringify({ isActive: d.active === true, userId: userId, cachedAt: Date.now() })); } catch (e) {}
+            render();
+            loadPlanIfMissing();
+          }
+          return d;
+        })
+        .catch(function () { delete verifying[key]; return null; });
+    }
+    return verifying[key];
+  }
+  // The plan behind "Get Pro" is remembered in this browser (qfc_pro_status, which the
+  // calculator keeps). With nothing recent for whoever's signed in (a paying account that
+  // hasn't opened the calculator here yet), ask once. An expired sign-in isn't asked about:
+  // the page refreshes it, and the answer would only be "Invalid session".
+  function refreshStatus() {
+    var s = session();
+    var uid = s && s.user && (s.user.id || s.user.sub);
+    if (!s || !uid || !s.access_token || !window.fetch) return;
+    if (s.expires_at && s.expires_at * 1000 < Date.now() + 60000) return;
+    var st = {};
+    try { st = JSON.parse(localStorage.getItem('qfc_pro_status') || '{}') || {}; } catch (e) {}
+    if (st.userId === uid && st.cachedAt && Date.now() - st.cachedAt < 12 * 3600 * 1000) return;
+    verify(uid, s.access_token);
+  }
+  // Which plan comes from the account settings the pages keep (qfc_pro_profile). On a device
+  // where no page has loaded them yet (signed in, then straight to Carrier Check), load them
+  // once, so Tools doesn't tag tools the plan already includes.
+  function loadPlanIfMissing() {
+    var a = account();
+    if (!a || !a.pro) return;
+    var p = {};
+    try { p = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch (e) {}
+    if (!('plan' in p)) syncProfile();
+  }
+
+  // ── The account's PDF settings, cached for the pages that make PDFs ──
+  // qfc_pro_profile holds the company, quote numbering and PDF settings of the account this
+  // sign-in works in (my_account). Pages that make PDFs load it when they open and again when
+  // they're looked at, so a new device, a fresh sign-in or a tab left open doesn't print with an
+  // empty profile or an old quote number. The counter only moves forward: this browser's or
+  // the account's, whichever is further along.
+  function teamOf(t) {
+    return t ? { role: t.role, seated: t.seated !== false, company: t.company || null, ownerName: t.owner_name || null,
+      size: t.size || 1, members: t.members || 0, tag: t.tag || null } : null;
+  }
+  function accountProfile(p, team, prev) {
+    prev = prev || {};
+    return {
+      companyName: p.company_name, contactName: p.contact_name,
+      email: p.contact_email || p.email, phone: p.phone, mcNumber: p.mc_number,
+      dotNumber: p.dot_number, footerText: p.footer_text,
+      quotePrefix: p.quote_prefix,
+      quoteStart: Math.max(Number(p.quote_counter) || 0, Number(prev.quoteStart) || 0) || undefined,
+      colorScheme: p.color_scheme, logoBase64: p.logo_base64,
+      hideLogo: p.hide_logo === true,
+      pdfStyle: p.pdf_style === 'classic' ? 'classic' : 'modern',
+      pdfBreakdown: p.pdf_breakdown !== false,
+      pdfAccent: p.pdf_accent || '', pdfInk: p.pdf_ink || '',
+      pdfWhiteLabel: p.pdf_white_label === true, pdfValidHours: p.pdf_valid_hours || 24, pdfTerms: p.pdf_terms || '',
+      pdfSections: p.pdf_sections || null, pdfAccessorials: p.pdf_accessorials || null,
+      rateSheet: p.rate_sheet || null,
+      plan: p.plan, comp: p.is_active === true && !p.stripe_subscription_id,
+      team: team,
+    };
+  }
+  var profileSyncing = null, profileSyncedAt = 0;
+  // counterOnly (Profile, which has just saved the rest): only the quote number follows the
+  // account, unless nothing is cached yet.
+  function syncProfile(opts) {
+    var counterOnly = !!(opts && opts.counterOnly);
+    if (profileSyncing) return profileSyncing;
+    var s = session();
+    if (!s || !s.access_token || !window.fetch) return Promise.resolve(null);
+    if (s.expires_at && s.expires_at * 1000 < Date.now() + 60000) return Promise.resolve(null);   // the page refreshes it first
+    profileSyncing = fetch(SUPABASE_URL + '/rest/v1/rpc/my_account', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: 'Bearer ' + s.access_token }, body: '{}' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (acct) {
+        if (!acct || !acct.row) return null;
+        var prev = {};
+        try { prev = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch (e) {}
+        var prof = counterOnly && prev.quotePrefix !== undefined
+          ? Object.assign({}, prev, { quoteStart: Math.max(Number(acct.row.quote_counter) || 0, Number(prev.quoteStart) || 0) || undefined })
+          : accountProfile(acct.row, teamOf(acct.team), prev);
+        try { localStorage.setItem('qfc_pro_profile', JSON.stringify(prof)); } catch (e) {}
+        profileSyncedAt = Date.now();
+        if (nav && (prev.plan !== prof.plan || prev.comp !== prof.comp)) render();   // Tools' plan tags
+        // with the account's own counter, which may be behind this browser's
+        return Object.assign({}, prof, { accountQuoteCounter: Number(acct.row.quote_counter) || 0 });
+      })
+      .catch(function () { return null; })
+      .then(function (v) { profileSyncing = null; return v; });
+    return profileSyncing;
+  }
+  // Looked at again (another tab or device may have made PDFs since): load it again, at most
+  // every 15 seconds.
+  var keepingFresh = false;
+  function keepProfileFresh() {
+    if (keepingFresh) return;
+    keepingFresh = true;
+    var again = function () { if (document.visibilityState === 'visible' && Date.now() - profileSyncedAt > 15000) syncProfile(); };
+    document.addEventListener('visibilitychange', again);
+    window.addEventListener('focus', again);
+  }
+
+  function start() { render(); footer(); refreshStatus(); loadPlanIfMissing(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
   // Signing in or out in another tab.
@@ -263,5 +397,6 @@
     if (!e.key || e.key.indexOf('sb-') === 0 || e.key === 'qfc_pro_profile' || e.key === 'qfc_pro_status') render();
   });
 
-  window.QFCNav = { refresh: function () { if (nav) render(); }, setTheme: setTheme, signOut: signOut, icon: icon, logoImg: logoImg, logoURI: LOGO_URI };
+  window.QFCNav = { refresh: function () { if (nav) render(); }, setTheme: setTheme, signOut: signOut, icon: icon, logoImg: logoImg, logoURI: LOGO_URI, verify: verify,
+    accountProfile: accountProfile, teamOf: teamOf, syncProfile: syncProfile, keepProfileFresh: keepProfileFresh };
 })();

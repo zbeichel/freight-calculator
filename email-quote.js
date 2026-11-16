@@ -96,6 +96,18 @@
     return libs;
   }
 
+  // The document without its scripts and on…= handlers (like the Print button's onclick).
+  // None of them could run in the sandboxed frame anyway, but each one logged
+  // "Blocked script execution in 'about:srcdoc'" to the console.
+  function withoutScripts(html) {
+    const doc = new DOMParser().parseFromString(String(html), 'text/html');
+    doc.querySelectorAll('script').forEach((el) => el.remove());
+    doc.querySelectorAll('*').forEach((el) => {
+      [...el.attributes].forEach((a) => { if (/^on/i.test(a.name)) el.removeAttribute(a.name); });
+    });
+    return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+  }
+
   // Lays the document out at letter width in a hidden frame, draws the sheet,
   // and puts it on letter pages. Returns the PDF as base64.
   async function makePdf(html) {
@@ -107,7 +119,7 @@
     frame.style.cssText = `position:fixed;left:-${PAGE_PX * 3}px;top:0;width:${PAGE_PX}px;height:1056px;border:0;opacity:0;pointer-events:none`;
     document.body.appendChild(frame);
     try {
-      await new Promise((resolve) => { frame.onload = resolve; frame.srcdoc = html; });
+      await new Promise((resolve) => { frame.onload = resolve; frame.srcdoc = withoutScripts(html); });
       const doc = frame.contentDocument;
       // What only makes sense on screen: the print buttons, and the grey page around the sheet
       doc.querySelectorAll('.btn-print, .screen-controls, .controls, .no-print, [data-no-pdf]').forEach((el) => el.remove());

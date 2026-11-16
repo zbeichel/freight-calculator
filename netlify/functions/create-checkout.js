@@ -14,6 +14,7 @@
 // Someone who already has an active subscription is sent to change-plan
 // instead, so nobody ends up paying for two subscriptions.
 
+const { siteBase } = require('../lib/site-url');
 const https = require('https');
 const { PLANS, PLAN_NAME, normalizePlan, normalizeInterval, priceIdFor, TRIAL_DAYS, TRIAL_PLANS,
   trialEligible } = require('../lib/plans.js');
@@ -89,6 +90,22 @@ function stripeRequest(path, method, data){
   });
 }
 
+// The status of the account's earlier subscription while it's still open in Stripe
+// ('past_due', 'unpaid', …), or null once it has ended. A lookup that fails never blocks a
+// checkout. Team seats store 'team' here, not a Stripe id.
+const OPEN_STATUSES = ['active', 'trialing', 'past_due', 'unpaid', 'incomplete', 'paused'];
+async function openSubscription(id){
+  if(!/^sub_/.test(String(id || ''))) return null;
+  try {
+    const resp = await stripeRequest('/v1/subscriptions/' + encodeURIComponent(id), 'GET', {});
+    const status = resp.status === 200 && resp.body ? resp.body.status : null;
+    return OPEN_STATUSES.includes(status) ? status : null;
+  } catch(e){
+    console.error('create-checkout: subscription lookup failed:', e.message);
+    return null;
+  }
+}
+
 exports.handler = async function(event){
   if(event.httpMethod !== 'POST'){
     return { statusCode: 405, body: 'Method not allowed' };
@@ -121,6 +138,23 @@ exports.handler = async function(event){
     };
   }
 
+  // Not active here, but the earlier subscription is still open in Stripe (a payment that didn't
+  // go through, for example): that one is fixed in the billing portal. A new checkout would bill twice.
+  const openStatus = proRow ? await openSubscription(proRow.stripe_subscription_id) : null;
+  if(openStatus){
+    const live = openStatus === 'active' || openStatus === 'trialing';
+    return {
+      statusCode: 409,
+      body: JSON.stringify({
+        error: live ? 'already_subscribed' : 'payment_issue',
+        status: openStatus,
+        message: live
+          ? 'You already have a subscription. Manage it from your Profile page.'
+          : 'Your subscription is still open, but its last payment didn’t go through. Update your card under Manage billing on your Profile page to keep it.'
+      })
+    };
+  }
+
   const priceId = priceIdFor(plan, interval);
   if(!priceId){
     console.error(`create-checkout: no Stripe price configured for plan "${plan}" (${interval})`);
@@ -135,9 +169,9 @@ exports.handler = async function(event){
   }
   // A free trial of Pro Plus or Pro Max, once per account.
   const trial = TRIAL_PLANS.includes(plan) && trialEligible(proRow);
-  const siteUrl = process.env.DEPLOY_URL && process.env.DEPLOY_URL.includes('dev--')
-    ? process.env.DEPLOY_URL
-    : 'https://quickfreightcalc.com';
+  // Back to the site checkout started from: the live site, or the Netlify deploy (dev) it
+  // was opened on. Only the site's own hosts count (lib/site-url.js).
+  const siteUrl = siteBase(event);
 
   try {
     const params = {
@@ -148,7 +182,8 @@ exports.handler = async function(event){
       'customer_email': email,
       'client_reference_id': userId,
       'success_url': `${siteUrl}/?checkout=success`,
-      'cancel_url': `${siteUrl}/signup.html?checkout=cancelled`,
+      // Back to Pricing with the plan and billing that were chosen still picked
+      'cancel_url': `${siteUrl}/signup.html?checkout=cancelled&plan=${plan}${interval === 'year' ? '&interval=year' : ''}`,
       'subscription_data[metadata][userId]': userId,
       'subscription_data[metadata][plan]': plan,
       'subscription_data[metadata][interval]': interval,

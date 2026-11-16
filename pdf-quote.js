@@ -46,6 +46,13 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
   function dollars(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
+  // "MC# 123456" whether Profile holds "123456", "MC-123456", "MC 123456" or "MC#123456"
+  function idText(label, value, prefix) {
+    var v = String(value == null ? '' : value).trim().replace(prefix, '').trim();
+    return v ? label + ' ' + v : '';
+  }
+  function mcText(v) { return idText('MC#', v, /^MC\s*[-#:.]?\s*/i); }
+  function dotText(v) { return idText('DOT#', v, /^(US\s*)?DOT\s*[-#:.]?\s*/i); }
   function cents(n) { return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   // A charge: whole dollars, or with cents when it has them ("$62.50")
   function money(n) { return Math.round(n * 100) % 100 ? cents(n) : dollars(n); }
@@ -212,6 +219,36 @@
       '</table><div class="sec-note">Charged only if they apply. Not part of the all-in rate.</div></section>\n';
   }
 
+  // The account keeps its quote counter at least as far along as this browser's (Supabase
+  // bump_quote_counter only moves it forward), so Profile and other devices continue from the
+  // latest number instead of reusing one. Fire-and-forget: a PDF never waits on it.
+  var SB_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
+  var SB_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
+  function syncCounter(next) {
+    try {
+      var token = null;
+      Object.keys(localStorage).forEach(function (k) {
+        if (token || k.indexOf('sb-') !== 0) return;
+        try {
+          var v = JSON.parse(localStorage.getItem(k) || 'null');
+          if (v && v.access_token) token = v.access_token;
+        } catch (e) {}   // another sb- entry that isn't a session
+      });
+      if (!token || !(next > 0)) return;
+      fetch(SB_URL + '/rest/v1/rpc/bump_quote_counter', {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ p_next: Math.floor(next) }),
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (counter) {
+        // The account's counter after this one: further along when another device has been
+        // making PDFs, and then this browser continues from there.
+        if (!(Number(counter) > 0)) return;
+        var p = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {};
+        if (Number(counter) > (Number(p.quoteStart) || 0)) { p.quoteStart = Number(counter); localStorage.setItem('qfc_pro_profile', JSON.stringify(p)); }
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
   // Quote number and dates, numbered the same way as the Classic PDFs
   // (PREFIX-YYYYMMDD-counter, or PREFIX-TAG-YYYYMMDD-counter), advancing the
   // counter in the saved profile when `persist` is set.
@@ -225,13 +262,18 @@
         profile.quoteStart = num + 1;
         localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
       } catch (e) {}
+      syncCounter(num + 1);
     }
     var valid = new Date(now.getTime() + validHours(profile) * 60 * 60 * 1000);
     return {
       number: prefix + '-' + (tag ? tag + '-' : '') + ymd + '-' + num,
       issued: now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
       validUntil: valid.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }),
+      validZone: zoneName(valid),   // printed after it ("EST"), so a customer elsewhere reads it right
     };
+  }
+  function zoneName(d) {
+    try { return d.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() || ''; } catch (e) { return ''; }
   }
 
   // ── Shared pieces ──────────────────────────────────────────────────────────
@@ -308,7 +350,8 @@
       '.acc-t td:first-child{color:#111827;font-weight:600;width:42%;padding-right:16px}\n' +
       '.notes-text{font-size:13px;line-height:1.6;color:#374151;background:#f9fafb;border-radius:8px;padding:12px 16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}\n' +
       '.terms{font-size:11.5px;color:#6b7280;line-height:1.6;margin-bottom:26px}\n' +
-      '.sign{display:flex;gap:36px;margin-top:auto;margin-bottom:28px}\n' +
+      '.end{margin-top:auto}\n' +
+      '.sign{display:flex;gap:36px;margin-bottom:28px}\n' +
       '.sig{flex:1}\n' +
       '.sig .line{border-bottom:1px solid #111827;height:34px}\n' +
       '.sig .lbl{font-size:10.5px;color:#6b7280;margin-top:6px}\n' +
@@ -316,11 +359,12 @@
       'footer{display:flex;justify-content:space-between;gap:16px;font-size:10px;color:#9ca3af;border-top:1px solid #f0f2f5;padding-top:12px;margin-top:auto}\n' +
       '.sign + footer{margin-top:0}\n' +
       '@media print{\n' +
-      '  @page{size:letter portrait;margin:0}\n' +
+      '  @page{size:letter portrait;margin:0.5in 0.6in 0.45in}\n' +
       '  body{background:#fff;padding:0}\n' +
       '  .controls{display:none!important}\n' +
-      '  .doc{box-shadow:none;border-radius:0;max-width:none;min-height:100vh;padding:0.55in 0.6in 0.45in}\n' +
-      '  .lane,.facts,.rate,.sign,.s-row,.transit,.acc{break-inside:avoid;page-break-inside:avoid}\n' +
+      '  .doc{box-shadow:none;border-radius:0;max-width:none;min-height:100vh;padding:0}\n' +
+      '  .lane,.facts,.rate,.sign,.s-row,.transit,.acc,.notes,.end{break-inside:avoid;page-break-inside:avoid}\n' +
+      '  .k{break-after:avoid;page-break-after:avoid}\n' +
       '}\n';
   }
 
@@ -338,15 +382,15 @@
       profile.contactName,
       profile.phone,
       profile.email,
-      profile.mcNumber ? 'MC# ' + profile.mcNumber : '',
-      profile.dotNumber ? 'DOT# ' + profile.dotNumber : '',
+      mcText(profile.mcNumber),
+      dotText(profile.dotNumber),
     ].filter(Boolean).map(esc).join('<span class="dot">·</span>');
     return '<header>\n' +
       '  <div class="brand">' + brand + '<div>' + brandText + '</div></div>\n' +
       '  <div class="doc-id"><div class="title">' + esc(title) + '</div>' +
       '<table class="meta"><tr><td>Quote #</td><td>' + esc(meta.number) + '</td></tr>' +
       '<tr><td>Issued</td><td>' + esc(meta.issued) + '</td></tr>' +
-      (meta.validUntil ? '<tr><td>Valid until</td><td>' + esc(meta.validUntil) + '</td></tr>' : '') + '</table></div>\n' +
+      (meta.validUntil ? '<tr><td>Valid until</td><td>' + esc(meta.validUntil + (meta.validZone ? ' ' + meta.validZone : '')) + '</td></tr>' : '') + '</table></div>\n' +
       '</header>\n' +
       (contact ? '<div class="contact">' + contact + '</div>\n' : '') +
       '<div class="rule"></div>\n';
@@ -427,7 +471,7 @@
 
   function notesBlock(notes) {
     return notes
-      ? '<section class="section"><div class="k">Notes</div><div class="notes-text">' + esc(notes).replace(/\n/g, '<br>') + '</div></section>\n'
+      ? '<section class="section notes"><div class="k">Notes</div><div class="notes-text">' + esc(notes).replace(/\n/g, '<br>') + '</div></section>\n'
       : '';
   }
 
@@ -436,14 +480,16 @@
     var company = profile.companyName || '';
     var signer = profile.contactName || company;
     var terms = esc(termsText(profile)).replace(/\n/g, '<br>') + (extra ? ' ' + esc(extra) : '');
-    return '<section class="terms">' + terms + '</section>\n' +
+    // The signatures and the footer stay together (.end), so the footer never prints on a page
+    // of its own
+    return '<section class="terms">' + terms + '</section>\n<div class="end">\n' +
       (signatures === false ? '' :
         '<section class="sign">\n' +
         '  <div class="sig"><div class="line"></div><div class="lbl"><strong>Accepted by</strong> — signature, printed name &amp; date</div></div>\n' +
         '  <div class="sig"><div class="line"></div><div class="lbl"><strong>Authorized by</strong>' + (signer ? ' — ' + esc(signer) : '') + '</div></div>\n' +
         '</section>\n') +
       '<footer><span>' + (company ? esc(company) + ' · ' : '') + 'Quote ' + esc(meta.number) + '</span>' +
-      (whiteLabel(profile) ? '' : '<span>Prepared with QuickFreightCalc</span>') + '</footer>\n';
+      (whiteLabel(profile) ? '' : '<span>Prepared with QuickFreightCalc</span>') + '</footer>\n</div>\n';
   }
 
   function page(title, s, body) {
@@ -561,9 +607,8 @@
       rateBlock('Total load revenue', cents(d.total), lines,
         ['Per loaded mile', cents(d.rpmLoaded), d.deadhead > 0 ? cents(d.rpmAll) + ' per mile, all miles' : ''],
         d.cwt.toLocaleString('en-US') + ' cwt @ $' + d.ratePerCwt.toFixed(2) + '/cwt + fuel') +
-      '<section class="section"><div class="k">Target comparison</div>' +
-      '<div class="status ' + (d.meetsTarget ? 'good' : 'short') + '"><strong>' + (d.meetsTarget ? '▲ ' : '▼ ') + esc(d.statusText) + '</strong>' +
-      esc(d.statusDetail) + ' Target: ' + esc(d.targetText) + '.</div></section>\n' +
+      // No target comparison here: the PDF goes to the customer, and your minimum rate and
+      // margin over it are yours (they stay on the Bulk page).
       factsBlock([['Diesel reference', '$' + d.diesel.toFixed(2) + '/gal (EIA national)']]) +
       closing(profile, meta, '', false);
     return page('Bulk Load Quote ' + meta.number, s, body);
@@ -594,8 +639,8 @@
   window.QFCQuotePDF = {
     schemes: SCHEMES, style: style, colorsFor: colorsFor, classicScheme: classicScheme, isHex: function (v) { return HEX.test(v || ''); },
     whiteLabelAllowed: whiteLabelAllowed, whiteLabel: whiteLabel, validHours: validHours, customTerms: customTerms, termsText: termsText,
-    sectionOn: sectionOn, transitPlan: transitPlan, accessorialRows: accessorialRows,
-    nextQuoteNumber: nextQuoteNumber, preparedFor: preparedFor, classicPreparedFor: classicPreparedFor, modernHTML: modernHTML, multiStopHTML: multiStopHTML, bulkHTML: bulkHTML,
+    sectionOn: sectionOn, transitPlan: transitPlan, accessorialRows: accessorialRows, mcText: mcText, dotText: dotText,
+    nextQuoteNumber: nextQuoteNumber, syncCounter: syncCounter, preparedFor: preparedFor, classicPreparedFor: classicPreparedFor, modernHTML: modernHTML, multiStopHTML: multiStopHTML, bulkHTML: bulkHTML,
     openHTML: openHTML, openModern: openModern, openMultiStop: openMultiStop, openBulk: openBulk,
   };
 })();

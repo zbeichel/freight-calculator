@@ -31,16 +31,16 @@ const PROFILE = { companyName: 'Keystone Produce Logistics', contactName: 'Sam R
 
 async function setup(browser, base, profileOverrides, opts = {}) {
   const context = await browser.newContext({ viewport: { width: 1200, height: 900 }, deviceScaleFactor: 2 });
-  const supa = { row: opts.row || null, patches: [] };
+  const supa = { row: opts.row || null, patches: [], bumps: [] };
   await context.addInitScript(([profile, signedIn]) => {
     if (localStorage.getItem('__seeded')) return;
     localStorage.setItem('__seeded', '1');
-    localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
+    if (profile) localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
     if (signedIn) {
       localStorage.setItem('sb-xgrmbhmgcsbnazupfybd-auth-token', JSON.stringify({ access_token: 'tok', refresh_token: 'r',
         expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: 'user-1', email: 'sam@example.com' } }));
     }
-  }, [{ ...PROFILE, ...profileOverrides }, !!opts.signedIn]);
+  }, [opts.noProfile ? null : { ...PROFILE, ...profileOverrides }, !!opts.signedIn]);
   await context.route('**/*', async (route) => {
     const url = route.request().url();
     const json = (b) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(b) });
@@ -49,6 +49,11 @@ async function setup(browser, base, profileOverrides, opts = {}) {
     if (url.includes('/rest/v1/pro_users')) {
       if (route.request().method() === 'PATCH') { supa.patches.push(JSON.parse(route.request().postData())); return route.fulfill({ status: 204, body: '' }); }
       return json(supa.row ? [supa.row] : []);
+    }
+    if (url.includes('/rest/v1/rpc/bump_quote_counter')) {
+      supa.bumps.push({ next: JSON.parse(route.request().postData()).p_next, auth: route.request().headers()['authorization'] || '' });
+      if (opts.bumpReturns) return json(opts.bumpReturns);   // the account's counter afterwards
+      return route.fulfill({ status: 204, body: '' });
     }
     if (url.includes('/.netlify/functions/verify-pro')) return json({ active: true, plan: (supa.row && supa.row.plan) || 'pro', paid: true, unlimitedUntilRenewal: false });
     if (url.includes('/.netlify/functions/')) return json({});
@@ -69,7 +74,7 @@ async function calculatorPDF(t, opts = {}) {
     set('origin', 'Hastings, FL'); set('dest', 'Lancaster, PA'); set('miles', 1042); set('weight', 42000);
     set('trailer', o.trailer || 'reefer'); set('commodity', 'food'); set('margin', 15);
     set('pickup', '2026-11-16'); set('delivery', '2026-11-18');
-    set('load-notes', 'Keep at 34°F. <b>Appointment</b> required at delivery.');
+    set('load-notes', o.notes || 'Keep at 34°F. <b>Appointment</b> required at delivery.');
     applyRegionalRates();
     document.getElementById('diesel-enabled').checked = !!o.diesel;
     if (o.diesel) set('diesel-price', 3.85);
@@ -80,6 +85,33 @@ async function calculatorPDF(t, opts = {}) {
   await tab.waitForTimeout(400);
   return tab;
 }
+
+// Prints a PDF tab as the browser's print dialog would (Letter, the page's own @page margins) and
+// reads it back with poppler: page count, each page's text, and how far down page 2 the first
+// dark ink is, in inches. Without poppler installed, returns null.
+const { execFileSync } = require('child_process');
+const HAVE_POPPLER = (() => { try { execFileSync('pdfinfo', ['-v'], { stdio: 'ignore' }); return true; } catch (e) { return e.code !== 'ENOENT'; } })();
+async function printed(tab, name) {
+  if (!HAVE_POPPLER) return null;
+  const file = path.join(SHOTS, name + '.pdf');
+  await tab.emulateMedia({ media: 'print' });
+  await tab.pdf({ path: file, format: 'Letter', printBackground: true, preferCSSPageSize: true });
+  const pages = Number((execFileSync('pdfinfo', [file]).toString().match(/Pages:\s+(\d+)/) || [])[1] || 0);
+  const pageText = (n) => execFileSync('pdftotext', ['-f', String(n), '-l', String(n), '-layout', file, '-']).toString();
+  let top2 = null;
+  if (pages >= 2) {
+    const out = path.join(SHOTS, name + '-page2');
+    execFileSync('pdftoppm', ['-f', '2', '-l', '2', '-r', '50', '-gray', '-singlefile', file, out]);
+    const buf = fs.readFileSync(out + '.pgm');
+    const m = buf.toString('latin1', 0, 64).match(/^P5\s+(\d+)\s+(\d+)\s+(\d+)\s/);
+    const w = +m[1], h = +m[2], off = m[0].length;
+    for (let y = 0; y < h && top2 === null; y++) for (let x = 0; x < w; x++) if (buf[off + y * w + x] < 150) { top2 = y / 50; break; }
+  }
+  return { pages, pageText, top2 };
+}
+const LONG_NOTES = Array.from({ length: 26 }, (_, i) => `Line ${String(i + 1).padStart(2, '0')}: dock appointment, lumper receipt and temperature log required.`).join('\n');
+// The page (1-based) whose text includes `re`, or 0.
+const pageWith = (pr, re) => { for (let n = 1; n <= pr.pages; n++) if (re.test(pr.pageText(n))) return n; return 0; };
 
 (async () => {
   const server = await serve();
@@ -96,6 +128,7 @@ async function calculatorPDF(t, opts = {}) {
   check('Modern by default: "Freight Quote", not "Rate Confirmation"', text.includes('Freight Quote') && !text.includes('Rate Confirmation'));
   check('quote number KPL-YYYYMMDD-2041 and counter advanced', /KPL-\d{8}-2041/.test(text)
     && (await t.page.evaluate(() => JSON.parse(localStorage.getItem('qfc_pro_profile')).quoteStart)) === 2042);
+  check('signed out: no account counter to update', t.supa.bumps.length === 0, JSON.stringify(t.supa.bumps));
   check('company, contact strip, MC/DOT', text.includes('Keystone Produce Logistics') && text.includes('(717) 555-0142') && text.includes('MC# 123456') && text.includes('DOT# 7654321'));
   check('lane, dates, miles, equipment, weight, commodity, transit', text.includes('Hastings, FL') && text.includes('Lancaster, PA')
     && text.includes('1,042 mi') && text.includes('Reefer') && text.includes('42,000 lbs') && text.includes('Food / Perishable') && text.includes('2 days'));
@@ -193,11 +226,19 @@ async function calculatorPDF(t, opts = {}) {
 
   console.log('\n=== Calculator: account settings reach the PDFs, quote counter never goes back ===');
   t = await setup(browser, base, { quoteStart: 2050, hideLogo: false }, { signedIn: true, row: { id: 'user-1', is_active: true, plan: 'pro',
-    company_name: 'Keystone Produce Logistics', quote_prefix: 'KPL', quote_counter: 2041, color_scheme: 'midnight', pdf_style: 'classic', pdf_breakdown: true, hide_logo: true } });
+    company_name: 'Keystone Produce Logistics', quote_prefix: 'KPL', quote_counter: 2041, color_scheme: 'midnight', pdf_style: 'classic', pdf_breakdown: true, hide_logo: true,
+    email: 'sam@example.com', contact_email: 'quotes@keystone.example' } });
   await t.page.goto(base + '/index.html'); await t.page.waitForTimeout(2000);
   const synced = await t.page.evaluate(() => JSON.parse(localStorage.getItem('qfc_pro_profile')));
   check('sync keeps the higher counter (2050, not 2041)', synced.quoteStart === 2050, String(synced.quoteStart));
   check('sync brings Classic + hide logo from the account', synced.pdfStyle === 'classic' && synced.hideLogo === true);
+  check('the email on quotes comes from the account (contact_email), not the sign-in email', synced.email === 'quotes@keystone.example', String(synced.email));
+  tab = await calculatorPDF(t);
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  await t.page.waitForTimeout(300);
+  check('signed in: the PDF is numbered 2050 and the account’s counter moves to 2051', /KPL-\d{8}-2050/.test(text)
+    && JSON.stringify(t.supa.bumps) === JSON.stringify([{ next: 2051, auth: 'Bearer tok' }]), JSON.stringify(t.supa.bumps));
+  check('…and the PDF prints the quote email', text.includes('quotes@keystone.example') && !text.includes('sam@example.com'));
   await t.context.close();
 
   // ── Multi-stop ──────────────────────────────────────────────────────────
@@ -242,6 +283,8 @@ async function calculatorPDF(t, opts = {}) {
     msLabels.join('|') === 'Linehaul|Fuel surcharge|Stop charges' && msLines.reduce((a, b) => a + b, 0) === Number(msTotal.replace(/[^0-9]/g, '')),
     msLabels.join('|') + ' ' + msLines.join('+'));
   check('quote numbered in sequence (not random)', /KPL-\d{8}-2041/.test(text));
+  await t.page.waitForTimeout(300);
+  check('multi-stop: the account’s counter moves to 2042', JSON.stringify(t.supa.bumps.map((b) => b.next)) === '[2042]', JSON.stringify(t.supa.bumps));
   await tab.screenshot({ path: path.join(SHOTS, 'modern_multistop.png'), fullPage: true });
   await tab.emulateMedia({ media: 'print' });
   await tab.pdf({ path: path.join(SHOTS, 'modern_multistop.pdf'), format: 'Letter', printBackground: true });
@@ -271,11 +314,27 @@ async function calculatorPDF(t, opts = {}) {
     (cms.body.match(/\+\$172\.50 stop charge/g) || []).length === 2 && !cms.body.includes('$150 stop fee') && cms.cells['Stop Charges'] === '$345');
   await t.context.close();
 
+  // ── A browser that has never opened the calculator ────────────────────
+  console.log('\n=== A new device: Multi-stop and Bulk load the account’s settings themselves ===');
+  const NEW_DEVICE = { signedIn: true, noProfile: true, bumpReturns: 2090, row: { id: 'user-1', is_active: true, plan: 'max', email: 'sam@example.com',
+    company_name: 'Keystone Produce Logistics', quote_prefix: 'KPL', quote_counter: 2077, color_scheme: 'midnight', pdf_style: 'modern' } };
+  t = await setup(browser, base, {}, NEW_DEVICE);
+  tab = await multiStopPDF(t);
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  check('multi-stop: the account’s company and next number (it printed “QFC-…-1001” and our name)',
+    text.includes('Keystone Produce Logistics') && /KPL-\d{8}-2077/.test(text) && !/QFC-\d{8}-1001/.test(text), text.slice(0, 240));
+  await t.page.waitForTimeout(300);
+  check('…and when the account is further along (another device printed up to 2089), this browser goes on from 2090',
+    (await t.page.evaluate(() => JSON.parse(localStorage.getItem('qfc_pro_profile')).quoteStart)) === 2090);
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
   // ── Bulk ────────────────────────────────────────────────────────────────
   const bulkPDF = async (t) => {
     await t.page.goto(base + '/bulk.html');
     await t.page.waitForFunction(() => typeof generateBulkPDF === 'function' && window.QFCQuotePDF);
     await t.page.waitForTimeout(800);
+    await t.page.waitForFunction(() => !!localStorage.getItem('qfc_pro_profile'), null, { timeout: 3000 }).catch(() => {});
     await t.page.evaluate(() => {
       const set = (id, v) => { document.getElementById(id).value = v; };
       set('origin', 'Presque Isle, ME'); set('dest', 'Hanover, PA'); set('loaded-miles', 712); set('deadhead-miles', 40);
@@ -296,8 +355,11 @@ async function calculatorPDF(t, opts = {}) {
     && text.includes('Presque Isle, ME') && text.includes('Hanover, PA') && text.includes('712 loaded mi') && text.includes('40 mi deadhead'));
   check('rate per cwt, base and fuel lines, total load revenue', text.includes('$4.35 / cwt') && text.includes('Base rate')
     && text.includes('$4.35 × 450 cwt') && text.includes('Fuel surcharge') && text.includes('Total load revenue'));
-  check('target comparison like the Classic one', text.includes('Target comparison') && /profit margin over target|short of target/.test(text));
+  check('no target comparison: the PDF goes to the customer, your minimum rate stays on the page',
+    !/target/i.test(text) && !/profit margin over|short of/.test(text));
   check('no "valid until" or signatures on the bulk sheet (same as Classic)', !text.includes('Valid until') && !text.includes('Accepted by'));
+  await t.page.waitForTimeout(300);
+  check('bulk: the account’s counter moves to 2042', JSON.stringify(t.supa.bumps.map((b) => b.next)) === '[2042]', JSON.stringify(t.supa.bumps));
   await tab.screenshot({ path: path.join(SHOTS, 'modern_bulk.png'), fullPage: true });
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
@@ -307,6 +369,7 @@ async function calculatorPDF(t, opts = {}) {
   tab = await bulkPDF(t);
   text = (await tab.textContent('body')).replace(/\s+/g, ' ');
   check('Classic bulk: the original template', text.includes('Total Load Revenue') && text.includes('Calculation Settings'));
+  check('Classic bulk: no target comparison either', !/target/i.test(text) && !/profit margin over|short of/.test(text));
   lg = await qfcLogos(tab);
   check('Classic bulk: the new logo at the top and on the Bulk badge, drawn; no potato', lg.length === 2 && lg.every(Boolean)
     && (await tab.$eval('.bulk-badge', (e) => !!e.querySelector('img') && /^Bulk · /.test(e.textContent.trim()))) && !(await tab.content()).includes('\u{1F954}'), JSON.stringify(lg));
@@ -455,6 +518,58 @@ async function calculatorPDF(t, opts = {}) {
   tab = await multiStopPDF(t);
   check('Pro Max, Modern multi-stop: white-label', !(await tab.textContent('body')).includes('QuickFreightCalc'));
   await t.context.close();
+
+  // White-label with no company name: the Classic header stays blank instead of falling back to ours.
+  const wlBare = { ...wl, plan: 'max', pdfStyle: 'classic', companyName: '' };
+  t = await freshCalc(wlBare);
+  tab = await calculatorPDF(t, {});
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  check('white-label Classic, no company name: no "QuickFreightCalc / Freight Rate Calculator" header', !text.includes('QuickFreightCalc') && !/Freight Rate Calculator/i.test(text));
+  text = await logPDF(t.page, t.context);
+  check('…the quote log’s Classic PDF too', !text.includes('QuickFreightCalc') && !/Freight Rate Calculator/i.test(text));
+  await t.context.close();
+  t = await setup(browser, base, wlBare, { signedIn: true });
+  tab = await multiStopPDF(t);
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  check('…multi-stop', !text.includes('QuickFreightCalc') && !/Freight Rate Calculator/i.test(text));
+  await t.context.close();
+  t = await setup(browser, base, { ...wlBare, plan: 'api' }, { signedIn: true });
+  tab = await bulkPDF(t);
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  check('…and bulk', !text.includes('QuickFreightCalc') && !/Bulk Load Calculator/i.test(text));
+  await t.context.close();
+  t = await freshCalc({ pdfStyle: 'classic', companyName: '', plan: 'max' });
+  tab = await calculatorPDF(t, {});
+  check('not white-label, no company name: our name stays in the Classic header', (await tab.textContent('body')).includes('QuickFreightCalc'));
+  await t.context.close();
+
+  // ── Quotes that run onto a second page ─────────────────────────────────
+  console.log('\n=== Two-page PDFs: page margins, Notes and signatures kept together ===');
+  if (!HAVE_POPPLER) console.log('SKIP  poppler (pdfinfo, pdftotext, pdftoppm) is not installed');
+  else {
+    t = await freshCalc({});
+    tab = await calculatorPDF(t, { diesel: true, notes: LONG_NOTES });
+    let pr = await printed(tab, 'modern_two_pages');
+    check('Modern with long notes: two Letter pages', pr.pages === 2, pr.pages + ' pages');
+    check('…page 2 starts below a top margin (not at the paper’s edge)', pr.top2 !== null && pr.top2 >= 0.4, pr.top2 + ' in');
+    const notesPage = pageWith(pr, /Line 01:/);
+    check('…the Notes heading is on the same page as its first line', notesPage > 0 && /\bnotes\b/i.test(pr.pageText(notesPage).split('Line 01:')[0]),
+      'notes start on page ' + notesPage);
+    check('…and page 1 doesn’t end on a lone Notes heading', !/\bnotes\s*$/i.test(pr.pageText(1).trim()));
+    execFileSync('pdftoppm', ['-r', '60', '-png', path.join(SHOTS, 'modern_two_pages.pdf'), path.join(SHOTS, 'modern_two_pages')]);
+    await t.context.close();
+
+    t = await freshCalc({ pdfStyle: 'classic' });
+    tab = await calculatorPDF(t, { diesel: true, notes: LONG_NOTES });
+    pr = await printed(tab, 'classic_two_pages');
+    check('Classic with long notes: two Letter pages', pr.pages === 2, pr.pages + ' pages');
+    check('…page 2 starts below a top margin', pr.top2 !== null && pr.top2 >= 0.35, pr.top2 + ' in');
+    const sigPage = pageWith(pr, /Acceptance\s*&\s*Authorization/i);
+    check('…the signature block stays on one page', sigPage > 0 && /Carrier \/ Driver Acceptance/i.test(pr.pageText(sigPage))
+      && /Broker \/ Shipper Authorization/i.test(pr.pageText(sigPage)) && (pr.pageText(sigPage).match(/Printed Name/gi) || []).length === 2, 'page ' + sigPage);
+    execFileSync('pdftoppm', ['-r', '60', '-png', path.join(SHOTS, 'classic_two_pages.pdf'), path.join(SHOTS, 'classic_two_pages')]);
+    await t.context.close();
+  }
 
   console.log('\n=== Profile: white-label section ===');
   const acct = { id: 'user-1', is_active: true, stripe_customer_id: 'cus_1', stripe_subscription_id: 'sub_1', company_name: 'Keystone Produce Logistics' };
