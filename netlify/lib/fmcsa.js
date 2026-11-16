@@ -16,7 +16,7 @@
 //
 // FMCSA moved authority and insurance to its new registration system (Motus) in 2026;
 // the older licensing datasets stopped updating in May 2026, so they aren't used.
-// Optional SOCRATA_APP_TOKEN raises the open-data rate limits.
+// Optional SOCRATA_APP_TOKEN raises the open-data rate limits; if it's refused, checks go on without it.
 
 const BASE = 'https://data.transportation.gov/resource/';
 const DS = {
@@ -46,11 +46,31 @@ function parseQuery(input, kind) {
 }
 
 // ── Open data ──────────────────────────────────────────────────────────────
+// The app token only raises the rate limits, so a bad one mustn't stop the checks.
+// data.transportation.gov refuses every request carrying a token it doesn't accept
+// (403 "Invalid app_token specified": mistyped or revoked), and fetch throws on a character
+// no header can carry (a zero-width space picked up in a copy). A refused request is asked
+// again without the token, and once that works the token isn't sent again until the next
+// deploy. Either way, the function log says to check SOCRATA_APP_TOKEN in Netlify.
+let tokenRefused = false;
+const warned = new Set();
+const warnOnce = (key, msg) => { if (!warned.has(key)) { warned.add(key); console.warn('[fmcsa] ' + msg); } };
+function appToken(opt) {
+  const fromEnv = opt.token == null;
+  if (fromEnv && tokenRefused) return '';
+  const t = String((fromEnv ? process.env.SOCRATA_APP_TOKEN : opt.token) || '').trim();
+  if (t && !/^[\x21-\x7e]+$/.test(t)) {   // tokens are letters and digits: no spaces, nothing unusual
+    warnOnce('chars', 'SOCRATA_APP_TOKEN has spaces or characters a token doesn\'t have, so it isn\'t sent. Check it in Netlify.');
+    return '';
+  }
+  return t;
+}
+
 async function soql(ds, params, opt = {}) {
   const url = new URL(BASE + ds + '.json');
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
   const headers = { Accept: 'application/json' };
-  const token = opt.token != null ? opt.token : process.env.SOCRATA_APP_TOKEN;
+  const token = appToken(opt);
   if (token) headers['X-App-Token'] = token;
   // opt.timeoutMs bounds this request; opt.deadline (a Date.now() time) bounds the whole
   // check, so a slow day at data.transportation.gov can't run past the function's limit.
@@ -60,7 +80,18 @@ async function soql(ds, params, opt = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), wait);
   try {
-    const resp = await (opt.fetchImpl || fetch)(url.toString(), { headers, signal: ctrl.signal });
+    const get = (h) => (opt.fetchImpl || fetch)(url.toString(), { headers: h, signal: ctrl.signal });
+    let resp = await get(headers);
+    if (resp.status === 403 && token) {
+      if (resp.body && typeof resp.body.cancel === 'function') resp.body.cancel().catch(() => {});
+      const plain = Object.assign({}, headers);
+      delete plain['X-App-Token'];
+      resp = await get(plain);
+      if (resp.ok && opt.token == null) {
+        tokenRefused = true;
+        warnOnce('refused', 'data.transportation.gov refused SOCRATA_APP_TOKEN, so checks go on without it (at lower rate limits). Check the token in Netlify.');
+      }
+    }
     if (!resp.ok) throw new Error(`${ds} answered ${resp.status}`);
     const data = await resp.json();
     return Array.isArray(data) ? data : [];
@@ -557,4 +588,4 @@ function factsVerdict(f, now = Date.now()) {
   return 'ok';
 }
 
-module.exports = { REPORT_VERSION, DS, PARTS, parseQuery, soql, resolveDot, fetchCarrier, nationalAverages, buildReport, assess, monitorFacts, diffFacts, factsVerdict, isoDate, _internal: { inspectionTotals, crashTotals, titleCase } };
+module.exports = { REPORT_VERSION, DS, PARTS, parseQuery, soql, resolveDot, fetchCarrier, nationalAverages, buildReport, assess, monitorFacts, diffFacts, factsVerdict, isoDate, _internal: { inspectionTotals, crashTotals, titleCase, resetToken: () => { tokenRefused = false; warned.clear(); } } };

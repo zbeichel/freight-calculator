@@ -206,6 +206,53 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   ok(calls.length === 9 && calls.every((c) => c.opts.headers['X-App-Token'] === 'app-token') && new Set(calls.map((c) => ds(c.url))).size === 9,
      'a check asks nine datasets at once, with the app token when one is set');
   ok(calls.some((c) => ds(c.url) === F.DS.inspections && /count\(\*\)/.test(param(c.url, '$select')) && param(c.url, '$group')), 'inspections are totalled by FMCSA, not downloaded');
+  // A token FMCSA doesn't accept (mistyped, revoked) is refused on every request: 403, "Invalid app_token specified"
+  const warnings = [], realWarn = console.warn;
+  console.warn = (...a) => warnings.push(a.join(' '));
+  process.env.SOCRATA_APP_TOKEN = 'mistyped-token';
+  const refusing = async (url, opts = {}) => {
+    calls.push({ url, opts });
+    if (opts.headers['X-App-Token']) return { ok: false, status: 403, json: async () => ({ code: 'permission_denied', error: true, message: 'Invalid app_token specified' }) };
+    return { ok: true, status: 200, json: async () => (ds(url) === F.DS.census ? [{ dot_number: '80806' }] : []) };
+  };
+  calls.length = 0;
+  let rawT = await F.fetchCarrier('80806', { fetchImpl: refusing });
+  ok(Object.keys(F.PARTS).length === 9 && Object.keys(F.PARTS).every((p) => Array.isArray(rawT[p])) && rawT.census.length === 1,
+     'a token FMCSA refuses doesn’t stop the check: every part still loads', JSON.stringify(rawT));
+  ok(calls.length === 18 && calls.filter((c) => c.opts.headers['X-App-Token'] === 'mistyped-token').length === 9,
+     '…each refused request is asked again without the token', String(calls.length));
+  calls.length = 0;
+  rawT = await F.fetchCarrier('80806', { fetchImpl: refusing });
+  ok(calls.length === 9 && calls.every((c) => !('X-App-Token' in c.opts.headers)) && rawT.census.length === 1,
+     '…and after that it isn’t sent at all, so checks don’t make every request twice');
+  ok(warnings.length === 1 && /refused SOCRATA_APP_TOKEN/.test(warnings[0]) && /Check the token in Netlify/.test(warnings[0]),
+     'one warning in the function log, saying to check the token', warnings.join(' | '));
+  // Refused even without the token: not the token's fault, so it fails as before and the token stays
+  F._internal.resetToken();
+  warnings.length = 0;
+  process.env.SOCRATA_APP_TOKEN = 'good-token';
+  const forbidden = async (url, opts = {}) => { calls.push({ url, opts }); return { ok: false, status: 403, json: async () => ({}) }; };
+  calls.length = 0;
+  let err403 = '';
+  try { await F.soql(F.DS.census, { $limit: 1 }, { fetchImpl: forbidden }); } catch (e) { err403 = e.message; }
+  ok(err403 === F.DS.census + ' answered 403' && calls.length === 2 && warnings.length === 0,
+     'a refusal that isn’t the token’s fault still fails, with no warning about the token', err403);
+  answer = () => [];
+  calls.length = 0;
+  await F.soql(F.DS.census, { $limit: 1 }, { fetchImpl: fakeFetch });
+  ok(calls[0].opts.headers['X-App-Token'] === 'good-token', '…and the token is still sent afterwards');
+  // Pasted with a space or a line break around it, or with a character no header can carry
+  process.env.SOCRATA_APP_TOKEN = '  good-token\n';
+  calls.length = 0;
+  await F.soql(F.DS.census, { $limit: 1 }, { fetchImpl: fakeFetch });
+  ok(calls[0].opts.headers['X-App-Token'] === 'good-token', 'spaces or a line break pasted around the token are dropped');
+  process.env.SOCRATA_APP_TOKEN = 'good​token';
+  calls.length = 0;
+  await F.soql(F.DS.census, { $limit: 1 }, { fetchImpl: fakeFetch });
+  ok(calls.length === 1 && !('X-App-Token' in calls[0].opts.headers) && warnings.length === 1 && /characters a token doesn/.test(warnings[0]),
+     'a token with a character no header can carry (a zero-width space from a copy: fetch would throw on every request) isn’t sent, and the log says so', warnings.join(' | '));
+  console.warn = realWarn;
+  F._internal.resetToken();
   delete process.env.SOCRATA_APP_TOKEN;
   calls.length = 0;
   answer = (url) => (/vehicle_oos_total/.test(param(url, '$select')) ? [{ oos: false, n: '774' }, { oos: true, n: '226' }] : [{ oos: false, n: '939' }, { oos: true, n: '61' }]);
