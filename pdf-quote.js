@@ -256,7 +256,11 @@
       number: prefix + '-' + (tag ? tag + '-' : '') + ymd + '-' + num,
       issued: now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
       validUntil: valid.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }),
+      validZone: zoneName(valid),   // printed after it ("EST"), so a customer elsewhere reads it right
     };
+  }
+  function zoneName(d) {
+    try { return d.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() || ''; } catch (e) { return ''; }
   }
 
   // ── Shared pieces ──────────────────────────────────────────────────────────
@@ -372,7 +376,7 @@
       '  <div class="doc-id"><div class="title">' + esc(title) + '</div>' +
       '<table class="meta"><tr><td>Quote #</td><td>' + esc(meta.number) + '</td></tr>' +
       '<tr><td>Issued</td><td>' + esc(meta.issued) + '</td></tr>' +
-      (meta.validUntil ? '<tr><td>Valid until</td><td>' + esc(meta.validUntil) + '</td></tr>' : '') + '</table></div>\n' +
+      (meta.validUntil ? '<tr><td>Valid until</td><td>' + esc(meta.validUntil + (meta.validZone ? ' ' + meta.validZone : '')) + '</td></tr>' : '') + '</table></div>\n' +
       '</header>\n' +
       (contact ? '<div class="contact">' + contact + '</div>\n' : '') +
       '<div class="rule"></div>\n';

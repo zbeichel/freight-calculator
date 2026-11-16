@@ -752,7 +752,7 @@ async function tryLookupMiles(){
 
     document.getElementById('loaded-miles').value = miles;
     setMilesSource('google');
-    showMilesStatus('✅', `${miles.toLocaleString()} miles · ${driveText} drive (Google Routes)`, 'var(--green)');
+    showMilesStatus('✅', `${miles.toLocaleString()} miles · ${driveText} drive (Google Maps)`, 'var(--green)');
 
     lastLookedUpOrig = origAddr.toLowerCase();
     lastLookedUpDest = destAddr.toLowerCase();

@@ -1777,6 +1777,12 @@ function generateMultiStopPDF(){
        </div>` : '';
 
   const now = new Date();
+  // When the quote stops being good (Profile → PDF quotes; 24 hours unless Pro Max sets it), with the time zone
+  const validHrs = (window.QFCQuotePDF && QFCQuotePDF.validHours(profile)) || 24;
+  const validAt = new Date(now.getTime() + validHrs * 3600000);
+  let validZone = '';
+  try { validZone = validAt.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() || ''; } catch(e){}
+  const validText = (validAt.toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }) + ' ' + validZone).trim();
   const prefix = (profile.quotePrefix||'QFC').toUpperCase();
   const qNum = `${prefix}-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-MS${Math.floor(Math.random()*9000)+1000}`;
   const issuedDate = now.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
@@ -1901,6 +1907,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
         <div style="font-size:20px;font-weight:700;color:${scheme.headerText}">Multi-Stop Rate Confirmation</div>
         <div style="font-family:'DM Mono',monospace;font-size:11px;color:${scheme.headerTextFaint};margin-top:3px">Quote #${qNum}</div>
         <div style="font-size:11px;color:${scheme.headerTextFaint}">Issued: ${issuedDate}</div>
+        <div style="font-size:11px;color:${scheme.headerTextFaint}">Valid until: ${escapeHTML(validText)}</div>
       </div>
     </div>
     <div class="accent-bar"></div>
@@ -2435,7 +2442,8 @@ function exportMsCSV(){
   ].join(',')).join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(hdr + rows);
-  a.download = 'ms_quotes_' + new Date().toISOString().slice(0,10) + '.csv';
+  const d = new Date();   // the local day, not UTC's
+  a.download = 'ms_quotes_' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + '.csv';
   a.click();
 }
 

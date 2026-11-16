@@ -288,7 +288,15 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   check('the owner can delete any quote', (await t.page.$$('#log-body .del-btn')).length === 3);
   await t.page.evaluate(() => deleteQuote(101));
   await t.page.waitForTimeout(300);
-  check('…including a member’s', t.db.deletes.includes('?id=eq.101') && !t.db.quotes.some((q) => q.id === 101));
+  check('…including a member’s: off the log at once, with Undo, and the database delete waits out the Undo',
+    !(await t.page.evaluate(() => quoteLog.some((q) => q.id === 101))) && await t.page.isVisible('#undo-toast.show') && !t.db.deletes.includes('?id=eq.101'));
+  await t.page.click('#undo-toast .undo-btn');
+  check('Undo puts it back where it was', (await t.page.evaluate(() => quoteLog.map((q) => q.id).join())) === '101,102,103' && !t.db.deletes.includes('?id=eq.101'),
+    await t.page.evaluate(() => quoteLog.map((q) => q.id).join()));
+  await t.page.evaluate(() => deleteQuote(101));
+  await t.page.evaluate(() => flushPendingDelete());   // the Undo time running out
+  await t.page.waitForTimeout(300);
+  check('…then it’s deleted from the database', t.db.deletes.includes('?id=eq.101') && !t.db.quotes.some((q) => q.id === 101));
   await t.page.click('button.btn-danger >> text=Clear All');
   await t.page.waitForTimeout(300);
   check('Clear All clears the owner’s own quotes (and those from before the team)', /Clear the 2 quotes you saved/.test(t.db.dialogs.join('|'))

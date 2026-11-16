@@ -384,6 +384,20 @@ html.light .hero h1 em{-webkit-text-fill-color:#d48200;color:#d48200}
   border-color:var(--red);
   box-shadow:0 0 0 3px rgba(239,68,68,.08);
 }
+/* A box the quote can't be priced from (calcInputProblem) */
+#weight[aria-invalid="true"],#margin[aria-invalid="true"],#pickup[aria-invalid="true"],#delivery[aria-invalid="true"],
+.mini-input[aria-invalid="true"]{border-color:var(--red)!important;box-shadow:0 0 0 3px rgba(239,68,68,.12)!important}
+.r-problem{margin:10px 4px 0;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:600;line-height:1.45;color:var(--red);
+  background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);text-align:left}
+#undo-toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);z-index:10000;display:flex;align-items:center;gap:14px;
+  background:#1f2937;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;padding:10px 12px 10px 18px;
+  border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+#undo-toast.show{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+#undo-toast .undo-btn{background:transparent;border:1px solid rgba(255,255,255,.35);color:#fbbf24;font:inherit;font-weight:700;
+  padding:5px 12px;border-radius:8px;cursor:pointer}
+#undo-toast .undo-btn:hover{border-color:#fbbf24}
+.r-saved-note{margin:10px 4px 0;padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.45;color:var(--text2);
+  background:var(--card2);border:1px solid var(--border);text-align:left}
 .field-error{
   display:none;
   margin-top:6px;
@@ -2361,7 +2375,7 @@ html.light .hos-day-header{background:var(--card2)}
                 <span style="font-size:11px;color:var(--text3)">$</span>
                 <input type="number" inputmode="decimal" id="extra-day-rate" value="200" min="0" step="25"
                   style="width:70px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:4px 8px;outline:none;text-align:center"
-                  oninput="calcTransit()" />
+                  oninput="calcTransit();calc()" />
                 <span style="font-size:11px;color:var(--text3)">/day</span>
               </div>
               <div id="transit-extra-total" style="font-size:12px;font-weight:700;color:var(--accent)"></div>
@@ -2495,6 +2509,8 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="result-hero-label">Quote to Customer</div>
         <div class="result-hero-val" id="r-quote">—</div>
         <div class="result-hero-rpm" id="r-rpm">— per mile</div>
+        <div class="r-problem" id="r-problem" role="alert" hidden></div>
+        <div class="r-saved-note" id="r-saved-note" hidden></div>
         <a href="#lane-view" class="lane-jump" id="lane-jump" hidden>Lane details: map and rate history ↓</a>
         <div id="rate-disclaimer" style="font-size:10px;color:var(--text3);line-height:1.5;margin-top:8px;padding:0 4px">
           This quote is based on current <strong style="color:var(--text2)">US AVERAGE</strong> market rates and can be inflated. If you know the current rate per mile for your region/lane, please adjust it in the <strong style="color:var(--text2)">Base Rates ($/mi)</strong> box accordingly.
@@ -2508,6 +2524,7 @@ html.light .hos-day-header{background:var(--card2)}
         <div class="rrow"><span class="rrow-label">Pickup</span><span class="rrow-val" id="r-pickup">—</span></div>
         <div class="rrow"><span class="rrow-label">Delivery</span><span class="rrow-val" id="r-delivery">—</span></div>
         <div class="rrow"><span class="rrow-label">Linehaul cost</span><span class="rrow-val" id="r-cost">—</span></div>
+        <div class="rrow" id="r-extra-row" style="display:none"><span class="rrow-label">Extra transit days</span><span class="rrow-val" id="r-extra">—</span></div>
         <div class="rrow" id="r-acc-row" style="display:none"><span class="rrow-label">Accessorials</span><span class="rrow-val" style="color:var(--accent)" id="r-acc">—</span></div>
         <div class="rrow"><span class="rrow-label">Margin</span><span class="rrow-val" id="r-margin">—</span></div>
         <div class="rrow"><span class="rrow-label" id="r-base-label">Base rate/mi</span><span class="rrow-val" style="color:var(--accent)" id="r-baserate">—</span></div>
@@ -3789,8 +3806,8 @@ async function fetchWeather(){
   today.setHours(0,0,0,0);
   const maxDate   = new Date(today);
   maxDate.setDate(maxDate.getDate() + 15);
-  const todayStr  = today.toISOString().slice(0,10);
-  const maxStr    = maxDate.toISOString().slice(0,10);
+  const todayStr  = localISODate(today);
+  const maxStr    = localISODate(maxDate);
 
   // Clamp pickup date to valid forecast range — use today if no date entered or date is past
   let pickupDate = pickup || todayStr;
@@ -3893,9 +3910,10 @@ function generateQuotePDF(opts){
   const trailer  = document.getElementById('trailer').value;
   const commodity= document.getElementById('commodity').value;
 
-  if(quote === '—' || !orig || !dest){
+  const problem = calcInputProblem();
+  if(problem || quote === '—' || !orig || !dest){
     if(opts && opts.returnDoc) return null;
-    alert('Please complete the quote before downloading.');
+    alert(problem ? problem.msg : 'Please complete the quote before downloading.');
     return;
   }
 
@@ -3952,7 +3970,7 @@ function generateQuotePDF(opts){
       // so the lines add up to the total without showing the margin itself.
       breakdown: {
         fuel: getDieselFSC() * milesNum * markup,
-        extra: (transitChargeAdded ? transitChargeAmount : 0) * markup,
+        extra: transitChargeNow() * markup,
       },
       // For the transit estimate: the route's driving time when the miles came
       // from Google (typed-in miles are estimated), and the dates as entered.
@@ -4130,6 +4148,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
         <div class="doc-title">Rate Confirmation</div>
         <div class="doc-number">Quote #${qNum}</div>
         <div class="doc-date">Issued: ${issuedDate}</div>
+        <div class="doc-date">Valid until: ${escapeHTML(classicValidText(profile, now))}</div>
       </div>
     </div>
     <div class="accent-bar"></div>
@@ -4236,16 +4255,22 @@ function generateQuotePDFFromLog(id, opts){
 
   // Modern design (pdf-quote.js) unless the Profile chose Classic.
   if(window.QFCQuotePDF && QFCQuotePDF.style(profile) === 'modern'){
+    // Saved quotes carry how they were priced (details): fuel and extra-day lines as the
+    // customer pays them, and the route's driving time. Older ones have the total only.
+    const d = q.details || null;
+    const markup = 1 + (parseFloat(q.margin) || 0) / 100;
+    const milesNum = Number(q.miles) || 0;
     const modernQ = {
       total: Number(q.quote) || 0,
       ratePerMile: parseFloat(String(q.rpm || '').replace(/[^0-9.]/g, '')) || null,
-      miles: Number(q.miles) || null,
+      miles: milesNum || null,
       origin: q.orig || '—', destination: q.dest || '—',
       pickup: calcDateText(q.pickup), delivery: calcDateText(q.delivery),
       trailer: q.trailer, commodity: q.commodity, weight: q.weight ? parseInt(q.weight) : null,
-      transit: '', notes: q.notes || '', breakdown: null,
+      transit: transitDaysText(q.pickup, q.delivery), notes: q.notes || '',
+      breakdown: d ? { fuel: (Number(d.fsc) || 0) * milesNum * markup, extra: (Number(d.extra) || 0) * markup } : null,
       customer: pdfCustomer(q.customer, q.customerId),
-      driveSecs: 0, pickupISO: q.pickup || '', deliveryISO: q.delivery || '',
+      driveSecs: d && Number(d.driveSecs) > 0 ? Number(d.driveSecs) : 0, pickupISO: q.pickup || '', deliveryISO: q.delivery || '',
     };
     return finishModernQuote(modernQ, profile, opts);
   }
@@ -4411,6 +4436,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
         <div class="doc-title">Rate Confirmation</div>
         <div class="doc-number">Quote #${qNum}</div>
         <div class="doc-date">Issued: ${issuedDate}</div>
+        <div class="doc-date">Valid until: ${escapeHTML(classicValidText(profile, now))}</div>
       </div>
     </div>
     <div class="accent-bar"></div>
@@ -4448,8 +4474,8 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
           <div class="detail-cell"><div class="detail-cell-label">Trailer Type</div><div class="detail-cell-value">${trailerDisplay}</div></div>
           <div class="detail-cell"><div class="detail-cell-label">Commodity</div><div class="detail-cell-value">${escapeHTML(q.commodity)||'—'}</div></div>
           <div class="detail-cell"><div class="detail-cell-label">Weight</div><div class="detail-cell-value">${q.weight ? parseInt(q.weight).toLocaleString()+' lbs' : '—'}</div></div>
-          <div class="detail-cell"><div class="detail-cell-label">Pickup Date</div><div class="detail-cell-value">${escapeHTML(q.pickup)||'—'}</div></div>
-          <div class="detail-cell"><div class="detail-cell-label">Delivery Date</div><div class="detail-cell-value">${escapeHTML(q.delivery)||'—'}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Pickup Date</div><div class="detail-cell-value">${escapeHTML(calcDateText(q.pickup))||'—'}</div></div>
+          <div class="detail-cell"><div class="detail-cell-label">Delivery Date</div><div class="detail-cell-value">${escapeHTML(calcDateText(q.delivery))||'—'}</div></div>
           <div class="detail-cell"><div class="detail-cell-label">Quote RPM</div><div class="detail-cell-value">$${escapeHTML(q.rpm)||'—'}</div></div>
         </div>
       </div>
@@ -4498,6 +4524,12 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
   }
 }
 // A saved date ("2026-11-20") the way the calculator shows it ("Fri, Nov 20"), for PDFs made from the quote log.
+// "3 days" from pickup to delivery ("YYYY-MM-DD"), as the calculator's transit badge says; '' otherwise
+function transitDaysText(pickup, delivery){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(pickup || '') || !/^\d{4}-\d{2}-\d{2}$/.test(delivery || '')) return '';
+  const days = Math.round((new Date(delivery + 'T12:00:00') - new Date(pickup + 'T12:00:00')) / 86400000);
+  return days > 0 ? days + (days === 1 ? ' day' : ' days') : '';
+}
 function calcDateText(s){
   if(!s) return '';
   if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return String(s);
@@ -4518,6 +4550,15 @@ function finishModernQuote(q, profile, opts){
   QFCQuotePDF.openHTML(html);
 }
 
+// "EST": the time zone's short name, so a customer elsewhere reads the time right
+function zoneName(d){
+  try { return d.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() || ''; } catch(e){ return ''; }
+}
+// The "Valid until" printed on a Classic quote, with the time zone
+function classicValidText(profile, now){
+  const hours = (window.QFCQuotePDF && QFCQuotePDF.validHours(profile)) || 24;
+  return (classicValidUntil(profile, now) + ' ' + zoneName(new Date(now.getTime() + hours * 3600000))).trim();
+}
 // When a Classic quote stops being good: the same hours the Modern design prints (Profile → PDF quotes).
 function classicValidUntil(profile, now){
   const hours = (window.QFCQuotePDF && QFCQuotePDF.validHours(profile)) || 24;
@@ -4842,18 +4883,17 @@ function calcTransit(){
   const miles    = parseFloat(document.getElementById('miles').value)||0;
   const callout  = document.getElementById('transit-callout');
 
-  if(!pickup || !delivery){ callout.style.display='none'; return; }
+  // No dates, or delivery not after pickup: no transit window, so no extra-day charge either.
+  if(!pickup || !delivery){ callout.style.display='none'; resetTransitCharge(); return; }
 
   const pDate = new Date(pickup   + 'T12:00:00');
   const dDate = new Date(delivery + 'T12:00:00');
   const actualDays = Math.round((dDate - pDate) / 86400000);
 
-  if(actualDays <= 0){ callout.style.display='none'; return; }
+  if(actualDays <= 0){ callout.style.display='none'; resetTransitCharge(); return; }
 
   const standardDays = miles > 0 ? Math.ceil(miles / 500) : 1;
-  const extraDays    = Math.max(0, actualDays - standardDays);
-  const extraRate    = parseFloat(document.getElementById('extra-day-rate').value)||200;
-  const extraCharge  = extraDays * extraRate;
+  const { days: extraDays, amount: extraCharge } = transitExtra();
 
   callout.style.display = 'block';
   document.getElementById('transit-days-badge').textContent = actualDays + (actualDays===1?' day':' days');
@@ -4876,23 +4916,43 @@ function calcTransit(){
     }
   } else {
     extraWrap.style.display = 'none';
-    transitChargeAdded = false;
-    transitChargeAmount = 0;
+    resetTransitCharge();
   }
 }
 
+// The extra-day rate: blank uses $200, and $0 means $0.
+function extraDayRate(){
+  const v = parseFloat(document.getElementById('extra-day-rate').value);
+  return Number.isFinite(v) && v >= 0 ? v : 200;
+}
+// Extra transit days for the dates, miles and rate as they are now: the days past the
+// standard ~500 miles a day.
+function transitExtra(){
+  const pickup   = document.getElementById('pickup').value;
+  const delivery = document.getElementById('delivery').value;
+  const miles    = parseFloat(document.getElementById('miles').value)||0;
+  const rate     = extraDayRate();
+  if(!pickup || !delivery) return { days: 0, rate, amount: 0 };
+  const actualDays   = Math.round((new Date(delivery+'T12:00:00') - new Date(pickup+'T12:00:00')) / 86400000);
+  const standardDays = miles > 0 ? Math.ceil(miles/500) : 1;
+  const days = Math.max(0, actualDays - standardDays);
+  return { days, rate, amount: days * rate };
+}
+// What the extra days add to the quote once "Add to quote" is on, always for the current
+// dates: a changed rate or miles updates it; cleared dates take it off.
+function transitChargeNow(){
+  return transitChargeAdded ? transitExtra().amount : 0;
+}
+function resetTransitCharge(){
+  transitChargeAdded  = false;
+  transitChargeAmount = 0;
+  const add = document.getElementById('transit-add-btn'), added = document.getElementById('transit-added-badge');
+  if(add) add.style.display = '';
+  if(added) added.style.display = 'none';
+}
+
 function addTransitCharge(){
-  const extraDays = (() => {
-    const pickup   = document.getElementById('pickup').value;
-    const delivery = document.getElementById('delivery').value;
-    const miles    = parseFloat(document.getElementById('miles').value)||0;
-    if(!pickup||!delivery) return 0;
-    const actualDays  = Math.round((new Date(delivery+'T12:00:00') - new Date(pickup+'T12:00:00')) / 86400000);
-    const standardDays = miles > 0 ? Math.ceil(miles/500) : 1;
-    return Math.max(0, actualDays - standardDays);
-  })();
-  const extraRate   = parseFloat(document.getElementById('extra-day-rate').value)||200;
-  transitChargeAmount = extraDays * extraRate;
+  transitChargeAmount = transitExtra().amount;
   transitChargeAdded  = true;
   document.getElementById('transit-add-btn').style.display = 'none';
   document.getElementById('transit-added-badge').style.display = 'flex';
@@ -5431,8 +5491,9 @@ function calcLTL(){
   const orig   =document.getElementById('origin').value.trim();
   const dest   =document.getElementById('dest').value.trim();
 
-  // Clamp weight to LTL range
-  const w=Math.min(15000,Math.max(150,weight||0));
+  // Below 150 lbs is priced at 150 (the minimum charge applies anyway); over the maximum is
+  // flagged by calcInputProblem rather than quietly priced at it.
+  const w=Math.min(LTL_MAX_WEIGHT,Math.max(150,weight||0));
   const cwt=getCWT();
   const dm=miles?dMult(miles):{m:1.0,l:'—'};
 
@@ -5480,7 +5541,10 @@ function calcLTL(){
   document.getElementById('m-cap').style.color='var(--text3)';
   document.getElementById('m-seas').textContent='n/a';
   document.getElementById('m-seas').style.color='var(--text3)';
+  document.getElementById('r-extra-row').style.display='none';
+  showInputProblem(calcInputProblem());
 }
+const LTL_MAX_WEIGHT = 15000;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function fmt(n){return'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
@@ -5745,7 +5809,7 @@ function clearShipmentForm(){
   document.getElementById('dest').value   = '';
   document.getElementById('miles').value  = '';
   document.getElementById('weight').value = '';
-  document.getElementById('pickup').valueAsDate = new Date();
+  document.getElementById('pickup').value = localISODate();
   document.getElementById('delivery').value = '';
 
   // Clear any inline location validation errors
@@ -5757,7 +5821,7 @@ function clearShipmentForm(){
   origCoords = null; destCoords = null;
   manualMiles = false;
   ratesManualOverride = false;
-  transitChargeAdded = false;
+  resetTransitCharge();
   rateModeChosen = false;
   rateMode = myRateSheet() ? 'sheet' : 'auto';
   styleRateButtons(rateMode === 'sheet' ? 'sheet' : 'regional');
@@ -6391,9 +6455,13 @@ function updateRateDisclaimer(){
   } else if(rateMode === 'sheet' && myRateSheet()){
     el.innerHTML = 'This quote starts from <strong style="color:var(--text2)">your rate sheet</strong> (set on your Profile page), with the market rate wherever your sheet is blank. Pick <strong style="color:var(--text2)">Regional</strong> or <strong style="color:var(--text2)">National Avg</strong> in the Base Rates box for market rates.';
   } else {
-    el.innerHTML = 'This quote is based on current <strong style="color:var(--text2)">US AVERAGE</strong> market rates and can be inflated. If you know the current rate per mile for your region/lane, please adjust it in the <strong style="color:var(--text2)">Base Rates ($/mi)</strong> box accordingly.';
+    // The region whose market rates are in the Base Rates box (applyRegionalRates), or the US average.
+    const region = appliedRateRegion && appliedRateRegion !== 'national' ? REGION_LABELS[appliedRateRegion] : '';
+    const which = region ? `${region.toUpperCase()} REGION` : 'US AVERAGE';
+    el.innerHTML = `This quote is based on current <strong style="color:var(--text2)">${which}</strong> market rates and can be inflated. If you know the current rate per mile for your region/lane, please adjust it in the <strong style="color:var(--text2)">Base Rates ($/mi)</strong> box accordingly.`;
   }
 }
+let appliedRateRegion = 'national';   // whose market rates the Base Rates box holds
 
 function saveRates(){
   ratesManualOverride = true;
@@ -6457,6 +6525,7 @@ function setRateMode(mode, fromUser){
     document.getElementById('rate-flatbed').value= parseFloat(nat.flatbed).toFixed(2);
     const regionEl = document.getElementById('rate-region-label');
     if(regionEl){ regionEl.textContent='Using national US average rates'; regionEl.style.color='var(--blue)'; }
+    appliedRateRegion = 'national';
   } else {
     // Re-apply regional rates based on current origin
     // If no origin state detected, fall back to national
@@ -6536,6 +6605,8 @@ function applyRegionalRates(){
   document.getElementById('rate-van').value     = parseFloat(rates.van).toFixed(2);
   document.getElementById('rate-reefer').value  = parseFloat(rates.reefer).toFixed(2);
   document.getElementById('rate-flatbed').value = parseFloat(rates.flatbed).toFixed(2);
+  appliedRateRegion = state ? region : 'national';
+  updateRateDisclaimer();
 
   // Show which region is active
   const label = REGION_LABELS[region] || 'National';
@@ -7116,8 +7187,10 @@ function calc(){
   const adjRpm = base*wt.m*dm.m*cm*capM*seasM*holM*mpM;
   const fscPerMile = getDieselFSC();
   const cost = miles ? (adjRpm + fscPerMile) * miles : 0;
-  const marginAmt=cost*marginPct;
-  const transitAdj = transitChargeAdded ? transitChargeAmount : 0;
+  // Extra transit days (when added) are part of the cost the margin applies to, and get their
+  // own line, so the lines in the quote box add up to the quote.
+  const transitAdj = miles ? transitChargeNow() : 0;
+  const marginAmt=(cost+transitAdj)*marginPct;
   const quote=(cost+transitAdj)*(1+marginPct);
   const qRpm=miles>0?quote/miles:0;
   lastFtlQuote = { quote, rpm: qRpm };
@@ -7134,6 +7207,8 @@ function calc(){
   const delivery2=document.getElementById('delivery').value;
   document.getElementById('r-delivery').textContent=delivery2?new Date(delivery2+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'—';
   document.getElementById('r-cost').textContent=miles?fmtInt(cost):'—';
+  document.getElementById('r-extra-row').style.display=transitAdj>0?'':'none';
+  document.getElementById('r-extra').textContent=transitAdj>0?fmtInt(transitAdj):'—';
   document.getElementById('r-margin').textContent=miles?(marginPct*100).toFixed(0)+'%  ('+fmtInt(marginAmt)+')':'—';
   document.getElementById('r-baserate').textContent=fmt(base);
   document.getElementById('r-adj').textContent=miles?fmt(adjRpm):'—';
@@ -7166,8 +7241,57 @@ function calc(){
     mHol.title       = '';
   }
 
+  // A box the quote can't be priced from: no quote, and the box and the reason are shown.
+  if(!showInputProblem(calcInputProblem())){ lastFtlQuote = { quote: 0, rpm: 0 }; return; }
+
   // Schedule anonymous lane data capture if quote is complete
   if(miles && orig && dest) scheduleLaneCapture();
+}
+
+// ── Checks on what's typed in ────────────────────────────────────────────
+// The first box the quote can't be priced from, as { id, msg }, or null. Blank boxes are fine
+// (they're optional or have defaults); a blank or $0 base rate isn't: the quote can't guess it.
+function calcInputProblem(){
+  const num = id => { const el = document.getElementById(id); const v = el ? el.value.trim() : ''; return v === '' ? null : parseFloat(v); };
+  const weight = num('weight');
+  if(weight !== null && !(weight > 0)) return { id: 'weight', msg: 'Weight has to be more than 0 lbs.' };
+  if(shipType === 'ltl' && weight > LTL_MAX_WEIGHT)
+    return { id: 'weight', msg: `LTL is priced up to ${LTL_MAX_WEIGHT.toLocaleString()} lbs. Heavier freight goes full truckload: switch to FTL.` };
+  const margin = num('margin');
+  if(margin !== null && !(margin >= 0 && margin <= 100)) return { id: 'margin', msg: 'Margin has to be between 0% and 100%.' };
+  const pickup = document.getElementById('pickup').value, delivery = document.getElementById('delivery').value;
+  if(pickup && delivery && delivery < pickup) return { id: 'delivery', msg: 'The delivery date is before the pickup date.' };
+  if(shipType !== 'ltl'){
+    const trailer = document.getElementById('trailer').value;
+    const base = num('rate-' + trailer);
+    if(!(base > 0)) return { id: 'rate-' + trailer, msg: `Enter a base rate per mile for ${TLABEL[trailer] || trailer} in the Base Rates box.` };
+  }
+  return null;
+}
+const PROBLEM_BOXES = ['weight', 'margin', 'pickup', 'delivery', 'rate-van', 'rate-reefer', 'rate-flatbed'];
+// Marks the box and says why in the quote box; with a problem, the quote shows "—".
+// Returns true when there's nothing to fix.
+function showInputProblem(problem){
+  PROBLEM_BOXES.forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(problem && problem.id === id) el.setAttribute('aria-invalid', 'true');
+    else el.removeAttribute('aria-invalid');
+  });
+  const box = document.getElementById('r-problem');
+  if(box){ box.textContent = problem ? problem.msg : ''; box.hidden = !problem; }
+  if(!problem) return true;
+  document.getElementById('r-quote').textContent = '—';
+  document.getElementById('r-rpm').textContent = '— per mile';
+  ['r-cost', 'r-margin', 'r-acc', 'r-extra'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = '—'; });
+  document.getElementById('r-extra-row').style.display = 'none';
+  return false;
+}
+// A dated "YYYY-MM-DD" for the local day (valueAsDate and toISOString give the UTC day,
+// which in the US evening is already tomorrow).
+function localISODate(d){
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 // ── Lane details (lane.js) ────────────────────────────────────────────────
@@ -7291,8 +7415,26 @@ async function handleHeaderSignOut(){
   window.location.href = '/';
 }
 
+// How the calculator priced this quote, saved with it: fuel surcharge per mile, the extra
+// transit days added (before margin) and the route's driving time. Loading the quote and its
+// PDF from the log use them, so they show what the calculator showed.
+function quoteDetails(extraCharge){
+  const extra = transitExtra();
+  const added = extraCharge > 0;
+  return {
+    v: 1,
+    fsc: Math.round(getDieselFSC() * 100) / 100,
+    extra: added ? Math.round(extraCharge * 100) / 100 : 0,
+    extraDays: added ? extra.days : 0,
+    extraRate: added ? extra.rate : 0,
+    driveSecs: /google/i.test(document.getElementById('miles-source')?.textContent || '') ? (lastDriveSecs || 0) : 0,
+  };
+}
+
 async function saveQuote(){
   if(!isProUser){ showProModal('Save Quote is a Pro feature. Upgrade to save and sync your quote history.'); return; }
+  const problem = calcInputProblem();
+  if(problem){ showToast('⚠ ' + problem.msg); document.getElementById(problem.id)?.focus(); return; }
   const limit = savedQuoteLimit();
   if(quoteLog.length >= limit){ showQuoteLogFull(limit); return; }
   const miles=parseFloat(document.getElementById('miles').value)||0;
@@ -7325,7 +7467,7 @@ async function saveQuote(){
   const adjRpm=base*wt.m*dm.m*CMULT[commodity]*getCapacityMult(trailer)*getSeasonMult(trailer,pickup)*getHolidayMult()*getMarketPanicMult();
   const cost=(adjRpm + getDieselFSC())*miles;
   // The same total the calculator shows: extra transit days (when added) are part of the quote
-  const transitAdj = transitChargeAdded ? transitChargeAmount : 0;
+  const transitAdj = transitChargeNow();
   const quote=(cost+transitAdj)*(1+marginPct);
   const qRpm=quote/miles;
   const dateStr=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
@@ -7348,6 +7490,7 @@ async function saveQuote(){
     tracked: true,
     customer: calcCustomer().name,
     customerId: calcCustomer().id,
+    details: quoteDetails(transitAdj),
     outcome: 'open', finalRate: null, lostReason: null, outcomeAt: null,
     createdAt: new Date().toISOString(),
     pending: true
@@ -7396,7 +7539,8 @@ async function saveQuote(){
         notes: entry.notes,
         tracked: entry.tracked,
         customer: entry.customer || null,
-        customer_id: entry.customerId || null
+        customer_id: entry.customerId || null,
+        details: entry.details
       })
     });
     const body = await resp.json().catch(() => null);
@@ -7550,9 +7694,41 @@ function loadQuoteIntoCalc(id){
   if(q.notes && document.getElementById('load-notes'))
     document.getElementById('load-notes').value = q.notes;
 
+  // The extra transit days it was saved with (the dates are back, so the days follow them)
+  resetTransitCharge();
+  const d = q.details || {};
+  if(Number(d.extra) > 0){
+    document.getElementById('extra-day-rate').value = Number(d.extraRate) >= 0 ? d.extraRate : 200;
+    transitChargeAdded = true;
+    document.getElementById('transit-add-btn').style.display = 'none';
+    document.getElementById('transit-added-badge').style.display = 'flex';
+  }
+
+  calcTransit();
   calc();
   document.getElementById('origin').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  showToast('✓ Quote loaded into calculator');
+  // Loading prices the lane with today's rates and settings (diesel, adjustments): when that
+  // comes out different from the saved quote, say so under the quote until something's changed.
+  const now = Math.round(lastFtlQuote.quote || 0), saved = Math.round(Number(q.quote) || 0);
+  if(now > 0 && saved > 0 && now !== saved){
+    showSavedNote(`Saved at ${fmtInt(saved)}${q.date ? ' on ' + escapeHTML(q.date) : ''}. Today’s rates and settings price it at ${fmtInt(now)}.`);
+    showToast('✓ Quote loaded · today’s price differs');
+  } else {
+    showSavedNote('');
+    showToast('✓ Quote loaded into calculator');
+  }
+}
+function showSavedNote(html){
+  const el = document.getElementById('r-saved-note');
+  if(!el) return;
+  el.innerHTML = html;
+  el.hidden = !html;
+  if(html){
+    // Goes away once the quote is changed
+    const clear = (e) => { if(e.target && e.target.closest && e.target.closest('.calc-col')){ el.hidden = true; document.removeEventListener('input', clear, true); document.removeEventListener('change', clear, true); } };
+    document.addEventListener('input', clear, true);
+    document.addEventListener('change', clear, true);
+  }
 }
 
 // ── Sync tracked quotes → rate_profiles in Supabase (feeds lanes.html) ────
@@ -7648,17 +7824,67 @@ function showToast(msg){
   setTimeout(()=>{t.style.display='none';},3000);
 }
 
-async function deleteQuote(id){
+// Deleting a quote takes it off the log at once and offers Undo for a few seconds; the
+// database delete goes out when that time is up, when another quote is deleted, or when
+// the page is closed.
+const DELETE_UNDO_MS = 6000;
+let pendingDelete = null;   // { entry, index, timer }
+function deleteQuote(id){
   const q = quoteReady(id);
   if(!q) return;
   if(!canDeleteQuote(q)){ showToast('Only the team owner or whoever saved a quote can delete it'); return; }
-  quoteLog = quoteLog.filter(x => x.id != id);
+  flushPendingDelete();
+  const index = quoteLog.indexOf(q);
+  quoteLog = quoteLog.filter(x => x !== q);
   renderLog();
+  pendingDelete = { entry: q, index, timer: setTimeout(flushPendingDelete, DELETE_UNDO_MS) };
+  showUndoToast('Quote deleted', undoDelete);
+}
+function undoDelete(){
+  if(!pendingDelete) return;
+  clearTimeout(pendingDelete.timer);
+  const { entry, index } = pendingDelete;
+  pendingDelete = null;
+  quoteLog.splice(Math.min(index, quoteLog.length), 0, entry);
+  renderLog();
+  hideUndoToast();
+  showToast('↩ Quote restored');
+}
+function flushPendingDelete(){
+  if(!pendingDelete) return;
+  clearTimeout(pendingDelete.timer);
+  const entry = pendingDelete.entry;
+  pendingDelete = null;
+  hideUndoToast();
+  commitDelete(entry.id);
+}
+window.addEventListener('pagehide', flushPendingDelete);
+let undoToastTimer = null;
+function showUndoToast(text, onUndo){
+  let t = document.getElementById('undo-toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'undo-toast';
+    t.setAttribute('role', 'status');
+    t.innerHTML = '<span class="undo-text"></span><button type="button" class="undo-btn">Undo</button>';
+    document.body.appendChild(t);
+  }
+  t.querySelector('.undo-text').textContent = text;
+  t.querySelector('.undo-btn').onclick = onUndo;
+  t.classList.add('show');
+  clearTimeout(undoToastTimer);
+  undoToastTimer = setTimeout(hideUndoToast, DELETE_UNDO_MS);
+}
+function hideUndoToast(){
+  const t = document.getElementById('undo-toast');
+  if(t) t.classList.remove('show');
+}
+async function commitDelete(id){
   const session = getProSession();
   if(!session) return;
   try {
     const resp = await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?id=eq.${id}`, {
-      method: 'DELETE',
+      method: 'DELETE', keepalive: true,
       headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}`, 'Prefer': 'return=representation' }
     });
     const gone = resp.ok ? await resp.json().catch(() => null) : null;
@@ -7673,6 +7899,7 @@ async function deleteQuote(id){
 }
 
 async function clearLog(){
+  flushPendingDelete();   // a delete still in its Undo window goes first
   if(!quoteLog.length) return;
   const session = getProSession();
   const userId = session ? (session.user?.id || session.user?.sub) : null;
@@ -7835,6 +8062,7 @@ function quoteFromRow(r){
     createdAt: r.created_at || null,
     createdBy: r.created_by || null,
     createdByName: r.created_by_name || '',
+    details: r.details && typeof r.details === 'object' ? r.details : null,
   };
 }
 
@@ -8180,7 +8408,7 @@ function exportCSV(){
   ].map(csvCell).join(','));
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(hdr.join(',') + '\n' + rows.join('\n'));
-  a.download = 'freight_quotes_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.download = 'freight_quotes_' + localISODate() + '.csv';
   a.click();
 }
 
@@ -8587,7 +8815,12 @@ async function tryLookupMiles(){
           destination: destAddr,
           originLatLng: origLatLng,
           destinationLatLng: destLatLng,
-          includeLegs: true
+          // Both places checked: route between their coordinates, the same request Bulk,
+          // multi-stop, Profitability and the API make, so a lane gets the same miles
+          // everywhere. (Asking Google for the legs changes the route it picks: 882 vs 877 mi
+          // on Hastings, FL → Lancaster, PA.) A box that wasn't checked gets its point back
+          // from the legs, for the weather.
+          ...(origLatLng && destLatLng ? {} : { includeLegs: true })
         })
       }
     );
@@ -8622,11 +8855,14 @@ async function tryLookupMiles(){
     if(leg?.startLocation?.latLng && leg?.endLocation?.latLng){
       origCoords = { lat: leg.startLocation.latLng.latitude, lon: leg.startLocation.latLng.longitude, name: orig };
       destCoords = { lat: leg.endLocation.latLng.latitude,   lon: leg.endLocation.latLng.longitude,   name: dest };
+    } else if(origLatLng && destLatLng){
+      origCoords = { lat: origLatLng.lat, lon: origLatLng.lng, name: orig };
+      destCoords = { lat: destLatLng.lat, lon: destLatLng.lng, name: dest };
     }
 
     document.getElementById('miles').value = miles;
     setMilesSource('google');
-    showMilesStatus('✅', `${miles.toLocaleString()} miles · ${driveText} drive (Google Routes)`, 'var(--green)');
+    showMilesStatus('✅', `${miles.toLocaleString()} miles · ${driveText} drive (Google Maps)`, 'var(--green)');
     // Cache so repeat cursor movements don't re-fire the API call
     lastLookedUpOrig = origAddr.toLowerCase();
     lastLookedUpDest = destAddr.toLowerCase();
@@ -8828,7 +9064,7 @@ async function startup(){
   loadRates();
   initDistanceCurve();
   initMarketPanic();
-  document.getElementById('pickup').valueAsDate=new Date();
+  document.getElementById('pickup').value=localISODate();
   updateFSCLabel();
   updateAdvCount();
   renderLog();
