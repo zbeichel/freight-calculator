@@ -199,6 +199,24 @@ const setVal = (page, id, v) => page.evaluate(([id, v]) => { const e = document.
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
 
+  // ── Bulk: the same fuel economy as everywhere else ──────────────────────
+  console.log('\n=== Bulk fuel surcharge: 6.5 MPG ===');
+  t = await setup(browser, base);
+  await t.page.goto(base + '/bulk.html');
+  await t.page.waitForFunction(() => typeof calc === 'function' && DIESEL_PRICE === 5.92, null, { timeout: 8000 }).catch(() => {});
+  const bk = await t.page.evaluate(() => {
+    const set = (id, v) => { document.getElementById(id).value = v; };
+    set('loaded-miles', 712); set('deadhead-miles', 0); set('cwt', 450); set('offered-rate', 4.35);
+    calc();
+    const baseline = +document.getElementById('baseline').value || 0;
+    return { mpg: document.getElementById('mpg').value, label: document.getElementById('r-fsc-label').textContent,
+      want: ((DIESEL_PRICE - baseline) / 6.5).toFixed(2), diesel: DIESEL_PRICE };
+  });
+  check('Bulk assumes 6.5 MPG (as the calculator, the API and Market Rates do), and its surcharge per mile uses it',
+    bk.mpg === '6.5' && bk.diesel === 5.92 && bk.label.includes('$' + bk.want + '/mi'), JSON.stringify(bk));
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
   await browser.close();
   server.close();
   console.log(`\nScreenshots: ${SHOTS}`);

@@ -218,6 +218,84 @@ const money = (s) => Number(String(s).replace(/[^0-9.]/g, '')) || 0;
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
 
+  // ── Extra days and the stop dates ───────────────────────────────────────
+  console.log('\n=== Extra days follow the stop dates ===');
+  t = await setup(browser, base);
+  await t.page.goto(base + '/multistop.html');
+  await ready(t.page);
+  await setStop(t.page, 0, 'lancaster pa');
+  await setStop(t.page, 1, 'york pa');
+  await t.page.click('.add-btn-delivery');
+  await setStop(t.page, 2, 'hanover pa');
+  await waitMiles(t.page, '45 mi');
+  const days = () => t.page.evaluate(() => ({ count: document.getElementById('ms-extra-days-count').textContent, total: msLastCalc.extraDayTotal,
+    shown: document.getElementById('ms-day-charges-row').style.display !== 'none', line: document.getElementById('ms-extra-day-charges').textContent }));
+  const date = (i, d) => t.page.evaluate(([i, d]) => updateStopDate(stops[i].id, d), [i, d]);
+  const noDates = money(await t.page.textContent('#ms-quote'));
+  await date(0, '2026-11-20');
+  await date(2, '2026-11-24');
+  let dd = await days();
+  check('pickup Nov 20, last delivery Nov 24 on a 45-mile route: 3 extra days, $600', dd.count === '3' && dd.total === 600 && dd.shown && /3 days × \$200 = \$600/.test(dd.line), JSON.stringify(dd));
+  await t.page.evaluate(() => adjustExtraDays(-1));
+  await t.page.fill('#ms-margin', '20');
+  dd = await days();
+  check('− takes one off, and it stays when something else changes', dd.count === '2' && dd.total === 400, JSON.stringify(dd));
+  await t.page.fill('#ms-margin', '15');
+  await date(2, '2026-11-25');
+  dd = await days();
+  check('a new delivery date sets them from the dates again (4 days)', dd.count === '4' && dd.total === 800, JSON.stringify(dd));
+  await date(2, '');
+  dd = await days();
+  check('clearing the delivery date takes the extra days off the total', dd.count === '0' && dd.total === 0 && !dd.shown
+    && money(await t.page.textContent('#ms-quote')) === noDates, JSON.stringify(dd));
+  await t.page.evaluate(() => adjustExtraDays(1));
+  dd = await days();
+  check('without dates, + still adds a day by hand', dd.count === '1' && dd.total === 200, JSON.stringify(dd));
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
+  console.log('\n=== A stop changed to a place that can’t be found ===');
+  t = await setup(browser, base);
+  await t.page.goto(base + '/multistop.html');
+  await ready(t.page);
+  await setStop(t.page, 0, 'lancaster pa');
+  await setStop(t.page, 1, 'york pa');
+  await t.page.click('.add-btn-delivery');
+  await setStop(t.page, 2, 'hanover pa');
+  await waitMiles(t.page, '45 mi');
+  await setStop(t.page, 1, 'zzqx plorb');
+  check('its legs come off the total (no miles from the old place)', await waitMiles(t.page, '—'), await totalMiles(t.page));
+  const bad = await t.page.evaluate(() => ({ invalid: stops[1].invalid, legs: Object.keys(legMiles).length, quote: document.getElementById('ms-quote').textContent }));
+  check('…the stop is marked and there’s no quote', bad.invalid && bad.legs === 0 && bad.quote === '—', JSON.stringify(bad));
+  await setStop(t.page, 1, 'york pa');
+  check('putting a real place back brings the miles back', await waitMiles(t.page, '45 mi'), await totalMiles(t.page));
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
+  // ── The customer on saved quotes ────────────────────────────────────────
+  console.log('\n=== The customer goes with saved quotes ===');
+  t = await setup(browser, base);
+  await t.page.goto(base + '/multistop.html');
+  await ready(t.page);
+  await setStop(t.page, 0, 'lancaster pa');
+  await setStop(t.page, 1, 'york pa');
+  await waitMiles(t.page, '26 mi');
+  await t.page.fill('#ms-customer', 'Keystone Produce');
+  await t.page.evaluate(() => { document.getElementById('ms-customer').dataset.customerId = '77'; saveMsQuote(); });
+  await t.page.waitForFunction(() => getMsLog().length === 1);
+  await t.page.waitForTimeout(300);
+  const cpost = t.calls.logPosts[0] || {};
+  check('Save sends the customer and, picked from the list, its id', cpost.customer === 'Keystone Produce' && cpost.customer_id === 77, JSON.stringify({ c: cpost.customer, id: cpost.customer_id }));
+  check('the log row shows the customer', (await t.page.textContent('#ms-log-body .log-cust').catch(() => '')) === 'Keystone Produce');
+  const cid = await t.page.evaluate(() => getMsLog()[0].id);
+  await t.page.reload();
+  await ready(t.page);
+  await t.page.waitForFunction(() => getMsLog().length === 1 && getMsLog()[0].customer === 'Keystone Produce');
+  await t.page.evaluate((i) => loadMsQuote(i), cid);
+  check('Load puts the customer back in the box', (await t.page.inputValue('#ms-customer')) === 'Keystone Produce', await t.page.inputValue('#ms-customer'));
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
   // ── Rate sheet arriving late ────────────────────────────────────────────
   console.log('\n=== Rate sheet: rate-sheet.js arrives 1.5 seconds late ===');
   const SHEET = { all: { van: 3.4, reefer: 3.4, flatbed: 3.4 } };

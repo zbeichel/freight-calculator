@@ -112,6 +112,7 @@ html:not(.light) .stop-date-input::-webkit-calendar-picker-indicator{filter:inve
 .cell-btn.on{background:var(--accentbg);color:var(--accent)}
 .cell-btn+.cell-btn,.cell-btn+.ms-del-btn{margin-left:4px}
 .log-by{display:block;font-size:10px;color:var(--text3);margin-top:2px;font-style:italic}
+.log-cust{display:block;font-size:11px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ms-del-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px;transition:color .15s}
 .ms-del-btn:hover{color:var(--red)}
 
@@ -875,6 +876,28 @@ function msNum(id, def){
   return Number.isFinite(v) ? v : def;
 }
 let extraDays = 0;
+let dateExtraDays = 0;   // the extra days the stop dates called for last time (syncDateExtraDays)
+
+// The extra days the stop dates call for: calendar days from the first pickup to the last
+// delivery beyond the ~500 miles a day driving estimate. None without both dates.
+function dateExtraDaysNow(){
+  const firstPickup  = stops.find(s => s.type === 'pickup' && s.date);
+  const lastDelivery = [...stops].reverse().find(s => s.type === 'delivery' && s.date);
+  if(!firstPickup || !lastDelivery) return 0;
+  const calDays = Math.round((new Date(lastDelivery.date + 'T12:00:00') - new Date(firstPickup.date + 'T12:00:00')) / 86400000);
+  const totalMiles = msTotalMiles();
+  const estDays = totalMiles > 0 ? Math.ceil(totalMiles / 500) : 0;
+  return estDays > 0 && calDays > estDays ? calDays - estDays : 0;
+}
+// When the dates or miles call for a different number of extra days, the count follows them
+// (clearing a date takes them off); − and + in between are kept.
+function syncDateExtraDays(){
+  const want = dateExtraDaysNow();
+  if(want === dateExtraDays) return;
+  dateExtraDays = want;
+  extraDays = want;
+  document.getElementById('ms-extra-days-count').textContent = extraDays;
+}
 
 function adjustExtraDays(delta){
   extraDays = Math.max(0, extraDays + delta);
@@ -1111,9 +1134,7 @@ function updateStopDate(id, val){
   const s = stops.find(s => s.id === id);
   if(s){
     s.date = val;
-    // Run transit summary first — it sets extraDays based on the new date.
-    // Then calcTotal so the totals pick up the updated extraDays value.
-    calcTransitSummary();
+    // calcTotal brings the extra days in line with the dates, then shows the summary.
     calcTotal();
   }
 }
@@ -1159,25 +1180,15 @@ function calcTransitSummary(){
     document.getElementById('ms-calendar-days').textContent = `${calDays} day${calDays!==1?'s':''}`;
     calDaysRow.style.display = '';
 
-    // Compare calendar days to estimated drive days
-    const estDays = totalMiles > 0 ? Math.ceil(totalMiles / 500) : 0;
-    if(estDays > 0 && calDays > estDays){
-      const extraCalDays = calDays - estDays;
+    // Compare calendar days to estimated drive days (the extra days themselves follow the
+    // dates in syncDateExtraDays, at the start of calcTotal)
+    const extraCalDays = dateExtraDaysNow();
+    if(extraCalDays > 0){
       document.getElementById('ms-extra-days-warning-text').textContent =
         `⚠ ${extraCalDays} extra day${extraCalDays>1?'s':''} beyond estimated drive time — consider adding extra day charges`;
       warningRow.style.display = '';
-      // Sync extra days to match the date-calculated value. The caller is
-      // responsible for triggering calcTotal — calling it here would create
-      // an infinite recursion (calcTotal → calcTransitSummary → calcTotal).
-      extraDays = extraCalDays;
-      document.getElementById('ms-extra-days-count').textContent = extraCalDays;
     } else {
       warningRow.style.display = 'none';
-      // Reset extra days if dates no longer warrant them.
-      if(extraDays > 0){
-        extraDays = 0;
-        document.getElementById('ms-extra-days-count').textContent = '0';
-      }
     }
   } else {
     datesRow.style.display = 'none';
@@ -1494,6 +1505,7 @@ function msUpdateSeasonCalendar(){
 
 // ── Calculation ────────────────────────────────────────────────────────────
 function calcTotal(){
+  syncDateExtraDays();
   const baseRate   = parseFloat(document.getElementById('ms-rate').value) || 3.15;
   const marginPct  = (document.getElementById('ms-margin').value !== '' ? parseFloat(document.getElementById('ms-margin').value) : 15) / 100;
   const stopFee    = msNum('ms-stop-fee', 150);
@@ -1648,6 +1660,14 @@ function setStopChargeType(id, type){
 // ── PDF Generation ─────────────────────────────────────────────────────────
 // ── Customer: "Prepared for" on the PDF. With the customer list (Pro Plus
 // and up) the box searches saved customers and their details print too.
+// The customer box for the quote log: the name as typed and, when picked from the
+// customer list, its id.
+function msCustomerForLog(){
+  const el = document.getElementById('ms-customer');
+  const name = el ? el.value.trim().slice(0, 120) : '';
+  const id = el && el.dataset.customerId ? Number(el.dataset.customerId) : null;
+  return { name, id: Number.isFinite(id) && id > 0 ? id : null };
+}
 function msCustomer(){
   const el = document.getElementById('ms-customer');
   const name = el ? el.value : '';
@@ -2142,7 +2162,9 @@ async function loadMsLogFromSupabase(){
         marginVal:   r.margin_val ?? 15,   // 0% stays 0%
         baseRate:    r.base_rate || 3.15,
         createdBy:   r.created_by || null,
-        createdByName: r.created_by_name || ''
+        createdByName: r.created_by_name || '',
+        customer:    r.customer || '',
+        customerId:  r.customer_id || null
       }));
       saveMsLog(log);
       renderMsLog();
@@ -2169,7 +2191,8 @@ function renderMsLog(){
   }
   tbody.innerHTML = log.map(q => `<tr>
     <td class="dim">${escapeHTML(q.date)}</td>
-    <td style="min-width:180px;max-width:260px;white-space:normal;color:var(--text)">${escapeHTML(q.route)||'—'}${msTeam
+    <td style="min-width:180px;max-width:260px;white-space:normal;color:var(--text)">${escapeHTML(q.route)||'—'}${q.customer
+      ? `<span class="log-cust" title="${escapeHTML(q.customer)}">${escapeHTML(q.customer)}</span>` : ''}${msTeam
       ? `<span class="log-by">by ${escapeHTML(msSavedBy(q))}</span>` : ''}</td>
     <td>${Number(q.miles||0).toLocaleString()}</td>
     <td class="dim">${escapeHTML(q.stopsCount)||'—'}</td>
@@ -2245,6 +2268,8 @@ async function saveMsQuote(){
     commodityKey: commodity,
     marginVal: marginPct,
     baseRate: parseFloat(document.getElementById('ms-rate')?.value) || 3.15,
+    customer: msCustomerForLog().name,
+    customerId: msCustomerForLog().id,
     createdBy: msUserId()
   };
 
@@ -2281,7 +2306,9 @@ async function saveMsQuote(){
           trailer:      entry.trailer,
           commodity_key: entry.commodityKey,
           margin_val:   entry.marginVal,
-          base_rate:    entry.baseRate
+          base_rate:    entry.baseRate,
+          customer:     entry.customer || null,
+          customer_id:  entry.customerId || null
         })
       });
       setMsLogStatus(`✓ Synced`);
@@ -2348,6 +2375,7 @@ function loadMsQuote(id){
     legMiles = {};
     stopChargeOverrides = {};
     extraDays = 0;
+    dateExtraDays = 0;
     document.getElementById('ms-extra-days-count').textContent = '0';
     document.getElementById('stops-list').innerHTML = '';
 
@@ -2378,6 +2406,12 @@ function loadMsQuote(id){
   if(q.marginVal !== undefined){ const el = document.getElementById('ms-margin'); if(el) el.value = q.marginVal; }
   if(q.baseRate){ const el = document.getElementById('ms-rate'); if(el) el.value = q.baseRate.toFixed(2); }
   if(q.notes){ const el = document.getElementById('ms-load-notes'); if(el) el.value = q.notes; }
+  // The customer it was for (a saved customer's details come back with it)
+  const custEl = document.getElementById('ms-customer');
+  if(custEl){
+    if(custEl.__qfccPicker) custEl.__qfccPicker.set(q.customer || '', q.customerId);
+    else custEl.value = q.customer || '';
+  }
 
   calcTotal();
   document.getElementById('stops-list').scrollIntoView({ behavior: 'smooth', block: 'start' });

@@ -143,7 +143,7 @@ html.light .comp-result.bad{border-color:rgba(185,28,28,.3)}
               </div>
               <div class="field">
                 <label for="mpg">MPG assumption</label>
-                <input type="number" step="0.1" value="6.0" oninput="calc()" id="mpg" />
+                <input type="number" step="0.1" value="6.5" oninput="calc()" id="mpg" />
                 <div class="field-help">Loaded truck average: 6.0</div>
               </div>
             </div>
@@ -894,7 +894,7 @@ function calc(){
   let fscPerMile = 0;
   if(fscMethod === 'permile'){
     const baseline = +document.getElementById('baseline').value || 0;
-    const mpg      = +document.getElementById('mpg').value || 6;
+    const mpg      = +document.getElementById('mpg').value || 6.5;
     fscPerMile = Math.max(0, (DIESEL_PRICE - baseline) / mpg);
   }
 
@@ -1130,7 +1130,7 @@ function generateBulkPDF(){
   let fscPerMile = 0, fscTotal = 0, fscLine = '';
   if(fscMethod === 'permile'){
     const baseline = +document.getElementById('baseline').value || 0;
-    const mpg      = +document.getElementById('mpg').value || 6;
+    const mpg      = +document.getElementById('mpg').value || 6.5;
     fscPerMile = Math.max(0, (DIESEL_PRICE - baseline) / mpg);
     fscTotal   = fscPerMile * loadedMiles;
     fscLine    = `$${fscPerMile.toFixed(2)}/mi × ${loadedMiles.toLocaleString()} loaded mi`;
