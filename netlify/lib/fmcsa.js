@@ -408,7 +408,8 @@ function assess(r, now = Date.now()) {
   // Authority
   if (!A.activeCarrier && !gone('authority')) {
     const last = A.recentChanges.find((h) => h.status === 'Inactive');
-    if (A.activeBroker) add('stop', 'broker_only', 'Licensed as a broker only, with no active carrier authority: they can’t haul the load themselves.');
+    // A broker isn't a reason not to book in itself: say so, and only something severe below says "don't book"
+    if (A.activeBroker) add('warn', 'broker_only', 'Licensed as a broker, not a carrier: they arrange freight but have no active carrier authority, so they can’t haul the load on their own trucks.');
     else if (A.pendingCarrier) add('stop', 'authority_pending', 'Their operating authority isn’t active yet (still pending with FMCSA).');
     else if (A.carrier.length || last) add('stop', 'authority_inactive', `No active operating authority${last ? `: ${last.reason.replace(/\s*\(.*?\)\s*$/, '')} (${fmtDate(last.date)})` : ''}.`);
     else add('stop', 'no_authority', 'No for-hire operating authority on file: they can’t haul for hire across state lines.');
@@ -474,7 +475,7 @@ function assess(r, now = Date.now()) {
   if (mcsAge != null && mcsAge > 730) add('warn', 'mcs150_old', `Registration (MCS-150) last updated ${fmtDate(r.mcs150)}: it's due every two years.`);
   // Good to know
   if (A.activeCarrier && A.activeBroker) add('info', 'also_broker', 'Also licensed as a broker. Make sure they’ll haul the load on their own trucks.');
-  if (i && i.total === 0 && (authAge == null || authAge > 365)) add('info', 'no_inspections', 'No roadside inspections in the last two years.');
+  if (i && i.total === 0 && (authAge == null || authAge > 365) && !(A.activeBroker && !A.activeCarrier)) add('info', 'no_inspections', 'No roadside inspections in the last two years.');
   if (r.crashes && r.crashes.fatal) add('info', 'fatal_crashes', `${r.crashes.fatal} fatal crash${r.crashes.fatal === 1 ? '' : 'es'} in the last two years (of ${r.crashes.total} reportable).`);
   const verdict = flags.some((f) => f.level === 'stop') ? 'stop' : flags.some((f) => f.level === 'warn') ? 'warn' : 'ok';
   return { verdict, flags };
@@ -488,7 +489,7 @@ async function monitorFacts(dots, opt = {}) {
   const twice = (ds, params, o) => soql(ds, params, o).catch(() => sleep(o.retryDelayMs != null ? o.retryDelayMs : 1000).then(() => soql(ds, params, o)));
   const list = [...new Set(dots.map(digits).filter(Boolean))];
   const out = {};
-  for (const d of list) out[d] = { carrierStatus: [], onFile: 0, required: 0, cancels: [], oos: [], suspensions: [], usdotStatus: null, safetyRating: null };
+  for (const d of list) out[d] = { carrierStatus: [], brokerStatus: [], onFile: 0, required: 0, cancels: [], oos: [], suspensions: [], usdotStatus: null, safetyRating: null };
   const today = ymd(new Date(Date.now()));
   for (let i = 0; i < list.length; i += 100) {
     const batch = list.slice(i, i + 100);
@@ -511,6 +512,7 @@ async function monitorFacts(dots, opt = {}) {
     }
     for (const r of auth) {
       const f = out[digits(r.usdot_number)];
+      if (f && BROKER_AUTH.test(r.op_auth_type || '')) { f.brokerStatus.push(r.op_auth_status); continue; }
       if (!f || !CARRIER_AUTH.test(r.op_auth_type || '')) continue;
       f.carrierStatus.push(r.op_auth_status);
       f.onFile = Math.max(f.onFile, money(r.bipd_file) || 0);
@@ -548,7 +550,10 @@ async function monitorFacts(dots, opt = {}) {
     f.suspensions.sort((a, b) => String(a.effective).localeCompare(String(b.effective)) || String(a.served).localeCompare(String(b.served)));
     f.cancels.sort((a, b) => a.cancels.localeCompare(b.cancels) || a.policy.localeCompare(b.policy));
     f.oos.sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.reason.localeCompare(b.reason));
+    // A broker's authority, recorded only while it's active (carriers' saved facts keep their shape)
+    if (f.brokerStatus.includes('Active')) f.broker = 'Active';
     delete f.carrierStatus;
+    delete f.brokerStatus;
   }
   return out;
 }
@@ -561,6 +566,9 @@ function diffFacts(prev, cur, name) {
   if (prev.authority === 'Active' && cur.authority !== 'Active') {
     const now = cur.authority === 'None' ? 'no longer has operating authority on file' : `operating authority is now ${String(cur.authority).toLowerCase()}`;
     alerts.push({ kind: 'authority', text: `${who}: ${now}. Don’t tender them loads until it’s active again.` });
+  }
+  if (prev.broker === 'Active' && prev.authority !== 'Active' && cur.broker !== 'Active' && cur.authority !== 'Active') {
+    alerts.push({ kind: 'authority', text: `${who}: broker authority is no longer active. Don’t book with them until it’s active again.` });
   }
   if (!prev.insuranceShort && cur.insuranceShort) alerts.push({ kind: 'insurance', text: `${who}: liability insurance on file dropped to ${usd(cur.onFile)}, below the ${usd(cur.required)} required.` });
   for (const c of cur.cancels || []) {
@@ -592,12 +600,14 @@ function diffFacts(prev, cur, name) {
 // carrier stays "check before booking" on the list until it's past the new-carrier window.
 function factsVerdict(f, now = Date.now()) {
   if (!f || !Object.keys(f).length) return null;
-  if (f.authority !== 'Active' || f.insuranceShort || (f.oos && f.oos.length) || (f.usdotStatus && f.usdotStatus !== 'Active') || f.safetyRating === 'Unsatisfactory') return 'stop';
+  // A broker (active broker authority, no active carrier authority): "check before booking" for that alone
+  const brokerOnly = f.authority !== 'Active' && f.broker === 'Active';
+  if ((f.authority !== 'Active' && !brokerOnly) || f.insuranceShort || (f.oos && f.oos.length) || (f.usdotStatus && f.usdotStatus !== 'Active') || f.safetyRating === 'Unsatisfactory') return 'stop';
   const age = (iso) => (iso ? Math.floor((now - Date.parse(iso + 'T00:00:00Z')) / DAY) : null);
   const authAge = age(f.granted), dotAge = age(f.usdotAdded);
   const isNew = (authAge != null && authAge < NEW_AUTHORITY_DAYS) || (dotAge != null && dotAge < NEW_USDOT_DAYS);
   const pendingSuspension = (f.suspensions || []).some((s) => s.effective && s.effective >= new Date(now).toISOString().slice(0, 10));
-  if ((f.cancels && f.cancels.length) || f.safetyRating === 'Conditional' || isNew || f.noInsurance || pendingSuspension) return 'warn';
+  if (brokerOnly || (f.cancels && f.cancels.length) || f.safetyRating === 'Conditional' || isNew || f.noInsurance || pendingSuspension) return 'warn';
   return 'ok';
 }
 
