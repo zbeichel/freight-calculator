@@ -71,6 +71,7 @@ async function setup(browser, base, { plan = 'plus', rateSheet = null, sheetDela
     }
     if (url.includes('/rest/v1/ms_quote_log')) {
       if (req.method() === 'POST') { const row = JSON.parse(req.postData()); calls.logPosts.push(row); db.rows.unshift(row); return route.fulfill({ status: 201, body: '' }); }
+      if (req.method() === 'DELETE' && db.failDeletes) return route.abort();
       return json(db.rows);
     }
     if (url.includes('/rest/v1/rpc/my_account')) return json({ row: null, team: null });
@@ -203,6 +204,80 @@ const money = (s) => Number(String(s).replace(/[^0-9.]/g, '')) || 0;
     return { invalid: c.querySelector('input[type="text"]').classList.contains('invalid'), note: (document.getElementById('stop-note-' + stops[i].id) || {}).textContent || '' };
   }, 0);
   check('the loaded stops are checked places, ready to edit', !card.invalid, JSON.stringify(card));
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
+  // ── Dates and charges come back with Load; the CSV; a stop that can't be found; a failed delete ──
+  console.log('\n=== Load brings back the dates and the charges ===');
+  t = await setup(browser, base);
+  await t.page.goto(base + '/multistop.html');
+  await ready(t.page);
+  await setStop(t.page, 0, 'lancaster pa');
+  await setStop(t.page, 1, 'york pa');
+  await t.page.click('.add-btn-delivery');
+  await setStop(t.page, 2, 'hanover pa');
+  await waitMiles(t.page, '45 mi');
+  await t.page.evaluate(() => {
+    const set = (id, v) => { const e = document.getElementById(id); e.value = v; e.dispatchEvent(new Event('input')); };
+    set('ms-stop-fee', '90'); set('ms-day-charge', '175');
+    updateStopDate(stops[0].id, '2026-11-20'); updateStopDate(stops[2].id, '2026-11-24');
+  });
+  const dBefore = await t.page.evaluate(() => ({ quote: document.getElementById('ms-quote').textContent, days: extraDays }));
+  await t.page.evaluate(() => saveMsQuote());
+  await t.page.waitForFunction(() => getMsLog().length === 1);
+  await t.page.waitForTimeout(300);
+  const dPost = t.calls.logPosts[0] || {};
+  const sd = dPost.stop_data || [];
+  check('saved with its stop dates and the charges it was priced with (3 extra days, $90 stop fee, $175 a day)',
+    dBefore.days === 3 && sd[0] && sd[0].date === '2026-11-20' && sd[2] && sd[2].date === '2026-11-24'
+    && dPost.details && dPost.details.stopFee === 90 && dPost.details.dayCharge === 175 && dPost.details.extraDays === 3,
+    JSON.stringify({ before: dBefore, stop_data: sd, details: dPost.details }));
+  const csv = await t.page.evaluate(() => {
+    let href = '';
+    const click = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () { href = this.href; };
+    try { exportMsCSV(); } finally { HTMLAnchorElement.prototype.click = click; }
+    return decodeURIComponent(href.slice(href.indexOf(',') + 1));
+  });
+  const cells = (line) => { const out = []; let cur = '', q = false;
+    for (let i = 0; i < line.length; i++) { const c = line[i];
+      if (q) { if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') q = false; else cur += c; }
+      else if (c === '"') q = true; else if (c === ',') { out.push(cur); cur = ''; } else cur += c; }
+    out.push(cur); return out; };
+  const [csvHead, csvRow] = csv.split('\n').map(cells);
+  const entry = await t.page.evaluate(() => getMsLog()[0]);
+  check('the CSV lines up: the date (with its comma) is one cell, and there’s a Customer column',
+    csvHead.join('|') === 'Date|Customer|Route|Miles|Stops|Commodity|Margin|Quote|RPM|Notes' && csvRow.length === 10
+    && csvRow[0] === entry.date && csvRow[2] === entry.route && csvRow[3] === String(entry.miles) && csvRow[7] === String(entry.quote), csv);
+  const dId = entry.id;
+  await t.page.reload();
+  await ready(t.page);
+  await t.page.waitForFunction(() => getMsLog().length === 1);
+  await t.page.evaluate((i) => loadMsQuote(i), dId);
+  await waitMiles(t.page, '45 mi');
+  await t.page.waitForTimeout(1500);
+  const dAfter = await t.page.evaluate(() => ({ quote: document.getElementById('ms-quote').textContent, days: extraDays,
+    dates: stops.map((s) => (document.getElementById('stop-date-' + s.id) || {}).value || ''),
+    fee: document.getElementById('ms-stop-fee').value, day: document.getElementById('ms-day-charge').value }));
+  check('Load brings back the dates, the fees and the extra days: the same total (it came back without the extra days)',
+    dAfter.quote === dBefore.quote && dAfter.days === 3 && dAfter.fee === '90' && dAfter.day === '175'
+    && dAfter.dates[0] === '2026-11-20' && dAfter.dates[2] === '2026-11-24', JSON.stringify(dAfter) + ' saved ' + dBefore.quote);
+
+  // A stop changed to a place that can't be found: its leg's miles and its "✅ … to next stop" line go
+  await setStop(t.page, 2, 'qwxzvbnm plrtk');
+  await t.page.waitForFunction(() => document.getElementById('leg-badge-' + stops[1].id).textContent === '— mi', null, { timeout: 8000 }).catch(() => {});
+  const gone = await t.page.evaluate(() => ({ badge: document.getElementById('leg-badge-' + stops[1].id).textContent,
+    status: document.getElementById('leg-status-' + stops[1].id).textContent, total: document.getElementById('ms-total-miles').textContent }));
+  check('a stop changed to a place that can’t be found clears that leg’s “✅ 19 mi to next stop” line too',
+    gone.badge === '— mi' && gone.status === '' && gone.total === '26 mi', JSON.stringify(gone));
+
+  // A delete that doesn't reach the database says so, and the log shows what's saved
+  t.db.failDeletes = true;
+  await t.page.evaluate((i) => deleteMsQuote(i), dId);
+  await t.page.waitForFunction(() => /Couldn’t delete/.test((document.getElementById('ms-toast') || {}).textContent || ''), null, { timeout: 5000 }).catch(() => {});
+  await t.page.waitForTimeout(500);
+  const failed = await t.page.evaluate(() => ({ toast: (document.getElementById('ms-toast') || {}).textContent || '', log: getMsLog().length }));
+  check('a delete that fails says so, and the quote is still in the log', /^⚠ Couldn’t delete the quote/.test(failed.toast) && failed.log === 1, JSON.stringify(failed));
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
 

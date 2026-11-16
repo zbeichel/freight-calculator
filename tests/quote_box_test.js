@@ -77,6 +77,7 @@ async function setup(browser, base, { profile = {}, row = {}, quotes = [], geoco
         return json([row], 201);
       }
       if (req.method() === 'DELETE') {
+        if (db.failDeletes) return route.abort();
         const q = new URL(url).search;
         db.deletes.push(q);
         const id = (q.match(/id=eq\.(\d+)/) || [])[1];
@@ -260,6 +261,11 @@ const setVal = (page, id, v, ev = 'input') => page.evaluate(([id, v, ev]) => { c
   b = await box(t.page);
   check('Load brings back the extra days and the same price', b.extra === '$1,000' && b.added && b.quote === priced.quote
     && await t.page.$eval('#r-saved-note', (e) => e.hidden), JSON.stringify(b) + ' saved ' + priced.quote);
+  const [reTab] = await Promise.all([t.context.waitForEvent('page'), t.page.evaluate(() => generateQuotePDF())]);
+  await reTab.waitForLoadState('load');
+  const reTransit = await transitText(reTab);
+  check('…and its PDF has the driving time it was saved with (it estimated one from the miles)', !!calcTransit && reTransit === calcTransit, calcTransit + ' vs ' + reTransit);
+  await reTab.close();
   await t.page.evaluate(() => { document.getElementById('diesel-enabled').checked = false; toggleDiesel(); });
   await t.page.evaluate((i) => loadQuoteIntoCalc(i), id);
   await t.page.waitForTimeout(200);
@@ -268,6 +274,17 @@ const setVal = (page, id, v, ev = 'input') => page.evaluate(([id, v, ev]) => { c
     && /Today’s rates and settings price it at \$[\d,]+/.test(note) && (await box(t.page)).quote !== priced.quote, note);
   await t.page.fill('#margin', '20');
   check('…until the quote is changed', await t.page.$eval('#r-saved-note', (e) => e.hidden));
+  await t.page.fill('#margin', '18');
+  await t.page.evaluate((i) => loadQuoteIntoCalc(i), id);   // fuel still off: priced differently today
+  await t.page.waitForTimeout(200);
+  const follow1 = await t.page.$eval('#r-saved-note', (e) => e.hidden ? '' : e.textContent);
+  await t.page.evaluate(() => { document.getElementById('diesel-enabled').checked = true; dieselSource = 'manual'; document.getElementById('diesel-price').value = '6.13'; calc(); });
+  const follow2 = await t.page.evaluate(() => ({ hidden: document.getElementById('r-saved-note').hidden, quote: document.getElementById('r-quote').textContent }));
+  await t.page.evaluate(() => { document.getElementById('diesel-enabled').checked = false; calc(); });
+  const follow3 = await t.page.evaluate(() => ({ note: document.getElementById('r-saved-note').hidden ? '' : document.getElementById('r-saved-note').textContent,
+    quote: document.getElementById('r-quote').textContent }));
+  check('the note follows the quote box when a switch changes it: gone at the saved price, and naming the price shown (it kept an old one)',
+    !!follow1 && follow2.hidden && follow2.quote === priced.quote && follow3.note.endsWith(`price it at ${follow3.quote}.`), JSON.stringify({ follow1, follow2, follow3 }));
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
 
@@ -289,6 +306,24 @@ const setVal = (page, id, v, ev = 'input') => page.evaluate(([id, v, ev]) => { c
     && lText.includes('Fri, Nov 20') && !lText.includes('2026-11-20'), lText.slice(0, 400));
   await t.context.close();
 
+  console.log('\n=== Load: the rate note names the rate the quote uses ===');
+  t = await setup(browser, base);
+  await openCalc(t, base);
+  await lane(t.page);
+  await t.page.evaluate(() => saveQuote());
+  await until(() => t.db.posts.length >= 1);
+  const rid = await t.page.evaluate(() => quoteLog[0].id);
+  await t.page.evaluate(() => { clearShipmentForm(); const o = document.getElementById('origin'); o.value = 'Lancaster, PA'; o.dispatchEvent(new Event('input')); });
+  await t.page.waitForFunction(() => /NORTHEAST REGION/.test(document.getElementById('rate-disclaimer').textContent), null, { timeout: 4000 }).catch(() => {});
+  const typedNote = await t.page.textContent('#rate-disclaimer');
+  await t.page.evaluate((i) => loadQuoteIntoCalc(i), rid);
+  await t.page.waitForTimeout(200);
+  const rn = await t.page.evaluate(() => ({ note: document.getElementById('rate-disclaimer').textContent, label: document.getElementById('rate-region-label').textContent }));
+  check('after Load the rate note says the saved base rate is used (it kept the previous lane’s “NORTHEAST REGION”)',
+    /NORTHEAST REGION/.test(typedNote) && rn.note === 'This quote uses the base rate, per mile, it was saved with.' && rn.label === '📋 Base rate from the saved quote', JSON.stringify(rn));
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
   // ── Deleting from the quote log ───────────────────────────────────────
   console.log('\n=== Quote log: delete with Undo ===');
   const Q = (id, o) => Object.assign({ id, user_id: 'user-1', date: 'Nov 15, 26', origin: 'Columbus, OH', destination: 'Atlanta, GA', miles: 571, trailer: 'van',
@@ -305,6 +340,14 @@ const setVal = (page, id, v, ev = 'input') => page.evaluate(([id, v, ev]) => { c
   await t.page.click('#log-body tr:first-child .del-btn');
   await sleep(6600);
   check('left alone, it’s deleted from the account after a few seconds', t.db.deletes.join() === '?id=eq.301' && !(await t.page.isVisible('#undo-toast.show')), t.db.deletes.join());
+  t.db.failDeletes = true;
+  await t.page.click('#log-body tr:first-child .del-btn');
+  await t.page.evaluate(() => flushPendingDelete());
+  await t.page.waitForFunction(() => /Couldn’t delete/.test(document.getElementById('save-toast').textContent), null, { timeout: 4000 }).catch(() => {});
+  await until(async () => (await t.page.evaluate(() => quoteLog.length)) === 1);
+  const failedDel = await t.page.evaluate(() => ({ toast: document.getElementById('save-toast').textContent, log: quoteLog.map((q) => q.id).join() }));
+  check('a delete that doesn’t reach the account says so, and the quote is back in the log', /^⚠ Couldn’t delete the quote/.test(failedDel.toast) && failedDel.log === '302',
+    JSON.stringify(failedDel));
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
 

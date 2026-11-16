@@ -909,6 +909,13 @@ function adjustExtraDays(delta){
 }
 let legTimers = {};
 let stopChargeOverrides = {}; // stopId → { amount, type } where type is 'flat' or 'permile'
+// The fees, extra days and per-stop charges a quote is priced with (saved with it, so Load
+// brings back the same total)
+function msChargeSettings(){
+  const charges = stops.map(s => stopChargeOverrides[s.id] || null);
+  return Object.assign({ stopFee: msNum('ms-stop-fee', 150), dayCharge: msNum('ms-day-charge', 200), extraDays },
+    charges.some(Boolean) ? { charges } : {});
+}
 let msLastCalc = null; // calcTotal()'s numbers, for the Modern PDF (pdf-quote.js)
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
@@ -1232,6 +1239,8 @@ async function lookupLegMiles(id){
       delete legMiles[id];
       const b = document.getElementById(`leg-badge-${id}`);
       if(b){ b.className = 'leg-miles-badge'; b.textContent = '— mi'; }
+      const st = document.getElementById(`leg-status-${id}`);
+      if(st){ st.className = 'miles-status'; st.textContent = ''; }
       calcTotal();
     }
     return;
@@ -2167,7 +2176,8 @@ async function loadMsLogFromSupabase(){
         createdBy:   r.created_by || null,
         createdByName: r.created_by_name || '',
         customer:    r.customer || '',
-        customerId:  r.customer_id || null
+        customerId:  r.customer_id || null,
+        details:     r.details || null
       }));
       saveMsLog(log);
       renderMsLog();
@@ -2266,7 +2276,10 @@ async function saveMsQuote(){
     notes: document.getElementById('ms-load-notes')?.value.trim() || '',
     // Each leg's miles go with the stop it starts from, so "Load" brings the quote back as priced.
     stopData: stops.map((s, i) => Object.assign({ type: s.type, location: s.location, weight: s.weight || '' },
+      s.date ? { date: s.date } : {},
       i < stops.length - 1 && Number(legMiles[s.id]) > 0 ? { legMiles: Number(legMiles[s.id]) } : {})),
+    // The fees, extra days and per-stop charges it was priced with
+    details: msChargeSettings(),
     trailer: document.getElementById('ms-trailer')?.value || '',
     commodityKey: commodity,
     marginVal: marginPct,
@@ -2311,7 +2324,8 @@ async function saveMsQuote(){
           margin_val:   entry.marginVal,
           base_rate:    entry.baseRate,
           customer:     entry.customer || null,
-          customer_id:  entry.customerId || null
+          customer_id:  entry.customerId || null,
+          details:      entry.details || null
         })
       });
       setMsLogStatus(`✓ Synced`);
@@ -2333,9 +2347,13 @@ async function deleteMsQuote(id){
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}`, 'Prefer': 'return=representation' }
     });
-    const gone = resp.ok ? await resp.json().catch(() => null) : null;
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const gone = await resp.json().catch(() => null);
     if(msTeam && Array.isArray(gone) && !gone.length) loadMsLogFromSupabase();   // the database kept it
-  } catch(e){}
+  } catch(e){
+    showMsToast('⚠ Couldn’t delete the quote. Check your connection and try again.');
+    loadMsLogFromSupabase();
+  }
 }
 
 // ── Clear All ─────────────────────────────────────────────────────────────
@@ -2357,10 +2375,11 @@ async function clearMsLog(){
     : msTeamMember() ? `created_by=eq.${userId}`
     : `or=(created_by.eq.${userId},created_by.is.null)`;
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log?${which}`, {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/ms_quote_log?${which}`, {
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${session.access_token}` }
     });
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
     setMsLogStatus('Cleared');
   } catch(e){}
 }
@@ -2385,9 +2404,19 @@ function loadMsQuote(id){
     // Add each stop then populate location/weight
     q.stopData.forEach(s => {
       const id = ++stopIdCounter;
-      stops.push({ id, type: s.type, location: s.location || '', miles: 0, weight: s.weight || '' });
+      stops.push({ id, type: s.type, location: s.location || '', miles: 0, weight: s.weight || '', date: s.date || '' });
       if(Number(s.legMiles) > 0) legMiles[id] = Number(s.legMiles);   // the miles this quote was priced on
     });
+    // The charges it was priced with: fees, each stop's own charge, and the extra days
+    // (which may have been set with − and + beyond what the dates call for)
+    const det = q.details || {};
+    const num = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+    if(num(det.stopFee)) document.getElementById('ms-stop-fee').value = Number(det.stopFee);
+    if(num(det.dayCharge)) document.getElementById('ms-day-charge').value = Number(det.dayCharge);
+    if(Array.isArray(det.charges)) stops.forEach((s, i) => { if(det.charges[i]) stopChargeOverrides[s.id] = det.charges[i]; });
+    dateExtraDays = dateExtraDaysNow();
+    extraDays = num(det.extraDays) ? Math.max(0, Number(det.extraDays)) : dateExtraDays;
+    document.getElementById('ms-extra-days-count').textContent = extraDays;
     renderStops();
 
     // Fill in the boxes and check each place, as leaving the box does, so the stops are ready
@@ -2417,6 +2446,7 @@ function loadMsQuote(id){
   }
 
   calcTotal();
+  renderCharges();
   document.getElementById('stops-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
   showMsToast('✓ Quote loaded into calculator');
 }
@@ -2471,14 +2501,12 @@ document.getElementById('ms-dupe-modal').addEventListener('click', function(e){ 
 function exportMsCSV(){
   const log = getMsLog();
   if(!log.length){ showMsToast('⚠ No quotes to export'); return; }
-  const hdr = 'Date,Route,Miles,Stops,Commodity,Margin,Quote,RPM,Notes\n';
-  const rows = log.map(q => [
-    q.date, `"${q.route}"`, q.miles, q.stopsCount,
-    q.commodity, q.margin, q.quote, q.rpm,
-    `"${(q.notes||'').replace(/"/g,'""')}"`
-  ].join(',')).join('\n');
+  // Each cell quoted when it needs to be: the date ("Nov 15, 26") has a comma
+  const cell = (v) => { const s = v === null || v === undefined ? '' : String(v); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const hdr = ['Date', 'Customer', 'Route', 'Miles', 'Stops', 'Commodity', 'Margin', 'Quote', 'RPM', 'Notes'];
+  const rows = log.map(q => [q.date, q.customer || '', q.route, q.miles, q.stopsCount, q.commodity, q.margin, q.quote, q.rpm, q.notes || ''].map(cell).join(','));
   const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(hdr + rows);
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(hdr.join(',') + '\n' + rows.join('\n'));
   const d = new Date();   // the local day, not UTC's
   a.download = 'ms_quotes_' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + '.csv';
   a.click();

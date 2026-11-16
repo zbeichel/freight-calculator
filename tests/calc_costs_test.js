@@ -127,15 +127,15 @@ const setVal = (page, id, v) => page.evaluate(([id, v]) => { const e = document.
   await open(t, base);
   check('the price box starts at the $3.85 placeholder', (await t.page.inputValue('#diesel-price')) === '3.85');
   await t.page.evaluate(() => { const c = document.getElementById('diesel-enabled'); c.checked = true; c.dispatchEvent(new Event('change')); });
-  await t.page.waitForFunction(() => document.getElementById('diesel-price').value === '6.13', null, { timeout: 5000 }).catch(() => {});
+  await t.page.waitForFunction(() => document.getElementById('diesel-price').value === '5.92', null, { timeout: 5000 }).catch(() => {});
   let d = await t.page.evaluate(() => ({ price: document.getElementById('diesel-price').value, fsc: getDieselFSC(), status: document.getElementById('eia-status').textContent,
     shown: document.getElementById('diesel-fsc-display').textContent, saved: JSON.parse(localStorage.getItem('frc_diesel') || '{}') }));
-  check('turning the surcharge on fills in this week’s East Coast price ($6.13)', d.price === '6.13' && /\$6\.13\/gal · East Coast/.test(d.status), JSON.stringify(d));
-  check('…so the surcharge is $0.75/mi, not $0.40', d.fsc === 0.75 && /\+\$0\.75\/mile FSC at \$6\.13\/gal/.test(d.shown), JSON.stringify(d));
-  check('…and it’s remembered as the live price', d.saved.price === '6.13' && d.saved.source === 'live' && d.saved.enabled === true, JSON.stringify(d.saved));
+  check('turning the surcharge on fills in this week’s national average ($5.92), as multi-stop, Bulk and the API use', d.price === '5.92' && /\$5\.92\/gal · National/.test(d.status), JSON.stringify(d));
+  check('…so the surcharge is $0.72/mi, not $0.40', d.fsc === 0.72 && /\+\$0\.72\/mile FSC at \$5\.92\/gal/.test(d.shown), JSON.stringify(d));
+  check('…and it’s remembered as the live price', d.saved.price === '5.92' && d.saved.source === 'live' && d.saved.enabled === true && d.saved.region === 'NUS', JSON.stringify(d.saved));
   await t.page.evaluate(() => { const c = document.getElementById('diesel-enabled'); c.checked = false; c.dispatchEvent(new Event('change')); c.checked = true; c.dispatchEvent(new Event('change')); });
   await t.page.waitForTimeout(400);
-  check('turning it off and on again doesn’t ask EIA twice', t.calls.diesel.filter((r) => r === 'R10').length === 1, t.calls.diesel.join(','));
+  check('turning it off and on again doesn’t ask EIA twice', t.calls.diesel.filter((r) => r === 'NUS').length === 1, t.calls.diesel.join(','));
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
 
@@ -149,7 +149,7 @@ const setVal = (page, id, v) => page.evaluate(([id, v]) => { const e = document.
   t = await setup(browser, base);
   await open(t, base);
   await t.page.evaluate(() => { const c = document.getElementById('diesel-enabled'); c.checked = true; c.dispatchEvent(new Event('change')); });
-  await t.page.waitForFunction(() => document.getElementById('diesel-price').value === '6.13', null, { timeout: 5000 }).catch(() => {});
+  await t.page.waitForFunction(() => document.getElementById('diesel-price').value === '5.92', null, { timeout: 5000 }).catch(() => {});
   await setVal(t.page, 'diesel-price', '4.25');
   const typed = await t.page.evaluate(() => JSON.parse(localStorage.getItem('frc_diesel')));
   check('typing a price saves it as yours', typed.price === '4.25' && typed.source === 'manual', JSON.stringify(typed));
@@ -232,6 +232,19 @@ const setVal = (page, id, v) => page.evaluate(([id, v]) => { const e = document.
     /^\$\d{1,3}(,\d{3})+\.\d{2} profit margin over target$/.test(bf.over.head) && /^\$\d{1,3}(,\d{3})+\.\d{2} short of target$/.test(bf.short.head), JSON.stringify([bf.over.head, bf.short.head]));
   check('a target the fuel surcharge alone covers: said so, with no negative minimum (“$-0.71/cwt”)',
     /fuel surcharge alone covers your target/.test(bf.covered.detail) && !/\$-/.test(bf.covered.detail + bf.covered.head), JSON.stringify(bf.covered));
+  const neg = await t.page.evaluate(() => {
+    const set = (id, v) => { document.getElementById(id).value = v; };
+    set('loaded-miles', 396); set('cwt', 450); set('offered-rate', 6.5); set('target-rpm', 2.5); set('deadhead-miles', -50); calc();
+    const r = { req: document.getElementById('required-rate').textContent, sub: document.getElementById('required-rate-sub').textContent,
+      invalid: document.getElementById('deadhead-miles').getAttribute('aria-invalid'), compare: document.getElementById('compare-output').style.display };
+    set('deadhead-miles', ''); calc();
+    r.after = document.getElementById('required-rate').textContent; r.cleared = document.getElementById('deadhead-miles').getAttribute('aria-invalid');
+    r.mpgHelp = document.getElementById('mpg').parentElement.querySelector('.field-help').textContent;
+    return r;
+  });
+  check('Bulk: −50 deadhead miles is refused with a message, not priced over 346 miles', neg.req === '—' && neg.sub === 'Deadhead miles can’t be negative.' && neg.invalid === 'true'
+    && neg.compare === 'none' && /^\$\d+\.\d{2}\/cwt$/.test(neg.after) && neg.cleared === null, JSON.stringify(neg));
+  check('Bulk’s MPG help says 6.5, its default (it said 6.0)', neg.mpgHelp === 'Loaded truck average: 6.5', neg.mpgHelp);
   check('the surcharge percent reads the same in the label, the help and the box (not 96.5% beside 97%)',
     bf.pct.ph !== '' && bf.pct.label.includes('(' + bf.pct.ph + '% of base)') && bf.pct.help.endsWith('= ' + bf.pct.ph + '%'), JSON.stringify(bf.pct));
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));

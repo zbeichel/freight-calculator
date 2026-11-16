@@ -2157,7 +2157,7 @@ html.light .hos-day-header{background:var(--card2)}
                   <option value="R30">Gulf Coast</option>
                   <option value="R40">Rocky Mountain</option>
                   <option value="R50">West Coast</option>
-                  <option value="NUS">National Average</option>
+                  <option value="NUS" selected>National Average</option>
                 </select>
               </div>
               <!-- Price input + fetch button -->
@@ -3768,6 +3768,7 @@ let origCoords = null;
 let destCoords = null;
 
 let ratesManualOverride = false;
+let ratesFromSavedQuote = false;   // the base rate came back with a quote loaded from the log
 
 async function geocodeWithGoogle(address){
   // Use our Netlify proxy — avoids key exposure and referrer restriction issues
@@ -3973,7 +3974,7 @@ function generateQuotePDF(opts){
       },
       // For the transit estimate: the route's driving time when the miles came
       // from Google (typed-in miles are estimated), and the dates as entered.
-      driveSecs: /google/i.test(document.getElementById('miles-source')?.textContent || '') ? lastDriveSecs : 0,
+      driveSecs: /google/i.test(document.getElementById('miles-source')?.textContent || '') ? lastDriveSecs : savedDriveSecs,
       pickupISO: document.getElementById('pickup').value || '',
       deliveryISO: document.getElementById('delivery').value || '',
     };
@@ -6449,7 +6450,9 @@ function updateRateDisclaimer(){
   const el = document.getElementById('rate-disclaimer');
   if(!el) return;
   if(ratesManualOverride){
-    el.innerHTML = 'This quote is based on a base rate, per mile, that was entered manually.';
+    el.innerHTML = ratesFromSavedQuote
+      ? 'This quote uses the base rate, per mile, it was saved with.'
+      : 'This quote is based on a base rate, per mile, that was entered manually.';
   } else if(rateMode === 'sheet' && myRateSheet()){
     el.innerHTML = 'This quote starts from <strong style="color:var(--text2)">your rate sheet</strong> (set on your Profile page), with the market rate wherever your sheet is blank. Pick <strong style="color:var(--text2)">Regional</strong> or <strong style="color:var(--text2)">National Avg</strong> in the Base Rates box for market rates.';
   } else {
@@ -6463,6 +6466,7 @@ let appliedRateRegion = 'national';   // whose market rates the Base Rates box h
 
 function saveRates(){
   ratesManualOverride = true;
+  ratesFromSavedQuote = false;
   rateMode = 'manual';
   styleRateButtons(null);   // none of My rates / Regional / National is on
   const regionEl = document.getElementById('rate-region-label');
@@ -7189,6 +7193,7 @@ function calc(){
   const quote=(cost+transitAdj)*(1+marginPct);
   const qRpm=miles>0?quote/miles:0;
   lastFtlQuote = { quote, rpm: qRpm };
+  renderSavedNote();
 
   // Hero
   document.getElementById('r-quote').textContent=miles?fmtInt(quote):'—';
@@ -7303,7 +7308,7 @@ function laneForView(){
   const google = /google/i.test(document.getElementById('miles-source')?.textContent || '');
   return {
     orig, dest, mapOrig: lanePlaceForMap(origEl), mapDest: lanePlaceForMap(destEl),
-    trailer, miles, milesSource: google ? 'google' : 'manual', driveSecs: google ? lastDriveSecs : 0,
+    trailer, miles, milesSource: google ? 'google' : 'manual', driveSecs: google ? lastDriveSecs : (savedDriveSecs || 0),
     distMult: dMult(miles, trailer).m,
     quoteTotal: lastFtlQuote.quote, quoteRpm: lastFtlQuote.rpm,
     quotes: isProUser ? quoteLog : [],
@@ -7423,7 +7428,7 @@ function quoteDetails(extraCharge){
     extra: added ? Math.round(extraCharge * 100) / 100 : 0,
     extraDays: added ? extra.days : 0,
     extraRate: added ? extra.rate : 0,
-    driveSecs: /google/i.test(document.getElementById('miles-source')?.textContent || '') ? (lastDriveSecs || 0) : 0,
+    driveSecs: /google/i.test(document.getElementById('miles-source')?.textContent || '') ? (lastDriveSecs || 0) : (savedDriveSecs || 0),
   };
 }
 
@@ -7658,6 +7663,7 @@ function loadQuoteIntoCalc(id){
   if(q.miles){
     document.getElementById('miles').value = q.miles;
     setMilesSource('manual');
+    savedDriveSecs = Number((q.details || {}).driveSecs) > 0 ? Number(q.details.driveSecs) : 0;
     showMilesStatus('✅', `${parseInt(q.miles).toLocaleString()} miles (from quote log)`, 'var(--green)');
     lastLookedUpOrig = (q.orig || '').toLowerCase();
     lastLookedUpDest = (q.dest || '').toLowerCase();
@@ -7683,8 +7689,15 @@ function loadQuoteIntoCalc(id){
     const rateId = q.trailer === 'van' ? 'rate-van' : q.trailer === 'reefer' ? 'rate-reefer' : 'rate-flatbed';
     document.getElementById(rateId).value = parseFloat(q.baseRpm).toFixed(2);
     ratesManualOverride = true;
+    ratesFromSavedQuote = true;
     rateMode = 'manual';
+    styleRateButtons(null);
+    const regionEl = document.getElementById('rate-region-label');
+    if(regionEl){ regionEl.textContent = '📋 Base rate from the saved quote'; regionEl.style.color = 'var(--accent)'; }
+  } else if(!ratesManualOverride){
+    applyRegionalRates();   // the loaded lane's own region (typing a place does this; loading didn't)
   }
+  updateRateDisclaimer();
 
   // Load notes
   if(q.notes && document.getElementById('load-notes'))
@@ -7706,22 +7719,27 @@ function loadQuoteIntoCalc(id){
   // Loading prices the lane with today's rates and settings (diesel, adjustments): when that
   // comes out different from the saved quote, say so under the quote until something's changed.
   const now = Math.round(lastFtlQuote.quote || 0), saved = Math.round(Number(q.quote) || 0);
-  if(now > 0 && saved > 0 && now !== saved){
-    showSavedNote(`Saved at ${fmtInt(saved)}${q.date ? ' on ' + escapeHTML(q.date) : ''}. Today’s rates and settings price it at ${fmtInt(now)}.`);
-    showToast('✓ Quote loaded · today’s price differs');
-  } else {
-    showSavedNote('');
-    showToast('✓ Quote loaded into calculator');
-  }
+  showSavedNote(saved > 0 ? { saved, date: q.date || '' } : null);
+  showToast(now > 0 && saved > 0 && now !== saved ? '✓ Quote loaded · today’s price differs' : '✓ Quote loaded into calculator');
 }
-function showSavedNote(html){
+// While a loaded quote prices differently today, a note under the quote says so. It
+// follows the quote box (calc() calls renderSavedNote) and goes once the form is edited.
+let savedNote = null;   // { saved, date }
+function renderSavedNote(){
   const el = document.getElementById('r-saved-note');
   if(!el) return;
-  el.innerHTML = html;
-  el.hidden = !html;
-  if(html){
+  const now = Math.round((lastFtlQuote && lastFtlQuote.quote) || 0);
+  const show = !!savedNote && now > 0 && now !== savedNote.saved;
+  el.innerHTML = show ? `Saved at ${fmtInt(savedNote.saved)}${savedNote.date ? ' on ' + escapeHTML(savedNote.date) : ''}. Today’s rates and settings price it at ${fmtInt(now)}.` : '';
+  el.hidden = !show;
+}
+function showSavedNote(note){
+  savedNote = note || null;
+  renderSavedNote();
+  const el = document.getElementById('r-saved-note');
+  if(el && savedNote){
     // Goes away once the quote is changed
-    const clear = (e) => { if(e.target && e.target.closest && e.target.closest('.calc-col')){ el.hidden = true; document.removeEventListener('input', clear, true); document.removeEventListener('change', clear, true); } };
+    const clear = (e) => { if(e.target && e.target.closest && e.target.closest('.calc-col')){ savedNote = null; el.hidden = true; document.removeEventListener('input', clear, true); document.removeEventListener('change', clear, true); } };
     document.addEventListener('input', clear, true);
     document.addEventListener('change', clear, true);
   }
@@ -7883,7 +7901,8 @@ async function commitDelete(id){
       method: 'DELETE', keepalive: true,
       headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}`, 'Prefer': 'return=representation' }
     });
-    const gone = resp.ok ? await resp.json().catch(() => null) : null;
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const gone = await resp.json().catch(() => null);
     if(Array.isArray(gone) && !gone.length){
       // The database kept it (someone else's quote): show the log as it is
       showToast('Only the team owner or whoever saved a quote can delete it');
@@ -7891,7 +7910,11 @@ async function commitDelete(id){
       return;
     }
     syncTrackedToProfiles();
-  } catch(e){}
+  } catch(e){
+    // It wasn't deleted: say so, and show the log as it's saved
+    showToast('⚠ Couldn’t delete the quote. Check your connection and try again.');
+    loadQuoteLogFromSupabase();
+  }
 }
 
 async function clearLog(){
@@ -7915,13 +7938,17 @@ async function clearLog(){
     : teamMember() ? `created_by=eq.${userId}`
     : `or=(created_by.eq.${userId},created_by.is.null)`;
   try {
-    await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?${which}`, {
+    const resp = await fetch(`${SUPABASE_URL_QL}/rest/v1/quote_log?${which}`, {
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY_QL, 'Authorization': `Bearer ${session.access_token}` }
     });
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
     setQuoteLogStatus('Cleared');
     syncTrackedToProfiles();
-  } catch(e){}
+  } catch(e){
+    showToast('⚠ Couldn’t clear the quote log. Check your connection and try again.');
+    loadQuoteLogFromSupabase();
+  }
 }
 
 // ── Customers (customers.js; the saved list is Pro Plus and up) ──────────
@@ -8637,6 +8664,7 @@ let manualMiles = false;
 let lastLookedUpOrig = '';
 let lastLookedUpDest = '';
 let lastDriveSecs    = 0;
+let savedDriveSecs   = 0;   // the driving time a quote loaded from the log was saved with (until the miles change)
 let lastDriveText    = '';
 
 // Fire `fn` only once focus has left BOTH fields of a lane pair. This is what
@@ -8680,6 +8708,7 @@ function milesManualEdit(){
 }
 
 function setMilesSource(type){
+  savedDriveSecs = 0;   // new miles: a loaded quote's driving time no longer applies
   const el = document.getElementById('miles-source');
   if(!el) return;
   if(type === 'google') { el.textContent = '· via Google Routes'; el.style.color = 'var(--green)'; }

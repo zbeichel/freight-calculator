@@ -144,7 +144,7 @@ html.light .comp-result.bad{border-color:rgba(185,28,28,.3)}
               <div class="field">
                 <label for="mpg">MPG assumption</label>
                 <input type="number" step="0.1" value="6.5" oninput="calc()" id="mpg" />
-                <div class="field-help">Loaded truck average: 6.0</div>
+                <div class="field-help">Loaded truck average: 6.5</div>
               </div>
             </div>
           </div>
@@ -848,6 +848,22 @@ function calc(){
   const totalMiles   = loadedMiles + deadhead;
   const targetRpm    = +document.getElementById('target-rpm').value || 0;
   const offeredRate  = +document.getElementById('offered-rate').value || 0;
+
+  // A negative number: say which, and show no result (as the calculator does)
+  const NONNEG = [['loaded-miles', loadedMiles, 'Loaded miles'], ['deadhead-miles', deadhead, 'Deadhead miles'], ['cwt', cwt, 'Weight (cwt)'],
+    ['target-rpm', targetRpm, 'Your minimum rate'], ['offered-rate', offeredRate, 'The offered rate']];
+  NONNEG.forEach(([id]) => document.getElementById(id).removeAttribute('aria-invalid'));
+  const negative = NONNEG.find(([, v]) => v < 0);
+  if(negative){
+    document.getElementById(negative[0]).setAttribute('aria-invalid', 'true');
+    document.getElementById('required-rate').textContent = '—';
+    document.getElementById('required-rate-sub').textContent = `${negative[2]} can’t be negative.`;
+    document.getElementById('market-strip').style.display = 'none';
+    document.getElementById('empty-state').style.display = 'block';
+    document.getElementById('compare-output').style.display = 'none';
+    setPdfButtonEnabled(false);
+    return;
+  }
 
   // Smart-default the mile mode while user hasn't manually picked
   if(mileModeAuto){
