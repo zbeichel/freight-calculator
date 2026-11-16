@@ -545,6 +545,9 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
     /id="mc-number" placeholder="123456"/.test(src('profile.html')) && /id="dot-number" placeholder="1234567"/.test(src('profile.html')));
   check('/pricing and /pricing.html go to Pricing (the nav’s name for it; they were 404s)',
     /from = "\/pricing"\s+to = "\/signup\.html"\s+status = 301/.test(src('netlify.toml')) && /from = "\/pricing\.html"\s+to = "\/signup\.html"/.test(src('netlify.toml')));
+  check('what counts says a place without its state is looked up on a best match and counts (Terms for the site and the API, and the API docs)',
+    /without its state \(just “Lancaster”\) is looked up on our best match.*counts like any other quote/.test(src('terms.html'))
+    && /requests for a place sent without its state/.test(src('terms.html')) && /a city sent without its state, which we look up on our best match/.test(src('api.html')));
   check('no web-share in the Permissions-Policy header (Chrome warned it was unrecognized on every page)',
     /Permissions-Policy = "/.test(src('netlify.toml')) && !/web-share/.test(src('netlify.toml')));
 
