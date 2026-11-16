@@ -151,7 +151,9 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
 }
 
 /* Sign-in links, checkout returns, password resets: just the account card. */
-.su-auth-only .su-hero,.su-auth-only .su-interval,.su-auth-only .su-plans,.su-auth-only .su-free,.su-auth-only .su-side{display:none}
+.su-reason{max-width:720px;margin:0 auto 20px;padding:12px 18px;border-radius:12px;background:var(--accentbg);border:1px solid rgba(245,165,36,.28);color:var(--text);text-align:center;font-size:14px;line-height:1.5}
+.su-reason[hidden]{display:none}
+.su-auth-only .su-hero,.su-auth-only .su-reason,.su-auth-only .su-interval,.su-auth-only .su-plans,.su-auth-only .su-free,.su-auth-only .su-side{display:none}
 .su-auth-only .su-account{grid-template-columns:1fr;max-width:460px;margin:56px auto 0}
 .su-auth-plans{display:none;text-align:center;margin-top:16px;font-size:13px}
 .su-auth-plans a{color:var(--accent);text-decoration:none;font-weight:600}
@@ -173,6 +175,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     <p>Every plan includes branded PDF quotes, the quote log, the multi-stop and bulk calculators and the lane tracker. Higher plans add more automatic miles, sales tools, white-label PDFs and room for your team.</p>
   </section>
 
+  <p class="su-reason" id="su-reason" role="status" hidden></p>
   <div class="su-interval" id="su-interval" hidden>
     <div class="su-interval-in" role="group" aria-label="Billing">
       <button type="button" class="su-int on" data-int="month" aria-pressed="true">Monthly</button>
@@ -519,6 +522,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
   let signedSession = null, chipText = null;
   window.showSignedIn = function (session) {
     signedSession = session;
+    if (window.QFCNav) QFCNav.refresh();   // the account menu, not "Sign in"
     document.body.classList.add('su-signed-in');
     if (!chipText) chipText = [...host.querySelectorAll('.su-chip')].map((c) => c.textContent);
     let prof = {}, st = {};
@@ -555,6 +559,8 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
       '<button type="button" id="su-checkout" class="qf-btn qf-btn-primary qf-btn-lg">Continue to checkout →</button>' +
       '<p id="su-checkout-msg" role="status" style="margin:12px 0 0;font-size:13px"></p></div>';
     document.getElementById('su-checkout').addEventListener('click', startSignedInCheckout);
+    const reasonEl = document.getElementById('su-reason');
+    if (reasonEl && reasonLine()) { reasonEl.textContent = reasonLine() + 'Pick a plan below to continue.'; reasonEl.hidden = false; }
     if (chipText) host.querySelectorAll('.su-chip').forEach((c, i) => { c.textContent = chipText[i]; });
     paint(); sync();
   }

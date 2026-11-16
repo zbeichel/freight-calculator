@@ -71,7 +71,7 @@ async function setup(browser, base, { signedIn = true, expired = false, row = RO
       return json({ access_token: 'tok', refresh_token: 'r', expires_in: 3600, user: { id: 'user-1', email: 'pat@example.com' } });
     }
     if (url.includes('/.netlify/functions/plan-options')) return json(OPTIONS);
-    if (url.includes('/.netlify/functions/verify-pro')) { db.verifyCalls++; return json(db.verify); }
+    if (url.includes('/.netlify/functions/verify-pro')) { db.verifyCalls++; if (db.verifyDelay) await new Promise((r) => setTimeout(r, db.verifyDelay)); return json(db.verify); }
     if (url.includes('/.netlify/functions/create-checkout')) {
       db.checkouts.push(JSON.parse(req.postData() || '{}'));
       return db.checkout ? json(db.checkout.body, db.checkout.status) : json({ url: 'https://checkout.stripe.com/c/pay/cs_test_1' });
@@ -255,6 +255,7 @@ const profileReady = (pg) => pg.waitForFunction(() => ['subscription-paid', 'sub
   check('signing in shows the plans to choose from (no checkout nobody picked)', t.db.checkouts.length === 0
     && await t.page.evaluate(() => document.body.classList.contains('su-no-plan')) && await shown(t.page, '#su-plans'), JSON.stringify(t.db.checkouts));
   check('…and the sign-in button is ready again', (await text(t.page, '#li-btn')) === 'Sign In' || !(await shown(t.page, '#li-btn')));
+  check('…and the nav shows the account at once (it still said “Sign in”)', !!(await t.page.$('#qf-nav .qf-acct-btn')) && !(await t.page.$('#qf-nav .qf-signin')));
   await t.page.screenshot({ path: path.join(SHOTS, 'signin-no-plan.png') });
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
@@ -360,6 +361,27 @@ const profileReady = (pg) => pg.waitForFunction(() => ['subscription-paid', 'sub
   await t.page.waitForSelector('#qf-nav .qf-acct-btn');
   await t.page.waitForTimeout(800);
   check('an account without a plan still sees “Get Pro”', !!(await t.page.$('#qf-nav .qf-getpro')));
+  check('…on a phone too, in the menu (it was only shown to visitors)', (await t.page.$$eval('#qf-nav .qf-mobile .qf-mobile-cta a', (els) => els.map((e) => e.textContent))).join('|') === 'Get Pro');
+  await t.page.goto(base + '/signup.html?reason=pro-required');
+  await t.page.waitForFunction(() => !document.getElementById('su-reason').hidden, null, { timeout: 5000 }).catch(() => {});
+  check('sent to Pricing from a paid page: why, at the top (it was under all the plans)',
+    (await shown(t.page, '#su-reason')) && (await text(t.page, '#su-reason')) === 'That page comes with a paid plan. Pick a plan below to continue.', await text(t.page, '#su-reason'));
+  await t.context.close();
+  t = await setup(browser, base, { row: UNPAID, verify: NO_PLAN() });
+  await t.page.goto(base + '/profile.html');
+  await t.page.waitForFunction(() => document.getElementById('subscription-none').style.display !== 'none', null, { timeout: 5000 }).catch(() => {});
+  await t.page.waitForTimeout(300);
+  const planLinks = await t.page.$$eval('a[data-plan-link]', (els) => els.map((e) => e.getAttribute('href') + ' ' + e.textContent));
+  check('Profile without a plan: the locked features’ links say “Choose a plan” and go to the card that’s showing (they went to a hidden one)',
+    planLinks.length >= 1 && planLinks.every((x) => x === '#subscription-none Choose a plan →'), planLinks.join(' | '));
+  await t.context.close();
+  t = await setup(browser, base, { verify: VERIFY({ plan: 'plus' }), row: ROW({ plan: 'plus' }) });
+  t.db.verifyDelay = 1500;
+  await t.page.goto(base + '/terms.html');
+  await t.page.waitForSelector('#qf-nav .qf-acct-btn');
+  const flash = !!(await t.page.$('#qf-nav .qf-getpro'));
+  await t.page.waitForTimeout(1900);
+  check('a paying account’s first page: no “Get Pro” while its plan is being checked, nor after (it flashed)', !flash && !(await t.page.$('#qf-nav .qf-getpro')));
   await t.context.close();
 
   // ── Sign-in: no Monthly/Yearly switch over the form ───────────────────────

@@ -90,6 +90,9 @@
       name: p.contactName || p.companyName || email || 'Account',
       email: email,
       pro: !!(st.isActive && (!st.userId || st.userId === uid)),
+      // whether this browser knows the plan of whoever's signed in (until verify-pro answers,
+      // "Get Pro" waits, so a paying account doesn't see it flash)
+      known: !!st.cachedAt && (!st.userId || st.userId === uid),
     };
   }
 
@@ -116,7 +119,7 @@
     var themeBtn = '<button type="button" class="qf-icon-btn qf-theme" aria-label="' + (isLight() ? 'Switch to dark mode' : 'Switch to light mode') +
       '" title="' + (isLight() ? 'Dark mode' : 'Light mode') + '">' + icon(isLight() ? 'moon' : 'sun') + '</button>';
     var acct = a
-      ? (a.pro ? '' : '<a class="qf-btn qf-btn-primary qf-getpro" href="/signup.html">Get Pro</a>') +
+      ? (a.pro || !a.known ? '' : '<a class="qf-btn qf-btn-primary qf-getpro" href="/signup.html">Get Pro</a>') +
         '<div class="qf-acct"><button type="button" class="qf-acct-btn" aria-haspopup="true" aria-expanded="false">' +
         '<span class="qf-avatar">' + esc(a.name.trim().charAt(0).toUpperCase() || '?') + '</span>' +
         '<span class="qf-acct-name">' + esc(a.name.split(/[\s@]/)[0]) + '</span>' + icon('chevron') + '</button>' +
@@ -151,7 +154,8 @@
       '<a href="/signup.html">' + icon('tag') + 'Pricing</a>' +
       '<div class="qf-mobile-label">Tools</div>' + mobileTools +
       (a ? '<div class="qf-mobile-label">Account</div><a href="/profile.html">' + icon('user') + 'Profile &amp; settings</a>' +
-        '<a href="#" class="qf-signout-m">' + icon('logout') + 'Sign out</a>'
+        '<a href="#" class="qf-signout-m">' + icon('logout') + 'Sign out</a>' +
+        (a.pro || !a.known ? '' : '<div class="qf-mobile-cta"><a class="qf-btn qf-btn-primary" href="/signup.html">Get Pro</a></div>')
         : '<div class="qf-mobile-cta"><a class="qf-btn qf-btn-ghost" href="/signup.html?login">Sign in</a>' +
           '<a class="qf-btn qf-btn-primary" href="/signup.html">Get Pro</a></div>') +
       '</div>';

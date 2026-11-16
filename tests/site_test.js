@@ -543,6 +543,8 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   check('Lanes doesn’t say “on the left” (on a phone the list is above)', !/on the left/.test(src('lanes.html')));
   check('Profile’s MC/DOT examples are just numbers (they invited typing “MC-” and “DOT-”)',
     /id="mc-number" placeholder="123456"/.test(src('profile.html')) && /id="dot-number" placeholder="1234567"/.test(src('profile.html')));
+  check('/pricing and /pricing.html go to Pricing (the nav’s name for it; they were 404s)',
+    /from = "\/pricing"\s+to = "\/signup\.html"\s+status = 301/.test(src('netlify.toml')) && /from = "\/pricing\.html"\s+to = "\/signup\.html"/.test(src('netlify.toml')));
   check('no web-share in the Permissions-Policy header (Chrome warned it was unrecognized on every page)',
     /Permissions-Policy = "/.test(src('netlify.toml')) && !/web-share/.test(src('netlify.toml')));
 

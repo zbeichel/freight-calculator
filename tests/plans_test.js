@@ -235,9 +235,14 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
     ['quickfreightcalc.com', 'https://quickfreightcalc.com'], ['evil.example.com', 'https://quickfreightcalc.com'], [null, 'https://quickfreightcalc.com']]) {
     calls = [];
     await fromHost(host);
-    ok(sessionParams().get('success_url') === want + '/?checkout=success' && sessionParams().get('cancel_url') === want + '/signup.html?checkout=cancelled',
-       `checkout opened from ${host || 'no host'}: Stripe's Back and success links go to ${want}`, sessionParams().get('success_url'));
+    ok(sessionParams().get('success_url') === want + '/?checkout=success' && sessionParams().get('cancel_url') === want + '/signup.html?checkout=cancelled&plan=pro',
+       `checkout opened from ${host || 'no host'}: Stripe's Back and success links go to ${want}`, sessionParams().get('success_url') + ' ' + sessionParams().get('cancel_url'));
   }
+  calls = [];
+  await checkout.handler({ httpMethod: 'POST', headers: { host: 'quickfreightcalc.com' },
+    body: JSON.stringify({ userId: 'user-1', email: 'a@b.co', accessToken: 'tok', plan: 'max', interval: 'year' }) });
+  ok(sessionParams().get('cancel_url') === 'https://quickfreightcalc.com/signup.html?checkout=cancelled&plan=max&interval=year',
+     'Back from Stripe returns to Pricing with the plan and billing that were chosen (Pro Max, yearly), not Pro', sessionParams().get('cancel_url'));
   calls = []; checkoutRow = { is_active: false, stripe_subscription_id: 'team' };
   res = await startCheckout('plus');
   ok(res.statusCode === 200 && !calls.some((c) => c.path.startsWith('/v1/subscriptions/')), 'a team seat’s marker isn’t a Stripe subscription: no lookup');

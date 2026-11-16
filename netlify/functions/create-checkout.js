@@ -182,7 +182,8 @@ exports.handler = async function(event){
       'customer_email': email,
       'client_reference_id': userId,
       'success_url': `${siteUrl}/?checkout=success`,
-      'cancel_url': `${siteUrl}/signup.html?checkout=cancelled`,
+      // Back to Pricing with the plan and billing that were chosen still picked
+      'cancel_url': `${siteUrl}/signup.html?checkout=cancelled&plan=${plan}${interval === 'year' ? '&interval=year' : ''}`,
       'subscription_data[metadata][userId]': userId,
       'subscription_data[metadata][plan]': plan,
       'subscription_data[metadata][interval]': interval,

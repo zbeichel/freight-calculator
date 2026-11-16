@@ -221,6 +221,8 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   await v.p.waitForTimeout(500);
   await v.p.evaluate(() => handleCustomersClick(new Event('click')));
   await v.p.waitForTimeout(300);
+  check('…headed for the feature, with a plain “Not now” (not “More quotes with automatic miles” / “I’ll enter the miles myself”)',
+    (await text(v.p, '#upg-modal-title')) === 'Get more with Pro Plus' && (await text(v.p, '#upg-modal-skip')) === 'Not now', await text(v.p, '#upg-modal-title'));
   check('the Customers button (a Pro Plus feature) offers Pro Plus and Pro Max, not Pro', await v.p.isVisible('#upg-modal-overlay') && await v.p.isHidden('#pro-modal-overlay')
     && /customer list comes with Pro Plus/.test(await text(v.p, '#upg-modal-desc')));
   await v.p.evaluate(() => closeUpgradeModal());

@@ -9330,7 +9330,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
 
     <div style="background:linear-gradient(135deg,#1a1f2e 0%,#0f1318 100%);padding:28px 28px 24px;text-align:center;border-bottom:1px solid var(--border);-webkit-print-color-adjust:exact;print-color-adjust:exact">
       <img src="/favicon.svg" alt="" width="44" height="44" style="display:block;margin:0 auto 8px">
-      <div style="font-size:20px;font-weight:700;color:#f0f4f8;margin-bottom:6px">More quotes with <span style="color:#f0a500">automatic miles</span></div>
+      <div id="upg-modal-title" style="font-size:20px;font-weight:700;color:#f0f4f8;margin-bottom:6px">More quotes with <span style="color:#f0a500">automatic miles</span></div>
       <div style="font-size:13px;color:#8fa3b8;line-height:1.5" id="upg-modal-desc">Pick the plan that fits how much you quote.</div>
     </div>
 
@@ -9372,7 +9372,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
       </button>
       <div id="upg-modal-status" role="status" style="display:none;text-align:center;font-size:12px;line-height:1.5;margin-top:10px"></div>
       <div style="text-align:center;margin-top:10px">
-        <button onclick="closeUpgradeModal()" style="
+        <button id="upg-modal-skip" onclick="closeUpgradeModal()" style="
           font-family:'Space Grotesk',sans-serif;font-size:12px;
           background:none;border:none;cursor:pointer;
           color:var(--text3);text-decoration:underline;
@@ -9418,6 +9418,12 @@ function showUpgradeModal(desc, plans){
   });
   document.getElementById('upg-modal-desc').textContent =
     desc || 'Pick the plan that fits how much you quote.';
+  // The heading and the way out fit why it opened: more automatic miles, or a feature of a higher plan
+  const forMiles = !desc || /automatic miles|quotes a day/i.test(desc);
+  document.getElementById('upg-modal-title').innerHTML = forMiles
+    ? 'More quotes with <span style="color:#f0a500">automatic miles</span>'
+    : `Get more with <span style="color:#f0a500">${offer[0] === 'max' ? 'Pro Max' : 'Pro Plus'}</span>`;
+  document.getElementById('upg-modal-skip').textContent = forMiles ? 'Not now — I’ll enter the miles myself' : 'Not now';
   setUpgradeStatus('');
   updateUpgradeButton();
   refreshUpgradeOffers();

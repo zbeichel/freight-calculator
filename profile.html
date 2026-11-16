@@ -2178,6 +2178,14 @@ function applySubscriptionCardState(stripeCustomerId, plan, isActive){
   if(noneCard) noneCard.style.display = noPlan ? '' : 'none';
   const noneBilling = document.getElementById('subscription-none-billing');
   if(noneBilling) noneBilling.style.display = noPlan && hasStripe ? '' : 'none';   // an earlier Stripe subscription
+  // Links to the plan section ("Change plan" on locked features) lead to the card that's showing;
+  // without a plan, they say "Choose a plan".
+  const planCardId = noPlan ? 'subscription-none' : hasStripe ? 'subscription-paid' : 'subscription-comp';
+  document.querySelectorAll('a[data-plan-link], a[href="#subscription-paid"]').forEach((a) => {
+    a.setAttribute('data-plan-link', '');
+    a.setAttribute('href', '#' + planCardId);
+    a.textContent = noPlan ? 'Choose a plan →' : 'Change plan →';
+  });
   // Links to the plan section ("Change plan", "Get Pro Max"…) land on that card.
   if(noPlan && noneCard && /^#subscription/.test(window.location.hash)) setTimeout(() => noneCard.scrollIntoView({ block: 'start' }), 50);
   applyPlanState(normalizeProfilePlan(plan), isActive === true, false, null);
