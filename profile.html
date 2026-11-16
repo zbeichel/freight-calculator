@@ -1212,6 +1212,7 @@ function selectScheme(id){
 // name, QuickFreightCalc, or nothing at all on a white-label PDF) and your next quote number.
 function updatePreviewText(){
   const p = profileFromForm();
+  if(currentPdfStyle === 'modern') setTimeout(updatePreviewLogo, 0);   // the letter mark follows the company name
   const wl = !!(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(p));
   const nameEl = document.getElementById('preview-brand-name');
   const subEl = document.getElementById('preview-brand-sub');
@@ -1272,8 +1273,13 @@ function updatePreviewLogo(){
   const logoArea = document.getElementById('preview-logo-area');
   const hide = document.getElementById('hide-logo').checked;
   const wl = !!(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profileFromForm()));
+  const company = (document.getElementById('company-name') || {}).value || '';
+  const m = currentPdfStyle === 'modern' && window.QFCQuotePDF ? QFCQuotePDF.colorsFor(profileFromForm()) : null;
   if(logoBase64 && !hide){
     logoArea.innerHTML = `<img src="${logoBase64}" style="height:28px;max-width:80px;object-fit:contain" />`;
+  } else if(m && (company.trim() || !wl)){
+    // Modern without a logo: the letter mark the PDF prints (the company's first letter)
+    logoArea.innerHTML = `<span id="preview-mark" style="width:24px;height:24px;border-radius:6px;background:${m.ink};color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center">${(company.trim() || 'Q').charAt(0).toUpperCase().replace(/[&<>"']/g, (c) => '&#' + c.charCodeAt(0) + ';')}</span>`;
   } else if(wl){
     logoArea.innerHTML = '';
   } else {

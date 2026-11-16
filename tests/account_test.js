@@ -440,6 +440,9 @@ const profileReady = (pg) => pg.waitForFunction(() => ['subscription-paid', 'sub
   check('the footer line is one short line (150 characters at most)', (await t.page.$eval('#footer-text', (e) => e.maxLength)) === 150);
   await t.page.fill('#company-name', 'Keystone Logistics');
   check('typing a company name updates the preview', (await text(t.page, '#preview-brand-name')) === 'Keystone Logistics');
+  await t.page.waitForTimeout(50);
+  check('…and with no logo, the Modern preview shows the letter mark the PDF prints (“K”), not our truck',
+    (await text(t.page, '#preview-mark')) === 'K' && !(await t.page.$('#preview-logo-area #preview-emoji')), await t.page.innerHTML('#preview-logo-area').catch(() => ''));
   await t.context.close();
 
   t = await setup(browser, base, { row: ROW({ plan: 'max', company_name: '', pdf_white_label: true }), verify: VERIFY({ plan: 'max' }) });
