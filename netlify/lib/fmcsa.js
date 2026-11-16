@@ -51,16 +51,17 @@ function parseQuery(input, kind) {
 // (403 "Invalid app_token specified": mistyped or revoked), and fetch throws on a character
 // no header can carry (a zero-width space picked up in a copy). A refused request is asked
 // again without the token, and once that works the token isn't sent again until the next
-// deploy. Either way, the function log says to check SOCRATA_APP_TOKEN in Netlify.
+// deploy. Either way, the function log says to check SOCRATA_APP_TOKEN in Netlify; when the
+// token works, the log says so once (so a missing token and a working one can be told apart).
 let tokenRefused = false;
-const warned = new Set();
-const warnOnce = (key, msg) => { if (!warned.has(key)) { warned.add(key); console.warn('[fmcsa] ' + msg); } };
+const said = new Set();
+const sayOnce = (key, msg, warn) => { if (!said.has(key)) { said.add(key); (warn ? console.warn : console.log)('[fmcsa] ' + msg); } };
 function appToken(opt) {
   const fromEnv = opt.token == null;
   if (fromEnv && tokenRefused) return '';
   const t = String((fromEnv ? process.env.SOCRATA_APP_TOKEN : opt.token) || '').trim();
   if (t && !/^[\x21-\x7e]+$/.test(t)) {   // tokens are letters and digits: no spaces, nothing unusual
-    warnOnce('chars', 'SOCRATA_APP_TOKEN has spaces or characters a token doesn\'t have, so it isn\'t sent. Check it in Netlify.');
+    sayOnce('chars', 'SOCRATA_APP_TOKEN has spaces or characters a token doesn\'t have, so it isn\'t sent. Check it in Netlify.', true);
     return '';
   }
   return t;
@@ -82,17 +83,20 @@ async function soql(ds, params, opt = {}) {
   try {
     const get = (h) => (opt.fetchImpl || fetch)(url.toString(), { headers: h, signal: ctrl.signal });
     let resp = await get(headers);
+    let sent = !!token;
     if (resp.status === 403 && token) {
       if (resp.body && typeof resp.body.cancel === 'function') resp.body.cancel().catch(() => {});
       const plain = Object.assign({}, headers);
       delete plain['X-App-Token'];
       resp = await get(plain);
+      sent = false;
       if (resp.ok && opt.token == null) {
         tokenRefused = true;
-        warnOnce('refused', 'data.transportation.gov refused SOCRATA_APP_TOKEN, so checks go on without it (at lower rate limits). Check the token in Netlify.');
+        sayOnce('refused', 'data.transportation.gov refused SOCRATA_APP_TOKEN, so checks go on without it (at lower rate limits). Check the token in Netlify.', true);
       }
     }
     if (!resp.ok) throw new Error(`${ds} answered ${resp.status}`);
+    if (sent && opt.token == null) sayOnce('accepted', 'data.transportation.gov accepted SOCRATA_APP_TOKEN.');
     const data = await resp.json();
     return Array.isArray(data) ? data : [];
   } finally {
@@ -588,4 +592,4 @@ function factsVerdict(f, now = Date.now()) {
   return 'ok';
 }
 
-module.exports = { REPORT_VERSION, DS, PARTS, parseQuery, soql, resolveDot, fetchCarrier, nationalAverages, buildReport, assess, monitorFacts, diffFacts, factsVerdict, isoDate, _internal: { inspectionTotals, crashTotals, titleCase, resetToken: () => { tokenRefused = false; warned.clear(); } } };
+module.exports = { REPORT_VERSION, DS, PARTS, parseQuery, soql, resolveDot, fetchCarrier, nationalAverages, buildReport, assess, monitorFacts, diffFacts, factsVerdict, isoDate, _internal: { inspectionTotals, crashTotals, titleCase, resetToken: () => { tokenRefused = false; said.clear(); } } };

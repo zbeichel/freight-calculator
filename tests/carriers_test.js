@@ -202,9 +202,12 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   calls.length = 0;
   process.env.SOCRATA_APP_TOKEN = 'app-token';
   answer = () => [];
+  const infos = [], realLog = console.log;   // the module's log lines, apart from this test's PASS/FAIL lines
+  console.log = (...a) => (/^\[fmcsa\]/.test(String(a[0])) ? infos.push(a.join(' ')) : realLog(...a));
   await F.fetchCarrier('80806', { fetchImpl: fakeFetch });
   ok(calls.length === 9 && calls.every((c) => c.opts.headers['X-App-Token'] === 'app-token') && new Set(calls.map((c) => ds(c.url))).size === 9,
      'a check asks nine datasets at once, with the app token when one is set');
+  ok(infos.length === 1 && /accepted SOCRATA_APP_TOKEN/.test(infos[0]), 'the function log says once that the token was accepted (nine requests, one line)', infos.join(' | '));
   ok(calls.some((c) => ds(c.url) === F.DS.inspections && /count\(\*\)/.test(param(c.url, '$select')) && param(c.url, '$group')), 'inspections are totalled by FMCSA, not downloaded');
   // A token FMCSA doesn't accept (mistyped, revoked) is refused on every request: 403, "Invalid app_token specified"
   const warnings = [], realWarn = console.warn;
@@ -227,6 +230,11 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
      '…and after that it isn’t sent at all, so checks don’t make every request twice');
   ok(warnings.length === 1 && /refused SOCRATA_APP_TOKEN/.test(warnings[0]) && /Check the token in Netlify/.test(warnings[0]),
      'one warning in the function log, saying to check the token', warnings.join(' | '));
+  F._internal.resetToken();
+  infos.length = 0;
+  calls.length = 0;
+  await F.soql(F.DS.census, { $limit: 1 }, { fetchImpl: refusing });
+  ok(calls.length === 2 && infos.length === 0, '…and it never says the token was accepted', infos.join(' | '));
   // Refused even without the token: not the token's fault, so it fails as before and the token stays
   F._internal.resetToken();
   warnings.length = 0;
@@ -240,7 +248,7 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   answer = () => [];
   calls.length = 0;
   await F.soql(F.DS.census, { $limit: 1 }, { fetchImpl: fakeFetch });
-  ok(calls[0].opts.headers['X-App-Token'] === 'good-token', '…and the token is still sent afterwards');
+  ok(calls[0].opts.headers['X-App-Token'] === 'good-token' && infos.length === 1, '…and the token is still sent afterwards (and accepted)', infos.join(' | '));
   // Pasted with a space or a line break around it, or with a character no header can carry
   process.env.SOCRATA_APP_TOKEN = '  good-token\n';
   calls.length = 0;
@@ -251,9 +259,14 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   await F.soql(F.DS.census, { $limit: 1 }, { fetchImpl: fakeFetch });
   ok(calls.length === 1 && !('X-App-Token' in calls[0].opts.headers) && warnings.length === 1 && /characters a token doesn/.test(warnings[0]),
      'a token with a character no header can carry (a zero-width space from a copy: fetch would throw on every request) isn’t sent, and the log says so', warnings.join(' | '));
-  console.warn = realWarn;
-  F._internal.resetToken();
   delete process.env.SOCRATA_APP_TOKEN;
+  infos.length = 0;
+  calls.length = 0;
+  await F.soql(F.DS.census, { $limit: 1 }, { fetchImpl: fakeFetch });
+  ok(!('X-App-Token' in calls[0].opts.headers) && infos.length === 0, 'no token set: nothing sent, and nothing said about one');
+  console.warn = realWarn;
+  console.log = realLog;
+  F._internal.resetToken();
   calls.length = 0;
   answer = (url) => (/vehicle_oos_total/.test(param(url, '$select')) ? [{ oos: false, n: '774' }, { oos: true, n: '226' }] : [{ oos: false, n: '939' }, { oos: true, n: '61' }]);
   const nat = await F.nationalAverages({ fetchImpl: fakeFetch });
