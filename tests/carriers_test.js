@@ -80,7 +80,15 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   ok(flag(r, 'new_usdot') && /registered 60 days ago/.test(flag(r, 'new_usdot').text), 'a USDOT number registered 60 days ago: flagged too');
 
   r = F.buildReport(raw(3333333, { authority: [{ docket_number: 'MC333333', usdot_number: '3333333', op_auth_type: 'Broker of Property (Except Household Goods)', op_auth_status: 'Active', min_cov_amount: '0', bipd_file: '0', bond_req: 'Y', bond_file: 'Y' }], authHistory: [] }), { national: NATIONAL, now: NOW });
-  ok(r.verdict === 'stop' && flag(r, 'broker_only') && /broker only/i.test(flag(r, 'broker_only').text), 'licensed as a broker only: don’t book (they can’t haul it themselves)');
+  ok(r.verdict === 'warn' && flag(r, 'broker_only') && flag(r, 'broker_only').level === 'warn' && /broker, not a carrier/.test(flag(r, 'broker_only').text) && !r.flags.some((f) => f.level === 'stop'),
+     'licensed as a broker only: “check before booking”, saying they’re a broker (it said “don’t book”)', JSON.stringify(r.flags));
+  const BROKER = (dot) => [{ docket_number: 'MC' + dot, usdot_number: String(dot), op_auth_type: 'Broker of Property (Except Household Goods)', op_auth_status: 'Active', min_cov_amount: '0', bipd_file: '0', bond_req: 'Y', bond_file: 'Y' }];
+  r = F.buildReport(raw(3333336, { authority: BROKER(3333336), authHistory: [], inspections: [], crashes: [], censusRow: { add_date: '20150101' } }), { national: NATIONAL, now: NOW });
+  ok(r.verdict === 'warn' && !flag(r, 'no_inspections'), '…no “no roadside inspections” note for a broker (they don’t run trucks)', JSON.stringify(r.flags.map((f) => f.code)));
+  r = F.buildReport(raw(3333337, { authority: BROKER(3333337), authHistory: [], censusRow: { status_code: 'I' } }), { national: NATIONAL, now: NOW });
+  ok(r.verdict === 'stop' && flag(r, 'usdot_inactive') && flag(r, 'broker_only').level === 'warn', 'a broker whose USDOT number is inactive: “don’t book” (something severe)', JSON.stringify(r.flags.map((f) => f.code)));
+  r = F.buildReport(raw(3333338, { authority: BROKER(3333338), authHistory: [], oos: [{ oos_date: '2026-11-10', oos_reason: 'Imminent Hazard' }] }), { national: NATIONAL, now: NOW });
+  ok(r.verdict === 'stop' && flag(r, 'oos_order'), 'a broker with an out-of-service order: “don’t book”');
   r = F.buildReport(raw(3333334, { authority: [], authHistory: [] }), { national: NATIONAL, now: NOW });
   ok(r.verdict === 'stop' && flag(r, 'no_authority'), 'no for-hire authority at all: don’t book');
   r = F.buildReport(raw(3333335, { authority: [{ docket_number: 'MC33', usdot_number: '3333335', op_auth_type: PROPERTY, op_auth_status: 'Inactive', min_cov_amount: '750000', bipd_file: '0' }],
@@ -369,6 +377,23 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
      && F.factsVerdict(Object.assign({}, fine, { granted: isoAgo(100), usdotAdded: isoAgo(400) })) === 'ok', 'a new carrier is “check” on the saved list too, until it’s past 90 days (180 for the USDOT number)');
   ok(F.factsVerdict(facts['1']) === 'warn' && F.factsVerdict(facts['2']) === 'stop' && F.factsVerdict(facts['3']) === 'stop' && F.factsVerdict({ authority: 'Active', cancels: [], oos: [], usdotStatus: 'Active' }) === 'ok',
      'saved-list status from the facts');
+  ok(!('broker' in facts['1']) && !('brokerStatus' in facts['1']) && !('brokerStatus' in facts['2']), 'carriers’ saved facts keep their shape (no broker key without an active broker authority)');
+  // A broker on the watch list
+  const brokerFetch = async (url) => {
+    const d = ds(url);
+    const rowsFor = d === F.DS.authority ? [{ usdot_number: '4', op_auth_type: 'Broker of Property (Except Household Goods)', op_auth_status: 'Active', min_cov_amount: '0', bipd_file: '0' }]
+      : d === F.DS.census ? [{ dot_number: '4', status_code: 'A' }] : [];
+    return { ok: true, status: 200, json: async () => rowsFor };
+  };
+  const brokerFacts = (await F.monitorFacts(['4'], { fetchImpl: brokerFetch }))['4'];
+  ok(brokerFacts && brokerFacts.authority === 'None' && brokerFacts.broker === 'Active' && F.factsVerdict(brokerFacts) === 'warn',
+     'a broker on the saved list: “check before booking”, not “don’t book”', JSON.stringify(brokerFacts));
+  ok(F.factsVerdict(Object.assign({}, brokerFacts, { usdotStatus: 'Inactive' })) === 'stop' && F.factsVerdict(Object.assign({}, brokerFacts, { oos: [{ date: '2026-11-10', reason: 'Imminent Hazard' }] })) === 'stop',
+     '…“don’t book” only for something severe (USDOT inactive, an out-of-service order)');
+  const lapsed = F.diffFacts(brokerFacts, Object.assign({}, brokerFacts, { broker: undefined }), 'Fast Lane Brokerage LLC');
+  ok(lapsed.length === 1 && lapsed[0].kind === 'authority' && lapsed[0].text === 'Fast Lane Brokerage LLC: broker authority is no longer active. Don’t book with them until it’s active again.',
+     'a watched broker’s authority lapses: an alert', JSON.stringify(lapsed));
+  ok(F.diffFacts(brokerFacts, brokerFacts, 'Fast Lane Brokerage LLC').length === 0, '…and nothing while it stays active');
   const before = { authority: 'Active', insuranceShort: false, cancels: [], oos: [], usdotStatus: 'Active', safetyRating: 'Satisfactory', onFile: 1000000, required: 750000,
     suspensions: facts['1'].suspensions };   // known already: only the cancellation is new for carrier 1
   let alerts = F.diffFacts(before, facts['1'], 'Clean Haul LLC');
