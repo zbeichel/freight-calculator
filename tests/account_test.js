@@ -44,16 +44,16 @@ const VERIFY = (o) => Object.assign({ active: true, plan: 'pro', paid: true, unl
   interval: 'month', trialEndsAt: null, trialEligible: false, renewsAt: null, team: null }, o);
 const NO_PLAN = (o) => VERIFY(Object.assign({ active: false, paid: false, interval: null, trialEligible: true }, o));
 
-async function setup(browser, base, { signedIn = true, row = ROW(), verify = VERIFY(), local = null, checkout = null } = {}) {
+async function setup(browser, base, { signedIn = true, expired = false, row = ROW(), verify = VERIFY(), local = null, checkout = null } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-  const db = { row, verify, checkout, checkouts: [], patches: [], logins: [], signups: [], proLookups: 0 };
-  await context.addInitScript(([signed, local]) => {
+  const db = { row, verify, checkout, checkouts: [], patches: [], logins: [], signups: [], proLookups: 0, verifyCalls: 0 };
+  await context.addInitScript(([signed, expired, local]) => {
     if (localStorage.getItem('__seeded')) return;
     localStorage.setItem('__seeded', '1');
     if (signed) localStorage.setItem('sb-xgrmbhmgcsbnazupfybd-auth-token', JSON.stringify({ access_token: 'tok', refresh_token: 'r',
-      expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: 'user-1', email: 'pat@example.com' } }));
+      expires_at: Math.floor(Date.now() / 1000) + (expired ? -600 : 3600), user: { id: 'user-1', email: 'pat@example.com' } }));
     if (local) Object.entries(local).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)));
-  }, [signedIn, local]);
+  }, [signedIn, expired, local]);
   await context.route('**/*', async (route) => {
     const req = route.request();
     const url = req.url();
@@ -71,7 +71,7 @@ async function setup(browser, base, { signedIn = true, row = ROW(), verify = VER
       return json({ access_token: 'tok', refresh_token: 'r', expires_in: 3600, user: { id: 'user-1', email: 'pat@example.com' } });
     }
     if (url.includes('/.netlify/functions/plan-options')) return json(OPTIONS);
-    if (url.includes('/.netlify/functions/verify-pro')) return json(db.verify);
+    if (url.includes('/.netlify/functions/verify-pro')) { db.verifyCalls++; return json(db.verify); }
     if (url.includes('/.netlify/functions/create-checkout')) {
       db.checkouts.push(JSON.parse(req.postData() || '{}'));
       return db.checkout ? json(db.checkout.body, db.checkout.status) : json({ url: 'https://checkout.stripe.com/c/pay/cs_test_1' });
@@ -321,7 +321,14 @@ const profileReady = (pg) => pg.waitForFunction(() => ['subscription-paid', 'sub
     !(await t.page.$('#qf-nav .qf-getpro')) && await t.page.evaluate(() => JSON.parse(localStorage.getItem('qfc_pro_status') || '{}').isActive === true));
   await t.page.goto(base + '/privacy.html');
   await t.page.waitForSelector('#qf-nav .qf-acct-btn');
-  check('…and the next page knows straight away', !(await t.page.$('#qf-nav .qf-getpro')));
+  check('…and the next page knows straight away, without asking again', !(await t.page.$('#qf-nav .qf-getpro')) && t.db.verifyCalls === 1, `${t.db.verifyCalls} calls`);
+  await t.context.close();
+  t = await setup(browser, base, { expired: true, verify: { active: false, reason: 'Invalid session' } });
+  await t.page.goto(base + '/terms.html');
+  await t.page.waitForSelector('#qf-nav .qf-acct-btn');
+  await t.page.waitForTimeout(600);
+  check('an expired sign-in isn’t asked about (the answer would be “Invalid session”), and nothing is remembered from it',
+    t.db.verifyCalls === 0 && await t.page.evaluate(() => localStorage.getItem('qfc_pro_status') === null), `${t.db.verifyCalls} calls`);
   await t.context.close();
   t = await setup(browser, base, { row: UNPAID, verify: NO_PLAN() });
   await t.page.goto(base + '/terms.html');

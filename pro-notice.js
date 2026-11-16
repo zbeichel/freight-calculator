@@ -225,13 +225,18 @@
     var s = await freshSession();
     if (!s) return;
     try {
-      var resp = await fetch('/.netlify/functions/verify-pro', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: userId, accessToken: s.access_token })
-      });
-      if (!resp.ok) return;
-      var data = await resp.json();
+      // The same answer the nav asked for on this page (site.js), when there's one
+      var data;
+      if (window.QFCNav && QFCNav.verify) data = await QFCNav.verify(userId, s.access_token);
+      else {
+        var resp = await fetch('/.netlify/functions/verify-pro', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: userId, accessToken: s.access_token })
+        });
+        if (!resp.ok) return;
+        data = await resp.json();
+      }
       if (!data || !('unlimitedUntilRenewal' in data)) return;   // not a real answer (e.g. signed out)
       var due = data.active && data.paid && data.unlimitedUntilRenewal && !data.planChosen && !data.cancelAt;
       // Nobody else has anything to be reminded of: skip the check for a day.

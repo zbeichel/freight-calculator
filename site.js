@@ -255,28 +255,40 @@
     });
   }
 
+  // verify-pro, asked at most once per page for a given sign-in: the nav and pro-notice.js
+  // share the answer (QFCNav.verify). A real answer (not "Invalid session") also records
+  // whether the account has a plan, for the "Get Pro" button.
+  var verifying = {};
+  function verify(userId, accessToken) {
+    var key = userId + '|' + accessToken;
+    if (!verifying[key]) {
+      verifying[key] = fetch('/.netlify/functions/verify-pro', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId, accessToken: accessToken }) })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (d && 'unlimitedUntilRenewal' in d) {
+            try { localStorage.setItem('qfc_pro_status', JSON.stringify({ isActive: d.active === true, userId: userId, cachedAt: Date.now() })); } catch (e) {}
+            render();
+          }
+          return d;
+        })
+        .catch(function () { delete verifying[key]; return null; });
+    }
+    return verifying[key];
+  }
   // The plan behind "Get Pro" is remembered in this browser (qfc_pro_status, which the
   // calculator keeps). With nothing recent for whoever's signed in (a paying account that
-  // hasn't opened the calculator here yet), ask verify-pro once and remember the answer.
-  var statusAsked = false;
+  // hasn't opened the calculator here yet), ask once. An expired sign-in isn't asked about:
+  // the page refreshes it, and the answer would only be "Invalid session".
   function refreshStatus() {
-    if (statusAsked) return;
     var s = session();
     var uid = s && s.user && (s.user.id || s.user.sub);
     if (!s || !uid || !s.access_token || !window.fetch) return;
+    if (s.expires_at && s.expires_at * 1000 < Date.now() + 60000) return;
     var st = {};
     try { st = JSON.parse(localStorage.getItem('qfc_pro_status') || '{}') || {}; } catch (e) {}
-    if (st.userId === uid && st.cachedAt && Date.now() - st.cachedAt < 6 * 3600 * 1000) return;
-    statusAsked = true;
-    fetch('/.netlify/functions/verify-pro', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: uid, accessToken: s.access_token }) })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        if (!d || typeof d.active !== 'boolean') return;
-        try { localStorage.setItem('qfc_pro_status', JSON.stringify({ isActive: d.active === true, userId: uid, cachedAt: Date.now() })); } catch (e) {}
-        render();
-      })
-      .catch(function () {});
+    if (st.userId === uid && st.cachedAt && Date.now() - st.cachedAt < 12 * 3600 * 1000) return;
+    verify(uid, s.access_token);
   }
 
   function start() { render(); footer(); refreshStatus(); }
@@ -287,5 +299,5 @@
     if (!e.key || e.key.indexOf('sb-') === 0 || e.key === 'qfc_pro_profile' || e.key === 'qfc_pro_status') render();
   });
 
-  window.QFCNav = { refresh: function () { if (nav) render(); }, setTheme: setTheme, signOut: signOut, icon: icon, logoImg: logoImg, logoURI: LOGO_URI };
+  window.QFCNav = { refresh: function () { if (nav) render(); }, setTheme: setTheme, signOut: signOut, icon: icon, logoImg: logoImg, logoURI: LOGO_URI, verify: verify };
 })();
