@@ -169,8 +169,23 @@ const BROKER_AUTH = /^Broker of /i;
 const INS_KIND = { 1: 'Liability (BIPD)', 2: 'Cargo', 3: 'Surety bond', 4: 'Trust fund' };
 const OPERATION = { A: 'Interstate', B: 'Intrastate (hazmat)', C: 'Intrastate (non-hazmat)' };
 const SAFETY = { S: 'Satisfactory', C: 'Conditional', U: 'Unsatisfactory' };
-const titleCase = (s) => String(s || '').toLowerCase().replace(/\b([a-z])/g, (c) => c.toUpperCase())
-  .replace(/\b(Llc|Lp|Llp|Usa|Us|Po)\b/g, (w) => w.toUpperCase());
+// FMCSA sends names in capitals. Title-case them, but:
+//  • no capital after an apostrophe ("Hickman's"), except after a one-letter prefix ("O'Neil");
+//  • company suffixes and Roman numerals stay in capitals (LLC, USA, DBA, III);
+//  • in carrier names (names = true), initials that aren't words stay in capitals: letters
+//    with no vowel (JB, CRST) or one letter repeated (YY, AAA), but not words like ST or HWY.
+const UPPER_WORDS = /^(llc|lp|llp|usa|us|po|dba|ii|iii|iv|vi|vii|viii)$/;
+const NOT_INITIALS = /^(st|mt|ft|dr|jr|sr|mr|mrs|ms|rd|hwy|ln|blvd|pkwy|ct|pl|frt|trk|trkg|svc|svcs|mgmt|whse|bldg)$/;
+const titleCase = (s, names) => {
+  const str = String(s || '').toLowerCase();
+  return str.replace(/[a-z0-9]+/g, (w, at) => {
+    const before = str.slice(0, at);
+    if (/['’]$/.test(before) && !/(^|[^a-z0-9])[a-z]['’]$/.test(before)) return w;
+    if (UPPER_WORDS.test(w)) return w.toUpperCase();
+    if (names && /^[a-z]{2,4}$/.test(w) && !NOT_INITIALS.test(w) && (!/[aeiouy]/.test(w) || /^([a-z])\1+$/.test(w))) return w.toUpperCase();
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  });
+};
 const phone = (s) => { const d = String(s || '').replace(/\D/g, ''); return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : (d || null); };
 
 function inspectionTotals(rows) {
@@ -277,8 +292,8 @@ function buildReport(raw, { national = null, now = Date.now() } = {}) {
     dot: raw.dot,
     dockets,
     found: !!(c || authorities.length),
-    name: legalName ? titleCase(legalName) : null,
-    dba: c && c.dba_name ? titleCase(c.dba_name) : null,
+    name: legalName ? titleCase(legalName, true) : null,
+    dba: c && c.dba_name ? titleCase(c.dba_name, true) : null,
     address: c ? [titleCase(c.phy_street), [titleCase(c.phy_city), c.phy_state].filter(Boolean).join(', '), c.phy_zip].filter(Boolean).join(' · ') : null,
     phone: phone((c && c.phone) || (auth[0] && auth[0].bus_telno)),
     email: c && c.email_address ? String(c.email_address).toLowerCase() : null,
@@ -391,7 +406,11 @@ function assess(r, now = Date.now()) {
   const suspended = A.recentChanges.filter((h) => h.status === 'Inactive');
   if (A.activeCarrier && suspended.length) {
     const s = suspended[0];
-    add('warn', 'recent_suspension', `Authority was suspended in the last year (${fmtDate(s.date)}: ${s.reason.replace(/\s*\(.*?\)\s*$/, '')}) and is active again.`);
+    const why = s.reason.replace(/\s*\(.*?\)\s*$/, '').trim();
+    // Say what happened: "revoked" for a revocation, otherwise "suspended"
+    const what = /revo[ck]/i.test(why) ? 'revoked' : 'suspended';
+    const detail = why && why.toLowerCase() !== what ? `: ${why}` : '';
+    add('warn', 'recent_suspension', `Authority was ${what} in the last year (${fmtDate(s.date)}${detail}) and is active again.`);
   }
   if (r.safetyRating === 'Conditional') add('warn', 'safety_conditional', `Conditional safety rating (${fmtDate(r.safetyRatingDate)}).`);
   const i = r.inspections;

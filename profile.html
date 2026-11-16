@@ -528,11 +528,11 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
         <div class="field-grid-3">
           <div class="field">
             <label>MC Number</label>
-            <input type="text" id="mc-number" placeholder="MC-123456" />
+            <input type="text" id="mc-number" placeholder="123456" inputmode="numeric" />
           </div>
           <div class="field">
             <label>DOT Number</label>
-            <input type="text" id="dot-number" placeholder="DOT-1234567" />
+            <input type="text" id="dot-number" placeholder="1234567" inputmode="numeric" />
           </div>
           <div class="field">
             <label>Custom Footer Text <span style="font-weight:400;text-transform:none;font-size:10px">(optional)</span></label>
@@ -2385,7 +2385,10 @@ const TEAM_SIZES = { pro: 1, plus: 1, max: 3, api: 6 };
 const teamEsc = (v) => String(v === null || v === undefined ? '' : v)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const teamDate = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
-const teamPlanName = (plan) => plan === 'comp' ? 'your plan' : (PROFILE_PLANS[plan] ? PROFILE_PLANS[plan].name : 'your plan');
+// The plan's name ("Pro Max"), or '' when there's no name to show (comp accounts)
+const teamPlanName = (plan) => (plan !== 'comp' && PROFILE_PLANS[plan]) ? PROFILE_PLANS[plan].name : '';
+// "your Pro Max plan", or just "your plan"
+const teamPlanPhrase = (plan, whose) => { const n = teamPlanName(plan); return whose + (n ? ' ' + n : '') + ' plan'; };
 // With a seat on someone else's team (not one waiting for a seat)
 function teamMemberMode(){ return !!profileTeam && profileTeam.role === 'member' && profileTeam.seated !== false; }
 
@@ -2429,9 +2432,9 @@ function renderTeam(){
     const teamName = team.company || `${team.ownerName}’s team`;
     sub.textContent = `On ${teamName}`;
     body.innerHTML = `
-      <p class="api-copy">You’re on <strong>${teamEsc(teamName)}</strong>, run by ${teamEsc(team.ownerName)}, on its ${teamEsc(teamPlanName(team.plan))} plan. You share the team’s quote log, customers and company settings. Quotes you send are signed with your own name and phone (Company Information above)${t.me && t.me.tag ? `, and your quote numbers carry your initials, <strong>${teamEsc(t.me.tag)}</strong>` : ''}.</p>
+      <p class="api-copy">You’re on <strong>${teamEsc(teamName)}</strong>, run by ${teamEsc(team.ownerName)}, on ${teamEsc(teamPlanPhrase(team.plan, 'its'))}. You share the team’s quote log, customers and company settings. Quotes you send are signed with your own name and phone (Company Information above)${t.me && t.me.tag ? `, and your quote numbers carry your initials, <strong>${teamEsc(t.me.tag)}</strong>` : ''}.</p>
       ${t.seated === false ? `<div class="team-warn">The team’s plan has room for ${team.size > 1 ? `${team.size} people` : 'no team members'} right now, so you’re waiting for a seat. Ask ${teamEsc(team.ownerName)} to make room, or leave the team.</div>` : ''}
-      ${t.ownPlan ? `<div class="team-warn">You still pay for your own ${teamEsc(teamPlanName(t.ownPlan))} plan. You don’t need it while you’re on this team. <a href="#" onclick="event.preventDefault();handleManageBilling()" style="color:var(--accent)">Manage billing</a></div>` : ''}
+      ${t.ownPlan ? `<div class="team-warn">You still pay for ${teamEsc(teamPlanPhrase(t.ownPlan, 'your own'))}. You don’t need it while you’re on this team. <a href="#" onclick="event.preventDefault();handleManageBilling()" style="color:var(--accent)">Manage billing</a></div>` : ''}
       <div class="team-list">${(t.people || []).map(p => `
         <div class="team-row"><div class="team-main">
           <div class="team-name">${teamEsc(p.name)}${p.owner ? '<span class="team-tag">Owner</span>' : ''}${p.you ? '<span class="team-tag">You</span>' : ''}</div>
@@ -2461,8 +2464,8 @@ function renderTeam(){
   sub.textContent = `${t.used} of ${t.size} people`;
   const full = t.used >= t.size;
   body.innerHTML = `
-    <p class="api-copy">Everyone you add signs in with their own login and quotes on your ${teamEsc(plan)} plan. They share your quote log, customers, company settings and daily limits, and send quotes signed with their own name. Only you change company settings and billing. A quote or customer can be deleted by you or by whoever saved it.</p>
-    ${seatless.length ? `<div class="team-warn">${teamEsc(plan.charAt(0).toUpperCase() + plan.slice(1))} has room for ${t.size} people, so ${teamEsc(names(seatless))} can’t use your account right now. Remove someone, or move to a plan with more room.</div>` : ''}
+    <p class="api-copy">Everyone you add signs in with their own login and quotes on ${teamEsc(teamPlanPhrase(t.plan, 'your'))}. They share your quote log, customers, company settings and daily limits, and send quotes signed with their own name. Only you change company settings and billing. A quote or customer can be deleted by you or by whoever saved it.</p>
+    ${seatless.length ? `<div class="team-warn">${teamEsc(plan || 'Your plan')} has room for ${t.size} people, so ${teamEsc(names(seatless))} can’t use your account right now. Remove someone, or move to a plan with more room.</div>` : ''}
     ${t.onOtherTeam ? `<div class="team-warn">You’re on someone else’s team, so you can’t add your own team members. Leave that team first.</div>` : ''}
     <div class="team-list">
       <div class="team-row"><div class="team-main">

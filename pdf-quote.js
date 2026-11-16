@@ -46,6 +46,13 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
   function dollars(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
+  // "MC# 123456" whether Profile holds "123456", "MC-123456", "MC 123456" or "MC#123456"
+  function idText(label, value, prefix) {
+    var v = String(value == null ? '' : value).trim().replace(prefix, '').trim();
+    return v ? label + ' ' + v : '';
+  }
+  function mcText(v) { return idText('MC#', v, /^MC\s*[-#:.]?\s*/i); }
+  function dotText(v) { return idText('DOT#', v, /^(US\s*)?DOT\s*[-#:.]?\s*/i); }
   function cents(n) { return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   // A charge: whole dollars, or with cents when it has them ("$62.50")
   function money(n) { return Math.round(n * 100) % 100 ? cents(n) : dollars(n); }
@@ -368,8 +375,8 @@
       profile.contactName,
       profile.phone,
       profile.email,
-      profile.mcNumber ? 'MC# ' + profile.mcNumber : '',
-      profile.dotNumber ? 'DOT# ' + profile.dotNumber : '',
+      mcText(profile.mcNumber),
+      dotText(profile.dotNumber),
     ].filter(Boolean).map(esc).join('<span class="dot">·</span>');
     return '<header>\n' +
       '  <div class="brand">' + brand + '<div>' + brandText + '</div></div>\n' +
@@ -623,7 +630,7 @@
   window.QFCQuotePDF = {
     schemes: SCHEMES, style: style, colorsFor: colorsFor, classicScheme: classicScheme, isHex: function (v) { return HEX.test(v || ''); },
     whiteLabelAllowed: whiteLabelAllowed, whiteLabel: whiteLabel, validHours: validHours, customTerms: customTerms, termsText: termsText,
-    sectionOn: sectionOn, transitPlan: transitPlan, accessorialRows: accessorialRows,
+    sectionOn: sectionOn, transitPlan: transitPlan, accessorialRows: accessorialRows, mcText: mcText, dotText: dotText,
     nextQuoteNumber: nextQuoteNumber, syncCounter: syncCounter, preparedFor: preparedFor, classicPreparedFor: classicPreparedFor, modernHTML: modernHTML, multiStopHTML: multiStopHTML, bulkHTML: bulkHTML,
     openHTML: openHTML, openModern: openModern, openMultiStop: openMultiStop, openBulk: openBulk,
   };

@@ -205,10 +205,19 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   await t.page.goto(base + '/profile.html');
   await t.page.waitForSelector('#team-card', { state: 'visible' });
   check('a full team says so instead of showing the invite form', /Your team is full/.test(await text(t.page, '#team-body')) && !(await t.page.isVisible('#team-invite-email')));
+  check('…and names the plan once: “quotes on your Pro Max plan”', /quotes on your Pro Max plan\./.test(await text(t.page, '#team-body')) && !/your your|plan plan/.test(await text(t.page, '#team-body')));
   await t.page.selectOption('#sub-plan-select', 'plus');
   await t.page.click('#sub-plan-switch');
   await t.page.waitForTimeout(300);
   check('moving to Pro Plus warns that both team members lose access', /doesn’t include team members, so your 2 team members will lose access/.test(t.db.dialogs.join('|')), t.db.dialogs.join('|'));
+  await t.context.close();
+
+  console.log('\n=== Profile: a comp account’s team card ===');
+  t = await setup(browser, base, { account: OWNER_ROW({ plan: 'max', comp: true }), teamStatus: { role: 'owner', plan: 'comp', size: 6, used: 1, canInvite: true, members: [], me: { email: 'sam@example.com' } } });
+  await t.page.goto(base + '/profile.html');
+  await t.page.waitForSelector('#team-card', { state: 'visible' });
+  const compTeam = await text(t.page, '#team-body');
+  check('“quotes on your plan” (it read “your your plan plan”)', /quotes on your plan\./.test(compTeam) && !/your your|plan plan/.test(compTeam), compTeam.slice(0, 240));
   await t.context.close();
 
   // ── Profile: a member ─────────────────────────────────────────────────────

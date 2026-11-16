@@ -124,6 +124,9 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   await t.page.goto(base + '/rates.html');
   await t.page.waitForSelector('#qf-nav .qf-acct-btn');
   check('the account button shows the name, no Sign in', (await text(t.page, '#qf-nav .qf-acct-btn')) === 'S Sam' && !(await t.page.$('#qf-nav .qf-signin')) && !(await t.page.$('#qf-nav .qf-getpro')));
+  await t.page.waitForSelector('#mr-national .mr-tile-label');
+  const tileLabels = await t.page.$$eval('#mr-national .mr-tile-label', (els) => els.map((e) => e.textContent));
+  check('Market Rates calls its national figures monthly averages (the news beside them is weekly)', tileLabels.length === 3 && tileLabels.every((x) => / · monthly average$/.test(x)), tileLabels.join('|'));
   await t.page.click('#qf-nav .qf-acct-btn');
   await t.page.waitForSelector('#qf-nav .qf-acct-menu .qf-signout', { state: 'visible', timeout: 2000 }).catch(() => {});
   check('its menu: who, Profile, Customers, Plans, Sign out', (await text(t.page, '#qf-nav .qf-acct-menu')).startsWith('Signed in as Sam Rivera sam@example.com Profile & settings Customers Plans & pricing Sign out'));
@@ -534,6 +537,14 @@ const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').
   check('one navigation bar, no old header or theme button', (await t.page.$$('header')).length === 1 && !(await t.page.$('#theme-btn')));
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
+
+  console.log('\n=== Wording and headers ===');
+  const src = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
+  check('Lanes doesn’t say “on the left” (on a phone the list is above)', !/on the left/.test(src('lanes.html')));
+  check('Profile’s MC/DOT examples are just numbers (they invited typing “MC-” and “DOT-”)',
+    /id="mc-number" placeholder="123456"/.test(src('profile.html')) && /id="dot-number" placeholder="1234567"/.test(src('profile.html')));
+  check('no web-share in the Permissions-Policy header (Chrome warned it was unrecognized on every page)',
+    /Permissions-Policy = "/.test(src('netlify.toml')) && !/web-share/.test(src('netlify.toml')));
 
   await browser.close();
   server.close();

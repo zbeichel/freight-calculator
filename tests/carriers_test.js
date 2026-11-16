@@ -129,6 +129,14 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
     { op_auth_type: PROPERTY, op_auth_status: 'Active', reason: 'Granted', status_change_date: '20190101' }] }), { national: NATIONAL, now: NOW });
   ok(r.verdict === 'warn' && /suspended in the last year/.test(flag(r, 'recent_suspension').text) && r.authority.recentChanges.length === 2,
      'suspended and reinstated this year: check before booking');
+  r = F.buildReport(raw(5555557, { authHistory: [{ op_auth_type: PROPERTY, op_auth_status: 'Active', reason: 'Reinstated', status_change_date: ymdFrom(-40) },
+    { op_auth_type: PROPERTY, op_auth_status: 'Inactive', reason: 'Revoked', status_change_date: ymdFrom(-60) },
+    { op_auth_type: PROPERTY, op_auth_status: 'Active', reason: 'Granted', status_change_date: '20190101' }] }), { national: NATIONAL, now: NOW });
+  ok(/^Authority was revoked in the last year \([A-Z][a-z]{2} \d{1,2}, \d{4}\) and is active again\.$/.test(flag(r, 'recent_suspension').text),
+     'revoked and reinstated: the flag says "revoked" (not "suspended … Revoked")', flag(r, 'recent_suspension').text);
+  r = F.buildReport(raw(5555558, { censusRow: { legal_name: "HICKMAN'S YY LOGISTICS LLC", dba_name: "O'NEIL & CRST EXPRESS", phy_street: '400 ST GEORGE HWY' } }), { national: NATIONAL, now: NOW });
+  ok(r.name === "Hickman's YY Logistics LLC" && r.dba === "O'Neil & CRST Express" && /^400 St George Hwy · /.test(r.address),
+     "names: \"Hickman's\" (not \"Hickman'S\"), \"YY\" and \"CRST\" kept as initials, \"O'Neil\"; the street stays \"St … Hwy\"", JSON.stringify([r.name, r.dba, r.address]));
   r = F.buildReport(raw(5555556, { inspections: [{ insp_level_id: '1', v_oos: true, d_oos: true, n: '6' }, { insp_level_id: '1', v_oos: false, d_oos: false, n: '4' }] }), { national: NATIONAL, now: NOW });
   ok(flag(r, 'vehicle_oos_high') && /60% of inspections \(U\.S\. average 23%\)/.test(flag(r, 'vehicle_oos_high').text) && flag(r, 'driver_oos_high'),
      'trucks and drivers put out of service far more than the U.S. average: flagged', JSON.stringify(r.flags.map((f) => f.text)));

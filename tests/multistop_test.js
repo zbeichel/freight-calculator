@@ -195,6 +195,9 @@ const money = (s) => Number(String(s).replace(/[^0-9.]/g, '')) || 0;
     && back.badges === '26 mi, 19 mi', JSON.stringify(back) + ' saved ' + saved);
   check('…using the saved miles (no new route lookups)', t.calls.routes.length === routesBefore, t.calls.routes.slice(routesBefore).join(','));
   check('…and a 0% margin stays 0% (synced from the account)', back.margin === '0', back.margin);
+  const counts = await t.page.evaluate(() => ({ count: document.getElementById('ms-stops-count').textContent, route: getMsLog()[0].route }));
+  check('counts read as words: "3 stops (1 pickup, 2 deliveries)" and "(1 stop)", not "1 pickups" or "1 stops"',
+    /^3 stops \(1 pickup, 2 deliveries( · \d+ extra)?\)$/.test(counts.count) && / \(1 stop\)$/.test(counts.route), JSON.stringify(counts));
   const card = await t.page.evaluate((i) => {
     const c = document.getElementById('stop-card-' + stops[i].id);
     return { invalid: c.querySelector('input[type="text"]').classList.contains('invalid'), note: (document.getElementById('stop-note-' + stops[i].id) || {}).textContent || '' };

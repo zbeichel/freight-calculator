@@ -428,7 +428,7 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
     $('cc-alerts').innerHTML = alerts.slice(0, 10).map((a) => `<li class="${a.seen_at ? '' : 'new'}"><time datetime="${esc(a.created_at)}">${esc(day(a.created_at.slice(0, 10)))}</time><span>${esc(a.message)}</span></li>`).join('');
     const saved = info.saved || [];
     $('cc-saved-empty').hidden = saved.length > 0;
-    const v = { ok: ['ok', 'No problems'], warn: ['warn', 'Check'], stop: ['stop', 'Don’t book'] };
+    const v = { ok: ['ok', 'No problems'], warn: ['warn', 'Check first'], stop: ['stop', 'Don’t book'] };
     $('cc-saved').innerHTML = saved.map((s) => {
       const st = v[s.verdict] || ['', 'Not checked yet'];
       return `<tr data-id="${esc(s.id)}">
@@ -438,7 +438,7 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
         <td><span class="chip ${st[0]}">${st[1]}</span></td>
         <td class="hide-sm">${esc(ago(s.checked_at))}</td>
         <td class="hide-sm"><input type="text" maxlength="300" value="${esc(s.note || '')}" placeholder="Add a note" aria-label="Note for ${esc(s.name || s.dot_number)}"></td>
-        <td style="text-align:right;white-space:nowrap"><button type="button" class="mini" data-act="check">Check</button> <button type="button" class="mini" data-act="remove">Remove</button></td>
+        <td style="text-align:right;white-space:nowrap"><button type="button" class="mini" data-act="check">Recheck</button> <button type="button" class="mini" data-act="remove">Remove</button></td>
       </tr>`;
     }).join('');
   }
@@ -552,7 +552,7 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
         title: 'Watch your carriers',
         text: 'Save the carriers you use and we re-check them every morning. If one’s authority is suspended, its insurance is being cancelled or it gets an out-of-service order, you get an email before you tender the next load.',
         sample: `<table class="cc-saved"><thead><tr><th>Carrier</th><th>Status</th><th>Last checked</th><th></th></tr></thead><tbody>` +
-          row('Example Freight Lines LLC', 'USDOT 1234567 · MC 765432', 'warn', 'Check') + row('Sample Transport Inc', 'USDOT 2345678 · MC 876543', 'ok', 'No problems') +
+          row('Example Freight Lines LLC', 'USDOT 1234567 · MC 765432', 'warn', 'Check first') + row('Sample Transport Inc', 'USDOT 2345678 · MC 876543', 'ok', 'No problems') +
           row('Demo Carriers LLC', 'USDOT 3456789 · MC 987654', 'stop', 'Don’t book') + row('Placeholder Trucking', 'USDOT 4567890 · MC 198765', 'ok', 'No problems') + `</tbody></table>`,
         action: { label: 'Change plan', href: '/profile.html#subscription-paid' },
       });

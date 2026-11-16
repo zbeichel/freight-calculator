@@ -337,6 +337,14 @@ const profileReady = (pg) => pg.waitForFunction(() => ['subscription-paid', 'sub
   check('an account without a plan still sees “Get Pro”', !!(await t.page.$('#qf-nav .qf-getpro')));
   await t.context.close();
 
+  // ── Sign-in: no Monthly/Yearly switch over the form ───────────────────────
+  console.log('\n=== Sign-in: just the sign-in form ===');
+  t = await setup(browser, base, { signedIn: false, row: null });
+  await t.page.goto(base + '/signup.html?login');
+  await t.page.waitForFunction(() => !document.getElementById('su-interval').hidden);   // yearly prices loaded
+  check('no stray Monthly/Yearly switch above the sign-in form', (await t.page.isVisible('#form-login')) && !(await t.page.isVisible('#su-interval')));
+  await t.context.close();
+
   // ── Sign-up: email addresses and the trial's daily limit ────────────────
   console.log('\n=== Sign-up: a bad email address, and the trial’s daily limit ===');
   t = await setup(browser, base, { signedIn: false, row: null });

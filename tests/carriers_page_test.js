@@ -258,6 +258,7 @@ async function lookup(v, q, kind) {
   check('MC is the default; the box is ready to type in', (await v.p.$eval('.cc-kind button.on', (e) => e.dataset.kind)) === 'mc' && (await v.p.evaluate(() => document.activeElement.id)) === 'cc-q');
   check('below: the Pro Max watch list, as a preview', (await text(v.p, '#cc-watch-preview .qf-lp-title')) === 'Watch your carriers' && (await v.p.isHidden('#cc-watch'))
     && (await v.p.$eval('#cc-watch-preview .qf-lp-badge', (e) => e.textContent.trim())) === 'Pro Max');
+  check('…whose sample status for a carrier to look into reads “Check first”', (await v.p.$eval('#cc-watch-preview .chip.warn', (e) => e.textContent)) === 'Check first');
 
   await lookup(v, 'MC 9900101');
   const req = t.st.calls.filter((c) => c.action === 'lookup').pop();
@@ -416,6 +417,8 @@ async function lookup(v, q, kind) {
     cls: tr.querySelector('.chip').className, note: tr.querySelector('input').value })));
   check('saved carriers with their status from this morning’s check', savedRows.length === 2 && savedRows[0].name === 'Rapid Lane Freight Inc' && savedRows[0].chip === 'Don’t book' && /stop/.test(savedRows[0].cls)
     && savedRows[1].chip === 'No problems' && savedRows[1].sub === 'USDOT 9900001 · MC 9900101' && savedRows[1].note === 'Good on reefer to the Northeast', JSON.stringify(savedRows));
+  const recheck = await texts(v.p, '#cc-saved button[data-act="check"]');
+  check('each row’s button says Recheck (no “Check” button beside a “Check” status)', recheck.length === 2 && recheck.every((x) => x === 'Recheck'), recheck.join('|'));
   const alertItems = await v.p.$$eval('#cc-alerts li', (lis) => lis.map((li) => ({ isNew: li.classList.contains('new'), text: li.innerText.replace(/\s+/g, ' ') })));
   check('alerts, newest first, unread marked', alertItems.length === 2 && alertItems[0].isNew && !alertItems[1].isNew && /operating authority is now inactive/.test(alertItems[0].text), JSON.stringify(alertItems));
   await v.p.screenshot({ path: path.join(SHOTS, 'carrier-watch-list.png'), fullPage: true });

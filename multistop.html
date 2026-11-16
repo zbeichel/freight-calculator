@@ -1575,7 +1575,7 @@ function calcTotal(){
   document.getElementById('ms-rpm-sub').textContent        = totalMiles > 0 ? `${fmtD(rpm)} per loaded mile` : 'Fill in stops to calculate';
   document.getElementById('ms-total-miles').textContent    = totalMiles > 0 ? totalMiles.toLocaleString() + ' mi' : '—';
   document.getElementById('ms-total-weight').textContent   = totalWeight > 0 ? totalWeight.toLocaleString() + ' lbs' : '—';
-  document.getElementById('ms-stops-count').textContent    = `${stops.length} stops (${stops.filter(s=>s.type==='pickup').length} pickups, ${stops.filter(s=>s.type==='delivery').length} deliveries${addlStops > 0 ? ' · '+addlStops+' extra' : ''})`;
+  document.getElementById('ms-stops-count').textContent    = `${msCount(stops.length,'stop','stops')} (${msCount(stops.filter(s=>s.type==='pickup').length,'pickup','pickups')}, ${msCount(stops.filter(s=>s.type==='delivery').length,'delivery','deliveries')}${addlStops > 0 ? ' · '+addlStops+' extra' : ''})`;
   document.getElementById('ms-linehaul').textContent       = totalMiles > 0 ? fmt(linehaul) : '—';
   document.getElementById('ms-stop-charges-total').textContent = addlStops > 0 ? fmt(stopChargesTotal) : '$0';
   document.getElementById('ms-day-charges-row').style.display = extraDays > 0 ? '' : 'none';
@@ -1788,7 +1788,8 @@ function generateMultiStopPDF(){
 
   const hasContact = profile.contactName || profile.phone || profile.email || profile.mcNumber;
   const contactItems = [profile.contactName, profile.phone, profile.email,
-    profile.mcNumber?`MC# ${profile.mcNumber}`:'', profile.dotNumber?`DOT# ${profile.dotNumber}`:''].filter(Boolean);
+    profile.mcNumber?(window.QFCQuotePDF?QFCQuotePDF.mcText(profile.mcNumber):`MC# ${profile.mcNumber}`):'',
+    profile.dotNumber?(window.QFCQuotePDF?QFCQuotePDF.dotText(profile.dotNumber):`DOT# ${profile.dotNumber}`):''].filter(Boolean);
   // Escape each contact item before joining, since profile fields are user-typed
   const msCustomerPF = window.QFCQuotePDF ? QFCQuotePDF.classicPreparedFor(msCustomer()) : '';
   const contactStrip = hasContact
@@ -1964,7 +1965,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
             </div>
           </div>
           <div style="background:#f0f3f8;border-top:1px solid #e4e8ef;padding:8px 20px;font-size:11px;color:#8fa3b8">
-            ${stops.length} stops &nbsp;·&nbsp; ${stops.filter(s=>s.type==='pickup').length} pickups &nbsp;·&nbsp; ${stops.filter(s=>s.type==='delivery').length} deliveries &nbsp;·&nbsp; ${totalMiles.toLocaleString()} mi total
+            ${msCount(stops.length,'stop','stops')} &nbsp;·&nbsp; ${msCount(stops.filter(s=>s.type==='pickup').length,'pickup','pickups')} &nbsp;·&nbsp; ${msCount(stops.filter(s=>s.type==='delivery').length,'delivery','deliveries')} &nbsp;·&nbsp; ${totalMiles.toLocaleString()} mi total
           </div>
         </div>
       </div>
@@ -2111,7 +2112,9 @@ async function initWithProCheck(){
 const MS_LOG_KEY = 'qfc_ms_quote_log';
 const MS_MAX = 50;
 const CMULT_MS  = {standard:1.0,food:1.08,hazmat:1.20,highval:1.12,oversized:1.25};
-const CLABEL_MS = {standard:'Standard',food:'Food/Perishable',hazmat:'Hazmat',highval:'High Value',oversized:'Oversized'};
+// "1 stop", "2 stops"
+function msCount(n, one, many){ return n + ' ' + (n === 1 ? one : many); }
+const CLABEL_MS = {standard:'Standard',food:'Food / Perishable',hazmat:'Hazmat',highval:'High Value',oversized:'Oversized'};
 
 function getMsLog(){ try{ return JSON.parse(localStorage.getItem(MS_LOG_KEY)||'[]'); }catch(e){ return []; } }
 function saveMsLog(log){ try{ localStorage.setItem(MS_LOG_KEY, JSON.stringify(log)); }catch(e){} }
@@ -2239,8 +2242,8 @@ async function saveMsQuote(){
   const pickups    = stops.filter(s => s.type==='pickup').map(s => s.location).filter(Boolean);
   const deliveries = stops.filter(s => s.type==='delivery').map(s => s.location).filter(Boolean);
   const route = pickups.length && deliveries.length
-    ? `${pickups[0]} → ${deliveries[deliveries.length-1]}${stops.length>2?' ('+(stops.length-2)+' stops)':''}`
-    : `${stops.length} stops`;
+    ? `${pickups[0]} → ${deliveries[deliveries.length-1]}${stops.length>2?' ('+msCount(stops.length-2,'stop','stops')+')':''}`
+    : msCount(stops.length,'stop','stops');
 
   const rpm        = parseFloat((document.getElementById('ms-rpm-sub')?.textContent||'').replace(/[^0-9.]/g,''))||0;
   const marginPct  = document.getElementById('ms-margin')?.value !== '' ? parseFloat(document.getElementById('ms-margin')?.value) : 15;

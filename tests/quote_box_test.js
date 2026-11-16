@@ -334,6 +334,32 @@ const setVal = (page, id, v, ev = 'input') => page.evaluate(([id, v, ev]) => { c
   check('a place that couldn’t be checked (lookup down): routed by its text, with the legs for its point', r2.includeLegs === true && !r2.destinationLatLng, JSON.stringify(r2));
   await t.context.close();
 
+  // ── Small things: the diesel pill, the rates date, labels, MC#/DOT# ─────────
+  console.log('\n=== The diesel pill, the rates date, MC#/DOT# ===');
+  t = await setup(browser, base, { row: { pdf_style: 'classic', mc_number: 'MC-998877', dot_number: 'USDOT 7654321' } });
+  await openCalc(t, base);
+  await t.page.waitForFunction(() => / — /.test(document.getElementById('rate-date').textContent || document.getElementById('rate-date').value || ''));
+  await lane(t.page);
+  const small = await t.page.evaluate(() => {
+    document.getElementById('diesel-enabled').checked = true; dieselSource = 'manual';
+    document.getElementById('diesel-price').value = '6.13';
+    calc();
+    const rd = document.getElementById('rate-date');
+    return { pill: document.getElementById('m-diesel').textContent, fsc: getDieselFSC(), tag: rd.tagName, date: rd.textContent, food: CLABEL.food,
+      ids: !QFCQuotePDF.mcText ? [] : [QFCQuotePDF.mcText('MC-998877'), QFCQuotePDF.mcText('mc#998877'), QFCQuotePDF.mcText('998877'), QFCQuotePDF.dotText('USDOT 7654321'), QFCQuotePDF.dotText('DOT-7654321'), QFCQuotePDF.mcText('')] };
+  });
+  check('the diesel pill shows what the surcharge adds a mile (it read “1.000×”)', small.fsc > 0 && small.pill === '+$' + small.fsc.toFixed(2) + '/mi', JSON.stringify(small));
+  check('the base-rate date is a label that shows all of it (a cut-off box before)', small.tag === 'SPAN' && / — /.test(small.date), JSON.stringify(small));
+  check('“Food / Perishable”, as the form and the PDFs say', small.food === 'Food / Perishable');
+  check('MC#/DOT# print the number once, whatever prefix was typed', JSON.stringify(small.ids) === JSON.stringify(['MC# 998877', 'MC# 998877', 'MC# 998877', 'DOT# 7654321', 'DOT# 7654321', '']), JSON.stringify(small.ids));
+  const [idTab] = await Promise.all([t.context.waitForEvent('page'), t.page.evaluate(() => generateQuotePDF())]);
+  await idTab.waitForLoadState('load');
+  const idText = await idTab.evaluate(() => document.body.innerText);
+  check('…on the Classic PDF: “MC# 998877 · DOT# 7654321” (it printed “MC# MC-998877”)', idText.includes('MC# 998877') && idText.includes('DOT# 7654321') && !/MC# MC|DOT# (US)?DOT/i.test(idText),
+    (idText.match(/MC#[^\n]{0,40}/) || [''])[0]);
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
   await browser.close();
   server.close();
   console.log(`\nScreenshots: ${SHOTS}`);

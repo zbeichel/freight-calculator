@@ -180,6 +180,8 @@ async function send(t) {
     && t.db.sends.length === 0 && (await quoteStart(t)) === 2041);
   await t.page.fill('#qfce-dialog input[name=to]', 'Jo@Acme.example');
   t.db.replies.push({ status: 502, body: { error: 'send', message: 'The email couldn’t be sent. Check the address and try again.' } });
+  const pdfConsole = [];
+  t.page.on('console', (m) => pdfConsole.push(m.text()));
   await send(t);
   check('a failed send says so, and the window stays open', (await text(t.page, '#qfce-dialog .qfce-status')).startsWith('The email couldn’t be sent')
     && t.db.sends.length === 1 && !(await visible(t.page, '#qfce-dialog .qfce-done')));
@@ -191,6 +193,8 @@ async function send(t) {
   check('each attempt has its own key, signed in as the user', s1.sendKey !== s2.sendKey && t.db.sends.every((x) => x.auth === 'Bearer tok'));
   const pdf1 = pdfInfo(s2.pdf);
   check('a real one-page PDF of the quote', pdf1.isPdf && pdf1.pages === 1 && pdf1.image && pdf1.kb > 20 && pdf1.kb < 3000, JSON.stringify(pdf1));
+  check('…made without “Blocked script execution” noise in the console', !pdfConsole.some((m) => /Blocked script execution/i.test(m)),
+    pdfConsole.filter((m) => /Blocked script/i.test(m)).slice(0, 2).join(' | '));
   check('named for its quote number', s2.filename === `Quote ${s2.summary.quoteNumber}.pdf`, s2.filename);
   check('the email body gets the lane, rate and valid-until', s2.summary.origin === 'Harrisburg, PA' && s2.summary.destination === 'Boston, MA'
     && s2.summary.rate === rQuote && s2.summary.equipment === 'Dry Van' && s2.summary.miles === '384' && /\d{4}, \d{1,2}:\d{2}\s?[AP]M/.test(s2.validLabel)

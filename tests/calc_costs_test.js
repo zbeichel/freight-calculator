@@ -214,6 +214,26 @@ const setVal = (page, id, v) => page.evaluate(([id, v]) => { const e = document.
   });
   check('Bulk assumes 6.5 MPG (as the calculator, the API and Market Rates do), and its surcharge per mile uses it',
     bk.mpg === '6.5' && bk.diesel === 5.92 && bk.label.includes('$' + bk.want + '/mi'), JSON.stringify(bk));
+  const bf = await t.page.evaluate(() => {
+    const set = (id, v) => { document.getElementById(id).value = v; };
+    const read = () => ({ head: document.getElementById('comp-headline-text').textContent, detail: document.getElementById('comp-detail').textContent });
+    set('loaded-miles', 712); set('deadhead-miles', 0); set('cwt', 450); set('offered-rate', 9.5); set('target-rpm', 2.5); calc();
+    const over = read();
+    set('offered-rate', 1.1); set('target-rpm', 7); calc();
+    const short = read();
+    set('offered-rate', 1.85); set('target-rpm', 0.3); calc();
+    const covered = read();
+    setFsc('percent'); calc();
+    const pct = { label: document.getElementById('r-fsc-label').textContent, help: document.getElementById('fsc-pct-help').textContent, ph: document.getElementById('fsc-pct').placeholder };
+    setFsc('permile'); calc();
+    return { over, short, covered, pct };
+  });
+  check('Bulk dollar amounts have thousands separators (“$1,495.99”, not “$1495.99”)',
+    /^\$\d{1,3}(,\d{3})+\.\d{2} profit margin over target$/.test(bf.over.head) && /^\$\d{1,3}(,\d{3})+\.\d{2} short of target$/.test(bf.short.head), JSON.stringify([bf.over.head, bf.short.head]));
+  check('a target the fuel surcharge alone covers: said so, with no negative minimum (“$-0.71/cwt”)',
+    /fuel surcharge alone covers your target/.test(bf.covered.detail) && !/\$-/.test(bf.covered.detail + bf.covered.head), JSON.stringify(bf.covered));
+  check('the surcharge percent reads the same in the label, the help and the box (not 96.5% beside 97%)',
+    bf.pct.ph !== '' && bf.pct.label.includes('(' + bf.pct.ph + '% of base)') && bf.pct.help.endsWith('= ' + bf.pct.ph + '%'), JSON.stringify(bf.pct));
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
 

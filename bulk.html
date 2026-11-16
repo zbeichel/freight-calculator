@@ -798,6 +798,9 @@ function computeAutoFscPct(){
 
 // Returns the percentage to actually use in the math — either the live
 // auto-calc, or the user's manual override if they've typed one in.
+// "$1,495.99"
+function usd2(n){ return '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
 function getEffectiveFscPct(){
   if(fscPctManual){
     return +document.getElementById('fsc-pct').value || 0;
@@ -881,12 +884,12 @@ function calc(){
     const autoPct  = computeAutoFscPct();
     const baseDsl  = +pctBaseEl.value || 0;
     if(!fscPctManual){
-      pctInput.placeholder = autoPct.toFixed(0);
+      pctInput.placeholder = String(autoPct);
       pctHelp.textContent =
-        `= ($${DIESEL_PRICE.toFixed(2)} − $${baseDsl.toFixed(2)}) ÷ $0.05 = ${autoPct.toFixed(0)}%`;
+        `= ($${DIESEL_PRICE.toFixed(2)} − $${baseDsl.toFixed(2)}) ÷ $0.05 = ${autoPct}%`;
     } else {
       pctHelp.textContent =
-        `Manual override · auto would be ${autoPct.toFixed(0)}% at current diesel`;
+        `Manual override · auto would be ${autoPct}% at current diesel`;
     }
   }
 
@@ -1002,16 +1005,19 @@ function calc(){
     compResult.className   = 'comp-result good';
     compHeadline.className = 'comp-headline good';
     compIcon.textContent = '▲';
-    compHText.textContent = `$${dollarDelta.toFixed(2)} profit margin over target`;
-    compDetail.innerHTML =
-      `Offered rate of <strong>$${offeredRate.toFixed(2)}/cwt</strong> beats your minimum of ` +
-      `$${requiredCwtRate.toFixed(2)}/cwt by $${rateDelta.toFixed(2)}/cwt. ` +
-      `Effective $/mi loaded: $${rpmLoaded.toFixed(2)}.`;
+    compHText.textContent = `${usd2(dollarDelta)} profit margin over target`;
+    // When the fuel surcharge alone covers the target, the minimum is $0, not a negative rate
+    compDetail.innerHTML = requiredCwtRate <= 0
+      ? `The fuel surcharge alone covers your target, so any rate beats it. Offered rate: <strong>$${offeredRate.toFixed(2)}/cwt</strong>. ` +
+        `Effective $/mi loaded: $${rpmLoaded.toFixed(2)}.`
+      : `Offered rate of <strong>$${offeredRate.toFixed(2)}/cwt</strong> beats your minimum of ` +
+        `$${requiredCwtRate.toFixed(2)}/cwt by $${rateDelta.toFixed(2)}/cwt. ` +
+        `Effective $/mi loaded: $${rpmLoaded.toFixed(2)}.`;
   } else {
     compResult.className   = 'comp-result bad';
     compHeadline.className = 'comp-headline bad';
     compIcon.textContent = '▼';
-    compHText.textContent = `$${Math.abs(dollarDelta).toFixed(2)} short of target`;
+    compHText.textContent = `${usd2(Math.abs(dollarDelta))} short of target`;
     compDetail.innerHTML =
       `Offered rate of <strong>$${offeredRate.toFixed(2)}/cwt</strong> falls ` +
       `$${Math.abs(rateDelta).toFixed(2)}/cwt below your minimum of $${requiredCwtRate.toFixed(2)}/cwt. ` +
@@ -1234,8 +1240,8 @@ function generateBulkPDF(){
     profile.contactName,
     profile.phone,
     profile.email,
-    profile.mcNumber ? `MC# ${profile.mcNumber}` : '',
-    profile.dotNumber ? `DOT# ${profile.dotNumber}` : '',
+    profile.mcNumber ? (window.QFCQuotePDF ? QFCQuotePDF.mcText(profile.mcNumber) : `MC# ${profile.mcNumber}`) : '',
+    profile.dotNumber ? (window.QFCQuotePDF ? QFCQuotePDF.dotText(profile.dotNumber) : `DOT# ${profile.dotNumber}`) : '',
   ].filter(Boolean);
   const bulkCustomerPF = window.QFCQuotePDF ? QFCQuotePDF.classicPreparedFor(bulkCustomer()) : '';
   const contactStripHTML = hasContact ? `
