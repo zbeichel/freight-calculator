@@ -287,7 +287,6 @@ const SEASON_PROFILES = {
 // rate chart shows raw market data and is intentionally never adjusted.
 // Persisted to localStorage so the user's last setting survives navigation.
 const ADJ_KEY = 'qfc_lane_adjustments';
-const adjustments = loadAdjustments();
 
 // Cached chart source for the currently-rendered lane. Used by the surgical
 // adjustment updater so toggling seasonal doesn't require a full panel rebuild
@@ -310,6 +309,43 @@ const COMMODITY_MULT = {
 // clamped at ±12% so a single tight-or-loose market can't dominate the
 // other adjustments. Values match LT_BASELINE in index.html.
 const LT_BASELINE = { van: 6.0, reefer: 10.0, flatbed: 25.0 };
+
+// The saved settings, read now that COMMODITY_MULT and LT_BASELINE exist (reading them
+// earlier threw, and every setting fell back to its default on reload).
+const adjustments = loadAdjustments();
+
+// ── Distance factor ───────────────────────────────────────────────────────
+// The calculator's distance curve: short hauls pay more per mile, long ones less. The same
+// default curves (DMULTS in index.html), and your own if you changed them on the
+// calculator (Distance Decay Curve, kept in this browser), so a lane total here matches
+// the calculator's linehaul for the same lane.
+const DMULTS = {
+  van:    [{mi:100,m:1.85},{mi:300,m:1.05},{mi:600,m:1.00},{mi:1000,m:1.00},{mi:1500,m:0.85},{mi:2500,m:0.75}],
+  reefer: [{mi:100,m:1.80},{mi:300,m:1.05},{mi:600,m:1.00},{mi:1000,m:1.00},{mi:1500,m:0.87},{mi:2500,m:0.77}],
+  flatbed:[{mi:100,m:1.55},{mi:300,m:1.05},{mi:600,m:1.00},{mi:1000,m:1.00},{mi:1500,m:0.90},{mi:2500,m:0.80}],
+};
+function distanceCurve(trailer){
+  const def = DMULTS[trailer] || DMULTS.van;
+  try {
+    const stored = (JSON.parse(localStorage.getItem('qfc_distance_curves') || '{}') || {})[trailer];
+    if(Array.isArray(stored) && stored.length === def.length
+       && stored.every((pt, i) => pt && typeof pt.m === 'number' && pt.mi === def[i].mi)){
+      return stored.map(pt => ({ mi: pt.mi, m: Math.max(0.4, Math.min(2.2, pt.m)) }));
+    }
+  } catch(e){}
+  return def;
+}
+function distanceMult(miles, trailer){
+  const c = distanceCurve(trailer);
+  if(!(miles > 0)) return 1;
+  if(miles <= c[0].mi) return c[0].m;
+  if(miles >= c[c.length - 1].mi) return c[c.length - 1].m;
+  for(let i = 0; i < c.length - 1; i++){
+    const lo = c[i], hi = c[i + 1];
+    if(miles >= lo.mi && miles <= hi.mi) return lo.m + (hi.m - lo.m) * (miles - lo.mi) / (hi.mi - lo.mi);
+  }
+  return 1;
+}
 
 function loadAdjustments(){
   try {
@@ -447,7 +483,7 @@ function buildChartData(profile, trailer){
     dates:  entries.map(h => h.date), // raw YYYY-MM-DD for month-aware adjustments
     data,
     national,
-    totals: miles > 0 ? data.map(r => r * miles) : null,
+    totals: miles > 0 ? data.map(r => r * distanceMult(miles, trailer) * miles) : null,
     region,
     miles,
   };
@@ -560,7 +596,7 @@ function buildDisclaimerText(){
   if(hasActiveAdjustments()){
     return 'Lane totals shown include the active adjustments above. They still don\u2019t account for fuel surcharges, truck availability, or other market factors.';
   }
-  return 'These lane totals are calculated from the rate per mile only. They don\u2019t account for seasonal lift, commodity premiums, capacity tightness, broker margin, fuel surcharges, or other market factors. Use the adjustments above to layer those in.';
+  return 'These lane totals are the rate per mile times the miles, with the calculator\u2019s distance factor (short hauls pay more per mile, long ones less). They don\u2019t account for seasonal lift, commodity premiums, capacity tightness, broker margin, fuel surcharges, or other market factors. Use the adjustments above to layer those in.';
 }
 
 // "at 685 mi" / "at 685 mi · adjusted" / "at 685 mi · customer quote" —
@@ -568,7 +604,8 @@ function buildDisclaimerText(){
 // "customer quote" wins over "adjusted" when margin is active, since margin
 // fundamentally changes what the chart represents (markup vs. carrier rate).
 function buildTotalSectionHint(miles){
-  const milesPart = `at ${miles.toLocaleString()} mi`;
+  const dm = distanceMult(miles, activeTrailer);
+  const milesPart = `at ${miles.toLocaleString()} mi` + (Math.abs(dm - 1) >= 0.005 ? ` · ${dm.toFixed(2)}× for distance` : '');
   if(adjustments.margin.enabled) return `${milesPart} · customer quote`;
   if(hasActiveAdjustments())     return `${milesPart} · adjusted`;
   return milesPart;
@@ -1109,7 +1146,7 @@ function renderDetail(){
   // same lane and miles. Lets the user see "what would my lane pay at US-
   // average rates" alongside the regional figure. Same adjustments apply —
   // both totals are quoting projections, not historical record.
-  const rawNationalTotals = (national && miles > 0) ? national.map(r => r * miles) : null;
+  const rawNationalTotals = (national && miles > 0) ? national.map(r => r * distanceMult(miles, activeTrailer) * miles) : null;
   const nationalTotals    = rawNationalTotals ? applyMargin(applyAdjustments(rawNationalTotals, dates, activeTrailer)) : null;
 
   const currentRate = data[data.length-1];
