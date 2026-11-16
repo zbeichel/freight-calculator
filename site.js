@@ -93,7 +93,20 @@
       // whether this browser knows the plan of whoever's signed in (until verify-pro answers,
       // "Get Pro" waits, so a paying account doesn't see it flash)
       known: !!st.cachedAt && (!st.userId || st.userId === uid),
+      // which plan, from the account settings the pages keep (a team member's is the team's)
+      plan: p.plan || null,
+      comp: p.comp === true,
     };
+  }
+  // A tool the signed-in account's plan already includes shows no plan tag in Tools: the Pro
+  // tools with any plan; the Pro Plus ones with Pro Plus, Pro Max, API or comp; the API with the
+  // API plan (comp accounts too only on the API plan, as api-keys.js has it).
+  function unlocked(tag, a) {
+    if (!a || !a.pro) return false;
+    if (tag === 'Pro') return true;
+    if (tag === 'Plus') return a.comp || a.plan === 'plus' || a.plan === 'max' || a.plan === 'api';
+    if (tag === 'API') return a.plan === 'api';
+    return false;
   }
 
   var TOOLS = [
@@ -114,7 +127,7 @@
     var toolsActive = here(TOOLS.map(function (x) { return x[0]; }));
     var tools = TOOLS.map(function (x) {
       return '<a href="' + x[0] + '"><span class="qf-dd-ico">' + icon(x[1]) + '</span><span><b>' + esc(x[2]) +
-        ' <em class="qf-tag">' + x[4] + '</em></b><small>' + esc(x[3]) + '</small></span></a>';
+        (unlocked(x[4], a) ? '' : ' <em class="qf-tag">' + x[4] + '</em>') + '</b><small>' + esc(x[3]) + '</small></span></a>';
     }).join('');
     var themeBtn = '<button type="button" class="qf-icon-btn qf-theme" aria-label="' + (isLight() ? 'Switch to dark mode' : 'Switch to light mode') +
       '" title="' + (isLight() ? 'Dark mode' : 'Light mode') + '">' + icon(isLight() ? 'moon' : 'sun') + '</button>';
@@ -273,6 +286,7 @@
           if (d && 'unlimitedUntilRenewal' in d) {
             try { localStorage.setItem('qfc_pro_status', JSON.stringify({ isActive: d.active === true, userId: userId, cachedAt: Date.now() })); } catch (e) {}
             render();
+            loadPlanIfMissing();
           }
           return d;
         })
@@ -293,6 +307,16 @@
     try { st = JSON.parse(localStorage.getItem('qfc_pro_status') || '{}') || {}; } catch (e) {}
     if (st.userId === uid && st.cachedAt && Date.now() - st.cachedAt < 12 * 3600 * 1000) return;
     verify(uid, s.access_token);
+  }
+  // Which plan comes from the account settings the pages keep (qfc_pro_profile). On a device
+  // where no page has loaded them yet (signed in, then straight to Carrier Check), load them
+  // once, so Tools doesn't tag tools the plan already includes.
+  function loadPlanIfMissing() {
+    var a = account();
+    if (!a || !a.pro) return;
+    var p = {};
+    try { p = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch (e) {}
+    if (!('plan' in p)) syncProfile();
   }
 
   // ── The account's PDF settings, cached for the pages that make PDFs ──
@@ -346,6 +370,7 @@
           : accountProfile(acct.row, teamOf(acct.team), prev);
         try { localStorage.setItem('qfc_pro_profile', JSON.stringify(prof)); } catch (e) {}
         profileSyncedAt = Date.now();
+        if (nav && (prev.plan !== prof.plan || prev.comp !== prof.comp)) render();   // Tools' plan tags
         // with the account's own counter, which may be behind this browser's
         return Object.assign({}, prof, { accountQuoteCounter: Number(acct.row.quote_counter) || 0 });
       })
@@ -364,7 +389,7 @@
     window.addEventListener('focus', again);
   }
 
-  function start() { render(); footer(); refreshStatus(); }
+  function start() { render(); footer(); refreshStatus(); loadPlanIfMissing(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
   // Signing in or out in another tab.

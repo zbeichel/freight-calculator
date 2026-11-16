@@ -338,6 +338,47 @@ const profileReady = (pg) => pg.waitForFunction(() => ['subscription-paid', 'sub
   await t.context.close();
 
   // ── The nav on other pages ──────────────────────────────────────────────
+  console.log('\n=== Nav: Tools tags only the tools the plan doesn’t include ===');
+  // Each tool as "name [tag]" ("name" alone when the plan includes it)
+  const toolTags = () => [...document.querySelectorAll('#qf-nav .qf-dd-menu a')].map((a) => {
+    const tag = a.querySelector('.qf-tag');
+    return a.querySelector('b').firstChild.textContent.trim() + (tag ? ' [' + tag.textContent + ']' : '');
+  }).join(' | ');
+  const ALL_TAGS = 'Multi-Stop Builder [Pro] | Bulk Load Calculator [Pro] | Lane Rate Tracker [Pro] | Carrier Check [Plus] | Customers [Plus] | API [API]';
+  const PRO_TAGS = 'Multi-Stop Builder | Bulk Load Calculator | Lane Rate Tracker | Carrier Check [Plus] | Customers [Plus] | API [API]';
+  const PLUS_TAGS = 'Multi-Stop Builder | Bulk Load Calculator | Lane Rate Tracker | Carrier Check | Customers | API [API]';
+  const NO_TAGS = 'Multi-Stop Builder | Bulk Load Calculator | Lane Rate Tracker | Carrier Check | Customers | API';
+  for (const [who, opts, want] of [
+    ['signed out', { signedIn: false }, ALL_TAGS],
+    ['signed in without a plan', { row: UNPAID, verify: NO_PLAN() }, ALL_TAGS],
+    ['Pro', { row: ROW({ plan: 'pro' }), verify: VERIFY({ plan: 'pro' }) }, PRO_TAGS],
+    ['Pro Plus', { row: ROW({ plan: 'plus' }), verify: VERIFY({ plan: 'plus' }) }, PLUS_TAGS],
+    ['Pro Max', { row: ROW({ plan: 'max' }), verify: VERIFY({ plan: 'max' }) }, PLUS_TAGS],
+    ['API', { row: ROW({ plan: 'api' }), verify: VERIFY({ plan: 'api' }) }, NO_TAGS],
+    ['comp on Pro Max (the API needs the API plan)', { row: COMP, verify: VERIFY({ plan: 'max', paid: false }) }, PLUS_TAGS],
+    ['comp on the API plan', { row: ROW({ plan: 'api', stripe_customer_id: null, stripe_subscription_id: null }), verify: VERIFY({ plan: 'api', paid: false }) }, NO_TAGS],
+  ]) {
+    // A device where no page has loaded the account yet, straight to Carrier Check (as in the report)
+    t = await setup(browser, base, opts);
+    await t.page.goto(base + '/carriers.html');
+    await t.page.waitForSelector('#qf-nav .qf-dd-menu a', { state: 'attached' });
+    await t.page.waitForFunction(([w, f]) => (0, eval)(f)() === w, [want, '(' + toolTags + ')'], { timeout: 5000 }).catch(() => {});
+    await t.page.waitForTimeout(300);
+    const got = await t.page.evaluate(toolTags);
+    check(`Tools, ${who}: ${want === ALL_TAGS ? 'every tool tagged with its plan' : 'no tag on what the plan includes'}`, got === want, got);
+    await t.context.close();
+  }
+  t = await setup(browser, base, { row: ROW({ plan: 'plus' }), verify: VERIFY({ plan: 'plus' }) });
+  await t.page.goto(base + '/terms.html');
+  await t.page.waitForFunction(() => (JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}).plan === 'plus', null, { timeout: 5000 }).catch(() => {});
+  check('…the nav loads the account’s plan itself on a device where no page has yet',
+    await t.page.evaluate(() => (JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}).plan === 'plus'));
+  await t.page.goto(base + '/privacy.html');
+  await t.page.waitForSelector('#qf-nav .qf-dd-menu a', { state: 'attached' });
+  check('…and the next page shows the right tags straight away', (await t.page.evaluate(toolTags)) === PLUS_TAGS && t.db.verifyCalls === 1, `${t.db.verifyCalls} calls`);
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
   console.log('\n=== Nav: "Get Pro" only for accounts without a plan ===');
   t = await setup(browser, base, { verify: VERIFY({ plan: 'plus' }), row: ROW({ plan: 'plus' }) });
   await t.page.goto(base + '/terms.html');
