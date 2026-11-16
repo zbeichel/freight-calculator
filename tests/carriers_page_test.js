@@ -336,6 +336,10 @@ async function lookup(v, q, kind) {
   check('an inactive USDOT number with the authority still listed Active: the chip says so, not a plain green “Active”',
     /Active, but USDOT inactive/.test(authSec) && (await v.p.$eval('.cc-sec .chip.stop', (e) => /Active, but USDOT inactive/.test(e.textContent)).catch(() => false)), authSec);
   check('suspension notices are listed: the pending one first, then the past one', /Takes effect .+ Suspension notice served .+Took effect .+ Suspension notice served/.test(authSec), authSec);
+  await v.p.click('#cc-copy');
+  await v.p.waitForTimeout(200);
+  const clip3 = await v.p.evaluate(() => navigator.clipboard.readText()).catch((e) => 'ERR ' + e.message);
+  check('…and Copy summary says so too (it said a plain “Active”)', /Authority: [^\n]* Active, but USDOT inactive\./.test(clip3), clip3);
   await v.p.screenshot({ path: path.join(SHOTS, 'carrier-records-disagree.png'), fullPage: true });
   const flagsText = await text(v.p, '.cc-flags');
   check('…and the pending one is a warning in the verdict', /FMCSA served notice on .+ that their operating authority will be suspended on .+ unless they resolve it\./.test(flagsText)

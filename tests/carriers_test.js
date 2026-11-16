@@ -134,6 +134,18 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
     { op_auth_type: PROPERTY, op_auth_status: 'Active', reason: 'Granted', status_change_date: '20190101' }] }), { national: NATIONAL, now: NOW });
   ok(/^Authority was revoked in the last year \([A-Z][a-z]{2} \d{1,2}, \d{4}\) and is active again\.$/.test(flag(r, 'recent_suspension').text),
      'revoked and reinstated: the flag says "revoked" (not "suspended … Revoked")', flag(r, 'recent_suspension').text);
+  r = F.buildReport(raw(5555559, { authHistory: [{ op_auth_type: PROPERTY, op_auth_status: 'Inactive', reason: 'Administrative status adjustment', status_change_date: ymdFrom(-160) },
+    { op_auth_type: PROPERTY, op_auth_status: 'Active', reason: 'Granted', status_change_date: '20190101' }] }), { national: NATIONAL, now: NOW });
+  ok(r.verdict === 'ok' && !flag(r, 'recent_suspension') && r.authority.recentChanges.length === 0,
+     'FMCSA’s “Administrative status adjustment” (Jun 9, 2026, on thousands of carriers such as Werner) isn’t a suspension', JSON.stringify(r.flags));
+  r = F.buildReport(raw(5555560, { censusRow: { status_code: 'I' }, oos: [{ oos_date: '2026-11-10', oos_reason: 'Unsatisfactory = Unfit', status: 'ACTIVE' }] }), { national: NATIONAL, now: NOW });
+  ok(r.usdotStatus === 'Inactive' && flag(r, 'usdot_inactive') && r.verdict === 'stop',
+     'an inactive USDOT record with an out-of-service order reads “Inactive”, as SAFER shows it (not “Out of service”)', r.usdotStatus);
+  ok(r.v === F.REPORT_VERSION && F.REPORT_VERSION >= 2, 'reports carry their format version', String(r.v));
+  r = F.buildReport(raw(5555561, { authority: [], authHistory: [{ op_auth_type: PROPERTY, op_auth_status: 'Inactive', reason: 'Voluntary Suspension', status_change_date: ymdFrom(-1) },
+    { op_auth_type: PROPERTY, op_auth_status: 'Active', reason: 'Granted', status_change_date: '20190101' }] }), { national: NATIONAL, now: NOW });
+  ok(flag(r, 'authority_inactive') && /^No active operating authority: Voluntary Suspension \(/.test(flag(r, 'authority_inactive').text) && !flag(r, 'no_authority'),
+     'dropped from FMCSA’s authority list after a voluntary suspension: says so (not “no for-hire authority on file”)', JSON.stringify(r.flags.map((f) => f.key)));
   r = F.buildReport(raw(5555558, { censusRow: { legal_name: "HICKMAN'S YY LOGISTICS LLC", dba_name: "O'NEIL & CRST EXPRESS", phy_street: '400 ST GEORGE HWY' } }), { national: NATIONAL, now: NOW });
   ok(r.name === "Hickman's YY Logistics LLC" && r.dba === "O'Neil & CRST Express" && /^400 St George Hwy · /.test(r.address),
      "names: \"Hickman's\" (not \"Hickman'S\"), \"YY\" and \"CRST\" kept as initials, \"O'Neil\"; the street stays \"St … Hwy\"", JSON.stringify([r.name, r.dba, r.address]));
@@ -430,6 +442,11 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   const stale = db.socrata;
   res = await callFn('t-plus', { action: 'lookup', query: 'MC135797' });
   ok(res.status === 200 && db.socrata > stale && db.cache['80806'].fetched_at === new Date(NOW).toISOString(), 'a report over 6 hours old is fetched again');
+  delete db.cache['80806'].report.v;   // cached by the code before reports had a version
+  const unversioned = db.socrata;
+  res = await callFn('t-plus', { action: 'lookup', query: 'MC135797' });
+  ok(res.status === 200 && db.socrata > unversioned && db.cache['80806'].report.v === F.REPORT_VERSION,
+     'a fresh report cached by older code is built again (it lacks the newer fields)');
   for (let i = 0; i < 98; i++) db.lookups.push({ account_id: 'u-plus', user_id: 'u-plus', dot_number: String(9000000 + i), created_at: new Date(NOW).toISOString() });
   res = await callFn('t-plus', { action: 'lookup', query: 'DOT 9999998' });
   ok(res.status === 429 && res.body.error === 'limit' && /100 carriers today/.test(res.body.message), 'the 101st carrier of the day: 429, with when it resets');

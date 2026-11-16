@@ -343,7 +343,12 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
         <section class="cc-sec">
           <h3>Operating authority</h3>
           ${gone('authority') ? nlRow('Operating authority')
-            : auths.length ? auths.map((a) => `<div class="cc-row"><span>${esc(authorityName(a.type))}</span>${authorityChip(a.status, r.usdotStatus)}</div>`).join('') : '<div class="cc-row"><span>For-hire authority</span><span class="chip stop">None on file</span></div>'}
+            : auths.length ? auths.map((a) => `<div class="cc-row"><span>${esc(authorityName(a.type))}</span>${authorityChip(a.status, r.usdotStatus)}</div>`).join('') : (() => {
+                // FMCSA's authority list can drop a carrier whose authority was just suspended or revoked;
+                // its history still says what happened
+                const last = (r.authority.recentChanges || []).find((h) => h.status === 'Inactive');
+                return `<div class="cc-row"><span>For-hire authority</span><span class="chip stop">${last ? `Inactive since ${esc(day(last.date))}` : 'None on file'}</span></div>`;
+              })()}
           ${suspensionList(r.suspensionOrders)}
           ${gone('authHistory') ? nlRow('First granted') : `<div class="cc-row"><span>First granted</span><b>${day(r.authority.firstGranted)}</b></div>`}
           ${(r.authority.recentChanges || []).length ? `<ul class="cc-list">${r.authority.recentChanges.slice(0, 5).map((h) => `<li><b>${day(h.date)}</b> · ${esc(h.status)}: ${esc(h.reason)}</li>`).join('')}</ul>` : ''}
@@ -386,7 +391,8 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
   function summaryText(r) {
     const lines = [`${r.name || 'Carrier'} (USDOT ${r.dot}${(r.dockets || []).length ? ', ' + r.dockets.join(', ') : ''}): ${VERDICT[r.verdict]}`];
     for (const f of r.flags || []) lines.push(`- ${f.text}`);
-    const carrier = (r.authority.carrier || []).map((a) => `${authorityName(a.type)} ${a.status}`).join(', ') || 'no carrier authority';
+    const usdotNote = r.usdotStatus && r.usdotStatus !== 'Active' ? `, but USDOT ${String(r.usdotStatus).toLowerCase()}` : '';
+    const carrier = (r.authority.carrier || []).map((a) => `${authorityName(a.type)} ${a.status}${a.status === 'Active' ? usdotNote : ''}`).join(', ') || 'no carrier authority';
     if ((r.missing || []).includes('authority')) lines.push('Authority and liability on file: didn’t load from FMCSA.');
     else lines.push(`Authority: ${carrier}. Liability on file ${usd(r.insurance.onFile)}${r.insurance.required ? ` (required ${usd(r.insurance.required)})` : ''}.`);
     if (r.inspections) lines.push(`Out of service, last 2 years: trucks ${pct(r.inspections.vehicle.rate)}, drivers ${pct(r.inspections.driver.rate)}.`);

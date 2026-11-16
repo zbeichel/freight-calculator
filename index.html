@@ -3764,8 +3764,12 @@ async function geocodeWithGoogle(address){
 }
 
 async function geocodeOpenMeteo(address){
-  // Clean up shorthand like "bunnell fl" → "Bunnell, FL"
-  const clean = address.trim().replace(/\s+([A-Za-z]{2})$/i, (m,s)=>', '+s.toUpperCase());
+  // Clean up shorthand like "bunnell fl" → "Bunnell, FL", without a ZIP code: the place search
+  // finds "Hastings, FL" but not "Hastings, FL 32145"
+  let clean = address.trim();
+  const zip = clean.match(/^(.*[A-Za-z].*?)[\s,]+\d{5}(?:-\d{4})?$/);   // a ZIP after a place name (a ZIP alone stays)
+  if(zip) clean = zip[1];
+  clean = clean.replace(/,?\s+([A-Za-z]{2})$/i, (m,s)=>', '+s.toUpperCase());
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(clean)}&count=1&language=en&format=json`;
   const r = await fetch(url);
   const d = await r.json();

@@ -72,6 +72,9 @@ const digits = (s) => /^\d{1,8}$/.test(String(s)) ? String(Number(s)) : null;   
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // New carriers are the usual fraud risk: authority under 90 days, or a USDOT number under 180.
 const NEW_AUTHORITY_DAYS = 90, NEW_USDOT_DAYS = 180;
+// The report's format: carrier-check.js reuses a cached report only if it was built with this one
+// (2: USDOT "Out of service", suspension orders, history without FMCSA's bookkeeping).
+const REPORT_VERSION = 2;
 const docketSafe = (s) => /^(MC|MX|FF)\d{1,8}$/.test(String(s)) ? String(s) : null;
 
 // An MC/MX/FF number → its USDOT number (authority records first, then the census).
@@ -240,7 +243,9 @@ function buildReport(raw, { national = null, now = Date.now() } = {}) {
   const carrierHist = hist.filter((h) => CARRIER_AUTH.test(h.type));
   const granted = carrierHist.filter((h) => /^(granted|reinstated)/i.test(h.reason) && h.status === 'Active').map((h) => h.date).sort();
   const firstGranted = carrierHist.filter((h) => /^granted/i.test(h.reason)).map((h) => h.date).sort()[0] || granted[0] || null;
-  const recentChanges = carrierHist.filter((h) => daysSince(h.date, now) <= 365 && !/^(initial status|published)/i.test(h.reason)).slice(0, 8);
+  // Not the carrier's doing: the first record, publication, and FMCSA's own bookkeeping (on Jun 9,
+  // 2026 it marked thousands of authorities "Inactive: Administrative status adjustment").
+  const recentChanges = carrierHist.filter((h) => daysSince(h.date, now) <= 365 && !/^(initial status|published|administrative status adjustment)/i.test(h.reason)).slice(0, 8);
 
   // Insurance on file (each filing appears once per authority type: show it once).
   const policies = [];
@@ -289,6 +294,7 @@ function buildReport(raw, { national = null, now = Date.now() } = {}) {
   }
   const legalName = (c && c.legal_name) || (auth[0] && auth[0].legal_name) || null;
   const report = {
+    v: REPORT_VERSION,
     dot: raw.dot,
     dockets,
     found: !!(c || authorities.length),
@@ -299,7 +305,7 @@ function buildReport(raw, { national = null, now = Date.now() } = {}) {
     email: c && c.email_address ? String(c.email_address).toLowerCase() : null,
     // As FMCSA's SAFER shows it: "Out of service" while an out-of-service order is in effect,
     // whatever the registration says.
-    usdotStatus: c ? (openOos.length ? 'Out of service' : ({ A: 'Active', I: 'Inactive', P: 'Pending' }[c.status_code] || c.status_code || null)) : null,
+    usdotStatus: c ? (openOos.length && c.status_code === 'A' ? 'Out of service' : ({ A: 'Active', I: 'Inactive', P: 'Pending' }[c.status_code] || c.status_code || null)) : null,
     usdotAdded: c ? isoDate(c.add_date) : null,
     mcs150: c ? isoDate(c.mcs150_date) : null,
     operation: c ? (OPERATION[c.carrier_operation] || null) : null,
@@ -360,7 +366,7 @@ function assess(r, now = Date.now()) {
     const last = A.recentChanges.find((h) => h.status === 'Inactive');
     if (A.activeBroker) add('stop', 'broker_only', 'Licensed as a broker only, with no active carrier authority: they can’t haul the load themselves.');
     else if (A.pendingCarrier) add('stop', 'authority_pending', 'Their operating authority isn’t active yet (still pending with FMCSA).');
-    else if (A.carrier.length) add('stop', 'authority_inactive', `No active operating authority${last ? `: ${last.reason.replace(/\s*\(.*?\)\s*$/, '')} (${fmtDate(last.date)})` : ''}.`);
+    else if (A.carrier.length || last) add('stop', 'authority_inactive', `No active operating authority${last ? `: ${last.reason.replace(/\s*\(.*?\)\s*$/, '')} (${fmtDate(last.date)})` : ''}.`);
     else add('stop', 'no_authority', 'No for-hire operating authority on file: they can’t haul for hire across state lines.');
   }
   // (Out of service: the out-of-service order below says so, with its reason.)
@@ -551,4 +557,4 @@ function factsVerdict(f, now = Date.now()) {
   return 'ok';
 }
 
-module.exports = { DS, PARTS, parseQuery, soql, resolveDot, fetchCarrier, nationalAverages, buildReport, assess, monitorFacts, diffFacts, factsVerdict, isoDate, _internal: { inspectionTotals, crashTotals, titleCase } };
+module.exports = { REPORT_VERSION, DS, PARTS, parseQuery, soql, resolveDot, fetchCarrier, nationalAverages, buildReport, assess, monitorFacts, diffFacts, factsVerdict, isoDate, _internal: { inspectionTotals, crashTotals, titleCase } };

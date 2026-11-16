@@ -107,7 +107,8 @@ async function national(opt) {
 // (by `deadline`). Only complete reports are cached.
 async function reportFor(dot, deadline) {
   const cached = rows(await db(`/rest/v1/carrier_cache?dot_number=eq.${dot}&select=report,fetched_at`))[0];
-  if (cached && Date.parse(cached.fetched_at) > Date.now() - CACHE_HOURS * 3600000 && cached.report) {
+  // A report cached by an older version of this code is built again (it lacks newer fields)
+  if (cached && Date.parse(cached.fetched_at) > Date.now() - CACHE_HOURS * 3600000 && cached.report && cached.report.v === F.REPORT_VERSION) {
     const report = cached.report;
     const a = F.assess(report, Date.now());   // ages ("granted 12 days ago") move on
     report.verdict = a.verdict;
