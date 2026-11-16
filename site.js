@@ -255,7 +255,31 @@
     });
   }
 
-  function start() { render(); footer(); }
+  // The plan behind "Get Pro" is remembered in this browser (qfc_pro_status, which the
+  // calculator keeps). With nothing recent for whoever's signed in (a paying account that
+  // hasn't opened the calculator here yet), ask verify-pro once and remember the answer.
+  var statusAsked = false;
+  function refreshStatus() {
+    if (statusAsked) return;
+    var s = session();
+    var uid = s && s.user && (s.user.id || s.user.sub);
+    if (!s || !uid || !s.access_token || !window.fetch) return;
+    var st = {};
+    try { st = JSON.parse(localStorage.getItem('qfc_pro_status') || '{}') || {}; } catch (e) {}
+    if (st.userId === uid && st.cachedAt && Date.now() - st.cachedAt < 6 * 3600 * 1000) return;
+    statusAsked = true;
+    fetch('/.netlify/functions/verify-pro', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: uid, accessToken: s.access_token }) })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || typeof d.active !== 'boolean') return;
+        try { localStorage.setItem('qfc_pro_status', JSON.stringify({ isActive: d.active === true, userId: uid, cachedAt: Date.now() })); } catch (e) {}
+        render();
+      })
+      .catch(function () {});
+  }
+
+  function start() { render(); footer(); refreshStatus(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
   // Signing in or out in another tab.

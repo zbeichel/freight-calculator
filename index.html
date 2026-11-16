@@ -3310,8 +3310,7 @@ function handleCustomersClick(e){
   e.preventDefault();
   if(winLossAllowed()){ window.location.href = '/customers.html'; return; }
   const why = 'The customer list comes with Pro Plus: save customers once, and their contact details fill into your quotes and PDFs.';
-  if(isProUser) showUpgradeModal(why, ['plus', 'max']);
-  else showProModal(why);
+  showUpgradeModal(why, ['plus', 'max']);   // a Pro Plus feature: offer Pro Plus, not Pro
 }
 
 function handleBulkClick(e){
@@ -4573,8 +4572,7 @@ let lastSavedCalc = null;  // { sig, entry }: the quote "Save Quote to Log" save
 
 function canEmailQuotes(){
   if(winLossAllowed() && window.QFCEmailQuote) return true;
-  if(isProUser) showUpgradeModal(EMAIL_WHY, ['plus', 'max']);
-  else showProModal(EMAIL_WHY);
+  showUpgradeModal(EMAIL_WHY, ['plus', 'max']);   // a Pro Plus feature: offer Pro Plus, not Pro
   return false;
 }
 function emailProfileOptions(){
@@ -9173,7 +9171,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
     max-width:420px;width:100%;overflow:hidden;position:relative;
     box-shadow:0 24px 60px rgba(0,0,0,.5);
   ">
-    <button onclick="closeProModal()" style="
+    <button onclick="closeProModal()" aria-label="Close" style="
       position:absolute;top:14px;right:14px;
       font-family:'Space Grotesk',sans-serif;font-size:18px;line-height:1;
       background:var(--card2);border:1px solid var(--border2);border-radius:8px;
@@ -9205,6 +9203,10 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
     </div>
 
     <div style="padding:20px 28px">
+      <div class="upg-billing" id="pro-billing" role="group" aria-label="Billing" hidden style="margin:0 auto 12px;max-width:280px">
+        <button type="button" class="upg-int on" data-int="month" onclick="setProInterval('month')">Monthly</button>
+        <button type="button" class="upg-int" data-int="year" onclick="setProInterval('year')">Yearly<span>2 months free</span></button>
+      </div>
       <div id="pro-modal-price" style="text-align:center;font-size:13px;color:var(--text3);margin-bottom:14px">
         <strong style="color:#f0a500;font-size:18px">$9.99</strong>/month &nbsp;·&nbsp; Cancel anytime
       </div>
@@ -9229,7 +9231,7 @@ document.getElementById('save-profile-modal-overlay').addEventListener('click', 
       <div style="text-align:center;margin-top:6px;font-size:12px">
         <a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--text3)">What counts as a quote?</a>
       </div>
-      <div style="text-align:center;margin-top:6px">
+      <div id="pro-modal-signin" style="text-align:center;margin-top:6px">
         <button onclick="closeProModal();window.location.href='/signup.html?login'" style="
           font-family:'Space Grotesk',sans-serif;font-size:12px;
           background:none;border:none;cursor:pointer;
@@ -9412,7 +9414,7 @@ function updateUpgradeButton(){
   document.getElementById('upg-modal-billing').textContent = isProUser
     ? "You're charged the prorated difference today · Cancel anytime"
     : trial
-      ? `Free for ${opt.trial.days} days, then ${price}. Cancel before then and you won't be charged.`
+      ? `Free for ${opt.trial.days} days, then ${price}. Cancel before then and you won't be charged. During the trial, automatic miles cover up to ${opt.trial.dailyLimit || 100} quotes a day.`
       : (price ? price + ' · ' : '') + 'Cancel anytime';
 }
 function setUpgradeStatus(text, isError){
@@ -9495,7 +9497,7 @@ async function handleProModalUpgrade(){
       const resp = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, email, accessToken: session.access_token, plan: 'pro' })
+        body: JSON.stringify({ userId, email, accessToken: session.access_token, plan: 'pro', interval: proInterval })
       });
       const data = await resp.json();
       if(data.error === 'already_subscribed'){
@@ -9513,23 +9515,41 @@ async function handleProModalUpgrade(){
       }
     } catch(e){}
   }
-  window.location.href = '/signup.html';
+  window.location.href = '/signup.html?plan=pro' + (proInterval === 'year' ? '&interval=year' : '');
 }
 function showProModal(desc){
   const overlay = document.getElementById('pro-modal-overlay');
   if(desc) document.getElementById('pro-modal-desc').textContent = desc;
+  // Signed in already: no "Already have an account? Sign in"
+  document.getElementById('pro-modal-signin').style.display = getProSession() ? 'none' : '';
   overlay.style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  paintProPrice();
   refreshProModalOffers();
+}
+// Monthly or yearly Pro (once a yearly price is set): the price shown is the one checkout starts.
+let proInterval = 'month';
+function setProInterval(interval){
+  proInterval = interval === 'year' ? 'year' : 'month';
+  paintProPrice();
+}
+function paintProPrice(){
+  const opt = window.QFCPlans ? QFCPlans.current() : null;
+  const yearly = !!(opt && opt.yearly.includes('pro'));
+  if(!yearly) proInterval = 'month';
+  document.getElementById('pro-billing').hidden = !yearly;
+  document.querySelectorAll('#pro-billing .upg-int').forEach(b => {
+    b.classList.toggle('on', b.dataset.int === proInterval);
+    b.setAttribute('aria-pressed', String(b.dataset.int === proInterval));
+  });
+  const [amount, per] = (opt ? QFCPlans.price('pro', proInterval) : '$9.99/month').split('/');
+  document.getElementById('pro-modal-price').innerHTML =
+    `<strong style="color:#f0a500;font-size:18px">${amount}</strong>/${per} &nbsp;·&nbsp; Cancel anytime`;
 }
 async function refreshProModalOffers(){
   if(!window.QFCPlans) return;
   const [opt, eligible] = await Promise.all([QFCPlans.options(), QFCPlans.trialEligible()]);
-  if(opt.yearly.includes('pro')){
-    const [y] = QFCPlans.price('pro', 'year').split('/');
-    document.getElementById('pro-modal-price').innerHTML =
-      `<strong style="color:#f0a500;font-size:18px">$9.99</strong>/month or <strong style="color:#f0a500;font-size:18px">${y}</strong>/year &nbsp;·&nbsp; Cancel anytime`;
-  }
+  paintProPrice();
   if(eligible && opt.trial && opt.trial.plans.includes('plus')){
     document.getElementById('pro-modal-more').textContent = `Or try Pro Plus free for ${opt.trial.days} days →`;
   }

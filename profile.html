@@ -508,7 +508,7 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
         <div class="field-grid" style="margin-bottom:16px">
           <div class="field">
             <label>Company / Brokerage Name</label>
-            <input type="text" id="company-name" placeholder="e.g. Acme Freight Brokers LLC" />
+            <input type="text" id="company-name" placeholder="e.g. Acme Freight Brokers LLC" oninput="updatePreview()" />
           </div>
           <div class="field">
             <label>Your Name</label>
@@ -536,7 +536,7 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
           </div>
           <div class="field">
             <label>Custom Footer Text <span style="font-weight:400;text-transform:none;font-size:10px">(optional)</span></label>
-            <input type="text" id="footer-text" placeholder="e.g. Licensed & Bonded · FMCSA Registered" />
+            <input type="text" id="footer-text" maxlength="150" placeholder="e.g. Licensed & Bonded · FMCSA Registered" oninput="updatePreview()" />
           </div>
         </div>
       </div>
@@ -781,7 +781,7 @@ body.pf-member input:disabled{opacity:.6;cursor:not-allowed}
           </div>
           <div class="field">
             <label>Starting Number</label>
-            <input type="number" id="quote-start" placeholder="1001" min="1" oninput="updateQuotePreview()" />
+            <input type="number" id="quote-start" placeholder="1001" min="1" max="99999999" step="1" oninput="updateQuotePreview()" />
             <div class="field-note">Your next quote will use this number</div>
           </div>
         </div>
@@ -1208,7 +1208,27 @@ function selectScheme(id){
   updatePreview();
 }
 
+// The preview's header text as the PDFs print it: your company and footer line (with no company
+// name, QuickFreightCalc, or nothing at all on a white-label PDF) and your next quote number.
+function updatePreviewText(){
+  const p = profileFromForm();
+  const wl = !!(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(p));
+  const nameEl = document.getElementById('preview-brand-name');
+  const subEl = document.getElementById('preview-brand-sub');
+  if(nameEl && subEl){
+    if(p.companyName){ nameEl.textContent = p.companyName; subEl.textContent = p.footerText || 'Licensed Freight Broker'; }
+    else if(wl){ nameEl.textContent = ''; subEl.textContent = ''; }
+    else { nameEl.innerHTML = 'Quick<span id="preview-accent-text">Freight</span>Calc'; subEl.textContent = 'Freight Rate Calculator'; }
+  }
+  const numEl = document.getElementById('preview-quote-num');
+  if(numEl){
+    const t = new Date();
+    const ymd = t.getFullYear() + String(t.getMonth() + 1).padStart(2, '0') + String(t.getDate()).padStart(2, '0');
+    numEl.textContent = `Quote #${(p.quotePrefix || 'QFC').toUpperCase()}-${ymd}-${quoteStartValue().value || 1001}`;
+  }
+}
 function updatePreview(){
+  updatePreviewText();
   const s = (currentScheme === 'custom' && window.QFCQuotePDF && QFCQuotePDF.classicScheme(profileFromForm()))
     || SCHEMES.find(x => x.id === currentScheme) || SCHEMES[0];
   // Modern: white letterhead with the scheme's ink and accent (pdf-quote.js).
@@ -1216,7 +1236,8 @@ function updatePreview(){
   if(m){
     document.getElementById('preview-header').style.background = '#ffffff';
     document.getElementById('preview-bar').style.background = m.accent;
-    document.getElementById('preview-accent-text').style.color = m.accent;
+    const accText = document.getElementById('preview-accent-text');
+    if(accText) accText.style.color = m.accent;
     const set = (id, color, text) => { const el = document.getElementById(id); if(el){ el.style.color = color; if(text) el.textContent = text; } };
     set('preview-brand-name', m.ink);
     set('preview-brand-sub', '#6b7280');
@@ -1229,7 +1250,8 @@ function updatePreview(){
   if(titleEl) titleEl.textContent = 'Rate Confirmation';
   document.getElementById('preview-header').style.background = s.header;
   document.getElementById('preview-bar').style.background = s.bar;
-  document.getElementById('preview-accent-text').style.color = s.accent;
+  const accText = document.getElementById('preview-accent-text');
+  if(accText) accText.style.color = s.accent;
 
   // Header text colors — driven by the scheme so light-header schemes stay legible.
   // These mirror the three tones used in the final PDF generators.
@@ -1245,10 +1267,15 @@ function updatePreview(){
 }
 
 function updatePreviewLogo(){
-  // Logo in preview
+  // Logo in preview, as the PDFs pick it: your logo unless hidden; otherwise ours, except on a
+  // white-label PDF
   const logoArea = document.getElementById('preview-logo-area');
-  if(logoBase64){
+  const hide = document.getElementById('hide-logo').checked;
+  const wl = !!(window.QFCQuotePDF && QFCQuotePDF.whiteLabel(profileFromForm()));
+  if(logoBase64 && !hide){
     logoArea.innerHTML = `<img src="${logoBase64}" style="height:28px;max-width:80px;object-fit:contain" />`;
+  } else if(wl){
+    logoArea.innerHTML = '';
   } else {
     logoArea.innerHTML = `<img class="pdf-mini-brand-logo" id="preview-emoji" src="/favicon.svg" alt="">`;
   }
@@ -1370,6 +1397,9 @@ function applyWhiteLabelAccess(){
     const el = document.getElementById(id);
     if(el) el.disabled = !allowed;
   });
+  const wlBox = document.getElementById('pdf-white-label');
+  if(wlBox && !wlBox.dataset.previewHooked){ wlBox.dataset.previewHooked = '1'; wlBox.addEventListener('change', updatePreview); }
+  updatePreview();   // white-label depends on the plan, now known
   const fields = document.getElementById('wl-fields');
   if(fields) fields.style.opacity = allowed ? '1' : '.55';
 }
@@ -1447,7 +1477,7 @@ function profileFromForm(){
     dotNumber:   document.getElementById('dot-number').value.trim(),
     footerText:  document.getElementById('footer-text').value.trim(),
     quotePrefix: document.getElementById('quote-prefix').value.trim() || 'QFC',
-    quoteStart:  parseInt(document.getElementById('quote-start').value) || 1001,
+    quoteStart:  quoteStartValue().value || 1001,
     colorScheme: currentScheme,
     logoBase64:  logoBase64,
     hideLogo:    document.getElementById('hide-logo').checked,
@@ -1786,9 +1816,22 @@ const LogoCropper = (() => {
 })();
 
 // ── Quote number preview ───────────────────────────────────────────────────
+// The starting quote number as typed: a whole number from 1 to 99,999,999 (blank: 1001)
+function quoteStartValue(){
+  const raw = document.getElementById('quote-start').value.trim();
+  if(raw === '') return { ok: true, value: 1001 };
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 && n <= 99999999 ? { ok: true, value: n } : { ok: false, value: null };
+}
+const QUOTE_START_MSG = 'The starting number has to be a whole number from 1 to 99,999,999.';
 function updateQuotePreview(){
   const prefix  = document.getElementById('quote-prefix').value.trim() || 'QFC';
-  const startNum = parseInt(document.getElementById('quote-start').value) || 1001;
+  const qs = quoteStartValue();
+  const startEl = document.getElementById('quote-start');
+  if(qs.ok) startEl.removeAttribute('aria-invalid'); else startEl.setAttribute('aria-invalid', 'true');
+  updatePreviewText();
+  if(!qs.ok){ document.getElementById('quote-num-preview').innerHTML = `<b style="color:var(--red)">${QUOTE_START_MSG}</b>`; return; }
+  const startNum = qs.value;
   const today = new Date();
   const dateStr = today.getFullYear() +
     String(today.getMonth()+1).padStart(2,'0') +
@@ -1886,6 +1929,8 @@ async function saveProfile(){
     rs.bad.focus();
     return;
   }
+  const qs = quoteStartValue();
+  if(!qs.ok){ showToast(QUOTE_START_MSG); document.getElementById('quote-start').focus(); return; }
   const profile = {
     companyName:  document.getElementById('company-name').value.trim(),
     contactName:  document.getElementById('contact-name').value.trim(),
@@ -1893,9 +1938,9 @@ async function saveProfile(){
     phone:        document.getElementById('contact-phone').value.trim(),
     mcNumber:     document.getElementById('mc-number').value.trim(),
     dotNumber:    document.getElementById('dot-number').value.trim(),
-    footerText:   document.getElementById('footer-text').value.trim(),
+    footerText:   document.getElementById('footer-text').value.trim().slice(0, 150),
     quotePrefix:  document.getElementById('quote-prefix').value.trim() || 'QFC',
-    quoteStart:   parseInt(document.getElementById('quote-start').value) || 1001,
+    quoteStart:   qs.value,
     colorScheme:  currentScheme,
     logoBase64:   logoBase64,
     hideLogo:     document.getElementById('hide-logo').checked,
@@ -1978,6 +2023,10 @@ async function loadProfile(){
 
   const session = await getSessionRefreshed();
   const userId = session?.user?.id || session?.user?.sub;
+  // Signed out (no session kept at all, or one Supabase turned down): this page is your
+  // account's, so sign in first. A session that couldn't be refreshed because of the network
+  // stays, and the page works from this browser until it can sync.
+  if(!session && !getSessionRaw()){ window.location.replace('/signup.html?login'); return; }
 
   // Try Supabase first
   if(session && userId){
@@ -2996,6 +3045,7 @@ function populateForm(p){
   renderSchemes();
   selectPdfStyle(p.pdfStyle);
   document.getElementById('pdf-white-label').checked = p.pdfWhiteLabel === true;
+  setTimeout(() => { updatePreview(); updateQuotePreview(); }, 0);   // the preview shows what was loaded
   document.getElementById('pdf-valid-hours').value = [24, 48, 72, 168].includes(Number(p.pdfValidHours)) ? String(p.pdfValidHours) : '24';
   document.getElementById('pdf-terms').value = typeof p.pdfTerms === 'string' ? p.pdfTerms : '';
   fillSections(p.pdfSections, p.pdfAccessorials);

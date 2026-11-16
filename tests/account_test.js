@@ -46,7 +46,7 @@ const NO_PLAN = (o) => VERIFY(Object.assign({ active: false, paid: false, interv
 
 async function setup(browser, base, { signedIn = true, row = ROW(), verify = VERIFY(), local = null, checkout = null } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-  const db = { row, verify, checkout, checkouts: [], patches: [], logins: [], proLookups: 0 };
+  const db = { row, verify, checkout, checkouts: [], patches: [], logins: [], signups: [], proLookups: 0 };
   await context.addInitScript(([signed, local]) => {
     if (localStorage.getItem('__seeded')) return;
     localStorage.setItem('__seeded', '1');
@@ -60,6 +60,12 @@ async function setup(browser, base, { signedIn = true, row = ROW(), verify = VER
     const json = (b, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(b) });
     if (url.startsWith('https://checkout.stripe.com/')) return route.fulfill({ status: 200, contentType: 'text/html', body: '<title>Stripe Checkout</title><h1>Stripe Checkout</h1>' });
     if (url.startsWith('blob:') || (url.startsWith(base) && !url.includes('/.netlify/functions/'))) return route.continue();
+    if (url.includes('/auth/v1/signup')) {
+      const b = JSON.parse(req.postData() || '{}');
+      db.signups.push(b);
+      if (/\.cmo$/.test(b.email || '')) return json({ code: 400, error_code: 'email_address_invalid', msg: `Email address "${b.email}" is invalid` }, 400);
+      return json({ access_token: 'tok-new', refresh_token: 'r2', expires_in: 3600, user: { id: 'new-1', email: b.email } });
+    }
     if (url.includes('/auth/v1/token')) {
       db.logins.push(JSON.parse(req.postData() || '{}'));
       return json({ access_token: 'tok', refresh_token: 'r', expires_in: 3600, user: { id: 'user-1', email: 'pat@example.com' } });
@@ -303,6 +309,97 @@ const profileReady = (pg) => pg.waitForFunction(() => ['subscription-paid', 'sub
   await t.page.waitForFunction(() => document.getElementById('quote-start').value !== '');
   await t.page.waitForTimeout(300);
   check('another device got further (1020): Profile shows 1020', (await t.page.inputValue('#quote-start')) === '1020', await t.page.inputValue('#quote-start'));
+  await t.context.close();
+
+  // ── The nav on other pages ──────────────────────────────────────────────
+  console.log('\n=== Nav: "Get Pro" only for accounts without a plan ===');
+  t = await setup(browser, base, { verify: VERIFY({ plan: 'plus' }), row: ROW({ plan: 'plus' }) });
+  await t.page.goto(base + '/terms.html');
+  await t.page.waitForSelector('#qf-nav .qf-acct-btn');
+  await t.page.waitForFunction(() => !document.querySelector('#qf-nav .qf-getpro'), null, { timeout: 5000 }).catch(() => {});
+  check('a paying account that hasn’t opened the calculator in this browser: no “Get Pro” (the nav asks verify-pro)',
+    !(await t.page.$('#qf-nav .qf-getpro')) && await t.page.evaluate(() => JSON.parse(localStorage.getItem('qfc_pro_status') || '{}').isActive === true));
+  await t.page.goto(base + '/privacy.html');
+  await t.page.waitForSelector('#qf-nav .qf-acct-btn');
+  check('…and the next page knows straight away', !(await t.page.$('#qf-nav .qf-getpro')));
+  await t.context.close();
+  t = await setup(browser, base, { row: UNPAID, verify: NO_PLAN() });
+  await t.page.goto(base + '/terms.html');
+  await t.page.waitForSelector('#qf-nav .qf-acct-btn');
+  await t.page.waitForTimeout(800);
+  check('an account without a plan still sees “Get Pro”', !!(await t.page.$('#qf-nav .qf-getpro')));
+  await t.context.close();
+
+  // ── Sign-up: email addresses and the trial's daily limit ────────────────
+  console.log('\n=== Sign-up: a bad email address, and the trial’s daily limit ===');
+  t = await setup(browser, base, { signedIn: false, row: null });
+  await t.page.goto(base + '/signup.html?plan=plus');
+  await t.page.waitForFunction(() => !document.getElementById('su-interval').hidden);
+  await t.page.waitForTimeout(300);
+  check('the trial’s 100 quotes a day are said where the trial is offered', /During the trial, automatic miles cover up to 100 quotes a day\./.test(await text(t.page, '#su-side-note')),
+    await text(t.page, '#su-side-note'));
+  await t.page.fill('#su-email', 'pat@example');
+  await t.page.fill('#su-password', 'Abcdef1!x');
+  await t.page.check('#su-agree');
+  await t.page.evaluate(() => handleSignup());
+  check('an address with no domain ending: said so (not “already exists”), nothing sent', (await text(t.page, '#error-msg')) === 'That email address doesn’t look right. Check it and try again.'
+    && t.db.signups.length === 0, await text(t.page, '#error-msg'));
+  await t.page.fill('#su-email', 'pat@example.cmo');
+  await t.page.evaluate(() => handleSignup());
+  await t.page.waitForTimeout(400);
+  check('an address Supabase won’t accept: the same message, not “already exists”', (await text(t.page, '#error-msg')) === 'That email address doesn’t look right. Check it and try again.'
+    && t.db.signups.length === 1, await text(t.page, '#error-msg'));
+  await t.context.close();
+
+  // ── Profile ─────────────────────────────────────────────────────────────
+  console.log('\n=== Profile: signed out ===');
+  t = await setup(browser, base, { signedIn: false, row: null });
+  await t.page.goto(base + '/profile.html');
+  await t.page.waitForURL('**/signup.html?login', { timeout: 5000 }).catch(() => {});
+  check('signed out, Profile sends you to sign in (it used to open and “save locally”)', /\/signup\.html\?login$/.test(t.page.url()), t.page.url());
+  await t.context.close();
+
+  console.log('\n=== Profile: the previews ===');
+  t = await setup(browser, base, { row: ROW({ quote_prefix: 'MF', quote_counter: 1042, footer_text: 'Licensed & Bonded' }) });
+  await t.page.goto(base + '/profile.html');
+  await t.page.waitForFunction(() => document.getElementById('quote-prefix').value === 'MF');
+  await t.page.waitForTimeout(200);
+  const pv = await t.page.evaluate(() => ({ next: document.getElementById('quote-num-preview').textContent, name: document.getElementById('preview-brand-name').textContent,
+    sub: document.getElementById('preview-brand-sub').textContent, num: document.getElementById('preview-quote-num').textContent }));
+  check('the next quote number shows the saved prefix and number before anything is edited', /Next quote: MF-\d{8}-1042/.test(pv.next), pv.next);
+  check('the live preview shows your company, footer line and quote number', pv.name === 'Morgan Freight' && pv.sub === 'Licensed & Bonded' && /^Quote #MF-\d{8}-1042$/.test(pv.num), JSON.stringify(pv));
+  await t.page.fill('#quote-start', '-5');
+  check('a starting number of −5: said, and marked', /whole number from 1 to 99,999,999/.test(await text(t.page, '#quote-num-preview'))
+    && await t.page.$eval('#quote-start', (e) => e.getAttribute('aria-invalid') === 'true'));
+  await t.page.click('.save-btn');
+  await t.page.waitForTimeout(300);
+  check('…and not saved', t.db.patches.length === 0 && /whole number from 1 to 99,999,999/.test(await t.page.textContent('#toast').catch(() => '')));
+  await t.page.fill('#quote-start', '2001');
+  check('the footer line is one short line (150 characters at most)', (await t.page.$eval('#footer-text', (e) => e.maxLength)) === 150);
+  await t.page.fill('#company-name', 'Keystone Logistics');
+  check('typing a company name updates the preview', (await text(t.page, '#preview-brand-name')) === 'Keystone Logistics');
+  await t.context.close();
+
+  t = await setup(browser, base, { row: ROW({ plan: 'max', company_name: '', pdf_white_label: true }), verify: VERIFY({ plan: 'max' }) });
+  await t.page.goto(base + '/profile.html');
+  await t.page.waitForFunction(() => document.getElementById('pdf-white-label').checked);
+  await t.page.waitForTimeout(300);
+  const wlPv = await t.page.evaluate(() => ({ name: document.getElementById('preview-brand-name').textContent, logo: document.getElementById('preview-logo-area').innerHTML.trim() }));
+  check('white-label with no company name: no QuickFreightCalc name or logo in the preview, as on the PDF', wlPv.name === '' && wlPv.logo === '', JSON.stringify(wlPv));
+  await t.page.uncheck('#pdf-white-label');
+  check('…turning white-label off brings ours back', /QuickFreightCalc/.test(await text(t.page, '#preview-brand-name')));
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
+  // ── The 404 page ─────────────────────────────────────────────────────────
+  console.log('\n=== Page not found ===');
+  t = await setup(browser, base, { signedIn: false, row: null });
+  await t.page.goto(base + '/404.html');
+  await t.page.waitForSelector('#qf-nav .qf-logo');
+  check('a branded 404 page: the nav, what happened, a way back and the footer', (await t.page.title()) === 'Page not found — QuickFreightCalc'
+    && /This load took a wrong turn/.test(await text(t.page, 'main')) && (await t.page.$eval('main a.qf-btn-primary', (a) => a.getAttribute('href'))) === '/'
+    && !!(await t.page.$('.qf-footer .qf-footer-col')));
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
 
   await browser.close();

@@ -457,7 +457,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     document.getElementById('su-selected-name').innerHTML = `${p.name} <span>${esc(amount)}/${per}${trial ? ` · ${offers.trial.days}-day free trial` : ''}</span>`;
     const note = document.getElementById('su-side-note');
     if (note) note.textContent = trial
-      ? `${noPlan() ? 'Add' : 'Set up your login, then add'} your card securely with Stripe. Your ${offers.trial.days}-day free trial starts right away, and you're charged ${amount}/${per} when it ends unless you cancel before then.`
+      ? `${noPlan() ? 'Add' : 'Set up your login, then add'} your card securely with Stripe. Your ${offers.trial.days}-day free trial starts right away, and you're charged ${amount}/${per} when it ends unless you cancel before then. During the trial, automatic miles cover up to ${offers.trial.dailyLimit || 100} quotes a day.`
       : `${noPlan() ? 'Finish' : 'Set up your login, then finish'} payment securely with Stripe. Your plan starts as soon as payment goes through.`;
     const go = document.getElementById('su-checkout');
     if (go && !go.disabled) go.textContent = trial ? `Start my ${offers.trial.days}-day free trial →` : `Continue to checkout for ${p.name} →`;
@@ -1019,6 +1019,7 @@ async function handleSignup(){
   const password = document.getElementById('su-password').value;
 
   if(!email || !password){ showError('Email and password are required.'); return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){ showError('That email address doesn’t look right. Check it and try again.'); return; }
   if(!validatePassword(password).allValid){
     showError('Password does not meet the requirements. Check the list above the password field.');
     return;
@@ -1036,9 +1037,22 @@ async function handleSignup(){
       headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
       body: JSON.stringify({ email, password })
     });
-    const data = await resp.json();
+    const data = await resp.json().catch(() => ({}));
 
-    if(data.error){ showError(data.error.message || 'Signup failed.'); btn.disabled=false; btn.textContent='Continue to Payment →'; return; }
+    // Supabase says what went wrong in error_code / msg. An address already registered goes on
+    // to the existing-account path below; anything else (an address it won't accept, a rate
+    // limit) is said as it is, never as "already exists".
+    const errCode = data.error_code || '';
+    const errMsg = (data.error && (data.error.message || data.error_description)) || data.error_description || data.msg || '';
+    const exists = errCode === 'user_already_exists' || errCode === 'email_exists' || /already (been )?(registered|exists)/i.test(errMsg);
+    if(!data.access_token && !exists && (errCode || errMsg || !resp.ok)){
+      showError(errCode === 'email_address_invalid' || (/email/i.test(errMsg) && /invalid|validate/i.test(errMsg))
+        ? 'That email address doesn’t look right. Check it and try again.'
+        : (errMsg || 'Signup failed. Please try again.'));
+      btn.disabled = false;
+      btn.textContent = window.signupButtonLabel ? signupButtonLabel() : 'Sign up for Pro →';
+      return;
+    }
 
     // Store session
     if(data.access_token){

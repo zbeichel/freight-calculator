@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Page not found — QuickFreightCalc</title>
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+<script src="/site.js"></script>
+<style>
+/* Colors (dark and light), the navigation and the footer come from site.css and site.js. */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{background:var(--bg);background-image:var(--glow);background-repeat:no-repeat;color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased}
+.nf{max-width:640px;margin:0 auto;padding:88px 24px 96px;text-align:center}
+.nf-mark{width:72px;height:72px;margin:0 auto 22px;display:block}
+.nf-code{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.nf h1{font-size:clamp(30px,5vw,44px);font-weight:700;letter-spacing:-.035em;line-height:1.1;margin:10px 0 14px;text-wrap:balance}
+.nf p{font-size:15px;color:var(--text2);line-height:1.7;margin:0 auto 28px;max-width:480px}
+.nf-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.nf-links{margin-top:40px;display:flex;gap:8px 18px;justify-content:center;flex-wrap:wrap;font-size:13px}
+.nf-links a{color:var(--text3);text-decoration:none}
+.nf-links a:hover{color:var(--accent)}
+@media(max-width:600px){.nf{padding:56px 16px 72px}}
+</style>
+</head>
+<body>
+
+<main class="nf">
+  <img class="nf-mark" src="/favicon.svg" alt="" width="72" height="72">
+  <div class="nf-code">404 · Page not found</div>
+  <h1>This load took a wrong turn</h1>
+  <p>The page you’re looking for doesn’t exist or has moved. Check the address, or head back to quoting.</p>
+  <div class="nf-actions">
+    <a class="qf-btn qf-btn-primary" href="/">Go to the calculator</a>
+    <a class="qf-btn qf-btn-ghost" href="/rates.html">See market rates</a>
+  </div>
+  <nav class="nf-links" aria-label="More pages">
+    <a href="/multistop.html">Multi-stop builder</a>
+    <a href="/bulk.html">Bulk load calculator</a>
+    <a href="/carriers.html">Carrier check</a>
+    <a href="/signup.html">Plans &amp; pricing</a>
+    <a href="mailto:info@quickfreightcalc.com">info@quickfreightcalc.com</a>
+  </nav>
+</main>
+
+<footer data-qf-footer></footer>
+
+</body>
+</html>

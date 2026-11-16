@@ -14,6 +14,7 @@
 // Someone who already has an active subscription is sent to change-plan
 // instead, so nobody ends up paying for two subscriptions.
 
+const { siteBase } = require('../lib/site-url');
 const https = require('https');
 const { PLANS, PLAN_NAME, normalizePlan, normalizeInterval, priceIdFor, TRIAL_DAYS, TRIAL_PLANS,
   trialEligible } = require('../lib/plans.js');
@@ -168,9 +169,9 @@ exports.handler = async function(event){
   }
   // A free trial of Pro Plus or Pro Max, once per account.
   const trial = TRIAL_PLANS.includes(plan) && trialEligible(proRow);
-  const siteUrl = process.env.DEPLOY_URL && process.env.DEPLOY_URL.includes('dev--')
-    ? process.env.DEPLOY_URL
-    : 'https://quickfreightcalc.com';
+  // Back to the site checkout started from: the live site, or the Netlify deploy (dev) it
+  // was opened on. Only the site's own hosts count (lib/site-url.js).
+  const siteUrl = siteBase(event);
 
   try {
     const params = {

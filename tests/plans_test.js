@@ -226,6 +226,18 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   res = await startCheckout('plus');
   ok(res.statusCode === 200, 'the subscription lookup fails: checkout still opens');
   respond = respondCheckout;
+  // Back to the site checkout was opened on: the dev deploy returns to dev, the live site to
+  // the live site, and a host that isn't ours never gets a link.
+  const fromHost = (host) => checkout.handler({ httpMethod: 'POST', headers: host ? { host } : {},
+    body: JSON.stringify({ userId: 'user-1', email: 'a@b.co', accessToken: 'tok', plan: 'pro' }) });
+  checkoutRow = { is_active: false };
+  for (const [host, want] of [['dev--quickfreightcalculator.netlify.app', 'https://dev--quickfreightcalculator.netlify.app'],
+    ['quickfreightcalc.com', 'https://quickfreightcalc.com'], ['evil.example.com', 'https://quickfreightcalc.com'], [null, 'https://quickfreightcalc.com']]) {
+    calls = [];
+    await fromHost(host);
+    ok(sessionParams().get('success_url') === want + '/?checkout=success' && sessionParams().get('cancel_url') === want + '/signup.html?checkout=cancelled',
+       `checkout opened from ${host || 'no host'}: Stripe's Back and success links go to ${want}`, sessionParams().get('success_url'));
+  }
   calls = []; checkoutRow = { is_active: false, stripe_subscription_id: 'team' };
   res = await startCheckout('plus');
   ok(res.statusCode === 200 && !calls.some((c) => c.path.startsWith('/v1/subscriptions/')), 'a team seat’s marker isn’t a Stripe subscription: no lookup');
