@@ -3133,23 +3133,8 @@ async function _verifyProAuthBackground(){
         // higher of the two counters so a number is never reused here.
         let prev = {};
         try { prev = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
-        localStorage.setItem('qfc_pro_profile', JSON.stringify({
-          companyName: p.company_name, contactName: p.contact_name,
-          email: p.contact_email || p.email, phone: p.phone, mcNumber: p.mc_number,
-          dotNumber: p.dot_number, footerText: p.footer_text,
-          quotePrefix: p.quote_prefix,
-          quoteStart: Math.max(Number(p.quote_counter) || 0, Number(prev.quoteStart) || 0) || undefined,
-          colorScheme: p.color_scheme, logoBase64: p.logo_base64,
-          hideLogo: p.hide_logo === true,
-          pdfStyle: p.pdf_style === 'classic' ? 'classic' : 'modern',
-          pdfBreakdown: p.pdf_breakdown !== false,
-          pdfAccent: p.pdf_accent || '', pdfInk: p.pdf_ink || '',
-          pdfWhiteLabel: p.pdf_white_label === true, pdfValidHours: p.pdf_valid_hours || 24, pdfTerms: p.pdf_terms || '',
-          pdfSections: p.pdf_sections || null, pdfAccessorials: p.pdf_accessorials || null,
-          rateSheet: p.rate_sheet || null,
-          plan: p.plan, comp: p.is_active === true && !p.stripe_subscription_id,
-          team,
-        }));
+        localStorage.setItem('qfc_pro_profile', JSON.stringify(QFCNav.accountProfile(p, team, prev)));
+        QFCNav.keepProfileFresh();   // looked at again later: the account's latest quote number
         if(p.rate_profiles && Array.isArray(p.rate_profiles)){
           // Key matches PROFILES_KEY in lanes.html — keep them in sync.
           localStorage.setItem('qfc_rate_profiles', JSON.stringify(p.rate_profiles));
@@ -4068,6 +4053,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 .doc-date{font-size:11px;color:${scheme.headerTextFaint}}
 .accent-bar{height:4px;background:${scheme.bar};-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-body{padding:36px 40px;flex:1}
+.doc-sign{flex:none;padding-top:0}
 .quote-hero{background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .quote-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
 .quote-amount{font-size:42px;font-weight:700;color:#1a1f2e;letter-spacing:-.03em;line-height:1}
@@ -4129,6 +4115,17 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
   @page{size:letter portrait;margin:0.45in 0}
   @page :first{margin-top:0}
   .signature-section,.signature-grid,.doc-footer{break-inside:avoid;page-break-inside:avoid}
+  /* Printed, the document is as tall as what's on it: a page-tall box with the footer pinned
+     to its bottom spilled the footer onto a page of its own. Headings stay with what follows
+     them, and the footer with the signatures. */
+  .doc{display:block!important;min-height:0!important}
+  .doc-footer{margin-top:0!important;break-before:avoid;page-break-before:avoid}
+  .doc-end{break-inside:avoid;page-break-inside:avoid}
+  .doc-sign{padding-top:0!important}
+  .doc-body:not(.doc-sign){padding-bottom:0!important}
+  .doc-sign .signature-section{margin-bottom:12px}
+  .section-header{break-after:avoid;page-break-after:avoid}
+  .config-section{break-inside:avoid;page-break-inside:avoid}
 }
 </style>
 </head>
@@ -4197,6 +4194,10 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
         <div class="section-header">Load Notes &amp; Requirements</div>
         <div class="notes-box">${notesHTML}</div>
       </div>
+    </div>
+    <!-- The signatures and the footer, kept on one page when printed -->
+    <div class="doc-end">
+    <div class="doc-body doc-sign">
       <div class="signature-section">
         <div class="section-header">Acceptance &amp; Authorization</div>
         <div class="signature-grid">
@@ -4220,6 +4221,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
     <div class="doc-footer">
       ${footerLeft}
       ${footerRight}
+    </div>
     </div>
   </div>
 </div>
@@ -4381,6 +4383,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
 .doc-date{font-size:11px;color:${scheme.headerTextFaint}}
 .accent-bar{height:4px;background:${scheme.bar};-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-body{padding:36px 40px;flex:1}
+.doc-sign{flex:none;padding-top:0}
 .quote-hero{background:#f8f9fc;border:1px solid #e4e8ef;border-radius:10px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:20px}
 .quote-label{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
 .quote-amount{font-size:42px;font-weight:700;color:#1a1f2e;letter-spacing:-.03em;line-height:1}
@@ -4414,9 +4417,30 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
   html,body{background:white;padding:0;margin:0}
   .screen-controls{display:none!important}
   .doc{box-shadow:none;border-radius:0;min-height:100vh}
+  /* The same printed spacing as the calculator's Classic PDF, so the same quote fits the same pages */
+  .doc-header{padding:20px 30px}
+  .doc-body{padding:20px 30px}
+  .doc-footer{padding:10px 30px}
+  .route-section,.details-section,.notes-section,.signature-section{margin-bottom:16px}
+  .quote-hero{padding:16px 20px;margin-bottom:18px}
+  .quote-amount{font-size:32px}
+  .notes-box{min-height:50px}
+  .signature-line{height:24px}
+  .signature-name-line{height:20px}
   @page{size:letter portrait;margin:0.45in 0}
   @page :first{margin-top:0}
   .signature-section,.signature-grid,.doc-footer{break-inside:avoid;page-break-inside:avoid}
+  /* Printed, the document is as tall as what's on it: a page-tall box with the footer pinned
+     to its bottom spilled the footer onto a page of its own. Headings stay with what follows
+     them, and the footer with the signatures. */
+  .doc{display:block!important;min-height:0!important}
+  .doc-footer{margin-top:0!important;break-before:avoid;page-break-before:avoid}
+  .doc-end{break-inside:avoid;page-break-inside:avoid}
+  .doc-sign{padding-top:0!important}
+  .doc-body:not(.doc-sign){padding-bottom:0!important}
+  .doc-sign .signature-section{margin-bottom:12px}
+  .section-header{break-after:avoid;page-break-after:avoid}
+  .config-section{break-inside:avoid;page-break-inside:avoid}
 }
 </style>
 </head>
@@ -4483,6 +4507,10 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
         <div class="section-header">Load Notes &amp; Requirements</div>
         <div class="notes-box">${notesHTML}</div>
       </div>
+    </div>
+    <!-- The signatures and the footer, kept on one page when printed -->
+    <div class="doc-end">
+    <div class="doc-body doc-sign">
       <div class="signature-section">
         <div class="section-header">Acceptance &amp; Authorization</div>
         <div class="signature-grid">
@@ -4506,6 +4534,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
     <div class="doc-footer">
       ${footerLeft}
       ${footerRight}
+    </div>
     </div>
   </div>
 </div>

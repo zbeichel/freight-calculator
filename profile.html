@@ -1817,6 +1817,24 @@ const LogoCropper = (() => {
 
 // ── Quote number preview ───────────────────────────────────────────────────
 // The starting quote number as typed: a whole number from 1 to 99,999,999 (blank: 1001)
+// The next quote number as the account has it (PDFs made in another tab or on another device
+// move it on): shown here unless you're changing it.
+async function catchUpQuoteNumber(){
+  if(!window.QFCNav || !QFCNav.syncProfile) return;
+  const el = document.getElementById('quote-start');
+  const before = el ? el.value : '';
+  const p = await QFCNav.syncProfile({ counterOnly: true });
+  if(!p || !el || !(Number(p.quoteStart) > 0)) return;
+  accountQuoteCounter = Math.max(accountQuoteCounter, Number(p.accountQuoteCounter) || 0);
+  const editing = el.value !== before || (Number(before) || 0) !== loadedQuoteStart;
+  if(!editing && Number(p.quoteStart) > loadedQuoteStart){
+    el.value = p.quoteStart;
+    loadedQuoteStart = Number(p.quoteStart);
+    updateQuotePreview();
+  }
+}
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') catchUpQuoteNumber(); });
+
 function quoteStartValue(){
   const raw = document.getElementById('quote-start').value.trim();
   if(raw === '') return { ok: true, value: 1001 };
@@ -1824,6 +1842,10 @@ function quoteStartValue(){
   return Number.isInteger(n) && n >= 1 && n <= 99999999 ? { ok: true, value: n } : { ok: false, value: null };
 }
 const QUOTE_START_MSG = 'The starting number has to be a whole number from 1 to 99,999,999.';
+// The next quote number when the page loaded (or last caught up with the account), and the
+// account's own counter. Saving sends the counter only to move it forward: a tab opened before
+// some PDFs were made can't send it back to a number that's been used.
+let loadedQuoteStart = 0, accountQuoteCounter = 0;
 function updateQuotePreview(){
   const prefix  = document.getElementById('quote-prefix').value.trim() || 'QFC';
   const qs = quoteStartValue();
@@ -1931,6 +1953,12 @@ async function saveProfile(){
   }
   const qs = quoteStartValue();
   if(!qs.ok){ showToast(QUOTE_START_MSG); document.getElementById('quote-start').focus(); return; }
+  // Quote numbers only go up, so none is used twice
+  if(loadedQuoteStart && qs.value < loadedQuoteStart){
+    showToast(`Quote numbers only go up, so none is used twice. The next one is already ${loadedQuoteStart.toLocaleString()}.`);
+    document.getElementById('quote-start').focus();
+    return;
+  }
   const profile = {
     companyName:  document.getElementById('company-name').value.trim(),
     contactName:  document.getElementById('contact-name').value.trim(),
@@ -1955,8 +1983,15 @@ async function saveProfile(){
     savedAt:      new Date().toISOString(),
   };
 
-  // Always save to localStorage as immediate fallback
-  try { localStorage.setItem('qfc_pro_profile', JSON.stringify(profile)); } catch(e){}
+  // Always save to localStorage as immediate fallback, keeping what only the account knows
+  // (the plan, the team) and the furthest quote number this browser has reached
+  try {
+    let prevCache = {};
+    try { prevCache = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
+    const cached = Object.assign({}, prevCache, profile);
+    cached.quoteStart = Math.max(Number(profile.quoteStart) || 0, Number(prevCache.quoteStart) || 0) || undefined;
+    localStorage.setItem('qfc_pro_profile', JSON.stringify(cached));
+  } catch(e){}
 
   // Also save to Supabase if logged in
   const session = await getSessionRefreshed();
@@ -1980,7 +2015,8 @@ async function saveProfile(){
           dot_number:    profile.dotNumber,
           footer_text:   profile.footerText,
           quote_prefix:  profile.quotePrefix,
-          quote_counter: profile.quoteStart,
+          // only forward (the account keeps it from going back, too)
+          ...(profile.quoteStart > accountQuoteCounter ? { quote_counter: profile.quoteStart } : {}),
           color_scheme:  profile.colorScheme,
           logo_base64:   profile.logoBase64,
           hide_logo:     profile.hideLogo,
@@ -1998,6 +2034,9 @@ async function saveProfile(){
         })
       });
       showToast('✓ Profile saved to your account');
+      if(profile.quoteStart > accountQuoteCounter) accountQuoteCounter = profile.quoteStart;
+      loadedQuoteStart = Math.max(loadedQuoteStart, Number(profile.quoteStart) || 0);
+      catchUpQuoteNumber();   // the account's counter may be further along than this page knew
     } catch(e){
       showToast('✓ Saved locally — will sync when online');
     }
@@ -2049,6 +2088,13 @@ async function loadProfile(){
       }
       if(acct && acct.row){
         const p = acct.row;
+        accountQuoteCounter = Number(p.quote_counter) || 0;
+        // The PDF pages' copy of these settings, so they're right on this device from now on
+        if(window.QFCNav && QFCNav.accountProfile){
+          let prevCache = {};
+          try { prevCache = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch(e){}
+          try { localStorage.setItem('qfc_pro_profile', JSON.stringify(QFCNav.accountProfile(p, QFCNav.teamOf(acct.team), prevCache))); } catch(e){}
+        }
         // PDFs advance the quote counter in this browser first: keep the higher of the two.
         let localStart = 0;
         try { localStart = Number(JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}').quoteStart) || 0; } catch(e){}
@@ -3037,6 +3083,7 @@ function populateForm(p){
   if(p.footerText)  document.getElementById('footer-text').value = p.footerText;
   if(p.quotePrefix) document.getElementById('quote-prefix').value = p.quotePrefix;
   if(p.quoteStart)  document.getElementById('quote-start').value = p.quoteStart;
+  loadedQuoteStart = Number(p.quoteStart) || 0;
   if(p.colorScheme) currentScheme = p.colorScheme;
   document.getElementById('hide-logo').checked = p.hideLogo === true;
   document.getElementById('pdf-breakdown').checked = p.pdfBreakdown !== false;

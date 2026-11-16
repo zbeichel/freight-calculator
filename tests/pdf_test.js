@@ -35,12 +35,12 @@ async function setup(browser, base, profileOverrides, opts = {}) {
   await context.addInitScript(([profile, signedIn]) => {
     if (localStorage.getItem('__seeded')) return;
     localStorage.setItem('__seeded', '1');
-    localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
+    if (profile) localStorage.setItem('qfc_pro_profile', JSON.stringify(profile));
     if (signedIn) {
       localStorage.setItem('sb-xgrmbhmgcsbnazupfybd-auth-token', JSON.stringify({ access_token: 'tok', refresh_token: 'r',
         expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: 'user-1', email: 'sam@example.com' } }));
     }
-  }, [{ ...PROFILE, ...profileOverrides }, !!opts.signedIn]);
+  }, [opts.noProfile ? null : { ...PROFILE, ...profileOverrides }, !!opts.signedIn]);
   await context.route('**/*', async (route) => {
     const url = route.request().url();
     const json = (b) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(b) });
@@ -52,6 +52,7 @@ async function setup(browser, base, profileOverrides, opts = {}) {
     }
     if (url.includes('/rest/v1/rpc/bump_quote_counter')) {
       supa.bumps.push({ next: JSON.parse(route.request().postData()).p_next, auth: route.request().headers()['authorization'] || '' });
+      if (opts.bumpReturns) return json(opts.bumpReturns);   // the account's counter afterwards
       return route.fulfill({ status: 204, body: '' });
     }
     if (url.includes('/.netlify/functions/verify-pro')) return json({ active: true, plan: (supa.row && supa.row.plan) || 'pro', paid: true, unlimitedUntilRenewal: false });
@@ -313,11 +314,27 @@ const pageWith = (pr, re) => { for (let n = 1; n <= pr.pages; n++) if (re.test(p
     (cms.body.match(/\+\$172\.50 stop charge/g) || []).length === 2 && !cms.body.includes('$150 stop fee') && cms.cells['Stop Charges'] === '$345');
   await t.context.close();
 
+  // ── A browser that has never opened the calculator ────────────────────
+  console.log('\n=== A new device: Multi-stop and Bulk load the account’s settings themselves ===');
+  const NEW_DEVICE = { signedIn: true, noProfile: true, bumpReturns: 2090, row: { id: 'user-1', is_active: true, plan: 'max', email: 'sam@example.com',
+    company_name: 'Keystone Produce Logistics', quote_prefix: 'KPL', quote_counter: 2077, color_scheme: 'midnight', pdf_style: 'modern' } };
+  t = await setup(browser, base, {}, NEW_DEVICE);
+  tab = await multiStopPDF(t);
+  text = (await tab.textContent('body')).replace(/\s+/g, ' ');
+  check('multi-stop: the account’s company and next number (it printed “QFC-…-1001” and our name)',
+    text.includes('Keystone Produce Logistics') && /KPL-\d{8}-2077/.test(text) && !/QFC-\d{8}-1001/.test(text), text.slice(0, 240));
+  await t.page.waitForTimeout(300);
+  check('…and when the account is further along (another device printed up to 2089), this browser goes on from 2090',
+    (await t.page.evaluate(() => JSON.parse(localStorage.getItem('qfc_pro_profile')).quoteStart)) === 2090);
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
+  await t.context.close();
+
   // ── Bulk ────────────────────────────────────────────────────────────────
   const bulkPDF = async (t) => {
     await t.page.goto(base + '/bulk.html');
     await t.page.waitForFunction(() => typeof generateBulkPDF === 'function' && window.QFCQuotePDF);
     await t.page.waitForTimeout(800);
+    await t.page.waitForFunction(() => !!localStorage.getItem('qfc_pro_profile'), null, { timeout: 3000 }).catch(() => {});
     await t.page.evaluate(() => {
       const set = (id, v) => { document.getElementById(id).value = v; };
       set('origin', 'Presque Isle, ME'); set('dest', 'Hanover, PA'); set('loaded-miles', 712); set('deadhead-miles', 40);

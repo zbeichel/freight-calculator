@@ -291,6 +291,75 @@
     verify(uid, s.access_token);
   }
 
+  // ── The account's PDF settings, cached for the pages that make PDFs ──
+  // qfc_pro_profile holds the company, quote numbering and PDF settings of the account this
+  // sign-in works in (my_account). Pages that make PDFs load it when they open and again when
+  // they're looked at, so a new device, a fresh sign-in or a tab left open doesn't print with an
+  // empty profile or an old quote number. The counter only moves forward: this browser's or
+  // the account's, whichever is further along.
+  function teamOf(t) {
+    return t ? { role: t.role, seated: t.seated !== false, company: t.company || null, ownerName: t.owner_name || null,
+      size: t.size || 1, members: t.members || 0, tag: t.tag || null } : null;
+  }
+  function accountProfile(p, team, prev) {
+    prev = prev || {};
+    return {
+      companyName: p.company_name, contactName: p.contact_name,
+      email: p.contact_email || p.email, phone: p.phone, mcNumber: p.mc_number,
+      dotNumber: p.dot_number, footerText: p.footer_text,
+      quotePrefix: p.quote_prefix,
+      quoteStart: Math.max(Number(p.quote_counter) || 0, Number(prev.quoteStart) || 0) || undefined,
+      colorScheme: p.color_scheme, logoBase64: p.logo_base64,
+      hideLogo: p.hide_logo === true,
+      pdfStyle: p.pdf_style === 'classic' ? 'classic' : 'modern',
+      pdfBreakdown: p.pdf_breakdown !== false,
+      pdfAccent: p.pdf_accent || '', pdfInk: p.pdf_ink || '',
+      pdfWhiteLabel: p.pdf_white_label === true, pdfValidHours: p.pdf_valid_hours || 24, pdfTerms: p.pdf_terms || '',
+      pdfSections: p.pdf_sections || null, pdfAccessorials: p.pdf_accessorials || null,
+      rateSheet: p.rate_sheet || null,
+      plan: p.plan, comp: p.is_active === true && !p.stripe_subscription_id,
+      team: team,
+    };
+  }
+  var profileSyncing = null, profileSyncedAt = 0;
+  // counterOnly (Profile, which has just saved the rest): only the quote number follows the
+  // account, unless nothing is cached yet.
+  function syncProfile(opts) {
+    var counterOnly = !!(opts && opts.counterOnly);
+    if (profileSyncing) return profileSyncing;
+    var s = session();
+    if (!s || !s.access_token || !window.fetch) return Promise.resolve(null);
+    if (s.expires_at && s.expires_at * 1000 < Date.now() + 60000) return Promise.resolve(null);   // the page refreshes it first
+    profileSyncing = fetch(SUPABASE_URL + '/rest/v1/rpc/my_account', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: 'Bearer ' + s.access_token }, body: '{}' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (acct) {
+        if (!acct || !acct.row) return null;
+        var prev = {};
+        try { prev = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {}; } catch (e) {}
+        var prof = counterOnly && prev.quotePrefix !== undefined
+          ? Object.assign({}, prev, { quoteStart: Math.max(Number(acct.row.quote_counter) || 0, Number(prev.quoteStart) || 0) || undefined })
+          : accountProfile(acct.row, teamOf(acct.team), prev);
+        try { localStorage.setItem('qfc_pro_profile', JSON.stringify(prof)); } catch (e) {}
+        profileSyncedAt = Date.now();
+        // with the account's own counter, which may be behind this browser's
+        return Object.assign({}, prof, { accountQuoteCounter: Number(acct.row.quote_counter) || 0 });
+      })
+      .catch(function () { return null; })
+      .then(function (v) { profileSyncing = null; return v; });
+    return profileSyncing;
+  }
+  // Looked at again (another tab or device may have made PDFs since): load it again, at most
+  // every 15 seconds.
+  var keepingFresh = false;
+  function keepProfileFresh() {
+    if (keepingFresh) return;
+    keepingFresh = true;
+    var again = function () { if (document.visibilityState === 'visible' && Date.now() - profileSyncedAt > 15000) syncProfile(); };
+    document.addEventListener('visibilitychange', again);
+    window.addEventListener('focus', again);
+  }
+
   function start() { render(); footer(); refreshStatus(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
@@ -299,5 +368,6 @@
     if (!e.key || e.key.indexOf('sb-') === 0 || e.key === 'qfc_pro_profile' || e.key === 'qfc_pro_status') render();
   });
 
-  window.QFCNav = { refresh: function () { if (nav) render(); }, setTheme: setTheme, signOut: signOut, icon: icon, logoImg: logoImg, logoURI: LOGO_URI, verify: verify };
+  window.QFCNav = { refresh: function () { if (nav) render(); }, setTheme: setTheme, signOut: signOut, icon: icon, logoImg: logoImg, logoURI: LOGO_URI, verify: verify,
+    accountProfile: accountProfile, teamOf: teamOf, syncProfile: syncProfile, keepProfileFresh: keepProfileFresh };
 })();

@@ -1357,9 +1357,22 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:40px 20px;min-h
   .screen-controls{display:none!important}
   .page-wrap{max-width:100%;margin:0;padding:0}
   .doc{box-shadow:none;border-radius:0;margin:0;display:flex;flex-direction:column;min-height:100vh}
+  /* The calculator's printed spacing, so a bulk quote with a customer fits on one page */
+  .doc-header{padding:20px 30px}
+  .doc-body{padding:20px 30px}
+  .doc-footer{padding:10px 30px}
+  .quote-hero{padding:16px 20px;margin-bottom:18px}
   @page{size:letter portrait;margin:0.45in 0}
   @page :first{margin-top:0}
   .signature-section,.signature-grid,.doc-footer{break-inside:avoid;page-break-inside:avoid}
+  /* Printed, the document is as tall as what's on it: a page-tall box with the footer pinned
+     to its bottom spilled the footer onto a page of its own. Headings stay with what follows
+     them, and the footer with the signatures. */
+  .doc{display:block!important;min-height:0!important}
+  .doc-footer{margin-top:0!important;break-before:avoid;page-break-before:avoid}
+  .doc-end{break-inside:avoid;page-break-inside:avoid}
+  .section-header{break-after:avoid;page-break-after:avoid}
+  .config-section{break-inside:avoid;page-break-inside:avoid}
 }
 </style>
 </head>
@@ -1481,7 +1494,9 @@ async function init(){
     window.location.href = '/signup.html?reason=pro-required';
     return;
   }
-  // Pro confirmed — load rates, diesel, and Maps key in parallel
+  // Pro confirmed — load rates, diesel, and Maps key in parallel, and the account's settings
+  // for the PDF (company, quote numbers): a new device or a fresh sign-in has none cached.
+  if(window.QFCNav && QFCNav.syncProfile){ QFCNav.syncProfile(); QFCNav.keepProfileFresh(); }
   loadRates();
   loadDieselPrice();
   calc();

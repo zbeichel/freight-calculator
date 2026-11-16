@@ -1896,6 +1896,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
 .doc-header{background:${scheme.header};padding:24px 36px;display:flex;align-items:center;justify-content:space-between;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .accent-bar{height:4px;background:${scheme.bar};-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .doc-body{padding:28px 36px}
+.doc-sign{padding-top:0}
 .doc-footer{background:#f8f9fc;border-top:1px solid #e4e8ef;padding:14px 36px;display:flex;align-items:center;justify-content:space-between;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .section-header{font-size:10px;font-weight:700;color:#8fa3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #e4e8ef}
 .route-section,.details-section,.notes-section,.signature-section,.stops-section{margin-bottom:24px}
@@ -1923,6 +1924,17 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
   @page{size:letter portrait;margin:0.45in 0}
   @page :first{margin-top:0}
   .signature-section,.signature-grid,.doc-footer{break-inside:avoid;page-break-inside:avoid}
+  /* Printed, the document is as tall as what's on it: a page-tall box with the footer pinned
+     to its bottom spilled the footer onto a page of its own. Headings stay with what follows
+     them, and the footer with the signatures. */
+  .doc{display:block!important;min-height:0!important}
+  .doc-footer{margin-top:0!important;break-before:avoid;page-break-before:avoid}
+  .doc-end{break-inside:avoid;page-break-inside:avoid}
+  .doc-sign{padding-top:0!important}
+  .doc-body:not(.doc-sign){padding-bottom:0!important}
+  .doc-sign .signature-section{margin-bottom:12px}
+  .section-header{break-after:avoid;page-break-after:avoid}
+  .config-section{break-inside:avoid;page-break-inside:avoid}
 }
 </style></head><body>
 <div class="page-wrap">
@@ -2005,6 +2017,10 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
         </div>
       </div>
 
+    </div>
+    <!-- The signatures and the footer, kept on one page when printed -->
+    <div class="doc-end">
+    <div class="doc-body doc-sign">
       <div class="signature-section">
         <div class="section-header">Acceptance &amp; Authorization</div>
         <div class="signature-grid">
@@ -2025,6 +2041,7 @@ body{background:#e8edf2;font-family:'DM Sans',sans-serif;padding:36px 20px;min-h
     <div class="doc-footer">
       <div style="font-size:11px;color:#b0c4d8">${msWhiteLabel ? escapeHTML(profile.companyName || '') : `${profile.companyName?escapeHTML(profile.companyName):qfcLogoImg(13) + ' QuickFreightCalc'} · ${profile.companyName?'Powered by QuickFreightCalc':'quickfreightcalc.com'}`}</div>
       <div style="font-size:10px;color:#aab8c8">${msTerms}</div>
+    </div>
     </div>
   </div>
 </div></body></html>`;
@@ -2102,6 +2119,12 @@ async function initWithProCheck(){
   // User is verified Pro — load the page. With a rate sheet (rate-sheet.js loads with
   // the page), the base rate starts from it.
   if(document.readyState === 'loading') await new Promise(r => document.addEventListener('DOMContentLoaded', r, { once: true }));
+  // The account's settings for this browser (company, quote numbers, rate sheet): a new device or
+  // a fresh sign-in has none until something loads them. Up to 4 seconds; then what's cached.
+  if(window.QFCNav && QFCNav.syncProfile){
+    await Promise.race([QFCNav.syncProfile(), new Promise(r => setTimeout(r, 4000))]);
+    QFCNav.keepProfileFresh();
+  }
   // rate-sheet.js loads deferred and can arrive after this point. With a sheet saved, wait for it
   // (up to 3 seconds) so the quote starts from your rates; without one, don't wait.
   let hasSheet = false;

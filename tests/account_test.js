@@ -311,6 +311,31 @@ const profileReady = (pg) => pg.waitForFunction(() => ['subscription-paid', 'sub
   check('another device got further (1020): Profile shows 1020', (await t.page.inputValue('#quote-start')) === '1020', await t.page.inputValue('#quote-start'));
   await t.context.close();
 
+  console.log('\n=== Profile: a tab opened before some PDFs were made ===');
+  t = await setup(browser, base, { row: ROW({ quote_counter: 2027 }) });
+  await t.page.goto(base + '/profile.html');
+  await t.page.waitForFunction(() => document.getElementById('quote-start').value === '2027');
+  await t.page.waitForTimeout(300);
+  // Another tab makes a PDF: the account and this browser move on to 2028
+  t.db.row = Object.assign({}, t.db.row, { quote_counter: 2028 });
+  await t.page.evaluate(() => { const p = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}'); p.quoteStart = 2028; localStorage.setItem('qfc_pro_profile', JSON.stringify(p)); });
+  await t.page.click('.save-btn');
+  await until(() => t.db.patches.length >= 1);
+  await t.page.waitForTimeout(600);
+  const stale = await t.page.evaluate(() => ({ field: document.getElementById('quote-start').value, cached: JSON.parse(localStorage.getItem('qfc_pro_profile')).quoteStart }));
+  check('saving it doesn’t send the counter back to 2027, a number already used, and it catches up to 2028',
+    t.db.patches[0] && !('quote_counter' in t.db.patches[0]) && stale.field === '2028' && stale.cached === 2028, JSON.stringify({ sent: t.db.patches[0] && t.db.patches[0].quote_counter, ...stale }));
+  await t.page.fill('#quote-start', '1500');
+  await t.page.click('.save-btn');
+  await t.page.waitForTimeout(400);
+  const lowMsg = await t.page.textContent('#toast').catch(() => '');
+  check('a lower starting number is refused: quote numbers only go up', t.db.patches.length === 1 && /only go up/.test(lowMsg), lowMsg);
+  await t.page.fill('#quote-start', '3000');
+  await t.page.click('.save-btn');
+  await until(() => t.db.patches.length >= 2);
+  check('…and a higher one is saved', t.db.patches[1] && t.db.patches[1].quote_counter === 3000, JSON.stringify(t.db.patches[1] && t.db.patches[1].quote_counter));
+  await t.context.close();
+
   // ── The nav on other pages ──────────────────────────────────────────────
   console.log('\n=== Nav: "Get Pro" only for accounts without a plan ===');
   t = await setup(browser, base, { verify: VERIFY({ plan: 'plus' }), row: ROW({ plan: 'plus' }) });

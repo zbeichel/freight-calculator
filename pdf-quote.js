@@ -239,6 +239,12 @@
         method: 'POST', keepalive: true,
         headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: 'Bearer ' + token },
         body: JSON.stringify({ p_next: Math.floor(next) }),
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (counter) {
+        // The account's counter after this one: further along when another device has been
+        // making PDFs, and then this browser continues from there.
+        if (!(Number(counter) > 0)) return;
+        var p = JSON.parse(localStorage.getItem('qfc_pro_profile') || '{}') || {};
+        if (Number(counter) > (Number(p.quoteStart) || 0)) { p.quoteStart = Number(counter); localStorage.setItem('qfc_pro_profile', JSON.stringify(p)); }
       }).catch(function () {});
     } catch (e) {}
   }
@@ -344,7 +350,8 @@
       '.acc-t td:first-child{color:#111827;font-weight:600;width:42%;padding-right:16px}\n' +
       '.notes-text{font-size:13px;line-height:1.6;color:#374151;background:#f9fafb;border-radius:8px;padding:12px 16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}\n' +
       '.terms{font-size:11.5px;color:#6b7280;line-height:1.6;margin-bottom:26px}\n' +
-      '.sign{display:flex;gap:36px;margin-top:auto;margin-bottom:28px}\n' +
+      '.end{margin-top:auto}\n' +
+      '.sign{display:flex;gap:36px;margin-bottom:28px}\n' +
       '.sig{flex:1}\n' +
       '.sig .line{border-bottom:1px solid #111827;height:34px}\n' +
       '.sig .lbl{font-size:10.5px;color:#6b7280;margin-top:6px}\n' +
@@ -356,7 +363,7 @@
       '  body{background:#fff;padding:0}\n' +
       '  .controls{display:none!important}\n' +
       '  .doc{box-shadow:none;border-radius:0;max-width:none;min-height:100vh;padding:0}\n' +
-      '  .lane,.facts,.rate,.sign,.s-row,.transit,.acc,.notes{break-inside:avoid;page-break-inside:avoid}\n' +
+      '  .lane,.facts,.rate,.sign,.s-row,.transit,.acc,.notes,.end{break-inside:avoid;page-break-inside:avoid}\n' +
       '  .k{break-after:avoid;page-break-after:avoid}\n' +
       '}\n';
   }
@@ -473,14 +480,16 @@
     var company = profile.companyName || '';
     var signer = profile.contactName || company;
     var terms = esc(termsText(profile)).replace(/\n/g, '<br>') + (extra ? ' ' + esc(extra) : '');
-    return '<section class="terms">' + terms + '</section>\n' +
+    // The signatures and the footer stay together (.end), so the footer never prints on a page
+    // of its own
+    return '<section class="terms">' + terms + '</section>\n<div class="end">\n' +
       (signatures === false ? '' :
         '<section class="sign">\n' +
         '  <div class="sig"><div class="line"></div><div class="lbl"><strong>Accepted by</strong> — signature, printed name &amp; date</div></div>\n' +
         '  <div class="sig"><div class="line"></div><div class="lbl"><strong>Authorized by</strong>' + (signer ? ' — ' + esc(signer) : '') + '</div></div>\n' +
         '</section>\n') +
       '<footer><span>' + (company ? esc(company) + ' · ' : '') + 'Quote ' + esc(meta.number) + '</span>' +
-      (whiteLabel(profile) ? '' : '<span>Prepared with QuickFreightCalc</span>') + '</footer>\n';
+      (whiteLabel(profile) ? '' : '<span>Prepared with QuickFreightCalc</span>') + '</footer>\n</div>\n';
   }
 
   function page(title, s, body) {
