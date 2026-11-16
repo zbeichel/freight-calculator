@@ -109,7 +109,7 @@ exports.handler = async function () {
   // couldn't answer leaves its carriers out: they keep yesterday's facts and raise nothing.
   let facts;
   try {
-    facts = await F.monitorFacts(watching.map((s) => s.dot_number), { deadline: started + 20000, timeoutMs: 8000 });
+    facts = await F.monitorFacts(watching.map((s) => s.dot_number), { deadline: started + 20000, timeoutMs: 12000 });
   } catch (e) {
     console.error('[carrier-monitor] FMCSA data unavailable:', e.message);
     return { statusCode: 200, body: JSON.stringify({ ...summary, unchecked: watching.length, errors: 1 }) };

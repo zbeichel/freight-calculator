@@ -86,6 +86,10 @@ async function usage(accountId, plan) {
   return { used, limit: LOOKUP_LIMIT[plan] || 0 };
 }
 
+// FMCSA's data is usually quick but has slow spells of several seconds a request (3.5–7 s on
+// Nov 16, 2026). A check gets 25 seconds of the function's 60, each request up to 12 of them.
+const CHECK_MS = 25000, REQUEST_MS = 12000;
+
 // National out-of-service averages: kept for a day in carrier_meta (the morning monitor
 // refreshes them too).
 async function national(opt) {
@@ -115,7 +119,7 @@ async function reportFor(dot, deadline) {
     report.flags = a.flags;
     return report;
   }
-  const [raw, nat] = await Promise.all([F.fetchCarrier(dot, { deadline }), national({ deadline })]);
+  const [raw, nat] = await Promise.all([F.fetchCarrier(dot, { deadline, timeoutMs: REQUEST_MS }), national({ deadline })]);
   const report = F.buildReport(raw, { national: nat });
   if (report.found && !report.missing.length) {
     await db('/rest/v1/carrier_cache?on_conflict=dot_number', { method: 'POST', body: { dot_number: dot, report, fetched_at: new Date(Date.now()).toISOString() }, prefer: 'resolution=merge-duplicates,return=minimal' });
@@ -128,11 +132,9 @@ async function lookup(user, acct, plan, body) {
   const q = F.parseQuery(body.query, body.kind === 'dot' ? 'dot' : 'mc');
   if (!q) return fail(400, 'invalid', 'Enter an MC number (e.g. MC 135797) or a USDOT number (e.g. DOT 80806).', { field: 'query' });
 
-  // FMCSA's data is usually quick but has slow spells: the whole check has to finish
-  // inside the function's time limit (about 10 seconds), with a little room to spare.
-  const deadline = Date.now() + 8500;
+  const deadline = Date.now() + CHECK_MS;
   let dot;
-  try { dot = await F.resolveDot(q, { deadline, timeoutMs: 4000 }); } catch (e) {
+  try { dot = await F.resolveDot(q, { deadline, timeoutMs: REQUEST_MS }); } catch (e) {
     console.error('[carrier-check] resolve', e.message);
     return fail(502, 'source', 'FMCSA’s data isn’t answering right now. Try again in a minute.');
   }
@@ -188,7 +190,7 @@ async function save(user, acct, plan, body) {
   if (n >= SAVED_LIMIT) return fail(409, 'full', `You’re watching ${SAVED_LIMIT} carriers, the most a plan can. Remove one to add another.`);
   // Today's facts are the starting point the daily check compares against.
   let facts = {};
-  try { facts = (await F.monitorFacts([dot], { deadline: Date.now() + 6000, timeoutMs: 4000, retryDelayMs: 200 }))[dot] || {}; } catch (e) { console.warn('[carrier-check] baseline', dot, e.message); }
+  try { facts = (await F.monitorFacts([dot], { deadline: Date.now() + 20000, timeoutMs: REQUEST_MS, retryDelayMs: 200 }))[dot] || {}; } catch (e) { console.warn('[carrier-check] baseline', dot, e.message); }
   // How new the carrier is, from the report just checked (the daily facts don't include it).
   const cached = Object.keys(facts).length ? rows(await db(`/rest/v1/carrier_cache?dot_number=eq.${dot}&select=report`))[0] : null;
   if (cached && cached.report) {
