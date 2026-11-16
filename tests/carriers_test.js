@@ -199,6 +199,33 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   answer = (url) => (ds(url) === F.DS.census ? [{ dot_number: '4587322' }] : []);
   ok((await F.resolveDot({ docket: 'MC87672135' }, { fetchImpl: fakeFetch })) === '4587322' && calls.length === 2 && /docket1='87672135'/.test(param(calls[1].url, '$where')),
      '…then in the census when there’s no authority record');
+  // FMCSA's data can take seconds a request: both lists are asked at once
+  calls.length = 0;
+  let releaseAuthority;
+  const held = async (url, opts = {}) => {
+    calls.push({ url, opts });
+    if (ds(url) === F.DS.authority) { await new Promise((r) => { releaseAuthority = r; }); return { ok: true, status: 200, json: async () => [] }; }
+    return { ok: true, status: 200, json: async () => [{ dot_number: '4587322' }] };
+  };
+  const resolving = F.resolveDot({ docket: 'MC87672135' }, { fetchImpl: held });
+  await new Promise((r) => setTimeout(r, 30));
+  const bothAsked = calls.length === 2 && ds(calls[1].url) === F.DS.census;
+  releaseAuthority();
+  ok(bothAsked && (await resolving) === '4587322', 'an MC number: the authority records and the census are asked at once, not one after the other');
+  let censusAnswered = false;
+  const slowCensus = async (url) => {
+    if (ds(url) === F.DS.census) { await new Promise((r) => setTimeout(r, 300)); censusAnswered = true; return { ok: true, status: 200, json: async () => [] }; }
+    return { ok: true, status: 200, json: async () => [{ usdot_number: '80806' }] };
+  };
+  ok((await F.resolveDot({ docket: 'MC135797' }, { fetchImpl: slowCensus })) === '80806' && !censusAnswered, '…an authority match doesn’t wait for the census');
+  const authorityDown = async (url) => (ds(url) === F.DS.authority ? { ok: false, status: 503, json: async () => ({}) } : { ok: true, status: 200, json: async () => [{ dot_number: '4587322' }] });
+  let viaCensus = null;
+  try { viaCensus = await F.resolveDot({ docket: 'MC87672135' }, { fetchImpl: authorityDown }); } catch (e) { viaCensus = e.message; }
+  ok(viaCensus === '4587322', '…the census still finds it while the authority records are down', String(viaCensus));
+  const censusDown = async (url) => (ds(url) === F.DS.census ? { ok: false, status: 503, json: async () => ({}) } : { ok: true, status: 200, json: async () => [] });
+  let unsure = '';
+  try { await F.resolveDot({ docket: 'MC5550001' }, { fetchImpl: censusDown }); } catch (e) { unsure = e.message; }
+  ok(unsure === F.DS.census + ' answered 503', '…and “not found” only when both lists answered (otherwise FMCSA isn’t answering)', unsure);
   calls.length = 0;
   process.env.SOCRATA_APP_TOKEN = 'app-token';
   answer = () => [];
@@ -377,6 +404,12 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
     const body = opts.body ? JSON.parse(opts.body) : undefined;
     if (url.startsWith('https://data.transportation.gov/')) {
       db.socrata++;
+      if (db.slowMs) {   // a slow day at FMCSA: every request takes db.slowMs, unless the function gives up first
+        await new Promise((res, rej) => {
+          const t = setTimeout(res, db.slowMs);
+          if (opts.signal) opts.signal.addEventListener('abort', () => { clearTimeout(t); rej(Object.assign(new Error('This operation was aborted'), { name: 'AbortError' })); });
+        });
+      }
       const d = ds(url);
       if (db.down && db.down.has(d)) return resp(503, { message: 'unavailable' });
       const where = q(url).get('$where') || '';
@@ -530,6 +563,16 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   res = await callFn('t-max', { action: 'lookup', query: '4587322', kind: 'dot' });
   ok(res.status === 200 && res.body.report.missing.length === 0 && !res.body.report.flags.some((f) => f.code === 'incomplete') && db.cache['4587322'] && maxLookups() === maxBefore + 1,
      'checking again: complete, cached, and free');
+  // A slow day at FMCSA (Nov 16, 2026: 3.5–7 seconds a request). The check used to give up
+  // on the MC number after 4 seconds, and on the whole check after 8.5.
+  delete db.cache['80806'];
+  db.slowMs = 4500;
+  const slowStart = realNow();
+  res = await callFn('t-max', { action: 'lookup', query: 'MC135797' });
+  const slowTook = realNow() - slowStart;
+  db.slowMs = 0;
+  ok(res.status === 200 && res.body.report && res.body.report.dot === '80806' && res.body.report.missing.length === 0 && !!db.cache['80806'],
+     `FMCSA answering in 4.5 s a request: an MC check still comes back complete (in ${(slowTook / 1000).toFixed(1)} s; it said “isn’t answering”)`, JSON.stringify(res.body).slice(0, 220));
 
   res = await callFn('t-plus', { action: 'list' });
   ok(res.status === 200 && res.body.canLookup && !res.body.canMonitor && res.body.saved.length === 0 && res.body.usage.limit === 100, 'Pro Plus list: checks, no saved carriers');

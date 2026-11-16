@@ -112,19 +112,28 @@ const NEW_AUTHORITY_DAYS = 90, NEW_USDOT_DAYS = 180;
 const REPORT_VERSION = 2;
 const docketSafe = (s) => /^(MC|MX|FF)\d{1,8}$/.test(String(s)) ? String(s) : null;
 
-// An MC/MX/FF number → its USDOT number (authority records first, then the census).
+// An MC/MX/FF number → its USDOT number: the authority records, else the census. FMCSA's data
+// can take several seconds a request, so both are asked at once; an authority match doesn't
+// wait for the census, and "not found" needs both lists to have answered.
 async function resolveDot(q, opt = {}) {
   if (q.dot) return digits(q.dot);
   const docket = docketSafe(q.docket);
   if (!docket) return null;
-  const rows = await soql(DS.authority, { $select: 'usdot_number', $where: `docket_number='${docket}'`, $limit: 5 }, opt);
-  const hit = rows.find((r) => digits(r.usdot_number));
-  if (hit) return digits(hit.usdot_number);
   const prefix = docket.slice(0, 2), num = docket.slice(2);
-  const c = await soql(DS.census, { $select: 'dot_number',
+  const authority = soql(DS.authority, { $select: 'usdot_number', $where: `docket_number='${docket}'`, $limit: 5 }, opt);
+  const census = soql(DS.census, { $select: 'dot_number',
     $where: `(docket1prefix='${prefix}' AND docket1='${num}') OR (docket2prefix='${prefix}' AND docket2='${num}')`, $limit: 2 }, opt);
+  census.catch(() => {});   // not needed after an authority match; its failure is handled below
+  let rows = null, authorityError = null;
+  try { rows = await authority; } catch (e) { authorityError = e; }
+  const hit = rows && rows.find((r) => digits(r.usdot_number));
+  if (hit) return digits(hit.usdot_number);
+  let c;
+  try { c = await census; } catch (e) { throw authorityError || e; }
   const hit2 = c.find((r) => digits(r.dot_number));
-  return hit2 ? digits(hit2.dot_number) : null;
+  if (hit2) return digits(hit2.dot_number);
+  if (authorityError) throw authorityError;
+  return null;
 }
 
 // Everything about one USDOT number, as the datasets have it. Parts that fail come back

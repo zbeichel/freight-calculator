@@ -166,7 +166,9 @@ async function setup(browser, base, { signedIn = true, token = 'tok', expired = 
     const json = (b, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(b) });
     if (url.startsWith(base) && !url.includes('/.netlify/functions/')) return route.continue();
     if (url.includes('/.netlify/functions/carrier-check')) {
-      const [status, body] = st.handle(JSON.parse(req.postData() || '{}'), (req.headers().authorization || '').replace('Bearer ', ''));
+      const sent = JSON.parse(req.postData() || '{}');
+      if (st.delayMs && sent.action === 'lookup') await new Promise((r) => setTimeout(r, st.delayMs));   // a slow day at FMCSA
+      const [status, body] = st.handle(sent, (req.headers().authorization || '').replace('Bearer ', ''));
       return json(body, status);
     }
     if (url.includes('/auth/v1/token')) { db.refreshes++; return json({ access_token: 'tok-fresh', refresh_token: 'r2', expires_in: 3600, user: { id: 'user-1', email: 'pat@example.com' } }); }
@@ -396,6 +398,17 @@ async function lookup(v, q, kind) {
   await v.p.waitForTimeout(200);
   const clip2 = await v.p.evaluate(() => navigator.clipboard.readText()).catch((e) => 'ERR ' + e.message);
   check('…the copied summary says so too', /\nAuthority and liability on file: didn’t load from FMCSA\.\n/.test(clip2) && !/no carrier authority/.test(clip2), clip2);
+  // A slow day at FMCSA (a check can take 20 seconds): after 6 seconds the page says so
+  t.st.delayMs = 6800;
+  await v.p.click('.cc-kind button[data-kind="dot"]');
+  await v.p.fill('#cc-q', '9900001');
+  await v.p.click('#cc-go');
+  await v.p.waitForTimeout(6400);
+  const slowMsg = await text(v.p, '#cc-status');
+  await v.p.waitForFunction(() => !document.getElementById('cc-go').disabled, null, { timeout: 5000 }).catch(() => {});
+  t.st.delayMs = 0;
+  check('FMCSA slow: after 6 seconds “slow right now, still checking”, then the report', slowMsg === 'FMCSA’s data is slow right now. Still checking…'
+    && (await text(v.p, '#cc-status')) === '' && (await text(v.p, '.cc-verdict h2')) === 'No problems found', slowMsg);
   t.st.down = true;
   await lookup(v, 'MC 9900102', 'mc');
   check('FMCSA not answering: “try again in a minute”, nothing counted, no stale report', (await text(v.p, '#cc-status')) === 'FMCSA’s data isn’t answering right now. Try again in a minute.'

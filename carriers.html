@@ -512,6 +512,8 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
     if (!q) { setStatus('Enter an MC or USDOT number.', true); return; }
     $('cc-go').disabled = true;
     setStatus('Checking FMCSA’s records…');
+    // FMCSA's data has slow spells (a check can take 20 seconds): say so while it waits
+    const slow = setTimeout(() => setStatus('FMCSA’s data is slow right now. Still checking…'), 6000);
     try {
       const res = await call('lookup', { query: q, kind });
       if (res.status === 200) {
@@ -531,6 +533,7 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
       clearReport();
       setStatus('Couldn’t reach the server. Try again.', true);
     } finally {
+      clearTimeout(slow);
       $('cc-go').disabled = false;
     }
   }
