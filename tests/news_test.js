@@ -140,6 +140,8 @@ async function setup(browser, base, { who = null, rows = [WEEK, OLDER, DRAFT], f
 }
 const text = (pg, sel) => pg.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').trim()).catch(() => '');
 const ready = (t) => t.page.waitForFunction(() => document.getElementById('news-status').hidden);
+// The owner's view comes from the page's script (drafts load after the server's copy is shown)
+const ownerView = (t) => t.page.waitForSelector('.news-draft', { timeout: 60000 });
 // What a search engine gets: the page as sent, without running its script
 const get = (url) => new Promise((resolve, reject) => http.get(url, (r) => { let b = ''; r.on('data', (c) => { b += c; }); r.on('end', () => resolve({ status: r.statusCode, headers: r.headers, body: b })); }).on('error', reject));
 const between = (html, re) => ((html.match(re) || [])[1] || '');
@@ -237,7 +239,7 @@ const between = (html, re) => ((html.match(re) || [])[1] || '');
   console.log('\n=== The site owner ===');
   t = await setup(browser, base, { who: OWNER });
   await t.page.goto(base + '/market-news');
-  await ready(t);
+  await ownerView(t);
   check('the newest week first, even as a draft, marked as one with Publish', (await text(t.page, '.news-title')) === DRAFT.title
     && (await text(t.page, '.news-draft')).startsWith('Draft. Only you can see this until you publish it.') && await t.page.isVisible('button[data-act="publish"]'));
   check('drafts show in the list, tagged', (await t.page.$$eval('#news-arch a', (as) => as.map((a) => !!a.querySelector('.tag')))).join() === 'true,false,false');
@@ -252,7 +254,7 @@ const between = (html, re) => ((html.match(re) || [])[1] || '');
   check('Unpublish asks first, then puts it back to a draft', /Take this update off the site\?/.test(t.db.dialogs.join('|')) && t.db.patches[1].body.status === 'draft');
   await t.page.screenshot({ path: path.join(SHOTS, 'news_owner.png'), fullPage: true });
   await t.page.goto(base + '/market-news/2026-11-16');
-  await ready(t);
+  await ownerView(t);
   check('the draft’s own page: the owner sees the draft there, with Publish (visitors get “isn’t here”)', (await text(t.page, '.news-title')) === DRAFT.title
     && await t.page.isVisible('button[data-act="publish"]') && await t.page.isHidden('#news-empty'));
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
