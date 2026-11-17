@@ -153,7 +153,7 @@
       '<nav class="qf-links" aria-label="Main">' +
       '<a href="/"' + (here(['/', '/index.html']) ? ' class="active" aria-current="page"' : '') + '>Calculator</a>' +
       '<a href="/rates.html"' + (here(['/rates.html']) ? ' class="active" aria-current="page"' : '') + '>Market Rates</a>' +
-      '<a href="/market-news.html"' + (here(['/market-news.html']) ? ' class="active" aria-current="page"' : '') + '>Market News</a>' +
+      '<a href="/market-news"' + (here(['/market-news.html']) || /^\/market-news\//.test(location.pathname) ? ' class="active" aria-current="page"' : '') + '>Market News</a>' +
       '<div class="qf-dd"><button type="button" class="qf-dd-btn' + (toolsActive ? ' active' : '') + '" aria-haspopup="true" aria-expanded="false">Tools' + icon('chevron') + '</button>' +
       '<div class="qf-dd-menu">' + tools + '</div></div>' +
       '<a href="/signup.html"' + (here(['/signup.html']) ? ' class="active" aria-current="page"' : '') + '>Pricing</a>' +
@@ -163,7 +163,7 @@
       '</div>' +
       '<div class="qf-mobile" hidden>' +
       '<a href="/">' + icon('calc') + 'Calculator</a><a href="/rates.html">' + icon('map') + 'Market Rates</a>' +
-      '<a href="/market-news.html">' + icon('news') + 'Market News</a>' +
+      '<a href="/market-news">' + icon('news') + 'Market News</a>' +
       '<a href="/signup.html">' + icon('tag') + 'Pricing</a>' +
       '<div class="qf-mobile-label">Tools</div>' + mobileTools +
       (a ? '<div class="qf-mobile-label">Account</div><a href="/profile.html">' + icon('user') + 'Profile &amp; settings</a>' +
@@ -261,7 +261,7 @@
         '<p>Truckload rate quotes in seconds for brokers, dispatchers and owner-operators — van, reefer and flatbed, anywhere in the US.</p></div>' +
         '<div class="qf-footer-col"><h2 class="qf-footer-h">Quote</h2><a href="/">Rate calculator</a><a href="/multistop.html">Multi-stop builder</a>' +
         '<a href="/bulk.html">Bulk load calculator</a><a href="/lanes.html">Lane rate tracker</a><a href="/carriers.html">Carrier check</a></div>' +
-        '<div class="qf-footer-col"><h2 class="qf-footer-h">Market</h2><a href="/rates.html">Market rates map</a><a href="/market-news.html">Market news</a><a href="/signup.html">Plans &amp; pricing</a>' +
+        '<div class="qf-footer-col"><h2 class="qf-footer-h">Market</h2><a href="/rates.html">Market rates map</a><a href="/market-news">Market news</a><a href="/signup.html">Plans &amp; pricing</a>' +
         '<a href="/api.html">API</a><a href="/customers.html">Customers</a></div>' +
         '<div class="qf-footer-col"><h2 class="qf-footer-h">Company</h2><a href="/terms.html">Terms of Service</a><a href="/privacy.html">Privacy Policy</a>' +
         '<a href="mailto:info@quickfreightcalc.com">info@quickfreightcalc.com</a></div>' +

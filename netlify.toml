@@ -23,6 +23,11 @@
 [functions."carrier-monitor"]
   schedule = "20 11 * * *"
 
+# Market News pages with the week's update in them (see netlify/functions/news-page.js):
+# the function fills in market-news.html, so it's bundled with it.
+[functions."news-page"]
+  included_files = ["market-news.html", "news-render.js"]
+
 # Redirect www to non-www (301 permanent — Google will update its index)
 [[redirects]]
   from = "https://www.quickfreightcalc.com/*"
@@ -56,6 +61,33 @@
   from = "/ADSENSE_SETUP.md"
   to = "/404.html"
   status = 404
+  force = true
+
+# Market News: the main page and each week's own page (/market-news/2026-11-09), served with
+# the update in them by news-page.js; the old .html address goes to the main page.
+[[redirects]]
+  from = "/market-news.html"
+  to = "/market-news"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/market-news"
+  to = "/.netlify/functions/news-page"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/market-news/*"
+  to = "/.netlify/functions/news-page/:splat"
+  status = 200
+  force = true
+
+# For search engines: every public page and every published Market News week (sitemap.js)
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/.netlify/functions/sitemap"
+  status = 200
   force = true
 
 # "Pricing" in the nav is /signup.html; a typed /pricing goes there too.
