@@ -1,5 +1,5 @@
 // netlify/functions/sitemap.js — /sitemap.xml (netlify.toml), which robots.txt points search
-// engines to: the site's public pages and every published Market News week, each at the
+// engines to: the site's public pages, the Market News archive and every published week, each at the
 // address its page names as canonical. Account pages (Profile, Customers) and the 404 page
 // aren't listed. Netlify's CDN keeps it an hour.
 
@@ -41,6 +41,7 @@ async function weeks() {
 function sitemap(list) {
   const latest = list[0] ? date(list[0].updated_at || list[0].published_at) : null;
   const urls = PAGES.map((p) => ({ loc: SITE + p.path, lastmod: p.path === '/market-news' ? latest : null }))
+    .concat([{ loc: SITE + N.ARCHIVE_URL, lastmod: latest }])
     .concat(list.map((w) => ({ loc: SITE + N.weekUrl(w.week_of), lastmod: date(w.updated_at || w.published_at) })));
   return '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     + urls.map((u) => `  <url><loc>${xml(u.loc)}</loc>${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ''}</url>`).join('\n')

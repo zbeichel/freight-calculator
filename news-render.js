@@ -13,7 +13,10 @@
   const arr = (x) => (Array.isArray(x) ? x : []);
   const SHORT = { month: 'short', day: 'numeric', year: 'numeric' };
 
-  // Each week has its own page: /market-news/2026-11-09
+  // Each week has its own page: /market-news/2026-11-09. The main page and each week's page
+  // list the newest RECENT weeks; every week is on the archive page.
+  const RECENT = 8;
+  const ARCHIVE_URL = '/market-news/archive';
   const isWeek = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && !isNaN(Date.parse(String(s) + 'T12:00:00Z'));
   const weekUrl = (w) => '/market-news/' + encodeURIComponent(String(w).slice(0, 10));
   // Plain text (no **bold**), and cut at a word for a page description
@@ -32,7 +35,7 @@
     : 'This week in <em>freight</em>');
 
   // The update itself. opt.admin: the owner's Draft/Published bar; opt.permalink: the week's
-  // date links to the week's own page (on the main page).
+  // date links to the week's own page (on the main page); opt.notice: oldNotice().
   function postHTML(u, opt) {
     opt = opt || {};
     const draft = u.status === 'draft';
@@ -64,6 +67,7 @@
     </section>` : '';
     const week = `Week of ${esc(day(u.week_of))}`;
     return `<header class="news-head">
+        ${opt.notice || ''}
         <div class="news-week">${opt.permalink && !draft ? `<a href="${esc(weekUrl(u.week_of))}">${week}</a>` : week}</div>
         <h2 class="news-title">${esc(u.title)}</h2>
         ${u.summary ? `<p class="news-summary">${rich(u.summary)}</p>` : ''}
@@ -79,6 +83,28 @@
       <span><b>${esc(x.title)}</b>${x.status === 'draft' ? '<span class="tag">Draft</span>' : ''}${x.summary ? `<small>${esc(plain(x.summary))}</small>` : ''}</span>
       <span class="wk">Week of ${esc(day(x.week_of, SHORT))}</span></a>`).join('');
 
+  // The weeks listed beside an update: the newest RECENT
+  const recent = (list) => arr(list).slice(0, RECENT);
+
+  // The archive page: every week, newest first, under a heading for each month
+  function archiveByMonth(list, current) {
+    let month = '';
+    return arr(list).map((x) => {
+      const m = day(x.week_of, { month: 'long', year: 'numeric' });
+      const head = m !== month ? `<h3 class="news-arch-h">${esc(m)}</h3>` : '';
+      month = m;
+      return head + archiveHTML([x], current);
+    }).join('');
+  }
+
+  // A week from a month or more before the latest one says so, and points to the latest
+  function oldNotice(u, latest) {
+    if (!u || !latest || u.status !== 'published' || u.week_of === latest.week_of) return '';
+    const gap = (Date.parse(String(latest.week_of).slice(0, 10) + 'T00:00:00Z') - Date.parse(String(u.week_of).slice(0, 10) + 'T00:00:00Z')) / 864e5;
+    if (!(gap >= 28)) return '';
+    return `<p class="news-old">This update is from ${esc(day(u.week_of))}. Rates and diesel have moved since. <a href="/market-news">See the latest update →</a></p>`;
+  }
+
   // The weeks before and after this one (published ones, newest first in `published`)
   function neighbors(published, u) {
     const list = arr(published);
@@ -90,7 +116,8 @@
       + (n.newer ? `<a class="news-newer" href="${esc(weekUrl(n.newer.week_of))}"><span>Next week →</span><b>${esc(n.newer.title)}</b></a>` : '')
     : '');
 
-  const api = { esc, rich, safeUrl, link, day, arr, isWeek, weekUrl, plain, clip, heading, postHTML, archiveHTML, neighbors, pagerHTML };
+  const api = { RECENT, ARCHIVE_URL, esc, rich, safeUrl, link, day, arr, isWeek, weekUrl, plain, clip, heading, postHTML, archiveHTML,
+    recent, archiveByMonth, oldNotice, neighbors, pagerHTML };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.QFCNews = api;
 })(typeof window !== 'undefined' ? window : this);

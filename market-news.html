@@ -61,6 +61,17 @@
 .news-arch small{display:block;font-size:12.5px;color:var(--text3);margin-top:3px;line-height:1.5}
 .news-arch .wk{font-size:12px;color:var(--text3);white-space:nowrap}
 .news-arch .tag{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-left:8px}
+/* The archive page: a heading for each month */
+.news-arch-h{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);padding:16px 22px 8px;border-top:1px solid var(--border)}
+.news-arch-h:first-child{border-top:none}
+.news-arch .news-arch-h + a{border-top:none}
+.news-all{display:block;padding:14px 22px;border-top:1px solid var(--border);font-size:14px;font-weight:600;color:var(--accent);text-decoration:none}
+.news-all:hover{background:var(--card2);text-decoration:underline;text-underline-offset:3px}
+.news-all[hidden]{display:none}
+/* An update from a month or more before the latest one */
+.news-old{margin-bottom:14px;padding:10px 14px;border-radius:10px;background:var(--card2);border:1px solid var(--border);font-size:13.5px;line-height:1.55;color:var(--text2)}
+.news-old a{color:var(--accent);font-weight:600;text-decoration:none;white-space:nowrap}
+.news-old a:hover{text-decoration:underline;text-underline-offset:3px}
 .news-status{font-size:13px;color:var(--text3);text-align:center;padding:30px 0}
 .news-week a{color:inherit;text-decoration:none}
 .news-week a:hover{text-decoration:underline;text-underline-offset:3px}
@@ -104,8 +115,9 @@
     </div>
   </div>
   <section class="card" id="news-archive" hidden>
-    <div class="card-header"><span class="card-title">Weekly updates</span><span class="card-meta" id="news-count"></span></div>
+    <div class="card-header"><span class="card-title" id="news-arch-title">Weekly updates</span><span class="card-meta" id="news-count"></span></div>
     <div class="news-arch" id="news-arch"></div>
+    <a class="news-all" id="news-all" href="/market-news/archive" hidden>All weekly updates →</a>
   </section>
 </main>
 
@@ -127,6 +139,8 @@
   const sent = (() => { try { return JSON.parse(($('news-data') || {}).textContent || 'null'); } catch (e) { return null; } })();
   // The week in the address: /market-news/2026-11-09 (or an old ?week= link)
   const wanted = () => { const m = location.pathname.match(/\/market-news\/(\d{4}-\d{2}-\d{2})\/?$/); return m ? m[1] : new URLSearchParams(location.search).get('week'); };
+  // The archive page: every week, by month
+  const archivePage = /\/market-news\/archive\/?$/.test(location.pathname);
 
   function session() {
     try {
@@ -168,7 +182,22 @@
     return (admin ? updates[0] : updates.find((x) => x.status === 'published')) || null;
   }
 
+  function renderArchive() {
+    $('news-status').hidden = true;
+    $('news-post').hidden = true;
+    $('news-pager').hidden = true;
+    const published = updates.filter((x) => x.status === 'published');
+    const list = admin ? updates : published;
+    $('news-empty').hidden = list.length > 0;
+    $('news-archive').hidden = !list.length;
+    $('news-arch-title').textContent = 'Every weekly update';
+    $('news-count').textContent = published.length === 1 ? '1 update' : published.length + ' updates';
+    $('news-arch').innerHTML = N.archiveByMonth(list, null);
+    $('news-all').hidden = true;
+  }
+
   function render() {
+    if (archivePage) return renderArchive();
     $('news-status').hidden = true;
     const u = current();
     const own = !!wanted();
@@ -189,17 +218,18 @@
     } else {
       $('news-empty').hidden = true;
       post.hidden = false;
-      post.innerHTML = N.postHTML(u, { admin, permalink: !own });
+      post.innerHTML = N.postHTML(u, { admin, permalink: !own, notice: N.oldNotice(u, published[0]) });
       if (own) document.title = u.title + ' | QuickFreightCalc';
       const pager = N.pagerHTML(u.status === 'published' ? N.neighbors(published, u) : null);
       $('news-pager').innerHTML = pager;
       $('news-pager').hidden = !pager;
     }
-    // Every week's update, newest first (the owner also sees drafts)
+    // The newest weeks (the owner also sees drafts), and the way to every week
     const list = admin ? updates : published;
     $('news-archive').hidden = list.length < (u ? 2 : 1);
     $('news-count').textContent = published.length === 1 ? '1 update' : published.length + ' updates';
-    $('news-arch').innerHTML = N.archiveHTML(list, u);
+    $('news-arch').innerHTML = N.archiveHTML(N.recent(list), u);
+    $('news-all').hidden = list.length <= N.RECENT;
   }
 
   // ── The owner publishes or takes back an update ──

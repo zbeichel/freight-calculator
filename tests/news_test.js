@@ -85,6 +85,10 @@ const WEEK = {
   ],
 };
 const OLDER = { id: 'w-1102', week_of: '2026-11-02', status: 'published', published_at: '2026-11-03T13:00:00Z', title: 'Reefer tightens in the Midwest', summary: 'Older week.', glance: [], items: [{ headline: 'Rates: Older', bullets: ['x'], takeaway: 'y' }], headlines: [], sources: [] };
+// Eight more published weeks, back to Sep 7: ten in all, more than the eight listed beside an update
+const MORE = ['2026-10-26', '2026-10-19', '2026-10-12', '2026-10-05', '2026-09-28', '2026-09-21', '2026-09-14', '2026-09-07'].map((w, i) => ({
+  id: 'w-' + w, week_of: w, status: 'published', published_at: w + 'T13:00:00Z', title: 'Week of ' + w + ': rates and diesel', summary: 'Summary ' + (i + 1) + '.',
+  glance: [], items: [{ headline: 'Rates: ' + w, bullets: ['b'], takeaway: 't' }], headlines: [], sources: [] }));
 const DRAFT = { id: 'w-1116', week_of: '2026-11-16', status: 'draft', published_at: null, title: 'Draft: rates firm before Thanksgiving', summary: 'Not public yet.', glance: [], items: [{ headline: 'Rates: Firming', bullets: ['a'], takeaway: 'b' }], headlines: [], sources: [] };
 
 async function setup(browser, base, { who = null, rows = [WEEK, OLDER, DRAFT], fail = false, width = 1280, phone = false } = {}) {
@@ -288,9 +292,10 @@ const between = (html, re) => ((html.match(re) || [])[1] || '');
   t = await setup(browser, base);
   r = await get(base + '/sitemap.xml');
   const locs = [...r.body.matchAll(/<loc>([^<]+)<\/loc>(?:<lastmod>([^<]+)<\/lastmod>)?/g)].map((m) => [m[1], m[2] || '']);
-  check('sitemap.xml: the public pages, then every published week with its date (not the draft)', r.status === 200 && /application\/xml/.test(r.headers['content-type'])
+  check('sitemap.xml: the public pages, the archive, then every published week with its date (not the draft)', r.status === 200 && /application\/xml/.test(r.headers['content-type'])
     && locs.some(([l]) => l === 'https://quickfreightcalc.com/') && locs.some(([l]) => l === 'https://quickfreightcalc.com/rates')
-    && JSON.stringify(locs.filter(([l]) => /market-news\//.test(l))) === JSON.stringify([['https://quickfreightcalc.com/market-news/2026-11-09', '2026-11-10'], ['https://quickfreightcalc.com/market-news/2026-11-02', '2026-11-03']])
+    && locs.some(([l, d]) => l === 'https://quickfreightcalc.com/market-news/archive' && d === '2026-11-10')
+    && JSON.stringify(locs.filter(([l]) => /market-news\/\d/.test(l))) === JSON.stringify([['https://quickfreightcalc.com/market-news/2026-11-09', '2026-11-10'], ['https://quickfreightcalc.com/market-news/2026-11-02', '2026-11-03']])
     && !r.body.includes('2026-11-16') && !/profile|customers|404/.test(r.body), JSON.stringify(locs));
   const pageIssues = sitemapFn._internal.PAGES.filter((pg) => {
     const html = fs.readFileSync(path.join(ROOT, pg.file), 'utf8');
@@ -306,6 +311,47 @@ const between = (html, re) => ((html.match(re) || [])[1] || '');
     rule('/market-news') === '/.netlify/functions/news-page 200' && rule('/market-news/*') === '/.netlify/functions/news-page/:splat 200'
     && rule('/market-news.html') === '/market-news 301' && rule('/sitemap.xml') === '/.netlify/functions/sitemap 200'
     && /\[functions\."news-page"\]\n\s*included_files = \["market-news\.html"/.test(toml), [rule('/market-news'), rule('/market-news/*'), rule('/market-news.html'), rule('/sitemap.xml')].join(' | '));
+  await t.context.close();
+
+  console.log('\n=== Many weeks: the newest eight beside an update, every week on the archive page ===');
+  t = await setup(browser, base, { rows: [WEEK, OLDER].concat(MORE, [DRAFT]) });
+  await t.page.goto(base + '/market-news');
+  await ready(t);
+  let listed = await t.page.$$eval('#news-arch a', (as) => as.map((a) => a.getAttribute('href')));
+  check('the main page lists the newest 8 weeks (not all 10), then “All weekly updates”', listed.length === 8 && listed[0] === '/market-news/2026-11-09' && listed[7] === '/market-news/2026-09-21'
+    && await t.page.isVisible('#news-all') && (await t.page.getAttribute('#news-all', 'href')) === '/market-news/archive' && (await text(t.page, '#news-count')) === '10 updates', listed.join(', '));
+  check('…the latest week has no “from an earlier week” note', !(await t.page.$('.news-old')));
+  r = await get(base + '/market-news/archive');
+  const months = [...r.body.matchAll(/<h3 class="news-arch-h">([^<]+)<\/h3>/g)].map((m) => m[1]);
+  const weeks = [...r.body.matchAll(/<a href="(\/market-news\/\d{4}-\d{2}-\d{2})"/g)].map((m) => m[1]);
+  check('the archive page, as sent: 200, its own title and canonical address, every published week by month', r.status === 200
+    && between(r.body, /<title>([^<]*)<\/title>/) === 'Freight Market News Archive: Every Weekly Update | QuickFreightCalc'
+    && between(r.body, /<link rel="canonical" href="([^"]+)"/) === 'https://quickfreightcalc.com/market-news/archive' && !r.body.includes('noindex')
+    && JSON.stringify(months) === JSON.stringify(['November 2026', 'October 2026', 'September 2026']) && weeks.length === 10 && weeks[0] === '/market-news/2026-11-09' && weeks[9] === '/market-news/2026-09-07'
+    && !r.body.includes(DRAFT.title), JSON.stringify({ months, n: weeks.length }));
+  await t.page.goto(base + '/market-news/archive');
+  await ready(t);
+  check('…in the browser: “Market news archive”, every week under its month, no update above it, no “All weekly updates” link',
+    (await text(t.page, '#news-h1')) === 'Market news archive' && (await t.page.$$('#news-arch a')).length === 10 && (await t.page.$$('#news-arch .news-arch-h')).length === 3
+    && await t.page.isHidden('#news-post') && await t.page.isHidden('#news-all') && (await t.page.$eval('#news-arch-title', (e) => e.textContent)) === 'Every weekly update', await text(t.page, '#news-h1'));
+  check('…the navigation marks Market News, nothing loaded again, no page errors', (await text(t.page, '#qf-nav .qf-links a.active')) === 'Market News' && t.db.reads === 0 && t.errors.length === 0, t.errors.join(' | '));
+  await t.page.screenshot({ path: path.join(SHOTS, 'news_archive.png'), fullPage: true });
+  await t.page.goto(base + '/market-news/2026-09-07');
+  await ready(t);
+  check('a week from a month or more before the latest says so, and points to the latest', (await text(t.page, '.news-old')) === 'This update is from September 7, 2026. Rates and diesel have moved since. See the latest update →'
+    && (await t.page.getAttribute('.news-old a', 'href')) === '/market-news', await text(t.page, '.news-old'));
+  check('…and its page still lists the newest 8, with the way to every week', (await t.page.$$('#news-arch a')).length === 8 && await t.page.isVisible('#news-all'));
+  await t.page.screenshot({ path: path.join(SHOTS, 'news_old_week.png'), fullPage: true });
+  await t.page.goto(base + '/market-news/2026-11-02');
+  await ready(t);
+  check('a week just before the latest has no such note', !(await t.page.$('.news-old')));
+  await t.context.close();
+  t = await setup(browser, base, { who: OWNER, rows: [WEEK, OLDER].concat(MORE, [DRAFT]) });
+  await t.page.goto(base + '/market-news/archive');
+  await t.page.waitForSelector('#news-arch .tag', { timeout: 60000 });
+  check('the owner’s archive page also shows the draft, tagged, under its month', (await t.page.$$('#news-arch a')).length === 11
+    && (await t.page.$eval('#news-arch a', (a) => a.getAttribute('href') + ' ' + !!a.querySelector('.tag'))) === '/market-news/2026-11-16 true');
+  check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
 
   console.log('\n=== The teaser on Market Rates ===');

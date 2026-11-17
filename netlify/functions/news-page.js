@@ -4,6 +4,7 @@
 // week (netlify.toml routes these here):
 //   /market-news              the latest published week (the main page)
 //   /market-news/2026-11-09   that week's own page; 404 if it isn't published
+//   /market-news/archive      every published week, by month (the others list the newest 8)
 //   /market-news?week=…       an old link: 301 to the week's own page
 // The page is market-news.html (bundled with this function: included_files in netlify.toml),
 // filled in by news-render.js, the same code the page runs in the browser; the browser script
@@ -127,7 +128,7 @@ function page({ u, own, list }) {
   html = swap(html, '<p class="news-status" id="news-status">', '<p class="news-status" id="news-status" hidden>');
   if (found) {
     html = swap(html, '<article class="card news-post" id="news-post" hidden></article>',
-      `<article class="card news-post" id="news-post">${N.postHTML(u, { permalink: !own })}</article>`);
+      `<article class="card news-post" id="news-post">${N.postHTML(u, { permalink: !own, notice: N.oldNotice(u, list[0]) })}</article>`);
     const pager = N.pagerHTML(N.neighbors(list, u));
     if (pager) html = swap(html, '<nav class="news-pager" id="news-pager" aria-label="Other weeks" hidden></nav>', `<nav class="news-pager" id="news-pager" aria-label="Other weeks">${pager}</nav>`);
   } else {
@@ -142,9 +143,49 @@ function page({ u, own, list }) {
     html = swap(html, '<section class="card" id="news-archive" hidden>', '<section class="card" id="news-archive">');
   }
   html = swap(html, '<span class="card-meta" id="news-count"></span>', `<span class="card-meta" id="news-count">${list.length === 1 ? '1 update' : list.length + ' updates'}</span>`);
-  html = swap(html, '<div class="news-arch" id="news-arch"></div>', `<div class="news-arch" id="news-arch">${N.archiveHTML(list, u)}</div>`);
+  html = swap(html, '<div class="news-arch" id="news-arch"></div>', `<div class="news-arch" id="news-arch">${N.archiveHTML(N.recent(list), u)}</div>`);
+  if (list.length > N.RECENT) html = swap(html, '<a class="news-all" id="news-all" href="/market-news/archive" hidden>', '<a class="news-all" id="news-all" href="/market-news/archive">');
   // What the page shows, for its script (so it doesn't load it again)
   html = swap(html, '<!--news:data-->', `<script type="application/json" id="news-data">${scriptJSON({ list, current: u })}</script>`);
+  return html;
+}
+
+// The archive page: every published week, newest first, under a heading for each month
+function archivePage(list) {
+  const url = SITE + N.ARCHIVE_URL;
+  const title = 'Freight Market News Archive: Every Weekly Update | QuickFreightCalc';
+  const description = 'Every weekly freight market update, newest first: spot rates per mile for van, reefer and flatbed, diesel prices, and the trucking news that moved capacity.';
+  let html = shell();
+  html = swapRe(html, /<title>[^<]*<\/title>/, `<title>${N.esc(title)}</title>`);
+  html = swapRe(html, /<meta name="description" content="[^"]*">/, `<meta name="description" content="${N.esc(description)}">`);
+  html = swap(html, '<link rel="canonical" href="https://quickfreightcalc.com/market-news">', `<link rel="canonical" href="${url}">`);
+  html = swap(html, '<!--news:head-->', [
+    '<meta property="og:type" content="website">',
+    '<meta property="og:site_name" content="QuickFreightCalc">',
+    '<meta property="og:title" content="Freight Market News Archive | QuickFreightCalc">',
+    `<meta property="og:description" content="${N.esc(description)}">`,
+    `<meta property="og:url" content="${url}">`,
+    `<meta property="og:image" content="${IMAGE}">`,
+    `<script type="application/ld+json">${scriptJSON({
+      '@context': 'https://schema.org',
+      '@type': 'CollectionPage',
+      name: 'Freight Market News Archive',
+      url,
+      hasPart: list.slice(0, 100).map((x) => ({ '@type': 'NewsArticle', headline: N.plain(x.title).slice(0, 110), url: SITE + N.weekUrl(x.week_of), datePublished: iso(x.published_at || x.week_of) })),
+    })}</script>`,
+  ].join('\n'));
+  html = swap(html, '<h1 id="news-h1">This week in <em>freight</em></h1>', '<h1 id="news-h1">Market news <em>archive</em></h1>');
+  html = swap(html, '<main class="news" id="news-main">', '<main class="news" id="news-main" data-ssr="1">');
+  html = swap(html, '<p class="news-status" id="news-status">', '<p class="news-status" id="news-status" hidden>');
+  if (list.length) {
+    html = swap(html, '<section class="card" id="news-archive" hidden>', '<section class="card" id="news-archive">');
+    html = swap(html, '<span class="card-title" id="news-arch-title">Weekly updates</span>', '<span class="card-title" id="news-arch-title">Every weekly update</span>');
+  } else {
+    html = swap(html, '<div class="card" id="news-empty" hidden>', '<div class="card" id="news-empty">');
+  }
+  html = swap(html, '<span class="card-meta" id="news-count"></span>', `<span class="card-meta" id="news-count">${list.length === 1 ? '1 update' : list.length + ' updates'}</span>`);
+  html = swap(html, '<div class="news-arch" id="news-arch"></div>', `<div class="news-arch" id="news-arch">${N.archiveByMonth(list, null)}</div>`);
+  html = swap(html, '<!--news:data-->', `<script type="application/json" id="news-data">${scriptJSON({ list, current: null })}</script>`);
   return html;
 }
 
@@ -162,12 +203,13 @@ exports.handler = async (event) => {
   if (!rest && N.isWeek(q.week)) {
     return { statusCode: 301, headers: { Location: N.weekUrl(q.week), 'Cache-Control': 'public, max-age=3600' }, body: '' };
   }
-  const own = rest ? (N.isWeek(rest) ? rest : 'missing') : null;
+  const archive = rest === 'archive';
+  const own = rest && !archive ? (N.isWeek(rest) ? rest : 'missing') : null;
   let list, u;
   try {
     const [all, one] = await Promise.all([
       rows(`select=${LIST_COLS}&status=eq.published&order=week_of.desc&limit=1000`),
-      own === 'missing' ? Promise.resolve([])
+      own === 'missing' || archive ? Promise.resolve([])
         : rows(`select=${COLS}&status=eq.published&${own ? `week_of=eq.${own}` : 'order=week_of.desc'}&limit=1`),
     ]);
     list = all;
@@ -180,6 +222,7 @@ exports.handler = async (event) => {
     return { statusCode: 503, headers: Object.assign({}, HTML, { 'Cache-Control': 'no-store', 'Retry-After': '300' }), body };
   }
   try {
+    if (archive) return { statusCode: 200, headers: cached(600), body: archivePage(list) };
     const body = page({ u, own: own === 'missing' ? rest : own, list });
     return { statusCode: own && !u ? 404 : 200, headers: cached(own && !u ? 60 : 600), body };
   } catch (e) {
@@ -188,4 +231,4 @@ exports.handler = async (event) => {
   }
 };
 
-exports._internal = { wantedPath, page, scriptJSON, shell };
+exports._internal = { wantedPath, page, archivePage, scriptJSON, shell };
