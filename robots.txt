@@ -1,0 +1,5 @@
+# QuickFreightCalc: every public page and Market News week is listed in the sitemap.
+User-agent: *
+Allow: /
+
+Sitemap: https://quickfreightcalc.com/sitemap.xml

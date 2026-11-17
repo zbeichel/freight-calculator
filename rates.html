@@ -158,7 +158,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
     <div class="mr-tiles four" id="mr-conditions"></div>
   </section>
 
-  <a class="mr-news" id="mr-news" href="/market-news.html" hidden>
+  <a class="mr-news" id="mr-news" href="/market-news" hidden>
     <span class="mr-news-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4.5h11.5a1 1 0 0 1 1 1V18a2 2 0 0 0 2 2H6.5A2.5 2.5 0 0 1 4 17.5V5.5a1 1 0 0 1 1-1z"/><path d="M17.5 9h2a.5.5 0 0 1 .5.5V18a2 2 0 0 1-2 2M7.5 8.5h6.5M7.5 12h6.5M7.5 15.5h4"/></svg></span>
     <span class="mr-news-body"><small id="mr-news-week">This week in freight</small><b id="mr-news-title"></b><span id="mr-news-summary"></span></span>
     <span class="mr-news-go">Read the update →</span>
@@ -743,7 +743,7 @@ body{background:var(--bg);background-image:var(--glow);background-repeat:no-repe
         $('mr-news-week').textContent = 'Market news · week of ' + new Date(u.week_of + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         $('mr-news-title').textContent = u.title;
         $('mr-news-summary').textContent = u.summary || '';
-        $('mr-news').href = '/market-news.html?week=' + encodeURIComponent(u.week_of);
+        $('mr-news').href = '/market-news/' + encodeURIComponent(u.week_of);   // the week's own page
         $('mr-news').hidden = false;
       })
       .catch(() => {});
