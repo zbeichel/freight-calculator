@@ -82,7 +82,16 @@ const CARRIERS = {
     orders: [{ docket_number: 'MC9900104', usdot_number: '9900004', op_auth_type: PROPERTY, order1_serve_date: ymd(-3), order1_type_desc: 'Operating Authority Involuntary Suspension Notice', order1_effective_date: ymd(27) },
       { docket_number: 'MC9900104', usdot_number: '9900004', op_auth_type: PROPERTY, order1_serve_date: ymd(-400), order1_type_desc: 'Operating Authority Involuntary Suspension Notice', order1_effective_date: ymd(-370) }] }),
 };
-const DOCKETS = { MC9900101: '9900001', MC9900102: '9900002', MC9900103: '9900003', MC9900104: '9900004' };
+// A carrier only FMCSA's older licensing records have (nothing new in Motus since May 2026), its
+// authority confirmed on FMCSA's website
+CARRIERS['9900005'] = Object.assign(rows(9900005, 'MC9900105', { census: { legal_name: 'MILL CREEK HAULING LLC' }, authority: [], authHistory: [], insurance: [] }), {
+  legacyCarrier: [{ docket_number: 'MC9900105', dot_number: '09900005', common_stat: 'A', contract_stat: 'N', broker_stat: 'N', property_chk: 'Y', min_cov_amount: '00750', bipd_file: '01000' }],
+  legacyAuthHist: [{ docket_number: 'MC9900105', mod_col_1: 'MOTOR PROPERTY COMMON CARRIER', original_action_desc: 'GRANTED', orig_served_date: '09/01/2015' }],
+  legacyInsurance: [{ prefix_docket_number: 'MC9900105', ins_type_code: '1', ins_class_code: 'P', max_cov_amount: '01000', policy_no: 'MC-1', effective_date: '01/01/2026', name_company: 'MILL CREEK MUTUAL' }],
+  legacyInsHist: [],
+  safer: { status: 'authorized', authorized: [PROPERTY] },
+});
+const DOCKETS = { MC9900101: '9900001', MC9900102: '9900002', MC9900103: '9900003', MC9900104: '9900004', MC9900105: '9900005' };
 const report = (dot, missing = []) => {
   const raw = Object.assign({}, CARRIERS[dot]);
   for (const k of missing) raw[k] = null;   // a part FMCSA didn't answer for
@@ -516,6 +525,22 @@ async function lookup(v, q, kind) {
   await v.p.waitForTimeout(300);
   check('light theme: the report reads the same', (await text(v.p, '.cc-verdict h2')) === 'Check before booking' && (await v.p.evaluate(() => document.documentElement.classList.contains('light'))));
   await v.p.screenshot({ path: path.join(SHOTS, 'carrier-warn-light.png'), fullPage: true });
+  await t.context.close();
+
+  console.log('\n=== A carrier only FMCSA’s older licensing records have ===');
+  t = await setup(browser, base, { plan: 'plus' });
+  v = await open(t, base, '/carriers.html');
+  await lookup(v, '9900005', 'dot');
+  const foot = await text(v.p, '.cc-foot');
+  check('no problems found, with $1,000,000 on file (it said “don’t book: no for-hire authority on file”)',
+    (await text(v.p, '.cc-verdict h2')) === 'No problems found' && /Liability on file\s*\$1,000,000/.test(await text(v.p, '#cc-report')), await text(v.p, '#cc-report'));
+  check('…the footer says the authority status is from FMCSA’s website, and where the insurance comes from',
+    /from FMCSA’s records, with their authority status from FMCSA’s website\. Insurance for MC 9900105 is from FMCSA’s licensing records as of its May 2026 system change, less filings cancelled since\./.test(foot), foot);
+  await v.p.click('#cc-copy');
+  await v.p.waitForTimeout(200);
+  const clip5 = await v.p.evaluate(() => navigator.clipboard.readText()).catch((e) => 'ERR ' + e.message);
+  check('…and Copy summary notes the website', /Checked .+ with QuickFreightCalc from FMCSA's records \(authority status from FMCSA's website\)\.$/.test(clip5), clip5);
+  check('no page errors', v.errors.length === 0, v.errors.join(' | '));
   await t.context.close();
 
   await browser.close();

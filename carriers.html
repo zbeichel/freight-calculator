@@ -379,7 +379,8 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
           <div class="cc-row"><span>Fleet</span><b>${r.powerUnits != null ? `${r.powerUnits.toLocaleString('en-US')} truck${r.powerUnits === 1 ? '' : 's'}` : '—'}${r.drivers != null ? ` · ${r.drivers.toLocaleString('en-US')} driver${r.drivers === 1 ? '' : 's'}` : ''}</b></div>`}
         </section>
       </div>
-      <div class="cc-foot">Checked ${ago(r.checkedAt)} from FMCSA’s records.${(r.missing || []).length && !opt.sample
+      <div class="cc-foot">Checked ${ago(r.checkedAt)} from FMCSA’s records${r.authority && r.authority.live ? ', with their authority status from FMCSA’s website' : ''}.${(r.legacyDockets || []).length
+        ? ` Insurance for ${esc(r.legacyDockets.map((d) => d.replace(/^(MC|MX|FF)/, '$1 ')).join(', '))} is from FMCSA’s licensing records as of its May 2026 system change, less filings cancelled since.` : ''}${(r.missing || []).length && !opt.sample
         ? ` Part of it didn’t load: checking this carrier again today is free. <button type="button" class="mini" id="cc-again">Check again</button>` : ''}</div>`;
   }
   function watchButton(r) {
@@ -397,7 +398,7 @@ table.cc-saved{width:100%;border-collapse:collapse;font-size:13px}
     if ((r.missing || []).includes('authority')) lines.push('Authority and liability on file: didn’t load from FMCSA.');
     else lines.push(`Authority: ${carrier}. Liability on file ${usd(r.insurance.onFile)}${r.insurance.required ? ` (required ${usd(r.insurance.required)})` : ''}.`);
     if (r.inspections) lines.push(`Out of service, last 2 years: trucks ${pct(r.inspections.vehicle.rate)}, drivers ${pct(r.inspections.driver.rate)}.`);
-    lines.push(`Checked ${new Date(r.checkedAt).toLocaleString('en-US')} with QuickFreightCalc from FMCSA's records.`);
+    lines.push(`Checked ${new Date(r.checkedAt).toLocaleString('en-US')} with QuickFreightCalc from FMCSA's records${r.authority && r.authority.live ? ' (authority status from FMCSA\'s website)' : ''}.`);
     return lines.join('\n');
   }
   // A failed check takes the last report (and its ?dot=) away, so it isn't read as this one.
