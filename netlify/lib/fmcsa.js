@@ -13,9 +13,21 @@
 //   oos          Out-of-service orders (in effect while there's no rescind date)
 //   inspections  SMS Input - Inspection: roadside inspections, last 24 months
 //   crashes      SMS Input - Crash: reportable crashes, last 24 months
+//   legacyCarrier, legacyAuthHist, legacyInsurance, legacyInsHist
+//                Carrier / AuthHist / Insur / InsHist - All With History: FMCSA's licensing
+//                records from before Motus (see below)
+// and FMCSA's website (SAFER's company snapshot) for the authority status it shows today.
 //
-// FMCSA moved authority and insurance to its new registration system (Motus) in 2026;
-// the older licensing datasets stopped updating in May 2026, so they aren't used.
+// FMCSA moved authority and insurance to its new registration system (Motus) in May 2026.
+// The Motus datasets only have a docket (MC/MX/FF number) once something about it has changed
+// since then: a new filing, a status change. Most carriers' dockets haven't, so their authority,
+// history and insurance are only in the older licensing datasets, which took no new actions after
+// May 20, 2026. Each docket is read from Motus when Motus has it, else from the older records;
+// never "no authority" just because Motus hasn't got it.
+// The published data still misses some changes since May 2026 (a revocation pending then that
+// took effect later, coverage filed since), so every check also reads the authority status
+// FMCSA's website shows today, and that wins: "AUTHORIZED FOR …", "NOT AUTHORIZED" or
+// "OUT-OF-SERVICE". Insurance from the older records leaves out filings cancelled since.
 // Optional SOCRATA_APP_TOKEN raises the open-data rate limits; if it's refused, checks go on without it.
 
 const BASE = 'https://data.transportation.gov/resource/';
@@ -29,7 +41,13 @@ const DS = {
   oos: 'p2mt-9ige',
   inspections: 'rbkj-cgst',
   crashes: '4wxs-vbns',
+  legacyCarrier: '6eyk-hxee',
+  legacyAuthHist: '9mw4-x3tu',
+  legacyInsurance: 'ypjt-5ydn',
+  legacyInsHist: '6sqe-dvqs',
 };
+// FMCSA's company snapshot (its website): the authority status it shows today
+const SAFER_URL = 'https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=USDOT&query_string=';
 const DAY = 24 * 60 * 60 * 1000;
 
 // ── Input ──────────────────────────────────────────────────────────────────
@@ -104,13 +122,54 @@ async function soql(ds, params, opt = {}) {
   }
 }
 const digits = (s) => /^\d{1,8}$/.test(String(s)) ? String(Number(s)) : null;   // safe inside SoQL
+
+// ── FMCSA's website ────────────────────────────────────────────────────────
+// The "Operating Authority Status" SAFER's company snapshot shows today, from its page:
+//   { status: 'authorized', authorized: ['Motor Carrier of Property (Except Household Goods)', …] }
+//   { status: 'not-authorized' }  or  { status: 'out-of-service' }
+// null when the page has no such field (no carrier with that USDOT number, or the page changed).
+function parseSafer(html) {
+  const m = String(html || '').match(/Operating Authority Status:\s*<\/a>\s*<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/i);
+  if (!m) return null;
+  const lines = m[1].replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&')
+    .split('\n').map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const first = (lines[0] || '').toUpperCase();
+  if (/^OUT-OF-SERVICE/.test(first)) return { status: 'out-of-service', authorized: [] };
+  if (/^NOT AUTHORIZED/.test(first)) return { status: 'not-authorized', authorized: [] };
+  if (/^AUTHORIZED FOR/.test(first)) {
+    const rest = first.replace(/^AUTHORIZED FOR:?\s*/, '') ? [lines[0].replace(/^AUTHORIZED FOR:?\s*/i, '')] : [];
+    const authorized = rest.concat(lines.slice(1)).filter((l) => !/^for licensing|click here|please note/i.test(l));
+    return authorized.length ? { status: 'authorized', authorized } : null;
+  }
+  return null;
+}
+// Ask FMCSA's website for one USDOT number. Throws when it doesn't answer; null when it answers
+// without an authority status (see parseSafer).
+async function saferStatus(dot, opt = {}) {
+  const d = digits(dot);
+  if (!d) throw new Error('bad USDOT number');
+  const left = (opt.deadline || Date.now() + 8000) - Date.now();
+  if (left < 500) throw new Error('out of time');
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), Math.min(opt.saferTimeoutMs || 6000, left));
+  try {
+    const resp = await (opt.fetchImpl || fetch)(SAFER_URL + d, { headers: { Accept: 'text/html' }, signal: ctrl.signal });
+    if (!resp.ok) throw new Error(`FMCSA's website answered ${resp.status}`);
+    return parseSafer(await resp.text());
+  } finally {
+    clearTimeout(timer);
+  }
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // New carriers are the usual fraud risk: authority under 90 days, or a USDOT number under 180.
 const NEW_AUTHORITY_DAYS = 90, NEW_USDOT_DAYS = 180;
 // The report's format: carrier-check.js reuses a cached report only if it was built with this one
-// (2: USDOT "Out of service", suspension orders, history without FMCSA's bookkeeping).
-const REPORT_VERSION = 2;
+// (2: USDOT "Out of service", suspension orders, history without FMCSA's bookkeeping;
+// 3: dockets Motus doesn't have yet read from FMCSA's older licensing records).
+const REPORT_VERSION = 3;
 const docketSafe = (s) => /^(MC|MX|FF)\d{1,8}$/.test(String(s)) ? String(s) : null;
+// The older licensing datasets write USDOT numbers with 8 digits ("04382996")
+const pad8 = (d) => String(d).padStart(8, '0');
 
 // An MC/MX/FF number → its USDOT number: the authority records, else the census. FMCSA's data
 // can take several seconds a request, so both are asked at once; an authority match doesn't
@@ -156,10 +215,15 @@ async function fetchCarrier(dot, opt = {}) {
       $where: `dot_number='${d}'`, $group: 'insp_level_id, v_oos, d_oos', $limit: 100 }],
     crashes: [DS.crashes, { $select: "fatalities != '0' as fatal, injuries != '0' as inj, tow_away, count(*) as n",
       $where: `dot_number='${d}'`, $group: 'fatal, inj, tow_away', $limit: 50 }],
+    // The older licensing records, for the dockets Motus doesn't have (most carriers'): see the top
+    legacyCarrier: [DS.legacyCarrier, { $where: `dot_number='${pad8(d)}'`, $limit: 20 }],
+    legacyAuthHist: [DS.legacyAuthHist, { $where: `dot_number='${pad8(d)}'`, $limit: 300 }],
   };
   const deadline = opt.deadline || Date.now() + 8000;
   const run = (k, timeoutMs) => soql(queries[k][0], queries[k][1], Object.assign({}, opt, { deadline, timeoutMs }));
   const raw = { dot: d };
+  // FMCSA's website, asked alongside: the authority status it shows today (null if it didn't say)
+  const live = saferStatus(d, Object.assign({}, opt, { deadline })).catch(() => null);
   let todo = Object.keys(queries);
   for (let attempt = 0; attempt < 2 && todo.length; attempt++) {
     if (attempt && deadline - Date.now() < 1500) break;
@@ -171,7 +235,128 @@ async function fetchCarrier(dot, opt = {}) {
     });
     todo = failed;
   }
+  // Insurance is filed by docket: the older filings for the dockets only the older records have,
+  // and those filings' cancellations (one that took effect since May 2026 isn't on file anymore)
+  const dockets = legacyOnlyDockets(raw);
+  raw.legacyInsurance = [];
+  raw.legacyInsHist = [];
+  if (dockets.length) {
+    const inList = dockets.map((k) => `'${k}'`).join(',');
+    const more = {
+      legacyInsurance: [DS.legacyInsurance, { $where: `prefix_docket_number in (${inList})`, $limit: 100 }],
+      legacyInsHist: [DS.legacyInsHist, { $select: 'docket_number, policy_no, effective_date, cancl_effective_date, cancl_method, mod_col_3, name_company',
+        $where: `docket_number in (${inList}) AND cancl_method in ('CANCEL','TERM/CANCL','CANC/CANCL','REVOKED')`, $limit: 1000 }],
+    };
+    let left = Object.keys(more);
+    for (let attempt = 0; attempt < 2 && left.length; attempt++) {
+      if (attempt && deadline - Date.now() < 1500) break;
+      const got = await Promise.allSettled(left.map((k) => soql(more[k][0], more[k][1], Object.assign({}, opt, { deadline, timeoutMs: opt.timeoutMs || 5000 }))));
+      const failed = [];
+      got.forEach((r, i) => { if (r.status === 'fulfilled') raw[left[i]] = r.value; else { raw[left[i]] = null; failed.push(left[i]); } });
+      left = failed;
+    }
+  }
+  raw.safer = await live;
   return raw;
+}
+
+// ── FMCSA's older licensing records → rows shaped like Motus's ─────────────
+// The dockets only the older records have: in their Carrier list, not in Motus's. Unknown
+// (none) while either list failed to load.
+function legacyOnlyDockets(raw) {
+  if (!Array.isArray(raw.authority) || !Array.isArray(raw.legacyCarrier)) return [];
+  const inMotus = new Set(raw.authority.map((r) => r.docket_number).filter(Boolean));
+  return [...new Set(raw.legacyCarrier.map((r) => docketSafe(r.docket_number)).filter((k) => k && !inMotus.has(k)))];
+}
+// Amounts are in thousands of dollars there ("01000" = $1,000,000)
+const thousands = (s) => { const n = Number(s); return s != null && s !== '' && Number.isFinite(n) ? n * 1000 : null; };
+const PROPERTY_AUTH = 'Motor Carrier of Property (Except Household Goods)';
+// One Carrier row per docket, with a status for each kind of authority: common or contract
+// carrier, broker ('A' active, 'I' inactive, 'N' none, and whether an application is pending)
+function legacyAuthorityRows(r) {
+  const status = (stat, pend) => (stat === 'A' ? 'Active' : pend === 'Y' ? 'Pending' : stat === 'I' ? 'Inactive' : null);
+  const base = { docket_number: r.docket_number, usdot_number: String(Number(r.dot_number) || ''), legal_name: r.legal_name, bus_telno: r.bus_telno };
+  const out = [];
+  const both = [status(r.common_stat, r.common_app_pend), status(r.contract_stat, r.contract_app_pend)];
+  const carrier = both.includes('Active') ? 'Active' : both.includes('Pending') ? 'Pending' : both.includes('Inactive') ? 'Inactive' : null;
+  if (carrier) {
+    const types = [];
+    if (r.property_chk === 'Y') types.push(r.enterprise_chk === 'Y' ? 'Enterprise Motor Carrier of Property' : PROPERTY_AUTH);
+    if (r.hhg_chk === 'Y') types.push('Motor Carrier of Household Goods');
+    if (r.passenger_chk === 'Y') types.push('Motor Carrier of Passengers');
+    if (!types.length) types.push(PROPERTY_AUTH);
+    for (const t of types) {
+      out.push(Object.assign({}, base, { op_auth_type: t, op_auth_status: carrier, min_cov_amount: thousands(r.min_cov_amount), bipd_file: thousands(r.bipd_file),
+        cargo_req: r.cargo_req, cargo_file: r.cargo_file, bond_req: 'N', bond_file: 'N' }));
+    }
+  }
+  const broker = status(r.broker_stat, r.broker_app_pend);
+  if (broker) {
+    out.push(Object.assign({}, base, { op_auth_type: r.hhg_chk === 'Y' && r.property_chk !== 'Y' ? 'Broker of Household Goods' : 'Broker of Property (Except Household Goods)',
+      op_auth_status: broker, min_cov_amount: 0, bipd_file: 0, cargo_req: 'N', cargo_file: 'N', bond_req: r.bond_req, bond_file: r.bond_file }));
+  }
+  return out;
+}
+// The older history's authority names → Motus's
+const LEGACY_TYPES = [
+  [/HOUSEHOLD GOODS BROKER/, 'Broker of Household Goods'],
+  [/BROKER/, 'Broker of Property (Except Household Goods)'],
+  [/FREIGHT FORWARDER/, 'Freight Forwarder'],
+  [/HOUSEHOLD GOODS/, 'Motor Carrier of Household Goods'],
+  [/PASSENGER/, 'Motor Carrier of Passengers'],
+  [/^ENTERPRISE$/, 'Enterprise Motor Carrier of Property'],
+  [/PROPERTY|^COMMON$|^CONTRACT$|TEMPORARY AUTHORITY/, PROPERTY_AUTH],
+];
+// How an authority's period ended, when that took it out of service (not a transfer, a renumbering
+// or a revocation FMCSA started and then discontinued)
+const LEGACY_ENDED = /^(REVOKED|OUT OF SERVICE|SAFETY SUSPENSION|SAFETY REVOCATION|FAILURE TO REAPPLY|EXPIRED ETA OR TA|TERM EXPIRED|ADMINISTRATIVE INACTIVATION)$/;
+// Each older history row is one period of an authority: how it began (granted, reinstated, a
+// revocation notice…) and how it ended. → Motus-style events: granted / reinstated (active), and
+// the end when it was revoked or otherwise taken out of service (inactive).
+function legacyHistoryRows(r) {
+  const name = String(r.mod_col_1 || '').toUpperCase();
+  const type = (LEGACY_TYPES.find(([re]) => re.test(name)) || [null, titleCase(name)])[1];
+  const began = String(r.original_action_desc || '').toUpperCase().trim();
+  const ended = String(r.disp_action_desc || '').toUpperCase().trim();
+  const base = { docket_number: r.docket_number, op_auth_type: type };
+  const sentence = (s) => s.charAt(0) + s.slice(1).toLowerCase();   // "REVOKED" → "Revoked"
+  const out = [];
+  if (began === 'GRANTED' || began === 'REINSTATED') out.push(Object.assign({}, base, { op_auth_status: 'Active', reason: sentence(began), status_change_date: r.orig_served_date }));
+  if (LEGACY_ENDED.test(ended)) out.push(Object.assign({}, base, { op_auth_status: 'Inactive', reason: sentence(ended), status_change_date: r.disp_decided_date || r.disp_served_date }));
+  return out;
+}
+// FMCSA's website (parseSafer) over the published data, for carrier and broker authority: what it
+// lists as authorized is active, what it doesn't list isn't (a pending application stays pending).
+// Matched by name, or by kind when the names differ; authority it lists that the data hasn't got
+// at all is added. Returns whether anything changed.
+function applyLive(authorities, live, docket) {
+  const listed = live.status === 'authorized' ? live.authorized || [] : [];
+  const norm = (t) => String(t).toLowerCase().replace(/[^a-z]/g, '');
+  let changed = false;
+  for (const kind of [CARRIER_AUTH, BROKER_AUTH]) {
+    const ours = authorities.filter((a) => kind.test(a.type));
+    const theirs = listed.filter((t) => kind.test(t));
+    const named = (a) => theirs.some((t) => norm(t) === norm(a.type));
+    const byName = ours.some(named);
+    for (const a of ours) {
+      const on = theirs.length > 0 && (byName ? named(a) : true);
+      if (on && a.status !== 'Active') { a.status = 'Active'; changed = true; }
+      else if (!on && a.status === 'Active') { a.status = 'Inactive'; changed = true; }
+    }
+    if (!ours.length) {
+      for (const t of theirs) {
+        authorities.push({ key: 'live|' + t, docket, type: t, status: 'Active', minCoverage: null, bipdOnFile: null,
+          cargoRequired: false, cargoOnFile: false, bondRequired: false, bondOnFile: false });
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+function legacyInsuranceRow(r) {
+  return { docket_number: r.prefix_docket_number, ins_type_code: r.ins_type_code, ins_class_code: r.ins_class_code, ins_form_code: r.ins_form_code,
+    insurance_company_name: r.name_company, policy_no: r.policy_no, max_cov_amount: thousands(r.max_cov_amount), underl_lim_amount: thousands(r.underl_lim_amount),
+    effective_date: r.effective_date };
 }
 
 // National out-of-service averages from the same 24 months of inspections:
@@ -262,10 +447,56 @@ function crashTotals(rows) {
   return t;
 }
 
+// The parts that couldn't be read. A docket only the older records have is read from them: if
+// they didn't load, its history or insurance is unknown; and when Motus has nothing for the
+// carrier and the older records didn't answer, so is its authority (never "no authority").
+function missingParts(raw, legacyDockets) {
+  const missing = Object.keys(PARTS).filter((k) => raw[k] == null);
+  const add = (k) => { if (!missing.includes(k)) missing.push(k); };
+  if (Array.isArray(raw.authority) && !raw.authority.length && raw.legacyCarrier == null) add('authority');
+  if (legacyDockets.length && raw.legacyAuthHist == null) add('authHistory');
+  if (legacyDockets.length && raw.legacyInsurance == null) add('insurance');
+  return missing;
+}
+
 // The raw rows → what the page shows.
 function buildReport(raw, { national = null, now = Date.now() } = {}) {
   const c = raw.census && raw.census[0] ? raw.census[0] : null;
-  const auth = raw.authority || [];
+  const todayIso = new Date(now).toISOString().slice(0, 10);
+  // Each docket from Motus when Motus has it, else from FMCSA's older licensing records
+  const legacyDockets = legacyOnlyDockets(raw);
+  const fromLegacy = (rows, key) => (rows || []).filter((r) => legacyDockets.includes(r[key]));
+  // The older insurance filings: one whose cancellation has taken effect since isn't on file
+  // anymore (and its liability no longer counts); one still to take effect is ending. A
+  // cancellation (only real ones are read, not replacements) belongs to a filing with the same
+  // docket and policy number that was in effect when it was cancelled: a policy re-filed under its
+  // number keeps it, and an old cancellation doesn't touch a newer filing of the same policy.
+  const legacyIns = [], legacyEnding = [], droppedBipd = {}, bipdLeft = {}, cancelledSince = {};
+  for (const r of fromLegacy(raw.legacyInsurance, 'prefix_docket_number')) {
+    const row = legacyInsuranceRow(r);
+    const k = r.prefix_docket_number, from = isoDate(r.effective_date) || '';
+    const when = (raw.legacyInsHist || []).filter((x) => x.docket_number === k && (x.policy_no || '') === (r.policy_no || ''))
+      .map((x) => isoDate(x.cancl_effective_date)).filter((d) => d && d >= from).sort().pop() || null;
+    const liability = String(r.ins_type_code) === '1';
+    if (when && when <= todayIso) {
+      if (liability) {
+        droppedBipd[k] = (droppedBipd[k] || 0) + (row.max_cov_amount || 0);
+        if (!cancelledSince[k] || when > cancelledSince[k].date) cancelledSince[k] = { date: when, insurer: r.name_company || '' };
+      }
+      continue;
+    }
+    if (liability) bipdLeft[k] = (bipdLeft[k] || 0) + 1;
+    if (when) legacyEnding.push({ ins_type_code: r.ins_type_code, insurance_company_name: r.name_company, policy_no: r.policy_no, cancl_effective_date: when.replace(/-/g, ''), filing_status_reason: 'CANCEL' });
+    legacyIns.push(row);
+  }
+  // Liability on file for a docket, less what was cancelled since (none left: none on file)
+  const bipdNow = (k, amount) => (!(k in droppedBipd) ? amount : !bipdLeft[k] ? 0 : Math.max(0, (amount || 0) - droppedBipd[k]));
+  const auth = (raw.authority || []).concat(...fromLegacy(raw.legacyCarrier, 'docket_number').map((r) => legacyAuthorityRows(r).map((a) => (
+    CARRIER_AUTH.test(a.op_auth_type) ? Object.assign(a, { bipd_file: bipdNow(r.docket_number, a.bipd_file) }) : a))));
+  // Nothing newer than the cancelled liability is published for a docket that has none left
+  for (const k of Object.keys(cancelledSince)) if (bipdLeft[k]) delete cancelledSince[k];
+  const authHistory = (raw.authHistory || []).concat(...fromLegacy(raw.legacyAuthHist, 'docket_number').map(legacyHistoryRows));
+  const insuranceRows = (raw.insurance || []).concat(legacyIns);
   const authorities = [];
   for (const r of auth) {
     const key = `${r.docket_number}|${r.op_auth_type}`;
@@ -274,26 +505,31 @@ function buildReport(raw, { national = null, now = Date.now() } = {}) {
       minCoverage: money(r.min_cov_amount), bipdOnFile: money(r.bipd_file),
       cargoRequired: r.cargo_req === 'Y', cargoOnFile: r.cargo_file === 'Y', bondRequired: r.bond_req === 'Y', bondOnFile: r.bond_file === 'Y' });
   }
-  const carrierAuth = authorities.filter((a) => CARRIER_AUTH.test(a.type));
-  const brokerAuth = authorities.filter((a) => BROKER_AUTH.test(a.type));
   const dockets = [...new Set(authorities.map((a) => a.docket).filter(Boolean))];
   if (!dockets.length && c && c.docket1prefix && c.docket1) dockets.push(c.docket1prefix + String(Number(c.docket1)));
+  // FMCSA's website today wins over the published data (see the top)
+  const live = raw.safer && raw.safer.status ? raw.safer : null;
+  const liveChanged = live ? applyLive(authorities, live, dockets[0] || null) : false;
+  const carrierAuth = authorities.filter((a) => CARRIER_AUTH.test(a.type));
+  const brokerAuth = authorities.filter((a) => BROKER_AUTH.test(a.type));
 
   // Authority history (newest first): when the carrier authority was first granted, and
   // the suspensions / reinstatements of the last year.
-  const hist = (raw.authHistory || []).map((h) => ({ docket: h.docket_number, type: h.op_auth_type || '', status: h.op_auth_status || '',
+  const hist = authHistory.map((h) => ({ docket: h.docket_number, type: h.op_auth_type || '', status: h.op_auth_status || '',
     reason: h.reason || '', date: isoDate(h.status_change_date) })).filter((h) => h.date);
   hist.sort((a, b) => b.date.localeCompare(a.date));
   const carrierHist = hist.filter((h) => CARRIER_AUTH.test(h.type));
   const granted = carrierHist.filter((h) => /^(granted|reinstated)/i.test(h.reason) && h.status === 'Active').map((h) => h.date).sort();
   const firstGranted = carrierHist.filter((h) => /^granted/i.test(h.reason)).map((h) => h.date).sort()[0] || granted[0] || null;
   // Not the carrier's doing: the first record, publication, and FMCSA's own bookkeeping (on Jun 9,
-  // 2026 it marked thousands of authorities "Inactive: Administrative status adjustment").
-  const recentChanges = carrierHist.filter((h) => daysSince(h.date, now) <= 365 && !/^(initial status|published|administrative status adjustment)/i.test(h.reason)).slice(0, 8);
+  // 2026 it marked thousands of authorities "Inactive: Administrative status adjustment"; the
+  // older records call it "Administrative inactivation").
+  const recentChanges = carrierHist.filter((h) => daysSince(h.date, now) <= 365
+    && !/^(initial status|published|administrative status adjustment|administrative inactivation)/i.test(h.reason)).slice(0, 8);
 
   // Insurance on file (each filing appears once per authority type: show it once).
   const policies = [];
-  for (const r of raw.insurance || []) {
+  for (const r of insuranceRows) {
     const p = { kind: INS_KIND[r.ins_type_code] || r.ins_form_code || 'Filing', form: r.ins_form_code || '', layer: r.ins_class_code === 'E' ? 'Excess' : 'Primary',
       insurer: r.insurance_company_name || '', policy: r.policy_no || '', coverage: money(r.max_cov_amount), underlying: money(r.underl_lim_amount),
       effective: isoDate(r.effective_date) };
@@ -304,7 +540,7 @@ function buildReport(raw, { national = null, now = Date.now() } = {}) {
   // Filings set to end: "TERM/REPL" filings are being replaced by a new one, so only real
   // cancellations (CANCEL, or no reason given) of liability, cargo or bond are a risk.
   const ending = [];
-  for (const r of raw.insHistory || []) {
+  for (const r of (raw.insHistory || []).concat(legacyEnding)) {
     const when = isoDate(r.cancl_effective_date);
     if (!when || when < today) continue;
     const reason = String(r.filing_status_reason || '').toUpperCase();
@@ -349,7 +585,8 @@ function buildReport(raw, { national = null, now = Date.now() } = {}) {
     email: c && c.email_address ? String(c.email_address).toLowerCase() : null,
     // As FMCSA's SAFER shows it: "Out of service" while an out-of-service order is in effect,
     // whatever the registration says.
-    usdotStatus: c ? (openOos.length && c.status_code === 'A' ? 'Out of service' : ({ A: 'Active', I: 'Inactive', P: 'Pending' }[c.status_code] || c.status_code || null)) : null,
+    usdotStatus: c ? ((openOos.length || (live && live.status === 'out-of-service')) && c.status_code === 'A' ? 'Out of service'
+      : ({ A: 'Active', I: 'Inactive', P: 'Pending' }[c.status_code] || c.status_code || null)) : null,
     usdotAdded: c ? isoDate(c.add_date) : null,
     mcs150: c ? isoDate(c.mcs150_date) : null,
     operation: c ? (OPERATION[c.carrier_operation] || null) : null,
@@ -365,18 +602,28 @@ function buildReport(raw, { national = null, now = Date.now() } = {}) {
       activeCarrier: carrierAuth.some((a) => a.status === 'Active'),
       pendingCarrier: carrierAuth.some((a) => a.status === 'Pending'),
       activeBroker: brokerAuth.some((a) => a.status === 'Active'),
+      // What FMCSA's website showed ('authorized', 'not-authorized', 'out-of-service'), or null if
+      // it didn't answer; and whether that changed what the published data said
+      live: live ? live.status : null,
+      liveChanged,
       firstGranted,
       recentChanges,
     },
-    insurance: { required: required || null, onFile, policies, ending },
+    // cancelledSince: the liability filing the older records had on file was cancelled since May
+    // 2026, and nothing newer is published ({ date, insurer } of the latest such cancellation)
+    insurance: { required: required || null, onFile, policies, ending,
+      cancelledSince: Object.values(cancelledSince).sort((a, b) => b.date.localeCompare(a.date))[0] || null },
     oosOrders,
     suspensionOrders,
     inspections,
     crashes: crashTotals(raw.crashes),
-    missing: Object.keys(PARTS).filter((k) => raw[k] == null),
+    missing: missingParts(raw, legacyDockets),
+    // Dockets whose authority, history and insurance came from FMCSA's older licensing records
+    // (nothing about them has changed since FMCSA's May 2026 switch to Motus)
+    legacyDockets,
     // Neither the registration nor any authority could be read: FMCSA's data isn't
     // answering, which isn't the same as "no such carrier".
-    unavailable: raw.census == null && !(raw.authority && raw.authority.length),
+    unavailable: raw.census == null && !auth.length,
     checkedAt: new Date(now).toISOString(),
   };
   const a = assess(report, now);
@@ -406,21 +653,36 @@ function assess(r, now = Date.now()) {
   // A part that didn't load is unknown, not empty: nothing is concluded from it.
   const gone = (k) => (r.missing || []).includes(k);
   // Authority
+  // FMCSA's website changed what the published data said: say so, it's the reason
+  const liveWord = { 'not-authorized': 'not authorized', 'out-of-service': 'out of service' }[A.live];
   if (!A.activeCarrier && !gone('authority')) {
     const last = A.recentChanges.find((h) => h.status === 'Inactive');
     // A broker isn't a reason not to book in itself: say so, and only something severe below says "don't book"
     if (A.activeBroker) add('warn', 'broker_only', 'Licensed as a broker, not a carrier: they arrange freight but have no active carrier authority, so they can’t haul the load on their own trucks.');
     else if (A.pendingCarrier) add('stop', 'authority_pending', 'Their operating authority isn’t active yet (still pending with FMCSA).');
+    else if (A.liveChanged && liveWord) add('stop', 'authority_inactive', `No active operating authority: FMCSA’s website shows them as ${liveWord}.`);
     else if (A.carrier.length || last) add('stop', 'authority_inactive', `No active operating authority${last ? `: ${last.reason.replace(/\s*\(.*?\)\s*$/, '')} (${fmtDate(last.date)})` : ''}.`);
     else add('stop', 'no_authority', 'No for-hire operating authority on file: they can’t haul for hire across state lines.');
+  }
+  // FMCSA's website didn't answer, and their authority comes from records that haven't changed
+  // since May 2026: it can't be confirmed for today
+  if (A.activeCarrier && !A.live && (r.legacyDockets || []).length) {
+    add('warn', 'authority_unconfirmed', 'Their authority couldn’t be confirmed on FMCSA’s website just now, and FMCSA’s published records for them haven’t changed since May 2026. Check their FMCSA record before booking.');
   }
   // (Out of service: the out-of-service order below says so, with its reason.)
   if (r.usdotStatus && r.usdotStatus !== 'Active' && r.usdotStatus !== 'Out of service') add('stop', 'usdot_inactive', `Their USDOT number is ${r.usdotStatus.toLowerCase()}.`);
   const openOos = r.oosOrders.filter((o) => !o.rescinded);
   for (const o of openOos.slice(0, 2)) add('stop', 'oos_order', `Out-of-service order since ${fmtDate(o.date)}: ${o.reason}.`);
+  if (A.live === 'out-of-service' && !openOos.length) add('stop', 'oos_live', 'FMCSA’s website shows them as out of service.');
   if (r.safetyRating === 'Unsatisfactory') add('stop', 'safety_unsatisfactory', `Unsatisfactory safety rating (${fmtDate(r.safetyRatingDate)}).`);
   // Insurance
-  if (A.activeCarrier && !gone('authority') && r.insurance.required && r.insurance.onFile < r.insurance.required) {
+  const since = r.insurance.cancelledSince;
+  if (A.activeCarrier && !gone('authority') && since && !(r.insurance.required && r.insurance.onFile >= r.insurance.required)) {
+    // The liability on file in the older records was cancelled since May 2026 and nothing newer is
+    // published, but their authority is still active: newer coverage isn't in the data yet
+    add('warn', 'insurance_unpublished', `FMCSA’s published records don’t show their current liability insurance: the last policy on file${since.insurer ? ` (${titleCase(since.insurer)})` : ''} was cancelled on ${fmtDate(since.date)}.`
+      + `${A.live === 'authorized' ? ' Their authority is still active on FMCSA’s website, so they likely have newer coverage.' : ''} Get their certificate of insurance before booking.`);
+  } else if (A.activeCarrier && !gone('authority') && r.insurance.required && r.insurance.onFile < r.insurance.required) {
     add('stop', 'insurance_short', r.insurance.onFile
       ? `Liability insurance on file is ${usd(r.insurance.onFile)}, below the ${usd(r.insurance.required)} required.`
       : `No liability insurance on file (${usd(r.insurance.required)} required).`);
@@ -428,7 +690,7 @@ function assess(r, now = Date.now()) {
   // Active, but no liability insurance on file and no minimum listed for the authority (some
   // Mexico-domiciled authorities): nothing on file to rely on.
   const liabilityFiled = (r.insurance.policies || []).some((p) => /^Liability/.test(p.kind));
-  if (A.activeCarrier && !gone('authority') && !gone('insurance') && !r.insurance.required && !(r.insurance.onFile > 0) && !liabilityFiled) {
+  if (A.activeCarrier && !gone('authority') && !gone('insurance') && !since && !r.insurance.required && !(r.insurance.onFile > 0) && !liabilityFiled) {
     add('warn', 'insurance_none', 'No liability insurance on file with FMCSA, and no minimum is listed for their authority. Get their certificate of insurance before booking.');
   }
   // A suspension notice that hasn't taken effect yet
@@ -494,9 +756,9 @@ async function monitorFacts(dots, opt = {}) {
   for (let i = 0; i < list.length; i += 100) {
     const batch = list.slice(i, i + 100);
     const inList = batch.map((d) => `'${d}'`).join(',');
-    let auth, ins, oos, census, orders;
+    let auth, ins, oos, census, orders, legacy;
     try {
-      [auth, ins, oos, census, orders] = await Promise.all([
+      [auth, ins, oos, census, orders, legacy] = await Promise.all([
         twice(DS.authority, { $select: 'usdot_number, docket_number, op_auth_type, op_auth_status, min_cov_amount, bipd_file', $where: `usdot_number in (${inList})`, $limit: 5000 }, opt),
         twice(DS.insHistory, { $select: 'usdot_number, ins_type_code, ins_type_desc, insurance_company_name, policy_no, cancl_effective_date, filing_status_reason',
           $where: `usdot_number in (${inList}) AND cancl_effective_date >= '${today}'`, $limit: 5000 }, opt),
@@ -504,11 +766,21 @@ async function monitorFacts(dots, opt = {}) {
         twice(DS.census, { $select: 'dot_number, status_code, safety_rating', $where: `dot_number in (${inList})`, $limit: 5000 }, opt),
         twice(DS.orders, { $select: 'usdot_number, order1_serve_date, order1_type_desc, order1_effective_date',
           $where: `usdot_number in (${inList}) AND order1_effective_date >= '${today}'`, $limit: 5000 }, opt),
+        // The older licensing records, for the dockets Motus doesn't have (see the top)
+        twice(DS.legacyCarrier, { $select: 'dot_number, docket_number, common_stat, contract_stat, broker_stat, common_app_pend, contract_app_pend, broker_app_pend, '
+          + 'property_chk, hhg_chk, passenger_chk, enterprise_chk, min_cov_amount, bipd_file, bond_req, bond_file',
+          $where: `dot_number in (${batch.map((d) => `'${pad8(d)}'`).join(',')})`, $limit: 5000 }, opt),
       ]);
     } catch (e) {
       console.warn(`[fmcsa] monitor batch of ${batch.length} not checked: ${e.message}`);
       for (const d of batch) delete out[d];
       continue;
+    }
+    // Each docket from Motus when Motus has it, else from the older records
+    const inMotus = new Set(auth.map((r) => `${digits(r.usdot_number)}|${r.docket_number}`));
+    for (const r of legacy) {
+      const d = digits(String(Number(r.dot_number)));
+      if (d && out[d] && docketSafe(r.docket_number) && !inMotus.has(`${d}|${r.docket_number}`)) auth.push(...legacyAuthorityRows(r).map((x) => Object.assign(x, { usdot_number: d })));
     }
     for (const r of auth) {
       const f = out[digits(r.usdot_number)];
@@ -542,8 +814,27 @@ async function monitorFacts(dots, opt = {}) {
       if (f && s.effective && !f.suspensions.some((x) => x.served === s.served && x.effective === s.effective)) f.suspensions.push(s);
     }
   }
+  // FMCSA's website for each carrier, four at a time while there's time: the authority status it
+  // shows today wins over the published data (see the top). One it couldn't ask keeps the data's.
+  const asked = Object.keys(out);
+  const deadline = opt.deadline || Date.now() + 20000;
+  let next = 0;
+  const worker = async () => {
+    while (next < asked.length && deadline - Date.now() > 1500) {
+      const d = asked[next++];
+      try { const s = await saferStatus(d, Object.assign({}, opt, { deadline })); if (s) out[d].live = s; } catch (e) { /* not asked: keeps the data's */ }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(4, asked.length) }, worker));
   for (const d of Object.keys(out)) {
     const f = out[d];
+    if (f.live) {
+      const listed = f.live.status === 'authorized' ? f.live.authorized || [] : [];
+      const lose = (list) => list.map((s) => (s === 'Active' ? 'Inactive' : s));
+      f.carrierStatus = listed.some((t) => CARRIER_AUTH.test(t)) ? ['Active'] : lose(f.carrierStatus);
+      f.brokerStatus = listed.some((t) => BROKER_AUTH.test(t)) ? ['Active'] : lose(f.brokerStatus);
+      delete f.live;
+    }
     f.authority = f.carrierStatus.includes('Active') ? 'Active' : f.carrierStatus.includes('Pending') ? 'Pending' : f.carrierStatus.length ? 'Inactive' : 'None';
     f.insuranceShort = f.authority === 'Active' && f.required > 0 && f.onFile < f.required;
     f.noInsurance = f.authority === 'Active' && !(f.required > 0) && !(f.onFile > 0);
@@ -611,4 +902,5 @@ function factsVerdict(f, now = Date.now()) {
   return 'ok';
 }
 
-module.exports = { REPORT_VERSION, DS, PARTS, parseQuery, soql, resolveDot, fetchCarrier, nationalAverages, buildReport, assess, monitorFacts, diffFacts, factsVerdict, isoDate, _internal: { inspectionTotals, crashTotals, titleCase, resetToken: () => { tokenRefused = false; said.clear(); } } };
+module.exports = { REPORT_VERSION, DS, PARTS, parseQuery, soql, resolveDot, fetchCarrier, nationalAverages, buildReport, assess, monitorFacts, diffFacts, factsVerdict, isoDate, saferStatus, parseSafer,
+  _internal: { inspectionTotals, crashTotals, titleCase, legacyAuthorityRows, legacyHistoryRows, legacyOnlyDockets, applyLive, resetToken: () => { tokenRefused = false; said.clear(); } } };

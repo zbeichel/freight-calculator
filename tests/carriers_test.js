@@ -40,10 +40,42 @@ function carrier(dot, o = {}) {
       { insp_level_id: '1', v_oos: false, d_oos: false, n: '20' }, { insp_level_id: '1', v_oos: true, d_oos: false, n: '4' },
       { insp_level_id: '3', v_oos: false, d_oos: true, n: '1' }, { insp_level_id: '3', v_oos: false, d_oos: false, n: '10' }],
     crashes: o.crashes || [{ fatal: false, inj: false, tow_away: 'true', n: '2' }],
+    // FMCSA's older licensing records (for dockets Motus doesn't have): none by default; null = didn't load
+    legacyCarrier: 'legacyCarrier' in o ? o.legacyCarrier : [],
+    legacyAuthHist: 'legacyAuthHist' in o ? o.legacyAuthHist : [],
+    legacyInsurance: 'legacyInsurance' in o ? o.legacyInsurance : [],
+    legacyInsHist: 'legacyInsHist' in o ? o.legacyInsHist : [],
   };
 }
 const NATIONAL = { vehicle: 0.226, driver: 0.061 };
-const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
+// FMCSA's website (parseSafer's answer); none by default (it didn't answer)
+const raw = (dot, o = {}) => Object.assign({ dot: String(dot), safer: o.safer || null }, carrier(dot, o));
+// SAFER's company snapshot, as FMCSA's website sends it (the authority status cell)
+const saferPage = (cell) => `<html><body><table><TR><TH SCOPE="ROW" class="querylabelbkg" align=right><A class="querylabel" href="saferhelp.aspx#OOS">Operating Authority Status</A></TH></TR>
+  <TR>
+       <TH SCOPE="ROW" class="querylabelbkg" align=right><A class="querylabel" href="saferhelp.aspx#OOS">Operating Authority Status:</A></TH>
+
+       <TD  colspan="4"  width=30% class="queryfield">${cell}</TD>
+  </TR></table></body></html>`;
+const SAFER_AUTHORIZED = saferPage('AUTHORIZED FOR: <br> Motor Carrier of Property (Except Household Goods) <br>  Broker of Property (Except Household Goods) <br><br> <b style="color:black">For Licensing and Insurance details </b> <a  style="color:#0000c0" href="http://motus.dot.gov/customer/4382996/account">click here.</a>');
+const SAFER_NOT = saferPage('\n\t   <font color="#0000c0" ><b>NOT AUTHORIZED</b> <br>\n\t   <p>\n\t    <span>\n <span style="color:red;font-weight:bold">*Please Note:</span> <span>NOT AUTHORIZED</span> does not apply to Private or Intrastate operations.</span></p></font>');
+// A carrier only FMCSA's older licensing records have (like MC 1718460): Motus has nothing for it
+const PROPERTY_BROKER = 'Broker of Property (Except Household Goods)';
+const legacyOnly = (dot, mc, o = {}) => Object.assign({ mc, authority: [], authHistory: [], insurance: [], insHistory: [],
+  legacyCarrier: [Object.assign({ docket_number: mc, dot_number: String(dot).padStart(8, '0'), common_stat: 'A', contract_stat: 'N', broker_stat: 'A', common_app_pend: 'N', contract_app_pend: 'N', broker_app_pend: 'N',
+    common_rev_pend: 'N', property_chk: 'Y', passenger_chk: 'N', hhg_chk: 'N', enterprise_chk: 'N', min_cov_amount: '01000', bipd_file: '01000', cargo_req: 'N', cargo_file: 'N', bond_req: 'Y', bond_file: 'Y',
+    legal_name: 'IRON ROAD LOGISTICS LLC', bus_telno: '7177973860' }, o.legacyRow || {})],
+  legacyAuthHist: [
+    { docket_number: mc, dot_number: String(dot).padStart(8, '0'), mod_col_1: 'MOTOR PROPERTY COMMON CARRIER', original_action_desc: 'GRANTED', orig_served_date: '05/09/2025' },
+    { docket_number: mc, dot_number: String(dot).padStart(8, '0'), mod_col_1: 'PROPERTY BROKER', original_action_desc: 'GRANTED', orig_served_date: '05/20/2025' },
+    { docket_number: mc, dot_number: String(dot).padStart(8, '0'), mod_col_1: 'COMMON', original_action_desc: 'INVOLUNTARY REVOCATION', orig_served_date: '10/31/2025',
+      disp_action_desc: 'DISCONTINUED REVOCATION', disp_decided_date: '11/06/2025', disp_served_date: '11/06/2025' }],
+  legacyInsurance: [
+    { prefix_docket_number: mc, ins_type_code: '3', max_cov_amount: '00000', underl_lim_amount: '00000', policy_no: '101503437', effective_date: '05/12/2025', ins_form_code: '84', name_company: 'MERCHANTS BONDING COMPANY ( MUTUAL)' },
+    { prefix_docket_number: mc, ins_type_code: '1', ins_class_code: 'P', max_cov_amount: '01000', underl_lim_amount: '00000', policy_no: 'S2734886', effective_date: '10/14/2025', ins_form_code: '91X', name_company: 'SELECTIVE INSURANCE COMPANY OF SOUTH CAROLINA' }],
+  legacyInsHist: [],
+  censusRow: { legal_name: 'IRON ROAD LOGISTICS LLC', add_date: '20250325', mcs150_date: '20251016', classdef: 'PRIVATE PROPERTY;AUTHORIZED FOR HIRE' },
+}, o);
 
 (async () => {
   const F = require('../netlify/lib/fmcsa.js');
@@ -154,6 +186,84 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
     { op_auth_type: PROPERTY, op_auth_status: 'Active', reason: 'Granted', status_change_date: '20190101' }] }), { national: NATIONAL, now: NOW });
   ok(flag(r, 'authority_inactive') && /^No active operating authority: Voluntary Suspension \(/.test(flag(r, 'authority_inactive').text) && !flag(r, 'no_authority'),
      'dropped from FMCSA’s authority list after a voluntary suspension: says so (not “no for-hire authority on file”)', JSON.stringify(r.flags.map((f) => f.key)));
+  // ═══ Dockets Motus doesn't have: FMCSA's older licensing records, and its website ════
+  // MC 1718460 (Nov 18, 2026): Motus had nothing for it, so the check said "no for-hire authority
+  // on file" and $0 insurance, while FMCSA's website showed it authorized with $1,000,000.
+  const fmt = (iso) => new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  const mdy = (days) => { const s = ymdFrom(days); return `${s.slice(4, 6)}/${s.slice(6)}/${s.slice(0, 4)}`; };   // the older records' dates
+  const IRON = 4382996;
+  const AUTHORIZED = F.parseSafer(SAFER_AUTHORIZED), NOT_AUTHORIZED = F.parseSafer(SAFER_NOT);
+  ok(JSON.stringify(AUTHORIZED) === JSON.stringify({ status: 'authorized', authorized: [PROPERTY, PROPERTY_BROKER] }), 'FMCSA’s website: “AUTHORIZED FOR” and the authorities it lists', JSON.stringify(AUTHORIZED));
+  ok(NOT_AUTHORIZED && NOT_AUTHORIZED.status === 'not-authorized' && F.parseSafer(saferPage('<b>OUT-OF-SERVICE</b>')).status === 'out-of-service', '…“NOT AUTHORIZED” and “OUT-OF-SERVICE”');
+  ok(F.parseSafer('<html><body>Record Not Found</body></html>') === null && F.parseSafer(saferPage('AUTHORIZED FOR: <br><br> For Licensing and Insurance details click here.')) === null,
+     '…a page without the status (no such carrier, or the page changed): nothing concluded from it');
+  r = F.buildReport(raw(IRON, legacyOnly(IRON, 'MC1718460', { safer: AUTHORIZED })), { national: NATIONAL, now: NOW });
+  ok(r.verdict === 'ok' && !flag(r, 'no_authority') && r.authority.activeCarrier && r.authority.activeBroker && r.legacyDockets.join() === 'MC1718460' && r.dockets.join() === 'MC1718460',
+     'MC 1718460, only in FMCSA’s older licensing records: active carrier and broker authority, not “no for-hire authority on file”', JSON.stringify(r.flags));
+  ok(r.authority.firstGranted === '2025-05-09' && r.authority.recentChanges.length === 0 && !flag(r, 'recent_suspension'),
+     '…granted May 9, 2025; a revocation FMCSA started and then discontinued isn’t a suspension', JSON.stringify(r.authority.recentChanges));
+  ok(r.insurance.required === 1000000 && r.insurance.onFile === 1000000 && r.insurance.policies.map((p) => `${p.kind}|${p.insurer}|${p.coverage}|${p.effective}`).join(';')
+     === 'Liability (BIPD)|SELECTIVE INSURANCE COMPANY OF SOUTH CAROLINA|1000000|2025-10-14;Surety bond|MERCHANTS BONDING COMPANY ( MUTUAL)|0|2025-05-12',
+     '…$1,000,000 liability on file (the older records count in thousands), and the broker’s bond', JSON.stringify(r.insurance.policies));
+  ok(r.authority.live === 'authorized' && !r.authority.liveChanged && r.name === 'Iron Road Logistics LLC', '…and FMCSA’s website agrees');
+  r = F.buildReport(raw(IRON, legacyOnly(IRON, 'MC1718460', { safer: NOT_AUTHORIZED })), { national: NATIONAL, now: NOW });
+  ok(r.verdict === 'stop' && !r.authority.activeCarrier && !r.authority.activeBroker && r.authority.liveChanged && !flag(r, 'broker_only')
+     && flag(r, 'authority_inactive') && flag(r, 'authority_inactive').text === 'No active operating authority: FMCSA’s website shows them as not authorized.',
+     'the older records say active but FMCSA’s website says NOT AUTHORIZED (like MC 1626751, revoked after May 2026): the website wins, “don’t book”', JSON.stringify(r.flags));
+  r = F.buildReport(raw(IRON, legacyOnly(IRON, 'MC1718460')), { national: NATIONAL, now: NOW });
+  ok(r.verdict === 'warn' && r.authority.activeCarrier && r.authority.live === null && flag(r, 'authority_unconfirmed')
+     && /couldn’t be confirmed on FMCSA’s website just now.*Check their FMCSA record before booking/.test(flag(r, 'authority_unconfirmed').text),
+     'FMCSA’s website didn’t answer: the older records’ authority, with “check their FMCSA record before booking”', JSON.stringify(r.flags));
+  // Insurance in the older records: a filing cancelled since doesn't count
+  const cancel = (date, o = {}) => Object.assign({ docket_number: 'MC1718460', policy_no: 'S2734886', effective_date: '10/14/2025', cancl_effective_date: date, cancl_method: 'TERM/CANCL',
+    name_company: 'SELECTIVE INSURANCE COMPANY OF SOUTH CAROLINA' }, o);
+  r = F.buildReport(raw(IRON, legacyOnly(IRON, 'MC1718460', { safer: AUTHORIZED, legacyInsHist: [cancel('06/12/2026')] })), { national: NATIONAL, now: NOW });
+  ok(r.insurance.onFile === 0 && !r.insurance.policies.some((p) => /^Liability/.test(p.kind)) && r.insurance.cancelledSince && r.insurance.cancelledSince.date === '2026-06-12'
+     && !flag(r, 'insurance_short') && flag(r, 'insurance_unpublished') && flag(r, 'insurance_unpublished').level === 'warn' && r.verdict === 'warn'
+     && flag(r, 'insurance_unpublished').text === 'FMCSA’s published records don’t show their current liability insurance: the last policy on file (Selective Insurance Company Of South Carolina) was cancelled on Jun 12, 2026. '
+       + 'Their authority is still active on FMCSA’s website, so they likely have newer coverage. Get their certificate of insurance before booking.',
+     'the older records’ liability, cancelled since (Jun 12, 2026): not on file anymore; authority still active on the website → “get their certificate”, not “don’t book”', JSON.stringify(r.flags));
+  r = F.buildReport(raw(IRON, legacyOnly(IRON, 'MC1718460', { safer: AUTHORIZED, legacyInsHist: [cancel('06/12/2026', { effective_date: '04/03/2025' })] })), { national: NATIONAL, now: NOW });
+  ok(r.insurance.onFile === 0 && r.insurance.cancelledSince, '…matched by policy number even when the cancellation is recorded against an earlier filing of it (MC 901679: re-filed May 11, cancelled Jun 12)');
+  r = F.buildReport(raw(IRON, legacyOnly(IRON, 'MC1718460', { safer: AUTHORIZED, legacyInsHist: [cancel('09/30/2025', { effective_date: '04/03/2025', cancl_method: 'CANCEL' })] })), { national: NATIONAL, now: NOW });
+  ok(r.insurance.onFile === 1000000 && r.insurance.policies.some((p) => p.policy === 'S2734886') && !r.insurance.cancelledSince && r.verdict === 'ok',
+     '…but a cancellation from before the filing on file (the policy was re-filed under its number since) doesn’t touch it');
+  r = F.buildReport(raw(IRON, legacyOnly(IRON, 'MC1718460', { safer: AUTHORIZED, legacyInsHist: [cancel(mdy(20))] })), { national: NATIONAL, now: NOW });
+  ok(r.insurance.onFile === 1000000 && r.insurance.ending.length === 1 && r.insurance.ending[0].cancels === ymdFrom(20).replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')
+     && flag(r, 'insurance_cancelling') && /being cancelled on/.test(flag(r, 'insurance_cancelling').text), '…a cancellation still to take effect: still on file, and “being cancelled on …”', JSON.stringify(r.insurance.ending));
+  r = F.buildReport(raw(IRON, legacyOnly(IRON, 'MC1718460', { safer: NOT_AUTHORIZED, legacyInsHist: [cancel('06/05/2026')] })), { national: NATIONAL, now: NOW });
+  ok(r.verdict === 'stop' && flag(r, 'authority_inactive') && !flag(r, 'insurance_unpublished'), 'cancelled since, and not authorized on the website: “don’t book” for the authority (no insurance note to add)');
+  // The older history
+  r = F.buildReport(raw(IRON, legacyOnly(IRON, 'MC1718460', { legacyRow: { common_stat: 'I', broker_stat: 'N' }, safer: NOT_AUTHORIZED, legacyAuthHist: [
+    { docket_number: 'MC1718460', mod_col_1: 'MOTOR PROPERTY COMMON CARRIER', original_action_desc: 'GRANTED', orig_served_date: '05/09/2025', disp_action_desc: 'REVOKED', disp_decided_date: mdy(-30) },
+    { docket_number: 'MC1718460', mod_col_1: 'COMMON', original_action_desc: 'REINSTATED', orig_served_date: '06/01/2025', disp_action_desc: 'ADMINISTRATIVE INACTIVATION', disp_decided_date: mdy(-60) }] })), { national: NATIONAL, now: NOW });
+  const revokedOn = ymdFrom(-30).replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+  ok(r.verdict === 'stop' && !r.authority.liveChanged && flag(r, 'authority_inactive') && flag(r, 'authority_inactive').text === `No active operating authority: Revoked (${fmt(revokedOn)}).`
+     && r.authority.recentChanges.length === 1 && r.authority.firstGranted === '2025-05-09',
+     'revoked a month ago in the older records: says so, with the date; FMCSA’s “administrative inactivation” isn’t counted as a change', JSON.stringify(r.authority.recentChanges));
+  // Each docket from one place: Motus when it has it
+  r = F.buildReport(raw(IRON, legacyOnly(IRON, 'MC1718460', { authority: [{ docket_number: 'MC1718460', usdot_number: String(IRON), op_auth_type: PROPERTY, op_auth_status: 'Inactive', min_cov_amount: '750000', bipd_file: '0' }] })),
+    { national: NATIONAL, now: NOW });
+  ok(!r.authority.activeCarrier && r.legacyDockets.length === 0 && flag(r, 'authority_inactive') && !r.insurance.policies.length,
+     'a docket Motus has comes from Motus (it’s newer), never the older records');
+  r = F.buildReport(raw(IRON, legacyOnly(IRON, 'MC1718460', { legacyCarrier: null })), { national: NATIONAL, now: NOW });
+  ok(r.missing.includes('authority') && !flag(r, 'no_authority') && flag(r, 'incomplete') && r.verdict === 'warn',
+     'Motus has nothing and the older records didn’t load: the authority is unknown (“incomplete”), never “no authority”', JSON.stringify(r.flags));
+  r = F.buildReport(raw(IRON, legacyOnly(IRON, 'MC1718460', { safer: AUTHORIZED, legacyInsurance: null, legacyAuthHist: null })), { national: NATIONAL, now: NOW });
+  ok(r.missing.includes('insurance') && r.missing.includes('authHistory') && flag(r, 'incomplete') && r.authority.activeCarrier, '…its insurance filings or history didn’t load: those are unknown too');
+  // FMCSA's website over the published data
+  r = F.buildReport(raw(5555570, { authority: [], authHistory: [], insurance: [], safer: AUTHORIZED }), { national: NATIONAL, now: NOW });
+  ok(r.authority.activeCarrier && r.authority.activeBroker && r.authority.liveChanged && !flag(r, 'no_authority') && r.verdict !== 'stop',
+     'authority FMCSA’s website lists that the published data hasn’t got at all: active', JSON.stringify(r.flags));
+  r = F.buildReport(raw(5555571, { safer: { status: 'out-of-service', authorized: [] } }), { national: NATIONAL, now: NOW });
+  ok(r.usdotStatus === 'Out of service' && flag(r, 'oos_live') && !r.authority.activeCarrier && r.verdict === 'stop',
+     'out of service on FMCSA’s website: “don’t book”, before the out-of-service list has the order', JSON.stringify(r.flags));
+  r = F.buildReport(raw(5555572, { safer: F.parseSafer(saferPage('AUTHORIZED FOR: <br> Motor Carrier of Property (Except Household Goods) <br><br> For Licensing and Insurance details click here.')) }), { national: NATIONAL, now: NOW });
+  ok(r.verdict === 'ok' && !r.authority.liveChanged && r.authority.activeCarrier && !r.authority.activeBroker && r.flags.length === 0,
+     'a carrier Motus has, confirmed on the website: no change, no extra notes', JSON.stringify(r.flags));
+  r = F.buildReport(raw(5555573, { safer: AUTHORIZED }), { national: NATIONAL, now: NOW });
+  ok(r.authority.activeBroker && r.authority.liveChanged && flag(r, 'also_broker'), '…broker authority the website lists and Motus doesn’t: added');
+
   r = F.buildReport(raw(5555558, { censusRow: { legal_name: "HICKMAN'S YY LOGISTICS LLC", dba_name: "O'NEIL & CRST EXPRESS", phy_street: '400 ST GEORGE HWY' } }), { national: NATIONAL, now: NOW });
   ok(r.name === "Hickman's YY Logistics LLC" && r.dba === "O'Neil & CRST Express" && /^400 St George Hwy · /.test(r.address),
      "names: \"Hickman's\" (not \"Hickman'S\"), \"YY\" and \"CRST\" kept as initials, \"O'Neil\"; the street stays \"St … Hwy\"", JSON.stringify([r.name, r.dba, r.address]));
@@ -193,12 +303,15 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   // ═══ The open-data queries ═══════════════════════════════════════════════
   const calls = [];
   let answer = () => [];
+  let website = null;   // FMCSA's website (SAFER): the page it sends, or null when it doesn't answer
   const fakeFetch = async (url, opts = {}) => {
     calls.push({ url, opts });
+    if (/^https:\/\/safer\.fmcsa\.dot\.gov\//.test(url)) return website == null ? { ok: false, status: 503, text: async () => '' } : { ok: true, status: 200, text: async () => website };
     const body = answer(url, opts);
     return { ok: true, status: 200, json: async () => body };
   };
-  const ds = (url) => url.match(/resource\/([a-z0-9-]+)\.json/)[1];
+  const ds = (url) => (url.match(/resource\/([a-z0-9-]+)\.json/) || [null, 'safer'])[1];
+  const socrata = () => calls.filter((c) => /data\.transportation\.gov/.test(c.url));
   const param = (url, k) => new URL(url).searchParams.get(k);
   answer = (url) => (ds(url) === F.DS.authority ? [{ usdot_number: '80806' }] : []);
   ok((await F.resolveDot({ docket: 'MC135797' }, { fetchImpl: fakeFetch })) === '80806' && param(calls[0].url, '$where') === "docket_number='MC135797'",
@@ -240,9 +353,12 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   const infos = [], realLog = console.log;   // the module's log lines, apart from this test's PASS/FAIL lines
   console.log = (...a) => (/^\[fmcsa\]/.test(String(a[0])) ? infos.push(a.join(' ')) : realLog(...a));
   await F.fetchCarrier('80806', { fetchImpl: fakeFetch });
-  ok(calls.length === 9 && calls.every((c) => c.opts.headers['X-App-Token'] === 'app-token') && new Set(calls.map((c) => ds(c.url))).size === 9,
-     'a check asks nine datasets at once, with the app token when one is set');
-  ok(infos.length === 1 && /accepted SOCRATA_APP_TOKEN/.test(infos[0]), 'the function log says once that the token was accepted (nine requests, one line)', infos.join(' | '));
+  ok(socrata().length === 11 && socrata().every((c) => c.opts.headers['X-App-Token'] === 'app-token') && new Set(socrata().map((c) => ds(c.url))).size === 11,
+     'a check asks eleven datasets at once (Motus’s and the older licensing records), with the app token when one is set', String(socrata().length));
+  ok(calls.filter((c) => ds(c.url) === 'safer').length === 1 && calls.find((c) => ds(c.url) === 'safer').url === 'https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=USDOT&query_string=80806'
+     && !(calls.find((c) => ds(c.url) === 'safer').opts.headers || {})['X-App-Token'], '…and FMCSA’s website once, for the authority status it shows today (without the app token)');
+  ok(!calls.some((c) => [F.DS.legacyInsurance, F.DS.legacyInsHist].includes(ds(c.url))), '…the older insurance filings only for dockets only the older records have (none here)');
+  ok(infos.length === 1 && /accepted SOCRATA_APP_TOKEN/.test(infos[0]), 'the function log says once that the token was accepted (eleven requests, one line)', infos.join(' | '));
   ok(calls.some((c) => ds(c.url) === F.DS.inspections && /count\(\*\)/.test(param(c.url, '$select')) && param(c.url, '$group')), 'inspections are totalled by FMCSA, not downloaded');
   // A token FMCSA doesn't accept (mistyped, revoked) is refused on every request: 403, "Invalid app_token specified"
   const warnings = [], realWarn = console.warn;
@@ -257,11 +373,11 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   let rawT = await F.fetchCarrier('80806', { fetchImpl: refusing });
   ok(Object.keys(F.PARTS).length === 9 && Object.keys(F.PARTS).every((p) => Array.isArray(rawT[p])) && rawT.census.length === 1,
      'a token FMCSA refuses doesn’t stop the check: every part still loads', JSON.stringify(rawT));
-  ok(calls.length === 18 && calls.filter((c) => c.opts.headers['X-App-Token'] === 'mistyped-token').length === 9,
-     '…each refused request is asked again without the token', String(calls.length));
+  ok(socrata().length === 22 && socrata().filter((c) => c.opts.headers['X-App-Token'] === 'mistyped-token').length === 11,
+     '…each refused request is asked again without the token', String(socrata().length));
   calls.length = 0;
   rawT = await F.fetchCarrier('80806', { fetchImpl: refusing });
-  ok(calls.length === 9 && calls.every((c) => !('X-App-Token' in c.opts.headers)) && rawT.census.length === 1,
+  ok(socrata().length === 11 && socrata().every((c) => !('X-App-Token' in c.opts.headers)) && rawT.census.length === 1,
      '…and after that it isn’t sent at all, so checks don’t make every request twice');
   ok(warnings.length === 1 && /refused SOCRATA_APP_TOKEN/.test(warnings[0]) && /Check the token in Netlify/.test(warnings[0]),
      'one warning in the function log, saying to check the token', warnings.join(' | '));
@@ -319,11 +435,11 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   };
   calls.length = 0;
   let rawF = await F.fetchCarrier('80806', { fetchImpl: flaky });
-  ok(calls.length === 10 && rawF.insurance && rawF.insurance.length === 1, 'a part that fails is asked again once (FMCSA’s data has slow spells)');
+  ok(socrata().length === 12 && rawF.insurance && rawF.insurance.length === 1, 'a part that fails is asked again once (FMCSA’s data has slow spells)', String(socrata().length));
   calls.length = 0;
   failsLeft = { [F.DS.oos]: 5 };
   rawF = await F.fetchCarrier('80806', { fetchImpl: flaky });
-  ok(rawF.oos === null && calls.length === 10 && Array.isArray(rawF.census), '…twice at most; then that part is reported missing');
+  ok(rawF.oos === null && socrata().length === 12 && Array.isArray(rawF.census), '…twice at most; then that part is reported missing');
   calls.length = 0;
   threw = false;
   try { await F.soql(F.DS.census, { $limit: 1 }, { fetchImpl: fakeFetch, deadline: NOW + 200 }); } catch (e) { threw = /out of time/.test(e.message); }
@@ -352,7 +468,8 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   const ordersCall = calls.find((c) => ds(c.url) === F.DS.orders);
   ok(ordersCall && /order1_effective_date >= '20261113'/.test(param(ordersCall.url, '$where')) && facts['1'].suspensions.length === 1 && facts['1'].suspensions[0].effective === '2026-12-11'
      && facts['2'].suspensions.length === 0, 'the daily check reads suspension notices still to take effect', ordersCall && param(ordersCall.url, '$where'));
-  ok(calls.length === 5 && calls.every((c) => /in \('1','2','3'\)/.test(param(c.url, '$where'))), 'one batch: five queries for all the carriers (each once)');
+  ok(socrata().length === 6 && socrata().every((c) => /in \('(0{7})?1','(0{7})?2','(0{7})?3'\)/.test(param(c.url, '$where'))), 'one batch: six queries for all the carriers (each once; the older records by 8-digit USDOT number)', String(socrata().length));
+  ok(calls.filter((c) => ds(c.url) === 'safer').map((c) => c.url.split('=').pop()).sort().join() === '1,2,3', '…and FMCSA’s website once per carrier (it didn’t answer here, so the data’s facts stand)');
   ok(facts['1'].authority === 'Active' && facts['1'].cancels.length === 1 && facts['1'].cancels[0].cancels === '2026-11-23' && !facts['1'].insuranceShort,
      'carrier 1: active, a real cancellation in 10 days (the replaced filing is ignored)');
   ok(facts['2'].authority === 'Inactive' && facts['3'].insuranceShort && facts['3'].oos.length === 1 && facts['3'].safetyRating === 'Conditional', 'carriers 2 and 3: inactive; short on insurance with an out-of-service order');
@@ -363,7 +480,7 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
     return fakeFetch(url, opts);
   };
   let facts2 = await F.monitorFacts(['1', '2', '3'], { fetchImpl: flakyBatch, retryDelayMs: 0 });
-  ok(calls.length === 6 && facts2['1'] && facts2['1'].authority === 'Active' && facts2['2'].authority === 'Inactive', 'a batch query that fails once is asked again');
+  ok(socrata().length === 7 && facts2['1'] && facts2['1'].authority === 'Active' && facts2['2'].authority === 'Inactive', 'a batch query that fails once is asked again', String(socrata().length));
   batchFails = 2;
   facts2 = await F.monitorFacts(['1', '2', '3'], { fetchImpl: flakyBatch, retryDelayMs: 0 });
   ok(Object.keys(facts2).length === 0, '…a batch FMCSA can’t answer twice: its carriers are left out, never reported as “authority gone”');
@@ -414,6 +531,47 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   ok(F.diffFacts(before, Object.assign({}, before, { authority: 'None' }), 'Gone LLC')[0].text === 'Gone LLC: no longer has operating authority on file. Don’t tender them loads until it’s active again.',
      'authority gone altogether: said plainly');
 
+  // ═══ Dockets only the older records have: what's asked, and the morning check ═══
+  const ironParts = carrier(IRON, legacyOnly(IRON, 'MC1718460'));
+  const partFor = (url) => { const key = (Object.entries(F.DS).find(([, v]) => v === ds(url)) || [])[0]; return key ? ironParts[key] || [] : []; };
+  calls.length = 0;
+  answer = partFor;
+  website = SAFER_AUTHORIZED;
+  const rawL = await F.fetchCarrier(String(IRON), { fetchImpl: fakeFetch });
+  const insCall = calls.find((c) => ds(c.url) === F.DS.legacyInsurance), histCall = calls.find((c) => ds(c.url) === F.DS.legacyInsHist);
+  ok(calls.some((c) => ds(c.url) === F.DS.legacyCarrier && param(c.url, '$where') === "dot_number='04382996'")
+     && calls.some((c) => ds(c.url) === F.DS.legacyAuthHist && param(c.url, '$where') === "dot_number='04382996'"),
+     'the older records are read by 8-digit USDOT number (as they write it)');
+  ok(insCall && param(insCall.url, '$where') === "prefix_docket_number in ('MC1718460')" && histCall
+     && param(histCall.url, '$where') === "docket_number in ('MC1718460') AND cancl_method in ('CANCEL','TERM/CANCL','CANC/CANCL','REVOKED')",
+     '…then, for the dockets only they have, those dockets’ insurance filings and their real cancellations (not replacements)', insCall && param(insCall.url, '$where'));
+  ok(rawL.safer && rawL.safer.status === 'authorized' && rawL.legacyInsurance.length === 2 && Array.isArray(rawL.legacyInsHist), '…with FMCSA’s website’s answer alongside');
+  r = F.buildReport(rawL, { national: NATIONAL, now: NOW });
+  ok(r.verdict === 'ok' && r.authority.activeCarrier && r.insurance.onFile === 1000000 && r.legacyDockets.join() === 'MC1718460', '…and the report from all of it: active, $1,000,000 on file', JSON.stringify(r.flags));
+  calls.length = 0;
+  answer = (url) => (ds(url) === F.DS.authority ? [{ docket_number: 'MC1718460', usdot_number: String(IRON), op_auth_type: PROPERTY, op_auth_status: 'Active' }] : partFor(url));
+  await F.fetchCarrier(String(IRON), { fetchImpl: fakeFetch });
+  ok(!calls.some((c) => [F.DS.legacyInsurance, F.DS.legacyInsHist].includes(ds(c.url))), '…but not when Motus has the docket (its insurance is Motus’s)');
+  // The morning check
+  calls.length = 0;
+  answer = (url) => (ds(url) === F.DS.legacyCarrier ? ironParts.legacyCarrier : ds(url) === F.DS.census ? [{ dot_number: String(IRON), status_code: 'A' }] : []);
+  website = null;
+  let lf = (await F.monitorFacts([String(IRON)], { fetchImpl: fakeFetch }))[String(IRON)];
+  ok(lf && lf.authority === 'Active' && lf.broker === 'Active' && lf.onFile === 1000000 && lf.required === 1000000 && F.factsVerdict(lf) === 'ok',
+     'the morning check: a carrier only the older records have is active ($1,000,000 on file), not “no authority”', JSON.stringify(lf));
+  ok(calls.some((c) => ds(c.url) === F.DS.legacyCarrier && /dot_number in \('04382996'\)/.test(param(c.url, '$where'))), '…read from them by 8-digit USDOT number, in the same batch');
+  website = SAFER_NOT;
+  const revoked = (await F.monitorFacts([String(IRON)], { fetchImpl: fakeFetch }))[String(IRON)];
+  ok(revoked && revoked.authority === 'Inactive' && !revoked.broker && F.factsVerdict(revoked) === 'stop', '…NOT AUTHORIZED on FMCSA’s website: inactive (the website wins)', JSON.stringify(revoked));
+  const gone = F.diffFacts(lf, revoked, 'Iron Road Logistics LLC');
+  ok(gone.length === 1 && gone[0].kind === 'authority' && /operating authority is now inactive/.test(gone[0].text), '…so a revocation since May 2026 reaches the saved list as an alert', JSON.stringify(gone));
+  answer = (url) => (ds(url) === F.DS.authority ? [{ usdot_number: String(IRON), docket_number: 'MC1718460', op_auth_type: PROPERTY, op_auth_status: 'Inactive', min_cov_amount: '750000', bipd_file: '0' }]
+    : ds(url) === F.DS.legacyCarrier ? ironParts.legacyCarrier : []);
+  website = null;
+  lf = (await F.monitorFacts([String(IRON)], { fetchImpl: fakeFetch }))[String(IRON)];
+  ok(lf && lf.authority === 'Inactive' && !lf.broker, '…a docket Motus has comes from Motus there too', JSON.stringify(lf));
+  answer = () => [];
+
   // ═══ carrier-check.js ════════════════════════════════════════════════════
   const db = { lookups: [], cache: {}, meta: {}, saved: [], alerts: [], users: {}, accounts: {}, socrata: 0, nextId: 1 };
   const uuid = () => '00000000-0000-4000-8000-' + String(db.nextId++).padStart(12, '0');
@@ -427,6 +585,8 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
     url = String(url);
     const method = opts.method || 'GET';
     const body = opts.body ? JSON.parse(opts.body) : undefined;
+    // FMCSA's website (SAFER): db.website, or not answering
+    if (url.startsWith('https://safer.fmcsa.dot.gov/')) return db.website ? { ok: true, status: 200, text: async () => db.website } : resp(503, {});
     if (url.startsWith('https://data.transportation.gov/')) {
       db.socrata++;
       if (db.slowMs) {   // a slow day at FMCSA: every request takes db.slowMs, unless the function gives up first
@@ -443,7 +603,17 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
         const hit = Object.entries(FIX).find(([, f]) => f.authority.some((a) => a.docket_number === mc));
         return resp(200, hit ? [{ usdot_number: hit[0] }] : []);
       }
-      if (d === F.DS.census && /docket1/.test(where)) return resp(200, []);
+      if (d === F.DS.census && /docket1/.test(where)) {
+        const m = where.match(/docket1prefix='([A-Z]+)' AND docket1='(\d+)'/);
+        const hit = m && Object.entries(FIX).find(([, f]) => f.census[0] && f.census[0].docket1prefix === m[1] && f.census[0].docket1 === m[2] && !f.authority.length);
+        return resp(200, hit ? [{ dot_number: hit[0] }] : []);
+      }
+      // The older insurance records are by docket
+      if (d === F.DS.legacyInsurance || d === F.DS.legacyInsHist) {
+        const key = d === F.DS.legacyInsurance ? 'legacyInsurance' : 'legacyInsHist', field = d === F.DS.legacyInsurance ? 'prefix_docket_number' : 'docket_number';
+        const dockets = ((where.match(/in \(([^)]*)\)/) || [])[1] || '').split(',').map((x) => x.replace(/'/g, ''));
+        return resp(200, [].concat(...Object.values(FIX).map((f) => (f[key] || []).filter((row) => dockets.includes(row[field])))));
+      }
       if (d === F.DS.inspections && !/dot_number/.test(where)) {
         return resp(200, /vehicle_oos_total/.test(q(url).get('$select')) ? [{ oos: false, n: '774' }, { oos: true, n: '226' }] : [{ oos: false, n: '939' }, { oos: true, n: '61' }]);
       }
@@ -451,7 +621,7 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
       const dots = inList ? inList[1].split(',').map((x) => x.replace(/'/g, '')) : [(where.match(/(?:usdot_number|dot_number)='(\d+)'/) || [])[1]];
       const out = [];
       for (const dot of dots) {
-        const f = FIX[dot];
+        const f = FIX[dot] || FIX[String(Number(dot))];   // the older records write 8 digits
         if (!f) continue;
         const key = Object.entries(F.DS).find(([, v]) => v === d)[0];
         for (const row of f[key] || []) out.push(Object.assign({ usdot_number: dot, dot_number: dot }, row));
@@ -588,6 +758,23 @@ const raw = (dot, o) => Object.assign({ dot: String(dot) }, carrier(dot, o));
   res = await callFn('t-max', { action: 'lookup', query: '4587322', kind: 'dot' });
   ok(res.status === 200 && res.body.report.missing.length === 0 && !res.body.report.flags.some((f) => f.code === 'incomplete') && db.cache['4587322'] && maxLookups() === maxBefore + 1,
      'checking again: complete, cached, and free');
+  // MC 1718460 (Nov 18, 2026): only in FMCSA's older licensing records. The check said “Don’t book:
+  // no for-hire operating authority on file” and $0 insurance; FMCSA's website said authorized.
+  FIX[String(IRON)] = carrier(IRON, legacyOnly(IRON, 'MC1718460'));
+  db.website = SAFER_AUTHORIZED;
+  res = await callFn('t-max', { action: 'lookup', query: 'MC 1718460' });
+  const ironReport = res.body.report || {};
+  ok(res.status === 200 && ironReport.dot === String(IRON) && ironReport.verdict === 'ok' && ironReport.authority.activeCarrier && ironReport.authority.activeBroker
+     && ironReport.insurance.onFile === 1000000 && ironReport.legacyDockets.join() === 'MC1718460' && ironReport.authority.live === 'authorized'
+     && db.cache[String(IRON)] && db.cache[String(IRON)].report.v === F.REPORT_VERSION,
+     'MC 1718460 end to end: found by its MC number, active with $1,000,000 on file, confirmed on FMCSA’s website, cached in the new format', JSON.stringify(res.body).slice(0, 300));
+  delete db.cache[String(IRON)];
+  db.website = SAFER_NOT;
+  res = await callFn('t-max', { action: 'lookup', query: String(IRON), kind: 'dot' });
+  ok(res.status === 200 && res.body.report.verdict === 'stop' && /FMCSA’s website shows them as not authorized/.test((res.body.report.flags.find((f) => f.code === 'authority_inactive') || {}).text || ''),
+     '…and if FMCSA’s website says NOT AUTHORIZED, “don’t book” says why');
+  db.website = null;
+  delete db.cache[String(IRON)];
   // A slow day at FMCSA (Nov 16, 2026: 3.5–7 seconds a request). The check used to give up
   // on the MC number after 4 seconds, and on the whole check after 8.5.
   delete db.cache['80806'];
