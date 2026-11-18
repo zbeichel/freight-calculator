@@ -1,9 +1,11 @@
 // netlify/functions/sitemap.js — /sitemap.xml (netlify.toml), which robots.txt points search
 // engines to: the site's public pages, the Market News archive and every published week, each at the
 // address its page names as canonical. Account pages (Profile, Customers) and the 404 page
-// aren't listed. Netlify's CDN keeps it an hour.
+// aren't listed. Netlify's CDN keeps it an hour, or until the owner publishes or takes back a
+// Market News week (tagged CACHE_TAG, which news-purge.js clears).
 
 const N = require('../../news-render.js');
+const { CACHE_TAG } = require('../lib/news-cache.js');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';   // the site's public key
@@ -61,6 +63,7 @@ exports.handler = async () => {
       'Content-Type': 'application/xml; charset=utf-8',
       'Cache-Control': 'public, max-age=0, must-revalidate',
       'Netlify-CDN-Cache-Control': `public, durable, s-maxage=${cacheFor}, stale-while-revalidate=86400`,
+      'Netlify-Cache-Tag': CACHE_TAG,
     },
     body: sitemap(list),
   };

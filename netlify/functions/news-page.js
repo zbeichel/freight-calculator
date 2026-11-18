@@ -9,11 +9,13 @@
 // The page is market-news.html (bundled with this function: included_files in netlify.toml),
 // filled in by news-render.js, the same code the page runs in the browser; the browser script
 // then only loads drafts for the site owner. Only published updates are read here (with the
-// site's public key, the database's rules hide drafts). Netlify's CDN keeps a page 10 minutes.
+// site's public key, the database's rules hide drafts). Netlify's CDN keeps a page 10 minutes,
+// tagged CACHE_TAG: publishing or taking back a week clears them all at once (news-purge.js).
 
 const fs = require('fs');
 const path = require('path');
 const N = require('../../news-render.js');
+const { CACHE_TAG } = require('../lib/news-cache.js');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';   // the site's public key
@@ -190,10 +192,12 @@ function archivePage(list) {
 }
 
 const HTML = { 'Content-Type': 'text/html; charset=utf-8' };
-// Browsers check back each time; Netlify's CDN keeps the page (shorter for "not here")
+// Browsers check back each time; Netlify's CDN keeps the page (shorter for "not here"),
+// until the owner publishes or takes back a week (news-purge.js clears the tag)
 const cached = (seconds) => Object.assign({}, HTML, {
   'Cache-Control': 'public, max-age=0, must-revalidate',
   'Netlify-CDN-Cache-Control': `public, durable, s-maxage=${seconds}, stale-while-revalidate=86400`,
+  'Netlify-Cache-Tag': CACHE_TAG,
 });
 
 exports.handler = async (event) => {

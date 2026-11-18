@@ -482,13 +482,20 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   const verify = require(fn('verify-pro.js'));
   let vrow = null;
   let vseat = null;   // { owner } while user-1 has a seat on someone's team
+  let vacks = [];     // plan_notice_events rows: user-1 clicked "Got it" or "Choose my plan"
+  let eventsDown = false;
+  const eventReads = [];
   respond = (c) => {
     if (c.path === '/auth/v1/user') return { status: 200, body: { id: 'user-1' } };
     return { status: 404, body: {} };
   };
-  fetchRespond = (url) => {
+  fetchRespond = (url, opts) => {
     if (url.includes('/rest/v1/rpc/effective_account')) {
       return { body: { account_id: vseat ? vseat.owner : 'user-1', role: vseat ? 'member' : null, seated: !!vseat, owner_id: vseat && vseat.owner, team_size: vseat ? 3 : 1, row: vrow } };
+    }
+    if (url.includes('/rest/v1/plan_notice_events')) {
+      eventReads.push({ url, opts });
+      return eventsDown ? { status: 500, body: {} } : { body: vacks };
     }
     throw new Error('unexpected fetch ' + url);
   };
@@ -499,12 +506,26 @@ const JAN1 = '2027-01-01T05:00:00.000Z';
   ok(v.active && v.paid && v.unlimitedUntilRenewal === true && v.nextPlan === 'plus' && v.newPlansStart === JAN1,
      'verify-pro: original plan → unlimited until January, with the chosen plan');
   ok(v.planChosen === true && v.cancelAt === null, 'verify-pro: …marked as chosen, not set to end');
+  ok(v.noticeAcknowledged === false && eventReads.length === 0, 'verify-pro: …chosen, so the notice is over: whether they said "Got it" isn\'t even asked');
   ok(v.interval === 'month' && v.trialEndsAt === null && v.trialEligible === false, 'verify-pro: monthly, no trial, can\'t start one (subscribed)');
   vrow.next_plan = null;
   v = await vp();
   ok(v.nextPlan === 'pro' && v.planChosen === false, 'verify-pro: no choice yet → moves to Pro, not chosen');
+  ok(v.noticeAcknowledged === false && eventReads.length === 1
+     && /\/rest\/v1\/plan_notice_events\?select=id&user_id=eq\.user-1&action=in\.\(got_it,choose_plan\)&limit=1$/.test(eventReads[0].url)
+     && eventReads[0].opts.headers.apikey === 'svc',
+     'verify-pro: …hasn\'t said "Got it" → noticeAcknowledged false (their record, read with the service key)', eventReads[0] && eventReads[0].url);
+  vacks = [{ id: 'ev-1' }];
+  ok((await vp()).noticeAcknowledged === true, 'verify-pro: said "Got it" or "Choose my plan" on any device → noticeAcknowledged, so it stops everywhere');
+  vacks = [];
+  eventsDown = true;
+  ok((await vp()).noticeAcknowledged === false, 'verify-pro: the record can\'t be read → not acknowledged (the notice shows; they can say "Got it" again)');
+  eventsDown = false;
   vrow.cancel_at = '2026-12-14T10:00:00Z';
-  ok((await vp()).cancelAt === '2026-12-14T10:00:00Z', 'verify-pro: set to end → cancelAt');
+  const readsBefore = eventReads.length;
+  v = await vp();
+  ok(v.cancelAt === '2026-12-14T10:00:00Z', 'verify-pro: set to end → cancelAt');
+  ok(v.noticeAcknowledged === false && eventReads.length === readsBefore, 'verify-pro: …set to end, so the "Got it" record isn\'t asked for');
   delete vrow.cancel_at;
   vrow = { is_active: true, plan: 'api', next_plan: 'api', grandfathered: true, billing_period_start: '2026-11-10T00:00:00Z', stripe_subscription_id: 'sub_1' };
   ok((await vp()).unlimitedUntilRenewal === false, 'verify-pro: moved to the API plan → nothing left to choose');

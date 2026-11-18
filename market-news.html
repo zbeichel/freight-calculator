@@ -52,6 +52,7 @@
   background:var(--accentbg);border:1px solid rgba(245,165,36,.4);font-size:13.5px;color:var(--text)}
 .news-draft.live{background:var(--greenbg);border-color:rgba(52,211,153,.4)}
 .news-draft .btns{display:flex;gap:8px;flex-wrap:wrap}
+.news-draft .news-cache{flex-basis:100%;font-size:12.5px;color:var(--text2)}
 .news-arch{display:flex;flex-direction:column}
 .news-arch a{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:14px 22px;border-top:1px solid var(--border);text-decoration:none;color:var(--text)}
 .news-arch a:first-child{border-top:none}
@@ -250,7 +251,31 @@
     } catch (e) {
       btn.disabled = false;
       alert('That didn’t save. Check that you’re signed in as the site owner, then try again.');
+      return;
     }
+    const live = status === 'published';
+    cacheNote(live ? 'Updating the site for visitors…' : 'Taking it off the site for visitors…');
+    const cleared = await clearCache();
+    cacheNote(cleared
+      ? (live ? 'Visitors see it now.' : 'It’s off the site for visitors now.')
+      : (live ? 'Visitors see it within 10 minutes.' : 'It’s off the site for visitors within 10 minutes.'));
+  }
+
+  // The site keeps copies of these pages for a few minutes; clear them so visitors see the
+  // change right away (netlify/functions/news-purge.js, the owner's sign-in only).
+  async function clearCache() {
+    try {
+      const r = await fetch('/.netlify/functions/news-purge', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
+      return r.ok;
+    } catch (e) { return false; }
+  }
+  // A line in the owner's bar under Published/Draft
+  function cacheNote(text) {
+    const bar = document.querySelector('#news-post .news-draft');
+    if (!bar) return;
+    let n = bar.querySelector('.news-cache');
+    if (!n) { n = document.createElement('span'); n.className = 'news-cache'; n.setAttribute('role', 'status'); bar.appendChild(n); }
+    n.textContent = text;
   }
   $('news-post').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-act]');

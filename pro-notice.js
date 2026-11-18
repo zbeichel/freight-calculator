@@ -3,20 +3,24 @@
 // and lanes pages; the Profile page shows the same information inline.
 //
 // Shown to a signed-in, paid subscriber still on the original plan (verify-pro's
-// unlimitedUntilRenewal, from the rule in netlify/lib/plans.js) until they pick their
-// January plan in Profile (planChosen) or set their subscription to end (cancelAt).
-// It keeps coming back so the new price doesn't surprise anyone:
-//   "Got it" or "Choose my plan or cancel"   → not again on this browser until tomorrow
-//   ✕, a click outside it, or Escape          → not again until their next visit
+// unlimitedUntilRenewal, from the rule in netlify/lib/plans.js) until they say they've seen it,
+// so the new price doesn't surprise anyone:
+//   "Got it" or "Choose my plan or cancel"   → never again, on any device (verify-pro's
+//                                               noticeAcknowledged, from plan_notice_events)
+//   ✕, a click outside it, or Escape          → back on their next visit
+// It also stops once they pick their January plan in Profile (planChosen) or set their
+// subscription to end (cancelAt). A click outside it in its first second doesn't close it:
+// that's a click meant for the page underneath, not a choice to close it.
 // Each time it's shown, and how it was closed, is recorded (plan_notice_events);
 // the site owner sees that on the Profile page (plan_notice_report).
 (function () {
   var SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
   var SUPABASE_KEY = 'sb_publishable_zSa4XpzakcntdkZfTzUPlg_FigYcISZ';
-  var ACK_KEY = 'qfc_plan_notice_ack';           // localStorage: { userId: 'YYYY-MM-DD' } (day of "Got it")
+  var ACK_KEY = 'qfc_plan_notice_ack';           // localStorage: { userId: 'YYYY-MM-DD' } (day they said they'd seen it)
   var LATER_KEY = 'qfc_plan_notice_later';       // sessionStorage: { userId: true } (closed this visit)
   var NOT_DUE_KEY = 'qfc_plan_notice_not_due';   // localStorage: { userId: time } (nothing to remind them of)
   var NOT_DUE_FOR = 24 * 3600 * 1000;
+  var SETTLE_MS = 1000;                            // a click outside sooner than this was meant for the page
 
   function readJson(storage, key) {
     try { return JSON.parse(storage.getItem(key) || '{}') || {}; } catch (e) { return {}; }
@@ -28,7 +32,7 @@
   }
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
-  // Local date, e.g. "2026-11-14": "Got it" quiets the reminder for the rest of the day.
+  // Local date, e.g. "2026-11-14": the day they said they'd seen it.
   function today() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -158,7 +162,7 @@
         '<a href="/api.html" target="_blank" rel="noopener" style="color:var(--accent,#f0a500)">API docs</a></p>' +
       '<p style="margin:0 0 14px"><a href="/terms.html#quotes" target="_blank" rel="noopener" style="color:var(--accent,#f0a500)">What counts as a quote?</a></p>' +
       '<p class="qfc-plan-notice-repeat" style="margin:0 0 14px;font-size:12px;color:var(--text3,#8896a8)">' +
-        'This reminder will keep coming back until you choose your plan for January in your Profile.</p>');
+        'Click “Got it” to let us know you’ve seen this. Until then, it comes back on your next visit.</p>');
 
     var actions = el('div', 'padding:0 28px 24px;display:flex;flex-direction:column;gap:8px');
     var choose = el('button',
@@ -180,6 +184,7 @@
     document.body.appendChild(overlay);
     var prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    var opened = Date.now();
     record(s, 'shown');
 
     function hide() {
@@ -193,14 +198,16 @@
       writeJson(sessionStorage, LATER_KEY, userId, true);
       hide();
     }
-    // Read it: back tomorrow (until they choose their plan).
+    // They've seen it: not again (the record tells their other devices, through verify-pro).
     function acknowledged(action) {
       record(s, action);
       writeJson(localStorage, ACK_KEY, userId, today());
     }
     function onKey(e) { if (e.key === 'Escape') later('escape_key'); }
     close.addEventListener('click', function () { later('closed_x'); });
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) later('clicked_outside'); });
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay && Date.now() - opened >= SETTLE_MS) later('clicked_outside');
+    });
     document.addEventListener('keydown', onKey);
     ok.addEventListener('click', function () { acknowledged('got_it'); hide(); });
     choose.addEventListener('click', function () {
@@ -217,7 +224,7 @@
     var u = e && e.value.user;
     var userId = u && (u.id || u.sub);
     if (!userId) return;
-    if (readJson(localStorage, ACK_KEY)[userId] === today()) return;
+    if (readJson(localStorage, ACK_KEY)[userId]) return;         // they've said they've seen it
     if (readJson(sessionStorage, LATER_KEY)[userId]) return;
     var notDue = readJson(localStorage, NOT_DUE_KEY)[userId];
     if (notDue && Date.now() - notDue < NOT_DUE_FOR) return;
@@ -238,6 +245,8 @@
         data = await resp.json();
       }
       if (!data || !('unlimitedUntilRenewal' in data)) return;   // not a real answer (e.g. signed out)
+      // Said "Got it" on another device: remember it here too
+      if (data.noticeAcknowledged) { writeJson(localStorage, ACK_KEY, userId, today()); return; }
       var due = data.active && data.paid && data.unlimitedUntilRenewal && !data.planChosen && !data.cancelAt;
       // Nobody else has anything to be reminded of: skip the check for a day.
       if (!due) { writeJson(localStorage, NOT_DUE_KEY, userId, Date.now()); return; }

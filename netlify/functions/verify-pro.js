@@ -10,6 +10,23 @@ const { effectiveAccount, onTeamSeat } = require('../lib/account.js');
 
 const SUPABASE_URL = 'https://xgrmbhmgcsbnazupfybd.supabase.co';
 
+// Whether they've told us they've seen the January notice: "Got it" or "Choose my plan or
+// cancel" in pro-notice.js, recorded in plan_notice_events. Then it isn't shown again, on any
+// device. If this can't be read, the notice shows (they can say "Got it" again).
+async function noticeAcknowledged(userId, key){
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/plan_notice_events?select=id&user_id=eq.${encodeURIComponent(userId)}&action=in.(got_it,choose_plan)&limit=1`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    if(!resp.ok) return false;
+    const rows = await resp.json();
+    return Array.isArray(rows) && rows.length > 0;
+  } catch(e){
+    return false;
+  }
+}
+
 exports.handler = async function(event){
   if(event.httpMethod !== 'POST'){
     return { statusCode: 405, body: 'Method not allowed' };
@@ -78,6 +95,10 @@ exports.handler = async function(event){
     // Someone who has already moved to the API plan has nothing left to choose.
     // Billing notices are the owner's business, not their team members'.
     const unlimitedUntilRenewal = !member && isActive && plan !== 'api' && legacyUnlimited(row);
+    // The notice is due until they choose a plan or set the subscription to end; only then is
+    // it worth asking whether they've already said they've seen it
+    const noticeDue = unlimitedUntilRenewal && row.next_plan == null && !row.cancel_at && !!row.stripe_subscription_id;
+    const acknowledged = noticeDue ? await noticeAcknowledged(userId, serviceKey) : false;
 
     return {
       statusCode: 200,
@@ -88,11 +109,12 @@ exports.handler = async function(event){
         unlimitedUntilRenewal,
         nextPlan: unlimitedUntilRenewal ? normalizePlan(row.next_plan) : null,
         newPlansStart: new Date(NEW_PLANS_START).toISOString(),
-        // For the reminder (pro-notice.js), which stops once they've picked their
-        // January plan in Profile (change-plan records it in next_plan) or set their
-        // subscription to end (cancelAt, from the Stripe webhook).
+        // For the reminder (pro-notice.js), which stops once they've said they've seen it
+        // ("Got it"), picked their January plan in Profile (change-plan records it in
+        // next_plan) or set their subscription to end (cancelAt, from the Stripe webhook).
         planChosen: unlimitedUntilRenewal && row.next_plan != null,
         cancelAt: member ? null : (row.cancel_at || null),
+        noticeAcknowledged: acknowledged,
         // Monthly or yearly billing; the end of a free trial while on one; and
         // whether this person can still start one (never had a subscription).
         interval: member || !isActive ? null : (row.billing_interval === 'year' ? 'year' : 'month'),
