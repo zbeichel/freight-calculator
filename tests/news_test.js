@@ -20,10 +20,24 @@ let failures = 0;
 const check = (label, cond, detail) => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}${detail && !cond ? '  — ' + detail : ''}`); if (!cond) failures++; };
 
 // The functions' side of the database: what the public key may read (published updates only)
-const SERVER = { rows: [], fail: false, reads: 0 };
+// and who the site owner is; and Netlify's cache purge API (news-purge.js), which records each
+// call and answers PURGE.status (a number, or a list used up one call at a time)
+const SERVER = { rows: [], fail: false, reads: 0, adminDown: false };
+const PURGE = { calls: [], status: 200 };
+process.env.SITE_ID = 'site-123';
 const realFetch = global.fetch;
-global.fetch = async (url, opts) => {
+global.fetch = async (url, opts = {}) => {
   const u = new URL(String(url));
+  if (u.hostname === 'api.netlify.com' && u.pathname === '/api/v1/purge') {
+    PURGE.calls.push({ method: opts.method, auth: (opts.headers || {}).Authorization, body: JSON.parse(opts.body || '{}') });
+    const status = Array.isArray(PURGE.status) ? (PURGE.status.length ? PURGE.status.shift() : 200) : PURGE.status;
+    return new Response(status < 300 ? '' : JSON.stringify({ message: 'no' }), { status });
+  }
+  if (u.hostname === 'xgrmbhmgcsbnazupfybd.supabase.co' && u.pathname === '/rest/v1/rpc/is_site_admin') {
+    if (SERVER.adminDown) throw new TypeError('fetch failed');
+    const auth = (opts.headers || {}).Authorization;
+    return new Response(JSON.stringify(auth === 'Bearer owner-token'), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  }
   if (u.hostname !== 'xgrmbhmgcsbnazupfybd.supabase.co' || !u.pathname.endsWith('/market_updates')) return realFetch(url, opts);
   SERVER.reads++;
   if (SERVER.fail) return new Response(JSON.stringify({ message: 'boom' }), { status: 500 });
@@ -36,15 +50,19 @@ global.fetch = async (url, opts) => {
 };
 const newsPage = require(path.join(ROOT, 'netlify/functions/news-page.js'));
 const sitemapFn = require(path.join(ROOT, 'netlify/functions/sitemap.js'));
+const newsPurge = require(path.join(ROOT, 'netlify/functions/news-purge.js'));
+// Netlify hands its functions a purge token with each call
+const NETLIFY_CONTEXT = { clientContext: { custom: { purge_api_token: 'netlify-purge-token' } } };
 
 function serve() {
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
     const p = decodeURIComponent(url.pathname);
     // As netlify.toml routes them
-    const fn = p === '/sitemap.xml' ? sitemapFn : /^\/market-news(\/|$)/.test(p) ? newsPage : null;
+    const fn = p === '/sitemap.xml' ? sitemapFn : /^\/market-news(\/|$)/.test(p) ? newsPage : p === '/.netlify/functions/news-purge' ? newsPurge : null;
     if (fn) {
-      const r = await fn.handler({ path: p, rawUrl: 'https://quickfreightcalc.com' + req.url, queryStringParameters: Object.fromEntries(url.searchParams) });
+      const r = await fn.handler({ path: p, httpMethod: req.method, headers: req.headers, rawUrl: 'https://quickfreightcalc.com' + req.url,
+        queryStringParameters: Object.fromEntries(url.searchParams) }, NETLIFY_CONTEXT);
       res.writeHead(r.statusCode, r.headers);
       res.end(r.body);
       return;
@@ -107,7 +125,8 @@ async function setup(browser, base, { who = null, rows = [WEEK, OLDER, DRAFT], f
   await context.route('**/*', async (route) => {
     const req = route.request(), url = req.url();
     const json = (b, s) => route.fulfill({ status: s || 200, contentType: 'application/json', body: JSON.stringify(b) });
-    if (url.startsWith(base) && !url.includes('/.netlify/')) return route.continue();
+    // The site's own files and pages, and news-purge (the real function, on the test server)
+    if (url.startsWith(base) && (!url.includes('/.netlify/') || url.includes('/.netlify/functions/news-purge'))) return route.continue();
     const auth = req.headers()['authorization'] || '';
     const isOwner = auth === 'Bearer ' + OWNER.token;
     if (url.includes('/rest/v1/rpc/is_site_admin')) return json(isOwner);
@@ -247,15 +266,35 @@ const between = (html, re) => ((html.match(re) || [])[1] || '');
   check('the newest week first, even as a draft, marked as one with Publish', (await text(t.page, '.news-title')) === DRAFT.title
     && (await text(t.page, '.news-draft')).startsWith('Draft. Only you can see this until you publish it.') && await t.page.isVisible('button[data-act="publish"]'));
   check('drafts show in the list, tagged', (await t.page.$$eval('#news-arch a', (as) => as.map((a) => !!a.querySelector('.tag')))).join() === 'true,false,false');
+  PURGE.calls = [];
+  PURGE.status = 200;
+  const cacheNote = (re) => t.page.waitForFunction((src) => new RegExp(src).test((document.querySelector('#news-post .news-cache') || {}).textContent || ''), re.source, { timeout: 15000 });
   await t.page.click('button[data-act="publish"]');
   await t.page.waitForSelector('.news-draft.live');
   check('Publish: saved with the owner\'s sign-in, then shown as published', t.db.patches.length === 1 && t.db.patches[0].id === DRAFT.id
     && t.db.patches[0].body.status === 'published' && t.db.patches[0].auth === 'Bearer ' + OWNER.token
     && (await text(t.page, '.news-draft')).startsWith('Published Nov 17. Everyone can see this.') && await t.page.isVisible('button[data-act="unpublish"]'), JSON.stringify(t.db.patches));
+  await cacheNote(/^Visitors see it now\.$/);
+  check('…then the site’s cached pages are cleared (news-purge, with the owner’s sign-in): the "market-news" tag for this site, with Netlify’s token',
+    PURGE.calls.length === 1 && PURGE.calls[0].method === 'POST' && PURGE.calls[0].auth === 'Bearer netlify-purge-token'
+    && JSON.stringify(PURGE.calls[0].body) === JSON.stringify({ site_id: 'site-123', cache_tags: ['market-news'] }), JSON.stringify(PURGE.calls));
+  check('…and the owner is told visitors see it now', (await text(t.page, '#news-post .news-cache')) === 'Visitors see it now.');
   check('…and no longer tagged as a draft in the list', !(await t.page.$('#news-arch a .tag')));
+  await t.page.screenshot({ path: path.join(SHOTS, 'news_owner_published.png') });
   await t.page.click('button[data-act="unpublish"]');
   await t.page.waitForSelector('.news-draft:not(.live)');
   check('Unpublish asks first, then puts it back to a draft', /Take this update off the site\?/.test(t.db.dialogs.join('|')) && t.db.patches[1].body.status === 'draft');
+  await cacheNote(/^It’s off the site for visitors now\.$/);
+  check('…clears the cached pages again, and says it’s off the site now', PURGE.calls.length === 2 && (await text(t.page, '#news-post .news-cache')) === 'It’s off the site for visitors now.');
+  PURGE.status = 500;
+  await t.page.click('button[data-act="publish"]');
+  await cacheNote(/within 10 minutes/);
+  check('when Netlify doesn’t clear them: still published, and the owner is told visitors see it within 10 minutes',
+    t.db.patches[2].body.status === 'published' && await t.page.isVisible('.news-draft.live') && (await text(t.page, '#news-post .news-cache')) === 'Visitors see it within 10 minutes.');
+  PURGE.status = 200;
+  await t.page.click('button[data-act="unpublish"]');
+  await t.page.waitForSelector('.news-draft:not(.live)');
+  await cacheNote(/^It’s off the site for visitors now\.$/);
   await t.page.screenshot({ path: path.join(SHOTS, 'news_owner.png'), fullPage: true });
   await t.page.goto(base + '/market-news/2026-11-16');
   await ownerView(t);
@@ -353,6 +392,55 @@ const between = (html, re) => ((html.match(re) || [])[1] || '');
     && (await t.page.$eval('#news-arch a', (a) => a.getAttribute('href') + ' ' + !!a.querySelector('.tag'))) === '/market-news/2026-11-16 true');
   check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   await t.context.close();
+
+  console.log('\n=== Clearing the cached pages when the owner publishes (news-purge) ===');
+  t = await setup(browser, base);
+  const tagged = [];
+  for (const u of ['/market-news', '/market-news/2026-11-09', '/market-news/archive', '/market-news/2030-01-07', '/sitemap.xml']) {
+    const g = await get(base + u);
+    tagged.push(`${u} ${g.status} ${g.headers['netlify-cache-tag']}`);
+  }
+  check('the Market News pages (a week that isn’t here too) and sitemap.xml carry the cache tag Publish clears',
+    tagged.every((x) => / market-news$/.test(x)) && tagged.some((x) => / 404 /.test(x)), tagged.join(' | '));
+  await t.context.close();
+  const purgeCall = (method, auth, ctx = NETLIFY_CONTEXT) => newsPurge.handler({ httpMethod: method, headers: auth ? { authorization: auth } : {} }, ctx);
+  PURGE.calls = [];
+  PURGE.status = 200;
+  let pr = await purgeCall('GET', 'Bearer owner-token');
+  check('news-purge: POST only', pr.statusCode === 405 && PURGE.calls.length === 0);
+  pr = await purgeCall('POST', null);
+  check('…not signed in: 401, nothing cleared', pr.statusCode === 401 && PURGE.calls.length === 0);
+  pr = await purgeCall('POST', 'Bearer ' + USER.token);
+  check('…signed in, but not the site owner: 403, nothing cleared', pr.statusCode === 403 && PURGE.calls.length === 0);
+  pr = await purgeCall('POST', 'Bearer owner-token', {});
+  check('…no purge token from Netlify (not running on Netlify): 503, nothing cleared', pr.statusCode === 503 && PURGE.calls.length === 0);
+  pr = await purgeCall('POST', 'Bearer owner-token');
+  check('…the site owner: the "market-news" tag cleared for this site with Netlify’s token, 200, never cached',
+    pr.statusCode === 200 && JSON.parse(pr.body).purged === true && PURGE.calls.length === 1 && PURGE.calls[0].auth === 'Bearer netlify-purge-token'
+    && PURGE.calls[0].body.site_id === 'site-123' && PURGE.calls[0].body.cache_tags.join() === 'market-news' && pr.headers['Cache-Control'] === 'no-store', JSON.stringify(PURGE.calls));
+  PURGE.calls = [];
+  PURGE.status = [429, 200];
+  pr = await purgeCall('POST', 'Bearer owner-token');
+  check('…cleared twice within seconds (Netlify allows two every 5 seconds): waits, then tries once more', pr.statusCode === 200 && PURGE.calls.length === 2);
+  PURGE.calls = [];
+  PURGE.status = 500;
+  pr = await purgeCall('POST', 'Bearer owner-token');
+  check('…Netlify fails: 502', pr.statusCode === 502 && PURGE.calls.length === 1);
+  PURGE.calls = [];
+  PURGE.status = 200;
+  SERVER.adminDown = true;
+  pr = await purgeCall('POST', 'Bearer owner-token');
+  SERVER.adminDown = false;
+  check('…the sign-in can’t be checked: 502, nothing cleared', pr.statusCode === 502 && PURGE.calls.length === 0);
+  delete process.env.SITE_ID;
+  process.env.SITE_NAME = 'quickfreightcalculator';
+  pr = await purgeCall('POST', 'Bearer owner-token');
+  check('…without a site ID, by the site’s name', pr.statusCode === 200 && !!PURGE.calls[0] && PURGE.calls[0].body.site_slug === 'quickfreightcalculator' && !('site_id' in PURGE.calls[0].body));
+  delete process.env.SITE_NAME;
+  PURGE.calls = [];
+  pr = await purgeCall('POST', 'Bearer owner-token');
+  check('…with neither: 503, nothing cleared', pr.statusCode === 503 && PURGE.calls.length === 0);
+  process.env.SITE_ID = 'site-123';
 
   console.log('\n=== The teaser on Market Rates ===');
   t = await setup(browser, base);

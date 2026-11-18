@@ -1,8 +1,8 @@
 // tests/notice_test.js — the reminder to subscribers on the original Pro plan
-// (pro-notice.js) and the Profile page around it: the reminder comes back until they
-// choose their January plan or cancel, every showing and every way of closing it is
-// recorded, an expired sign-in is refreshed first, and the site owner's report on the
-// Profile page. In a real browser (needs Playwright with Chromium); Supabase and the
+// (pro-notice.js) and the Profile page around it: the reminder comes back on each visit
+// until they say they've seen it ("Got it", on any device), choose their January plan or
+// cancel; every showing and every way of closing it is recorded, an expired sign-in is
+// refreshed first, and the site owner's report on the Profile page. In a real browser (needs Playwright with Chromium); Supabase and the
 // functions are replaced by fakes. Run from the repository root:
 //   node tests/notice_test.js [folder for screenshots]
 const http = require('http');
@@ -130,7 +130,7 @@ const actions = (t) => t.db.events.map((e) => e.action);
   check('…lists Pro Plus with emailed quotes and the rate sheet, and Pro Max with a team of 3',
     /Pro Plus — \$19\.99\/month · automatic miles on 250 quotes per day, win\/loss tracking, a customer list, emailed quotes and your own rate sheet/.test(text)
     && /Pro Max — \$49\.99\/month · everything in Pro Plus, automatic miles on 1,000 quotes per day, white-label PDFs and a team of 3 people/.test(text));
-  check('…and says it will keep coming back until they choose', /This reminder will keep coming back until you choose your plan for January in your Profile/.test(text));
+  check('…and asks them to click “Got it”, or it comes back', /Click “Got it” to let us know you’ve seen this\. Until then, it comes back on your next visit\./.test(text), text);
   await v.p.screenshot({ path: path.join(SHOTS, 'notice-desktop.png') });
   await until(() => t.db.events.length >= 1);
   const ev = t.db.events[0] || {};
@@ -149,9 +149,15 @@ const actions = (t) => t.db.events.map((e) => e.action);
 
   v = await open(t, base);
   check('…but back on the next visit', await shownSoon(v.p));
+  await until(() => actions(t).length >= 3);
+  await v.p.mouse.click(8, 8);
+  await sleep(300);
+  check('a click outside in its first second doesn’t close it (a click meant for the page underneath)',
+    (await v.p.locator('#qfc-plan-notice').count()) === 1 && actions(t).length === 3, actions(t).join());
+  await sleep(900);
   await v.p.mouse.click(8, 8);
   await until(() => actions(t).length >= 4);
-  check('a click outside closes it and is recorded as "clicked_outside"',
+  check('after that, a click outside closes it and is recorded as "clicked_outside"',
     (await v.p.locator('#qfc-plan-notice').count()) === 0 && actions(t).slice(2, 4).join() === 'shown,clicked_outside', actions(t).join());
   await v.p.close();
 
@@ -172,22 +178,43 @@ const actions = (t) => t.db.events.map((e) => e.action);
   const verifiesBefore = t.db.verifyCalls.length;
   await v.p.close();
   v = await open(t, base);
-  check('after "Got it": not again today, on any visit (no check made either)', !(await shownSoon(v.p, 2500)) && t.db.verifyCalls.length === verifiesBefore);
+  check('after "Got it": not again on later visits (no check made either)', !(await shownSoon(v.p, 2500)) && t.db.verifyCalls.length === verifiesBefore);
+  check('no page errors on the calculator', v.errors.length === 0, v.errors.join(' | '));
   await v.p.evaluate(() => {
     const all = JSON.parse(localStorage.getItem('qfc_plan_notice_ack') || '{}');
-    const d = new Date(Date.now() - 86400000);
+    const d = new Date(Date.now() - 30 * 86400000);
     all['user-1'] = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     localStorage.setItem('qfc_plan_notice_ack', JSON.stringify(all));
   });
   await v.p.close();
   v = await open(t, base);
-  check('…and back the next day', await shownSoon(v.p));
+  check('…not even weeks later: once they’ve said they’ve seen it, it’s done', !(await shownSoon(v.p, 2500)) && t.db.verifyCalls.length === verifiesBefore && actions(t).length === 8,
+    actions(t).join());
+  await t.context.close();
+
+  t = await setup(browser, base);
+  v = await open(t, base);
+  check('another subscriber gets it', await shownSoon(v.p));
   await v.p.click('#qfc-plan-notice button:has-text("Choose my plan or cancel")');
   await v.p.waitForURL('**/profile.html#subscription-paid', { timeout: 8000 }).catch(() => {});
-  await until(() => actions(t).length >= 10);
+  await until(() => actions(t).length >= 2);
   check('"Choose my plan or cancel" opens Profile → Subscription and is recorded as "choose_plan"',
-    /\/profile\.html#subscription-paid$/.test(v.p.url()) && actions(t).slice(8, 10).join() === 'shown,choose_plan', `${v.p.url()} ${actions(t).join()}`);
-  check('no page errors on the calculator', v.errors.length === 0, v.errors.join(' | '));
+    /\/profile\.html#subscription-paid$/.test(v.p.url()) && actions(t).join() === 'shown,choose_plan', `${v.p.url()} ${actions(t).join()}`);
+  await v.p.close();
+  v = await open(t, base);
+  check('…which also counts as seeing it: not shown again', !(await shownSoon(v.p, 2500)) && actions(t).length === 2, actions(t).join());
+  check('no page errors', v.errors.length === 0, v.errors.join(' | '));
+  await t.context.close();
+
+  t = await setup(browser, base, { verify: { noticeAcknowledged: true } });
+  v = await open(t, base);
+  await until(() => t.db.verifyCalls.length >= 1);
+  check('said “Got it” on another device (verify-pro says so): not shown on this one', !(await shownSoon(v.p, 2000)) && t.db.events.length === 0);
+  await v.p.close();
+  v = await open(t, base);
+  await sleep(1500);
+  check('…and remembered on this browser: not checked again', t.db.verifyCalls.length === 1 && (await v.p.locator('#qfc-plan-notice').count()) === 0,
+    `${t.db.verifyCalls.length} checks`);
   await t.context.close();
 
   console.log('\n=== Who doesn’t get it ===');
